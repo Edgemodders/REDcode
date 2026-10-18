@@ -6,6 +6,7 @@ The source of REDcode's Nexus Mods page lives here, so updates are edits in the 
 |---|---|
 | `description.bbcode` | The page's description, in Nexus's BBCode. Paste the whole file into the description field (the editor's source mode, or switch to BBCode) |
 | `README.md` | This page: the other fields of the Nexus form, the download file, and how to update |
+| `images/` | The screenshots the description shows |
 
 ## The Nexus form
 
@@ -22,7 +23,7 @@ The source of REDcode's Nexus Mods page lives here, so updates are edits in the 
 | Permissions | MIT: open source, free to modify and redistribute with the license notice. Bundled packages keep their licenses (`ThirdPartyNotices.txt`). REDbridge, a separate download, is GPL-3.0 |
 | Tags | Modders resource, utility, tools |
 
-The description has screenshot placeholders in cyan italics (`[Screenshot N: ...]`). Upload each picture to the page's Images tab, then replace its placeholder line with `[img]<the image's Nexus URL>[/img]` and a one-line caption.
+The screenshots live in `images/` (WebP, as Nexus serves them; saved from the first page, 35356, on 2026-10-18) and the description links them from this repo's `main` branch on GitHub, like the banner, so the page does not depend on one Nexus page. A new screenshot: add it to `images/`, push, then link it as `[img]https://raw.githubusercontent.com/Edgemodders/REDcode/main/nexus/images/<name>[/img]` with a one-line caption. Uploading it to the page's Images tab too puts it in the gallery.
 
 ## The download
 
@@ -66,4 +67,4 @@ Keep these in step with the extension (its README and CHANGELOG):
 
 ## BBCode used
 
-Nexus's BBCode has no tables or Markdown, so the page uses only: `[b]`, `[i]`, `[size=2..5]`, `[color=#hex]`, `[center]`, `[quote]`, `[line]`, `[list]` with `[*]`, `[url=...]` and `[img]`. The banner is linked from this repo's `main` branch on GitHub, so it must stay at its path. The colours are the house palette: yellow `#fcee0a` for headings, cyan `#19f3ff` for highlights.
+Nexus's BBCode has no tables or Markdown, so the page uses only: `[b]`, `[i]`, `[size=2..5]`, `[color=#hex]`, `[center]`, `[quote]`, `[line]`, `[list]` with `[*]`, `[url=...]` and `[img]`. The banner and the screenshots are linked from this repo's `main` branch on GitHub, so they must stay at their paths. The colours are the house palette: yellow `#fcee0a` for headings, cyan `#19f3ff` for highlights.
