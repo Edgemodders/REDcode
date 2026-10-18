@@ -395,6 +395,8 @@ Given to the owner 2026-10-17. REDcode main (`8ba7879`) with EDGEdeck 0.27.1 ins
 
 Run 2026-10-17: **pass, with one fix, retested the same day.** Step 3: TestMod's own `.vscode/settings.json` turns on `redcode.pack.redmod`, so the archive went to `mods/TestMod/archives/` as packed, not to `archive/pc/mod`; the expected result above did not allow for that. Step 5: the wrong path was in TestMod's workspace settings, and **Use It** wrote the user setting, which the workspace value hides, so the setting still showed the wrong path. Fixed: Use It and Set Game Folder write the workspace setting when the workspace has one. Retest of step 5: **pass**; TestMod's `.vscode/settings.json` holds the path chosen.
 
+Released as 0.10.1 on 2026-10-18. The smoke test on the release commit (`7f0ea36`) with the REDbridge checkout build: **pass** (14.3 s).
+
 ## Never run
 
 | Test | Why |
