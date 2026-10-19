@@ -31,7 +31,7 @@ import { compileFilter } from "./treeFilter";
 import { MeshViewer } from "./meshViewer";
 import { AudioPlayer, AudioViewType, SoundsViewType } from "./audioPlayer";
 import { GameSoundIndex } from "./audio";
-import { packProject, type PackSummary } from "./pack";
+import { packProject, walk, type PackSummary } from "./pack";
 import { findEDGEdeck, runningEDGEdeck } from "./edgedeck";
 import { findGames, isGameFolder, steamPath } from "./gameFinder";
 import { findBlender, writeBlenderScript } from "./blender";
@@ -383,6 +383,11 @@ async function packCommand(installing = false): Promise<boolean> {
   if (shown) {
     await projectView.reveal(shown, { select: true, focus: false, expand: true }).then(undefined, () => undefined);
   }
+  if (!summary.archive && packedFiles(requireProject()).length === 0) {
+    // Install says so itself, with Uninstall when an earlier install is still there.
+    if (!installing) void vscode.window.showWarningMessage("REDcode: nothing to pack: source\\archive and source\\resources have no files. Add files from Game Assets, or under Resources.");
+    return true;
+  }
   const problems = [
     summary.warnings.length ? `${summary.warnings.length} path(s) have capital letters or spaces, which the game may not resolve` : "",
     summary.missingSounds.length ? `custom sound ${summary.missingSounds.join(", ")} ${summary.missingSounds.length === 1 ? "is" : "are"} listed in info.json but missing from source\\customSounds, and REDmod will refuse the mod` : "",
@@ -493,21 +498,57 @@ function gameFolder(): string {
   return gamePath;
 }
 
-function packedExists(p: ProjectInfo): boolean {
-  const packed = path.join(p.dir, "packed");
-  return fs.existsSync(packed) && fs.readdirSync(packed).length > 0;
+/** Files under a folder, leaving out a REDmod's info.json, which on its own makes no mod. */
+function filesIn(dir: string): string[] {
+  return walk(dir).filter((f) => path.basename(f).toLowerCase() !== "info.json");
+}
+
+/** What an install would put in the game. Empty when the project is not packed, or packed nothing. */
+function packedFiles(p: ProjectInfo): string[] {
+  return filesIn(path.join(p.dir, ProjectFolders.packed));
+}
+
+/** True when the project has nothing to pack: no game files, resources or custom sounds. */
+function sourceEmpty(p: ProjectInfo): boolean {
+  return [ProjectFolders.archive, ProjectFolders.resources, ProjectFolders.customSounds].every((f) => filesIn(path.join(p.dir, f)).length === 0);
+}
+
+/**
+ * Install, Pack and Install or Pack and Try on a project with no files. EDGEdeck refuses a mod with
+ * no files, and an empty install would only take the old files out, which Uninstall does: so say
+ * what is missing, and offer Uninstall when an earlier install is still there.
+ */
+async function nothingToInstall(p: ProjectInfo): Promise<void> {
+  const why = "source\\archive and source\\resources have no files";
+  log.appendLine(`Install: ${p.name} has nothing to install (${why}).`);
+  const deck = await findEDGEdeck();
+  const installed = deck ? deck.projectMod(p.file) !== undefined : readRecord(p) !== undefined;
+  if (!installed) {
+    void vscode.window.showWarningMessage(`REDcode: ${p.name} has nothing to install yet: ${why}. Add files from Game Assets, or under Resources, then pack again.`);
+    return;
+  }
+  const pick = await vscode.window.showWarningMessage(
+    `${p.name} has nothing to install: ${why}.`,
+    { modal: true, detail: `An earlier install of ${p.name} is still ${deck ? "in EDGEdeck" : "in the game"}. Uninstall takes its files out of the game; Cancel leaves them there.` },
+    "Uninstall",
+  );
+  if (pick === "Uninstall") await uninstallCommand();
 }
 
 /**
  * REDcode: Install. Through EDGEdeck when it is installed, so EDGEdeck's manifest, conflicts and undo
- * cover the mod; otherwise a direct copy recorded in .redcode/installed.json.
+ * cover the mod; otherwise a direct copy recorded in .redcode/installed.json. True when it installed.
  */
-async function installCommand(): Promise<void> {
+async function installCommand(): Promise<boolean> {
   const p = requireProject();
-  if (!packedExists(p)) {
+  if (packedFiles(p).length === 0) {
+    if (sourceEmpty(p)) {
+      await nothingToInstall(p);
+      return false;
+    }
     const pick = await vscode.window.showWarningMessage(`${p.name} has not been packed yet.`, "Pack and Install");
     if (pick) await vscode.commands.executeCommand("redcode.packAndInstall");
-    return;
+    return false;
   }
   const deck = await findEDGEdeck();
   if (deck) {
@@ -526,7 +567,7 @@ async function installCommand(): Promise<void> {
       );
       if (pick !== "Deploy all") {
         log.appendLine(`Install: ${r.name} is in EDGEdeck; not deployed, at your choice.`);
-        return;
+        return false;
       }
     }
     // EDGEdeck asks about changed files itself and reports the deploy with its own message.
@@ -536,12 +577,12 @@ async function installCommand(): Promise<void> {
     } else {
       log.appendLine(`Install: EDGEdeck did not deploy (refused or cancelled); ${r.name} is in its library.`);
     }
-    return;
+    return result !== undefined;
   }
-  await installDirectCommand(p);
+  return installDirectCommand(p);
 }
 
-async function installDirectCommand(p: ProjectInfo): Promise<void> {
+async function installDirectCommand(p: ProjectInfo): Promise<boolean> {
   const gamePath = gameFolder();
   const planned = planInstall(p, gamePath);
   if (planned.foreign.length > 0) {
@@ -550,10 +591,11 @@ async function installDirectCommand(p: ProjectInfo): Promise<void> {
       { modal: true, detail: `${planned.foreign.slice(0, 8).join("\n")}${planned.foreign.length > 8 ? "\n..." : ""}\n\nREDcode backs them up in the project's .redcode folder and puts them back on Uninstall.` },
       "Back up and replace",
     );
-    if (pick !== "Back up and replace") return;
+    if (pick !== "Back up and replace") return false;
   }
   const record = await vscode.window.withProgress({ location: vscode.ProgressLocation.Window, title: `Installing ${p.name}` }, async () => installDirect(p, gamePath, (l) => log.appendLine(l)));
   vscode.window.setStatusBarMessage(`$(check) REDcode: installed ${record.files.length} file(s) into the game`, 6000);
+  return true;
 }
 
 /** REDcode: Uninstall: turn the mod off in EDGEdeck and deploy, or remove the direct copy. */
@@ -595,13 +637,18 @@ async function installHotCommand(): Promise<void> {
  */
 async function packAndTryCommand(): Promise<"hot" | "installed" | undefined> {
   if (!(await packCommand(true))) return undefined;
+  const p = requireProject();
+  if (packedFiles(p).length === 0) {
+    await nothingToInstall(p);
+    return undefined;
+  }
   const gamePath = gameFolder();
   if (hasRedHotTools(gamePath)) {
     await installHotCommand();
     void vscode.window.showInformationMessage("REDcode: packed and sent to the hot folder. Red Hot Tools reloads it in the running game; respawn or re-equip what uses it to see the change.");
     return "hot";
   }
-  await installCommand();
+  if (!(await installCommand())) return undefined;
   void vscode.window.showInformationMessage("REDcode: packed and installed. Restart the game to see the change: hot loading needs Red Hot Tools in the game, or REDnode's archive reload once it ships.");
   return "installed";
 }

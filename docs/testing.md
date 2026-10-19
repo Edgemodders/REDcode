@@ -409,6 +409,18 @@ Given to the owner 2026-10-19. REDcode main, F5 with **Run REDcode**.
 | 4 | **File > Open Recent**, TestMod | The project is back, with its tree |
 | 5 | Optional: **File > Add Folder to Workspace** with another folder, then **Close Project** | Only TestMod's folder leaves the workspace; the other stays |
 
+## A project with no files
+
+Given to the owner 2026-10-19. REDcode main, F5 with **Run REDcode**, EDGEdeck installed. Found by the owner: Pack and Try on a project with only its folders left showed an unclear error, most likely EDGEdeck's "has no packed output yet. Pack the project first".
+
+| # | Do | Expected |
+|---|---|---|
+| 1 | **New Project**, then **Pack** | A warning: nothing to pack, `source\archive` and `source\resources` have no files |
+| 2 | **Pack and Install** (the rocket), then **Pack and Try** | Each: a warning that the project has nothing to install yet, no error, no "packed and installed" |
+| 3 | Add one file from Game Assets, **Pack and Install** | Installs through EDGEdeck as usual |
+| 4 | Delete the file from the project, **Pack and Install** | A question: nothing to install, an earlier install is still in EDGEdeck, **Uninstall** or Cancel |
+| 5 | **Uninstall** | The log says it was uninstalled through EDGEdeck; the file leaves the game |
+
 ## Never run
 
 | Test | Why |
