@@ -405,6 +405,11 @@
         "category": "REDcode"
       },
       {
+        "command": "redcode.closeProject",
+        "title": "Close Project",
+        "category": "REDcode"
+      },
+      {
         "command": "redcode.installHot",
         "title": "Install to the Hot Folder (Red Hot Tools)",
         "category": "REDcode",
@@ -722,6 +727,11 @@
           "group": "1_ship@2"
         },
         {
+          "command": "redcode.closeProject",
+          "when": "view == redcode.project && redcode.projectOpen",
+          "group": "2_project@1"
+        },
+        {
           "command": "redcode.newProject",
           "when": "view == redcode.project",
           "group": "navigation@1"
@@ -965,6 +975,10 @@
         }
       ],
       "commandPalette": [
+        {
+          "command": "redcode.closeProject",
+          "when": "redcode.projectOpen"
+        },
         {
           "command": "redcode.installHot",
           "when": "redcode.projectOpen && redcode.hotTools"

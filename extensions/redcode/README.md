@@ -47,6 +47,7 @@ A project is any folder with a `.cpmodproj` file in it, opened as the workspace 
 | Command | What it does |
 |---|---|
 | **REDcode: New Project** | Asks for a name and a parent folder, creates the project with WolvenKit's layout, and opens it |
+| **REDcode: Close Project** | Closes the project's folder, after VS Code asks about unsaved files, and the Project view goes back to New Project. In the Project view's `...` menu. To open another project, use **File > Open Folder** or **Open Recent** |
 | **REDcode: Open game file as JSON** | Search the game archives as you type, pick a file, and it opens as WolvenKit JSON in an editor tab |
 | **REDcode: Search game files** | Same search, then Open as JSON, Add to project, or Copy path |
 | **REDcode: Browse Game Sounds** | The game's sound effects as a list of events to filter and play. See [Sounds](#sounds) |

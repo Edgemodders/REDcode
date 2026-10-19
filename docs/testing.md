@@ -397,6 +397,18 @@ Run 2026-10-17: **pass, with one fix, retested the same day.** Step 3: TestMod's
 
 Released as 0.10.1 on 2026-10-18. The smoke test on the release commit (`7f0ea36`) with the REDbridge checkout build: **pass** (14.3 s).
 
+## Close Project
+
+Given to the owner 2026-10-19. REDcode main, F5 with **Run REDcode**.
+
+| # | Do | Expected |
+|---|---|---|
+| 1 | Open TestMod; open the Project view's `...` menu | **Close Project** below Install and Uninstall, in its own group |
+| 2 | Edit a project file without saving, then **Close Project** | VS Code asks to save; Cancel keeps the project open |
+| 3 | **Close Project** again, saving or not | The window has no folder; the Project view shows New Project and Open Folder |
+| 4 | **File > Open Recent**, TestMod | The project is back, with its tree |
+| 5 | Optional: **File > Add Folder to Workspace** with another folder, then **Close Project** | Only TestMod's folder leaves the workspace; the other stays |
+
 ## Never run
 
 | Test | Why |

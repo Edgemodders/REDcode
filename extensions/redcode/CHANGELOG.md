@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **Close Project**, in the Project view's `...` menu below Install and Uninstall, and in the Command Palette. It closes the project's folder, and the Project view goes back to New Project. In a workspace with other folders, only the project's folder is removed.
+
 ## 0.10.1 (2026-10-18)
 
 Fixes for EDGEdeck, the mod manager that was REDdeck. Needs REDbridge 0.10.0, as before.

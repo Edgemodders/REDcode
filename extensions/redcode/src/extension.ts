@@ -184,6 +184,7 @@ export function activate(context: vscode.ExtensionContext): REDcodeApi | undefin
     vscode.commands.registerCommand("redcode.deleteProjectFile", (node: ProjectNode) => deleteProjectFile(node)),
     vscode.commands.registerCommand("redcode.saveJsonToProject", () => withBridge(saveJsonToProject)),
     vscode.commands.registerCommand("redcode.newProject", () => newProject()),
+    vscode.commands.registerCommand("redcode.closeProject", () => closeProject()),
     vscode.commands.registerCommand("redcode.pack", () => packCommand()),
     vscode.commands.registerCommand("redcode.install", () => shipCommand(() => installCommand())),
     vscode.commands.registerCommand("redcode.packAndInstall", () => shipCommand(async () => (await packCommand(true)) && installCommand())),
@@ -300,6 +301,25 @@ async function newProject(): Promise<void> {
   const created = createProject(dir, name.trim(), author);
   log.appendLine(`Created project ${created.file}`);
   await vscode.commands.executeCommand("vscode.openFolder", vscode.Uri.file(dir), { forceNewWindow: false });
+}
+
+/**
+ * REDcode: Close Project. The project is the workspace folder that holds the .cpmodproj, so this
+ * closes that folder (VS Code asks about unsaved files) and the Project view goes back to New Project.
+ * In a workspace with other folders, only the project's folder is removed.
+ */
+async function closeProject(): Promise<void> {
+  const p = requireProject();
+  const folders = vscode.workspace.workspaceFolders ?? [];
+  const index = folders.findIndex((f) => {
+    const rel = path.relative(f.uri.fsPath.toLowerCase(), p.dir.toLowerCase());
+    return !rel.startsWith("..") && !path.isAbsolute(rel);
+  });
+  if (folders.length > 1 && index >= 0) {
+    vscode.workspace.updateWorkspaceFolders(index, 1);
+    return;
+  }
+  await vscode.commands.executeCommand("workbench.action.closeFolder");
 }
 
 function requireProject(): ProjectInfo {
