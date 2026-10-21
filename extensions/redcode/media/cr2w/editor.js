@@ -93,7 +93,7 @@
   let selected = "";
   const expanded = new Set([""]);
   let mode = "tree";
-  let opening = false;          // true while onDocument decides the view; a selection from another page waits
+  let opening = !sidebar;       // true until onDocument has decided the view; a selection from another page waits
   let table = null;             // { path, type, entryType, keys } when the file is a localization table
   let atlas = null;             // { slots, slot, parts, image } when the file is an inkTextureAtlas (see the atlas section)
   // "table" and "atlas" replace the tree; "texture" is the tree with the image above the grid.
@@ -202,7 +202,8 @@
     } else if (mode === "mesh") {
       await renderMesh();
     } else {
-      await select(selected, force);
+      // The Properties view draws the selection the host gave it; sending it back would make the editor draw the grid.
+      await select(selected, force, sidebar);
     }
   }
 

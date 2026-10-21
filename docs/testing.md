@@ -423,7 +423,7 @@ Given to the owner 2026-10-19. REDcode main, F5 with **Run REDcode**, EDGEdeck i
 
 ## A mesh opens on the 3D view
 
-Given to the owner 2026-10-20. REDcode main, F5 with **Run REDcode**. Found by the owner: a `.mesh` clicked in the Project view showed the property grid with a **Tree** button, and 3D only after Tree and back. Cause: the Properties view reports its selection when it loads, and the editor drew the grid over the 3D view; the same could hit the atlas and table views.
+Given to the owner 2026-10-20. REDcode main, F5 with **Run REDcode**. Found by the owner: a `.mesh` clicked in the Project view showed the property grid with a **Tree** button, and 3D only after Tree and back. Cause: the Properties view sent its selection back to the editor when it loaded, often before the editor had chosen the file's view, and the editor drew the grid. First fix (e8a5746, 3670598) only guarded the editor once it was deciding; the owner still saw the grid before the atlas (2026-10-20). Second fix: the Properties view no longer sends that selection back, and the editor ignores selections until its view is chosen.
 
 | # | Do | Expected |
 |---|---|---|
