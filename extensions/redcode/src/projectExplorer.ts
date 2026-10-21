@@ -123,13 +123,22 @@ export class ProjectExplorer implements vscode.TreeDataProvider<ProjectNode> {
     item.iconPath = iconFor(node.file);
     // Textures open in the viewer on click, so they alone get the "Open in CR2W Editor" entry. Models get
     // "Edit in Blender"; the tree sets no resourceExtname for its items, so menus match the kind here.
-    const kind = /\.xbm$/i.test(node.file) ? ".texture" : /\.(glb|gltf|mesh)$/i.test(node.file) ? ".model" : "";
+    // Other extensions match .sound (EDGEwave) and .mlsetup (EDGEmat) for their entries; see docs/api.md.
+    const kind = ProjectExplorer.Kinds.find(([re]) => re.test(node.file))?.[1] ?? "";
     item.contextValue = "projectFile" + kind + this.tags(node.file, false);
     item.resourceUri = vscode.Uri.file(node.file);
     item.tooltip = node.file;
     item.command = { command: "redcode.openProjectFile", title: "Open", arguments: [node] };
     return item;
   }
+
+  /** The kind part of a project file's contextValue: "projectFile" + kind + tags. Other extensions' menus match it. */
+  private static readonly Kinds: [RegExp, string][] = [
+    [/\.xbm$/i, ".texture"],
+    [/\.(glb|gltf|mesh)$/i, ".model"],
+    [/\.(wem|wav|ogg|opus|mp3|flac)$/i, ".sound"],
+    [/\.mlsetup$/i, ".mlsetup"],
+  ];
 
   /** ".export" for what Export takes (under source/archive), ".import" for what Import takes (under source/raw). Menus match on these. */
   private tags(p: string, folder: boolean): string {

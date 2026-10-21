@@ -63,3 +63,20 @@ REDcode's audio player and its sound list (Browse Game Sounds) have an **Open in
 - A file on disk gives `{ uri }`.
 
 Without EDGEwave installed, the button offers to install it.
+
+## Menus in the Project view
+
+Another extension can add entries to the right-click menu of REDcode's Project view (`view == redcode.project`). Each file's `viewItem` is `projectFile`, then a kind, then tags, so a `when` clause can match the files an entry is for.
+
+| Part | Values | For |
+|---|---|---|
+| Kind | `.texture` (`.xbm`), `.model` (`.glb`, `.gltf`, `.mesh`), `.sound` (`.wem`, `.wav`, `.ogg`, `.opus`, `.mp3`, `.flac`), `.mlsetup`, or none | What the file is |
+| Tag | `.export` (under `source/archive`, exportable), `.import` (under `source/raw`, importable), or none | What Export and Import take |
+
+For example, `projectFile.sound.import` is a `.wav` under `source/raw`. Match the start, so later tags do not break an entry:
+
+```json
+{ "command": "edgewave.open", "when": "view == redcode.project && viewItem =~ /^projectFile\.sound/" }
+```
+
+The kinds `.sound` and `.mlsetup` are there since REDcode 0.10.3, for EDGEwave and EDGEmat. Folders are `projectFolder` and the source roots `projectRoot`, with the same tags.
