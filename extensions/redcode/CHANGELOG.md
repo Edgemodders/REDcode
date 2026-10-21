@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.10.3 (2026-10-21)
+
+For EDGEwave, EDGEmat and EDGEdeck: menu kinds in the Project view, and Install ready for EDGEdeck to ask. Needs REDbridge 0.10.0, as before.
 
 - **Ready for EDGEdeck to ask about a mod of the same name** (EDGEdeck #3). Install waits for EDGEdeck's answer, and a cancel there leaves the install undone, with a line in the log.
 - **Project view files say what they are to other extensions.** Sound files (`.wem`, `.wav`, `.ogg`, `.opus`, `.mp3`, `.flac`) and `.mlsetup` files get their own kind in the menu context, so EDGEwave's and EDGEmat's entries can show on their own files only. Before, EDGEwave's Open Sound in EDGEwave showed on every file, an `.mlsetup` too. The kinds are listed in `docs/api.md`.

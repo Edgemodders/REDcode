@@ -438,6 +438,10 @@ Given to the owner 2026-10-20. REDcode main, F5 with **Run REDcode**. Found by t
 
 Result 2026-10-20: pass after the second fix (618f012), reported by the owner. Released in 0.10.2; smoke test passed (19.5 s) before the tag.
 
+## Release 0.10.3: menu kinds and an awaited install
+
+Run 2026-10-21 before the tag, on bda36ce's successor with 3a6ac88, 4db10b8 and fd6a92a: build and type check pass, smoke test passed (19.3 s). No hand test: released at the owner's request so EDGEwave (#6) and EDGEmat (#2) can test against the installed REDcode. Their tests cover the `.sound` and `.mlsetup` kinds; the awaited `installProject` waits on EDGEdeck #3.
+
 ## Never run
 
 | Test | Why |
