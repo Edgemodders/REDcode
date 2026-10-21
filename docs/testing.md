@@ -409,6 +409,8 @@ Given to the owner 2026-10-19. REDcode main, F5 with **Run REDcode**.
 | 4 | **File > Open Recent**, TestMod | The project is back, with its tree |
 | 5 | Optional: **File > Add Folder to Workspace** with another folder, then **Close Project** | Only TestMod's folder leaves the workspace; the other stays |
 
+Released in 0.10.2 (2026-10-20) at the owner's request before this test was run.
+
 ## A project with no files
 
 Given to the owner 2026-10-19. REDcode main, F5 with **Run REDcode**, EDGEdeck installed. Found by the owner: Pack and Try on a project with only its folders left showed an unclear error, most likely EDGEdeck's "has no packed output yet. Pack the project first".
@@ -421,6 +423,8 @@ Given to the owner 2026-10-19. REDcode main, F5 with **Run REDcode**, EDGEdeck i
 | 4 | Delete the file from the project, **Pack and Install** | A question: nothing to install, an earlier install is still in EDGEdeck, **Uninstall** or Cancel |
 | 5 | **Uninstall** | The log says it was uninstalled through EDGEdeck; the file leaves the game |
 
+Released in 0.10.2 (2026-10-20) at the owner's request before this test was run.
+
 ## A mesh opens on the 3D view
 
 Given to the owner 2026-10-20. REDcode main, F5 with **Run REDcode**. Found by the owner: a `.mesh` clicked in the Project view showed the property grid with a **Tree** button, and 3D only after Tree and back. Cause: the Properties view sent its selection back to the editor when it loaded, often before the editor had chosen the file's view, and the editor drew the grid. First fix (e8a5746, 3670598) only guarded the editor once it was deciding; the owner still saw the grid before the atlas (2026-10-20). Second fix: the Properties view no longer sends that selection back, and the editor ignores selections until its view is chosen.
@@ -431,6 +435,8 @@ Given to the owner 2026-10-20. REDcode main, F5 with **Run REDcode**. Found by t
 | 2 | **Tree**, then **3D** | The tree, then the 3D view again |
 | 3 | Click an `.inkatlas`, then a localization `.json` | The atlas view, then the table view, with no flash of the grid before either (the owner saw one on the atlas, 2026-10-20) |
 | 4 | In the Properties view, click **open** on a field, then **Tree** in the editor | The 3D, atlas or table view stays until Tree; the tree then shows that field selected |
+
+Result 2026-10-20: pass after the second fix (618f012), reported by the owner. Released in 0.10.2; smoke test passed (19.5 s) before the tag.
 
 ## Never run
 
