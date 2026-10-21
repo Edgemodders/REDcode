@@ -54,6 +54,8 @@
       reloadAll("an edit elsewhere");
     } else if (m.type === "select") {
       if (sidebar) { selected = m.path ?? ""; $("selected").textContent = selected || "(root)"; void renderGrid(); }
+      // The table, atlas and 3D views fill the grid themselves: keep the selection for the tree, do not draw over them.
+      else if (isSpecial()) { selected = m.path ?? ""; $("selected").textContent = selected || "(root)"; }
       else { expandTo(m.path ?? ""); void select(m.path ?? "", true, true); }
     } else if (m.type === "attach") {
       nodes.clear();

@@ -4,6 +4,7 @@
 
 - **Close Project**, in the Project view's `...` menu below Install and Uninstall, and in the Command Palette. It closes the project's folder, and the Project view goes back to New Project. In a workspace with other folders, only the project's folder is removed.
 - **A project with no files says so.** Pack, Install, Pack and Install and Pack and Try on a project whose `source\archive` and `source\resources` are empty now say there is nothing to pack or install, instead of EDGEdeck's error that the project has not been packed. When an earlier install of the mod is still in EDGEdeck or the game, a question offers Uninstall, which takes its files out. Pack and Try no longer reports "packed and installed" when the install did not happen.
+- **A mesh opens on the 3D view again.** With the Properties view open, its selection reached the editor as the file opened and drew the property grid over the 3D view, so 3D showed only after Tree and back. The atlas and table views had the same problem. The editor now keeps that selection for the tree and leaves its own view alone.
 
 ## 0.10.1 (2026-10-18)
 

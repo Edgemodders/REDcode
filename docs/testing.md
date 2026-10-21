@@ -421,6 +421,17 @@ Given to the owner 2026-10-19. REDcode main, F5 with **Run REDcode**, EDGEdeck i
 | 4 | Delete the file from the project, **Pack and Install** | A question: nothing to install, an earlier install is still in EDGEdeck, **Uninstall** or Cancel |
 | 5 | **Uninstall** | The log says it was uninstalled through EDGEdeck; the file leaves the game |
 
+## A mesh opens on the 3D view
+
+Given to the owner 2026-10-20. REDcode main, F5 with **Run REDcode**. Found by the owner: a `.mesh` clicked in the Project view showed the property grid with a **Tree** button, and 3D only after Tree and back. Cause: the Properties view reports its selection when it loads, and the editor drew the grid over the 3D view; the same could hit the atlas and table views.
+
+| # | Do | Expected |
+|---|---|---|
+| 1 | With the Properties view open, click a `.mesh` in the Project view | The 3D view, with the **Tree** button |
+| 2 | **Tree**, then **3D** | The tree, then the 3D view again |
+| 3 | Click an `.inkatlas`, then a localization `.json` | The atlas view, then the table view, not the grid |
+| 4 | In the Properties view, click **open** on a field, then **Tree** in the editor | The 3D, atlas or table view stays until Tree; the tree then shows that field selected |
+
 ## Never run
 
 | Test | Why |
