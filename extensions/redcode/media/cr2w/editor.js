@@ -55,7 +55,8 @@
     } else if (m.type === "select") {
       if (sidebar) { selected = m.path ?? ""; $("selected").textContent = selected || "(root)"; void renderGrid(); }
       // The table, atlas and 3D views fill the grid themselves: keep the selection for the tree, do not draw over them.
-      else if (isSpecial()) { selected = m.path ?? ""; $("selected").textContent = selected || "(root)"; }
+      // So do the first moments of opening, while the editor still works out which view the file gets.
+      else if (opening || isSpecial()) { selected = m.path ?? ""; $("selected").textContent = selected || "(root)"; }
       else { expandTo(m.path ?? ""); void select(m.path ?? "", true, true); }
     } else if (m.type === "attach") {
       nodes.clear();
@@ -92,6 +93,7 @@
   let selected = "";
   const expanded = new Set([""]);
   let mode = "tree";
+  let opening = false;          // true while onDocument decides the view; a selection from another page waits
   let table = null;             // { path, type, entryType, keys } when the file is a localization table
   let atlas = null;             // { slots, slot, parts, image } when the file is an inkTextureAtlas (see the atlas section)
   // "table" and "atlas" replace the tree; "texture" is the tree with the image above the grid.
@@ -135,8 +137,10 @@
       await reloadAll("open");
       return;
     }
+    opening = true;
     table = await detectTable().catch(() => null);
     atlas = table ? null : await detectAtlas().catch((e) => { status(e.message, "error"); return null; });
+    opening = false;
     if (table || atlas) {
       mode = home = table ? "table" : "atlas";
       $("view").hidden = false;

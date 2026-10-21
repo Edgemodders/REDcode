@@ -429,7 +429,7 @@ Given to the owner 2026-10-20. REDcode main, F5 with **Run REDcode**. Found by t
 |---|---|---|
 | 1 | With the Properties view open, click a `.mesh` in the Project view | The 3D view, with the **Tree** button |
 | 2 | **Tree**, then **3D** | The tree, then the 3D view again |
-| 3 | Click an `.inkatlas`, then a localization `.json` | The atlas view, then the table view, not the grid |
+| 3 | Click an `.inkatlas`, then a localization `.json` | The atlas view, then the table view, with no flash of the grid before either (the owner saw one on the atlas, 2026-10-20) |
 | 4 | In the Properties view, click **open** on a field, then **Tree** in the editor | The 3D, atlas or table view stays until Tree; the tree then shows that field selected |
 
 ## Never run
