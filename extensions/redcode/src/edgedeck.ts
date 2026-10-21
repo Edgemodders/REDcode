@@ -6,11 +6,14 @@ import * as vscode from "vscode";
 
 export const EDGEdeckId = "edgemodders.edgedeck";
 
+export interface InstalledMod { id: string; name: string; files: number; added: boolean }
+
 export interface EDGEdeckApi {
   apiVersion: number;
   gamePath(): string;
   projectMod(projectFile: string): string | undefined;
-  installProject(projectFile: string): { id: string; name: string; files: number; added: boolean };
+  /** Sync in EDGEdeck so far; it may become async to ask about a mod of the same name (EDGEdeck #3), undefined when cancelled. */
+  installProject(projectFile: string): InstalledMod | undefined | Promise<InstalledMod | undefined>;
   pendingMods(except?: string): string[];
   deploy(): Promise<{ linked: number; removed: number; kept: number; skipped: string[]; conflicts: number } | undefined>;
   turnOff(id: string): void;

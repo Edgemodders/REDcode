@@ -556,7 +556,11 @@ async function installCommand(): Promise<boolean> {
     if (deck.gamePath() && ours && path.resolve(deck.gamePath()).toLowerCase() !== path.resolve(ours).toLowerCase()) {
       log.appendLine(`Note: EDGEdeck deploys to ${deck.gamePath()}, while redcode.gamePath is ${ours}. Install goes where EDGEdeck deploys.`);
     }
-    const r = deck.installProject(p.file);
+    const r = await deck.installProject(p.file);
+    if (!r) {
+      log.appendLine(`Install: EDGEdeck did not add ${p.name} (cancelled).`);
+      return false;
+    }
     log.appendLine(`${r.added ? "Added" : "Refreshed"} ${r.name} in EDGEdeck (${r.files} files, mod id ${r.id})`);
     const others = deck.pendingMods(r.id);
     if (others.length > 0) {

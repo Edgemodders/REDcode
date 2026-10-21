@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **Ready for EDGEdeck to ask about a mod of the same name** (EDGEdeck #3). Install waits for EDGEdeck's answer, and a cancel there leaves the install undone, with a line in the log.
+
 ## 0.10.2 (2026-10-20)
 
 Fixes in the CR2W editor, and two additions to the Project view. Needs REDbridge 0.10.0, as before.
