@@ -76,7 +76,7 @@ Another extension can add entries to the right-click menu of REDcode's Project v
 For example, `projectFile.sound.import` is a `.wav` under `source/raw`. Match the start, so later tags do not break an entry:
 
 ```json
-{ "command": "edgewave.open", "when": "view == redcode.project && viewItem =~ /^projectFile\.sound/" }
+{ "command": "edgewave.open", "when": "view == redcode.project && viewItem =~ /^projectFile\\.sound/" }
 ```
 
 The kinds `.sound` and `.mlsetup` are there since REDcode 0.10.3, for EDGEwave and EDGEmat. Folders are `projectFolder` and the source roots `projectRoot`, with the same tags.
