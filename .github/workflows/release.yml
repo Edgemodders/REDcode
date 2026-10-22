@@ -41,9 +41,10 @@ permissions:
   contents: write
   id-token: write
 
-# One release at a time.
+# One run at a time per package; GitHub keeps one waiting run per group, so a group shared by all
+# three would cancel one of two runs started together.
 concurrency:
-  group: release
+  group: release-${{ inputs.what }}
   cancel-in-progress: false
 
 jobs:
