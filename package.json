@@ -14,6 +14,10 @@
     "bridge:build": "npm run build --prefix ../REDbridge",
     "bridge:update": "npm run update --prefix ../REDbridge",
     "mcp:build": "npm run build --workspace packages/redcode-mcp",
+    "release:notes": "node tools/release-notes.mjs",
+    "release": "gh workflow run release.yml --ref main -f what=REDcode -f release=true",
+    "release:theme": "gh workflow run release.yml --ref main -f \"what=REDnode HUD theme\" -f release=true",
+    "release:mcp": "gh workflow run release.yml --ref main -f what=redcode-mcp -f release=true",
     "mcp:start": "node packages/redcode-mcp/dist/server.cjs"
   },
   "devDependencies": {

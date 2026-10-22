@@ -45,7 +45,7 @@ File description on Nexus:
 
 ### Building it
 
-The publish workflow (`.github/workflows/publish.yml`) builds it with every REDcode release (`v*` tags, not the theme's) and attaches it to the GitHub release, beside the `.vsix`. A release stays one step, as in CLAUDE.md: bump the version and the CHANGELOG, push, then push the tag `vX.Y.Z`. Download the zip from the release and upload it to Nexus.
+The release workflow (`.github/workflows/release.yml`) builds it whenever it builds REDcode (not the theme), keeps it in the run's artifact, and attaches it to the GitHub release beside the `.vsix`. A release, as in CLAUDE.md: bump the version and the CHANGELOG, push, then Run workflow with What REDcode and Make a release ticked (or `npm run release`). Download the zip from the release and upload it to Nexus.
 
 By hand, after packaging the vsix: `node tools/nexus-zip.mjs` writes `dist/REDcode-<version>-nexus.zip`.
 

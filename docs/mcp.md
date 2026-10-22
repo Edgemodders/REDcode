@@ -12,7 +12,7 @@ claude mcp add redcode -- npx -y @edgemodders/redcode-mcp
 
 It needs Windows, the game, the .NET 10 runtime and REDbridge 0.10.0 for every tool, 0.8.0 for most (REDcode's Install REDbridge fetches the latest). To run it from a REDcode checkout instead: `npm install`, `npm run mcp:build`, then `claude mcp add redcode -- node "<REDcode checkout>\packages\redcode-mcp\dist\server.cjs"`.
 
-Releases go out from a pushed `mcp-vX.Y.Z` tag: `.github/workflows/publish-mcp.yml` checks the tag against the package version, builds, publishes to npm with provenance (secret `NPM_TOKEN`) and makes a GitHub release from `packages/redcode-mcp/CHANGELOG.md`.
+Releases go out from `.github/workflows/release.yml`, run with What redcode-mcp and Make a release ticked (`npm run release:mcp`): it stops when `mcp-v<version>` exists or the CHANGELOG has no section for the version, builds, publishes to npm with provenance (secret `NPM_TOKEN`) and makes a GitHub release from `packages/redcode-mcp/CHANGELOG.md`, which tags the commit `mcp-vX.Y.Z`.
 
 The server finds REDbridge.exe and the game folder from `--bridge` and `--game`, from `REDBRIDGE_EXE` and `REDCODE_GAME_PATH`, or from the VS Code settings `redcode.bridgePath` and `redcode.gamePath`. On a machine with REDcode set up, no configuration is needed. The bridge starts on the first tool call, loads the archive index in about three seconds, and stays up for the session.
 

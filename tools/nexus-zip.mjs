@@ -1,8 +1,8 @@
 // Builds the Nexus Mods file from the packaged extension: dist/REDcode-<version>-nexus.zip with the
 // .vsix, how to install it, and the licenses. Run after the vsix is packaged (npm run redcode:package,
-// or the publish workflow's Package step).
+// or the release workflow's Package step).
 //   node tools/nexus-zip.mjs
-// The publish workflow runs it for REDcode's v* tags and attaches the zip to the GitHub release; it is
+// The release workflow runs it whenever it builds REDcode and attaches the zip to the GitHub release; it is
 // uploaded to Nexus by hand (nexus/README.md).
 import * as fs from "node:fs";
 import * as path from "node:path";
