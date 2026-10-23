@@ -444,13 +444,13 @@ Run 2026-10-21 before the tag, on bda36ce's successor with 3a6ac88, 4db10b8 and 
 
 ## Issue #12: journals and opening at a node
 
-Given to the owner 2026-10-22. REDcode main, F5 with **Run REDcode**. Checked before: REDbridge opens both game journals (`gameJournalResource`, root `entry` with 9 folders; base 1.4 s, ep1 0.2 s), and the build and type check pass.
+Given to the owner 2026-10-22. REDcode main, F5 with **Run REDcode**. Steps 2 and 3 need a caller: EDGEquest's raw nodes link, once it uses `openFile`. Checked before: REDbridge opens both game journals (`gameJournalResource`, root `entry` with 9 folders; base 1.4 s, ep1 0.2 s), and the build and type check pass.
 
 | # | Do | Expected |
 |---|---|---|
 | 1 | Game Assets: search `cooked_journal`, click `base\journal\cooked_journal.journal` | The CR2W editor, read-only, `gameJournalResource` with `entry` |
-| 2 | In the F5 window's Debug Console: `vscode.extensions.getExtension('edgemodders.redcode-cyberpunk').exports.openFile('base\journal\cooked_journal.journal', 'entry.Data.entries.0')` | Opens the journal, or focuses it, with the tree expanded to `entries.0` and it selected; the Properties view shows it |
-| 3 | The same with a `.mesh` game path and `appearances.0` | The tree, not the 3D view, at that node; the header button offers **3D** |
+| 2 | From EDGEquest, open a quest node's raw nodes (it calls `openFile(gamePath, nodePath)`) | The file opens, or its tab is focused, with the tree expanded to the node and the node selected; the Properties view shows it |
+| 3 | Optional, from any extension: `openFile` on a `.mesh` game path with `appearances.0` | The tree, not the 3D view, at that node; the header button offers **3D** |
 | 4 | LocKeys: **Add to Project Onscreens** on an entry, with the Properties view open | The table view opens on the new row |
 
 ## Never run
