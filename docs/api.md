@@ -42,6 +42,7 @@ if (api?.apiVersion === 1) {
 | `pack()` | Packs the open project, as REDcode: Pack does, and returns `{ packedDir, archive, archiveFiles }` |
 | `packAndTry()` | Packs and gets the mod into the game: `"hot"` when it went to Red Hot Tools' hot folder, which the running game reloads; `"installed"` when it was installed for the next start; `undefined` when the pack failed, or when it would break the mod (a missing REDmod custom sound) and the user cancelled |
 | `editInBlender(file)` | Opens a project `.glb`, `.gltf` or `.mesh` in Blender; each save there is imported back into `source/archive` |
+| `openFile(target, node?)` | Opens a file in the CR2W editor. `target` is a game path (`base\journal\cooked_journal.journal`, opened read-only), a file on disk, or a `file:` or `redcode-game:` URI string. With `node`, a path as in the JSON (`graph.Data.nodes.12`), the tree opens expanded to it with the node selected, also in a file that has its own view (3D, atlas, table). Since 0.10.4 |
 
 ### Sound references
 

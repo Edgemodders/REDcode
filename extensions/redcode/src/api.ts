@@ -102,6 +102,12 @@ export interface REDcodeApi {
   packAndTry(): Promise<"hot" | "installed" | undefined>;
   /** Opens a project .glb, .gltf or .mesh in Blender; each save there is imported back (REDcode: Edit in Blender). */
   editInBlender(file: string): Promise<void>;
+  /**
+   * Opens a file in REDcode's CR2W editor: a game path (base\journal\cooked_journal.journal, read-only), a file
+   * on disk, or a file: or redcode-game: URI string. With node, the tree opens expanded to that path, as
+   * paths are in the JSON (graph.Data.nodes.12), and the grid shows it.
+   */
+  openFile(target: string, node?: string): Promise<void>;
 }
 
 export interface ApiHost {
@@ -115,6 +121,7 @@ export interface ApiHost {
   pack(): Promise<{ packedDir: string; archive?: string; archiveFiles: number }>;
   packAndTry(): Promise<"hot" | "installed" | undefined>;
   editInBlender(file: string): Promise<void>;
+  openFile(target: string, node?: string): Promise<void>;
 }
 
 export function projectRef(p: ProjectInfo | undefined): ProjectRef | undefined {
@@ -213,5 +220,6 @@ export function createApi(host: ApiHost): REDcodeApi {
     pack: host.pack,
     packAndTry: host.packAndTry,
     editInBlender: host.editInBlender,
+    openFile: host.openFile,
   };
 }

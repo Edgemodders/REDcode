@@ -134,7 +134,7 @@ Bridge 0.5.0 carries E1 and E2 and `MinBridgeVersion` moves to 0.5.0 when the ed
 - Editing buffer contents, including material parameter buffers in meshes. Import and export (C4) is the path for those.
 - Multi-selection and bulk edit. The table view's filter plus one edit at a time covers the first need.
 - Diff against the game's copy. Useful, cheap once `open` accepts a game path, and not needed to ship.
-- Graph file types (`.quest`, `.scene`), which get their own editors in C6.
+- Graph views of `.quest`, `.questphase` and `.scene`: EDGEquest owns them (agreed 2026-10-21, REDcode issue #12), with the raw nodes in this editor. `.journal` opens here too (0.10.4).
 
 ## Decisions
 

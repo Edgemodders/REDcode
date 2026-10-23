@@ -30,7 +30,7 @@ export function cr2wViewTypeFor(file: string): string {
 /** File types the CR2W editor opens by default. Others get it through Open With. */
 export const Cr2wExtensions = new Set([
   ".ent", ".app", ".mesh", ".inkatlas", ".mi", ".mt", ".mlsetup", ".mltemplate", ".mlmask", ".anims", ".animgraph", ".rig",
-  ".morphtarget", ".inkwidget", ".inkmenu", ".inkstyle", ".scene", ".quest", ".questphase", ".streamingsector", ".streamingblock",
+  ".morphtarget", ".inkwidget", ".inkmenu", ".inkstyle", ".scene", ".quest", ".questphase", ".journal", ".streamingsector", ".streamingblock",
   ".physicalscene", ".workspot", ".cubemap", ".texarray", ".envprobe", ".es", ".gamedef", ".lipmap", ".fp", ".cminimap", ".csv",
   ".inkanim", ".inkfontfamily", ".inkcharcustomization", ".garmentlayerparams", ".behavior", ".effect", ".particle", ".w2mesh",
 ]);
@@ -208,6 +208,8 @@ interface Request {
   label?: string;
   /** texture: the depot path of a texture the page wants to show. */
   depot?: string;
+  /** ready: true from the Properties view, which gets no pending rows or nodes. */
+  sidebar?: boolean;
   /** textureData: the PNG the page could not load through its resource URI. */
   png?: string;
   /** renderMaterials: the appearance shown and the material names it uses. */
@@ -225,8 +227,9 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
   private readonly documents = new Map<string, Cr2wDocument>();
   private readonly flushes = new Map<number, () => void>();
   private nextFlush = 1;
-  /** Table rows to show once a page of the document is ready, by URI. */
+  /** Table rows and nodes to show once the editor page of the document is ready, by URI. */
   private readonly pendingRows = new Map<string, number>();
+  private readonly pendingNodes = new Map<string, string>();
   private readonly saved = new vscode.EventEmitter<Cr2wDocument>();
   /** Fired after a document is saved, for views that read the file (the LocKeys view). */
   readonly onDidSave = this.saved.event;
@@ -243,6 +246,20 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
       return;
     }
     for (const w of pages) void w.postMessage({ type: "showRow", index });
+  }
+
+  /**
+   * Opens the tree at a node path (as in the JSON, such as graph.Data.nodes.12): the open pages of the
+   * document go to it, or the editor page does when it opens. For REDcodeApi.openFile.
+   */
+  revealNode(uri: vscode.Uri, nodePath: string): void {
+    const document = this.documents.get(uri.toString());
+    const pages = document ? [...(this.pages.get(document) ?? [])] : [];
+    if (pages.length === 0) {
+      this.pendingNodes.set(uri.toString(), nodePath);
+      return;
+    }
+    for (const w of pages) void w.postMessage({ type: "reveal", path: nodePath });
   }
 
   /** The open document for an editor tab's URI, for the Properties view. */
@@ -420,10 +437,18 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
           case "ready": {
             const info = await document.ensureOpen(this.requireBridge());
             post({ type: "document", info, file: document.name, game: document.gamePath !== undefined, dirty: document.log.length > 0, selected: this.selection.get(document) ?? "" });
-            const row = this.pendingRows.get(document.uri.toString());
+            // The Properties view also says ready, often first; what waits is for the editor page.
+            if (m.sidebar) return;
+            const key = document.uri.toString();
+            const row = this.pendingRows.get(key);
             if (row !== undefined) {
-              this.pendingRows.delete(document.uri.toString());
+              this.pendingRows.delete(key);
               post({ type: "showRow", index: row });
+            }
+            const node = this.pendingNodes.get(key);
+            if (node !== undefined) {
+              this.pendingNodes.delete(key);
+              post({ type: "reveal", path: node });
             }
             return;
           }

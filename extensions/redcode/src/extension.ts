@@ -244,6 +244,7 @@ export function activate(context: vscode.ExtensionContext): REDcodeApi | undefin
     },
     packAndTry: () => packAndTryCommand(),
     editInBlender: (file: string) => editInBlenderCommand(file),
+    openFile: (target: string, node?: string) => openFileInEditor(target, node),
   });
 }
 
@@ -693,6 +694,14 @@ function stopBlender(message?: string): void {
  * saves it as a .blend beside the GLB and exports the GLB again on every save; REDcode re-imports the
  * GLB into source/archive each time, until Blender closes.
  */
+/** REDcodeApi.openFile: a game path, a file on disk or a URI string, in the CR2W editor, at a node when given. */
+async function openFileInEditor(target: string, node?: string): Promise<void> {
+  // A scheme of two letters or more is a URI; C:\... is a path on disk; anything else relative is a game path.
+  const uri = /^[a-z][\w+.-]+:/i.test(target) ? vscode.Uri.parse(target) : path.isAbsolute(target) ? vscode.Uri.file(target) : gameUri(target);
+  if (node) cr2wEditor.revealNode(uri, node);
+  await vscode.commands.executeCommand("vscode.openWith", uri, cr2wViewTypeFor(uri.path));
+}
+
 async function editInBlenderCommand(arg?: ProjectNode | string): Promise<void> {
   const p = requireProject();
   const file = typeof arg === "string" ? path.resolve(arg) : arg?.kind === "file" ? arg.file : undefined;

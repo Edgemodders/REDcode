@@ -60,11 +60,18 @@
       else { expandTo(m.path ?? ""); void select(m.path ?? "", true, true); }
     } else if (m.type === "attach") {
       nodes.clear();
-      vscode.postMessage({ type: "ready" });
+      vscode.postMessage({ type: "ready", sidebar });
     } else if (m.type === "none") {
       info = null;
       $("propsLabel").textContent = "Properties";
       $("grid").replaceChildren(el("div", "dim", "Open a game file in the CR2W editor to see its properties here."));
+    } else if (m.type === "reveal") {
+      // The host opens the file at a node (REDcodeApi.openFile): the tree, expanded to it and selected.
+      if (sidebar) return;
+      selected = m.path ?? "";
+      expandTo(selected);
+      if (opening) { revealing = true; $("selected").textContent = selected || "(root)"; }
+      else { mode = "tree"; void render(true); }
     } else if (m.type === "showRow") {
       // The host asks for a table row (LocKeys: Add to Project Onscreens); before the table is up, it waits for it.
       if (sidebar) return;
@@ -94,6 +101,7 @@
   const expanded = new Set([""]);
   let mode = "tree";
   let opening = !sidebar;       // true until onDocument has decided the view; a selection from another page waits
+  let revealing = false;        // a node to open at arrived while opening: show the tree, not the file's own view
   let table = null;             // { path, type, entryType, keys } when the file is a localization table
   let atlas = null;             // { slots, slot, parts, image } when the file is an inkTextureAtlas (see the atlas section)
   // "table" and "atlas" replace the tree; "texture" is the tree with the image above the grid.
@@ -151,8 +159,14 @@
     } else if (info.type === "CBitmapTexture") {
       // A texture: the image above the grid, and the setup fields selected, since they are what gets edited.
       mode = "texture";
-      selected = "setup";
-      expanded.add("setup");
+      if (!revealing) {
+        selected = "setup";
+        expanded.add("setup");
+      }
+    }
+    if (revealing) {
+      revealing = false;
+      if (isSpecial()) mode = "tree";
     }
     await reloadAll("open");
   }
@@ -1202,5 +1216,5 @@
     if (e.key === "Enter") { e.preventDefault(); void runSearch(searchBox.value.trim()); }
     if (e.key === "Escape") { searchBox.value = ""; void rerender(); }
   });
-  vscode.postMessage({ type: "ready" });
+  vscode.postMessage({ type: "ready", sidebar });
 })();

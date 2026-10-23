@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- **`.journal` files open in the CR2W editor** (REDcode issue #12, for EDGEquest): the game's two journals, `base\journal\cooked_journal.journal` and `ep1\journal\cooked_journal.journal`, read-only from Game Assets, and the partial journals quest mods ship.
+- **`REDcodeApi.openFile(target, node?)`** (issue #12): opens a game path, a file on disk or a URI in the CR2W editor, at a node path when given. The tree opens expanded to the node, with it selected.
+- **A table row from the LocKeys view always reaches the editor.** The Properties view could take the row meant for the editor when it was ready first; pending rows and nodes now go only to the editor page.
+- **Quest and scene graph views belong to EDGEquest.** The design no longer plans them for REDcode's C6; the raw nodes stay in the CR2W editor.
+
 ## 0.10.3 (2026-10-21)
 
 For EDGEwave, EDGEmat and EDGEdeck: menu kinds in the Project view, and Install ready for EDGEdeck to ask. Needs REDbridge 0.10.0, as before.

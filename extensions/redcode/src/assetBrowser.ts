@@ -169,7 +169,7 @@ export function iconFor(name: string): vscode.ThemeIcon {
     case ".anims": case ".animgraph": return new vscode.ThemeIcon("run");
     case ".wem": case ".bnk": case ".opuspak": return new vscode.ThemeIcon("unmute");
     case ".inkwidget": case ".inkmenu": case ".inkstyle": return new vscode.ThemeIcon("layout");
-    case ".scene": case ".quest": case ".questphase": return new vscode.ThemeIcon("type-hierarchy");
+    case ".scene": case ".quest": case ".questphase": case ".journal": return new vscode.ThemeIcon("type-hierarchy");
     case ".streamingsector": case ".streamingblock": return new vscode.ThemeIcon("globe");
     case ".mi": case ".mt": case ".mlsetup": case ".mltemplate": case ".mlmask": return new vscode.ThemeIcon("color-mode");
     case ".json": case ".csv": case ".xml": return new vscode.ThemeIcon("json");

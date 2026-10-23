@@ -137,6 +137,9 @@
             "filenamePattern": "*.questphase"
           },
           {
+            "filenamePattern": "*.journal"
+          },
+          {
             "filenamePattern": "*.streamingsector"
           },
           {
