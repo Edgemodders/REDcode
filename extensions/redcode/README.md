@@ -20,6 +20,7 @@ REDcode stands on [WolvenKit](https://github.com/WolvenKit/WolvenKit). Every gam
 - Windows.
 - Cyberpunk 2077: the Steam, GOG or Epic install.
 - The .NET 10 runtime. REDcode offers to install it when it is missing.
+- REDbridge 0.10.0 or newer. REDcode offers to download it, and says when it is too old.
 
 On first start REDcode looks for the game, which you can change with **REDcode: Set Game Folder**. It also offers to download REDbridge for you.
 
@@ -51,8 +52,16 @@ A project is any folder with a `.cpmodproj` file in it, opened as the workspace 
 | **REDcode: Open game file as JSON** | Search the game archives as you type, pick a file, and it opens as WolvenKit JSON in an editor tab |
 | **REDcode: Search game files** | Same search, then Open as JSON, Add to project, or Copy path |
 | **REDcode: Browse Game Sounds** | The game's sound effects as a list of events to filter and play. See [Sounds](#sounds) |
+| **REDcode: Set Game Folder** | Picks the Cyberpunk 2077 install REDcode reads (`redcode.gamePath`), offering the one EDGEdeck uses and any it finds in Steam, GOG or Epic |
+| **REDcode: Open TweakDB Record...** | Opens a TweakDB record's page by its path. See [TweakDB](#tweakdb) |
+| **REDcode: Search LocKeys...** | Searches the game's on-screen texts in the LocKeys view. See [LocKeys](#lockeys) |
+| **REDcode: Pack**, **Pack and Install**, **Install**, **Uninstall**, **Run Game** | See [Packing](#packing) and [Installing and running](#installing-and-running) |
+| **REDcode: Pack and Try**, **Install to the Hot Folder (Red Hot Tools)** | Gets a packed mod into the running game. See [Making a new asset](#making-a-new-asset) and [Installing and running](#installing-and-running) |
+| **REDcode: Export to Raw**, **Import from Raw** | See [Export and import](#export-and-import) |
+| **REDcode: Edit in Blender**, **Stop Watching Blender** | See [Making a new asset](#making-a-new-asset) |
 | **REDcode: Save JSON to Project** | On a JSON document opened from a project file: saves the document, asks to confirm, rebuilds the game file in `source/archive` from it through the bridge, then reads the file back into the editor and reports any value the format did not keep. It never runs on plain save, so a half-edited document cannot clobber the file |
 | **REDcode: Restart REDbridge** | Stops and restarts the bridge process |
+| **REDcode: Install REDbridge**, **Update REDbridge** | Download the latest REDbridge release, or update the one in use. See below |
 | **REDcode: Show REDbridge log** | Opens the REDcode output channel. Clicking the status bar item does the same |
 
 The status bar shows the open project and the bridge state: starting, the number of indexed files when ready, or what went wrong.
@@ -77,7 +86,7 @@ After Save JSON to Project the editor shows the JSON read back from the written 
 
 ## Textures
 
-`.xbm` files open in the texture viewer: the bridge converts them to PNG and the viewer shows the image over a checkerboard, with the size and Fit, 1:1 and Pixels buttons. In the Project view and the Explorer this is the default editor for `.xbm`; **Open With...** still offers the text editor. The extension needs REDbridge 0.7.0 or newer: 0.5.1 writes textures the right way up, 0.6.1 adds the packer and 0.7.0 export and import.
+`.xbm` files open in the texture viewer: the bridge converts them to PNG and the viewer shows the image over a checkerboard, with the size and Fit, 1:1 and Pixels buttons. In the Project view and the Explorer this is the default editor for `.xbm`; **Open With...** still offers the text editor. REDcode needs REDbridge 0.10.0 or newer for all its features; the "Needs REDbridge" notes on this page say which release brought each one.
 
 ## TweakXL files
 
@@ -137,6 +146,8 @@ A GLB with no `.mesh` at its path becomes a new mesh from a template: Import ask
 
 **Pack and Try** (the flame in the Project view) packs and gets the mod into the game as fast as the game allows. With Red Hot Tools installed, the archive goes to the hot folder and the running game reloads it; respawn or re-equip what uses it to see the change. Without it, the mod is packed and installed, and the change shows after a restart.
 
+> **Two known crashes with the hot folder.** An archive with sound banks (`.opuspak`, `sfx_container.opusinfo`) crashes a running game when Red Hot Tools swaps it in ([issue #11](https://github.com/Edgemodders/REDcode/issues/11)): for those, use Pack and Install and restart, or swap through [REDnode](https://edgemodders.github.io/REDnode/), whose `archives_reload` swaps sound archives safely. And the official Red Hot Tools 1.3.0 can crash the game when it replaces an archive whose name has capital letters (`MyMod.archive`) a second time; give the mod a lowercase name, or use the [Edgemodders build of Red Hot Tools](https://github.com/CyberbuildsAI/cp2077-red-hot-tools/releases), which fixes it (the fix is offered upstream in [psiberx/cp2077-red-hot-tools#20](https://github.com/psiberx/cp2077-red-hot-tools/pull/20)).
+
 ## Export and import
 
 **Export to Raw** on a game file under Archive writes it to the same path under Raw in a format other tools edit, through WolvenKit's exporter: a mesh as glTF (`.glb`, or `.gltf` with `redcode.export.meshFormat`) with its material textures, a texture as an image (`redcode.export.textureFormat`, PNG by default), a sound (`.wem`) as Ogg, and the other types WolvenKit converts (masks, animations, morph targets, fonts, CSV). Files with no such format keep **Open as JSON**. **Import from Raw** on a raw file brings it back. A game sound effect can be replaced too: name the WAV after the sound's hash, such as `832549876.wav` (Copy Hash in the sound list gives it), and Import writes the changed `.opuspak` and a new `sfx_container.opusinfo` into Archive, keeping earlier replacements. Needs REDbridge 0.9.0. Voice lines (`.wem`) cannot be imported yet. With `redcode.import.keepSettings` (on by default) the file it replaces keeps its settings: a texture its group, format, compression and every flag, a mesh its materials. Both work on a folder too; a folder import takes only files whose game file is already in Archive, the newest raw file of each, so the material textures a mesh export writes into Raw stay out of the mod unless you import one on its own. A file open in the CR2W editor reloads after the import. Needs REDbridge 0.7.0.
@@ -157,7 +168,7 @@ The rocket button in the Project view, **REDcode: Pack and Install**, packs and 
 | Setting | Default | Meaning |
 |---|---|---|
 | `redcode.gamePath` | The default Steam folder | The Cyberpunk 2077 install, the folder containing `bin`, `archive` and `r6`. When it is not the game, REDcode offers on start the install EDGEdeck uses or one it finds: every Steam library, GOG, Epic. **REDcode: Set Game Folder** changes it |
-| `redcode.bridgePath` | empty | Path to `REDbridge.exe`. Empty means a bridge bundled with the extension, or one on `PATH` |
+| `redcode.bridgePath` | empty | Path to `REDbridge.exe`, or its folder. **Install REDbridge** fills it in. Empty means a bridge in the extension's own `bridge` folder (the store builds have none), or one on `PATH` |
 | `redcode.dotnetRoot` | empty | `DOTNET_ROOT` for the bridge when the .NET 10 runtime is installed per user |
 | `redcode.bridgeRepository` | `Edgemodders/REDbridge` | The GitHub repository whose releases Install REDbridge and Update REDbridge download |
 | `redcode.bridgeUpdateCheck` | `true` | Ask GitHub once per session whether a newer release exists; skipped for a git checkout |
@@ -170,6 +181,7 @@ The rocket button in the Project view, **REDcode: Pack and Install**, packs and 
 | `redcode.import.keepSettings` | `true` | Import keeps the settings of the file it replaces |
 | `redcode.loc.language` | `en-us` | The language of the LocKeys view and the LocKey hovers, and of the onscreens file Add to Project Onscreens writes |
 | `redcode.launch` | `auto` | How Run Game starts the game: `auto` (Steam for a Steam install, else the exe), `steam` or `exe` |
+| `redcode.blenderPath` | empty | `blender.exe`, or its folder, for Edit in Blender. REDcode fills it in when it finds Blender |
 
 ## Running from source
 
