@@ -64,7 +64,7 @@ To build from source, run `npm install` and `npm run mcp:build` in the [REDcode 
 | `cr2w_read` | Open, read several paths, close, in one call |
 | `cr2w_edit_file` | Open, patch, save, close, in one call. With a game path and `outFile`, a modified copy; the archives are never changed |
 
-Paths are dotted from the root chunk and match WolvenKit's JSON: property names, array indices, `Data` under a handle or a buffer, `Chunks` under a package. The tool descriptions carry the three format rules an assistant has to know: numbers are 32-bit floats, `compiledData` is rebuilt from `components` on save, and defaults are not stored. The design is in [docs/design/cr2w-editor.md](../../docs/design/cr2w-editor.md).
+Paths are dotted from the root chunk and match WolvenKit's JSON: property names, array indices, `Data` under a handle or a buffer, `Chunks` under a package. The tool descriptions carry the three format rules an assistant has to know: numbers are 32-bit floats, `compiledData` is rebuilt from `components` on save, and defaults are not stored. The design is in [the CR2W editor design page](https://edgemodders.github.io/REDcode/design/cr2w-editor.html).
 
 ## Example
 
