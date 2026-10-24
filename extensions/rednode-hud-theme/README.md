@@ -6,12 +6,10 @@ It covers the workbench, editor, terminal, diffs, Git decorations and syntax hig
 
 ## Install
 
-The theme is not on the Marketplace yet. Install the `.vsix` package:
+1. In VS Code, open the Extensions view (Ctrl+Shift+X), search for **REDnode HUD** and install it. It is on the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=Edgemodders.rednode-hud-theme) and [Open VSX](https://open-vsx.org/extension/edgemodders/rednode-hud-theme). From a terminal: `code --install-extension edgemodders.rednode-hud-theme`
+2. Press **Ctrl+K Ctrl+T** and choose **REDnode HUD**.
 
-1. Build it from the repo root with `npm run theme:package`, or download it from a release. The file is `dist/rednode-hud-theme-<version>.vsix`.
-2. In VS Code, open the Extensions view, click **...** at the top, choose **Install from VSIX...** and pick the file.
-   From a terminal: `code --install-extension dist/rednode-hud-theme-0.1.0.vsix`
-3. Press **Ctrl+K Ctrl+T** and choose **REDnode HUD**.
+To install a `.vsix` instead, build it from the repo root with `npm run theme:package` (it writes `dist/rednode-hud-theme-<version>.vsix`) or download it from a [release](https://github.com/Edgemodders/REDcode/releases), then choose **Install from VSIX...** in the Extensions view's **...** menu.
 
 Uninstall it from the Extensions view like any other extension.
 

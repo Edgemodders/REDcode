@@ -32,7 +32,7 @@ npm install
 
 ```powershell
 npm run theme:package   # writes dist/rednode-hud-theme-<version>.vsix (ignored by git)
-code --install-extension dist/rednode-hud-theme-0.1.0.vsix
+code --install-extension dist/rednode-hud-theme-<version>.vsix
 ```
 
 npm 12 blocks the install script of `@vscode/vsce-sign`, which downloads a signing binary. Packaging does not need it.
@@ -42,7 +42,8 @@ npm 12 blocks the install script of `@vscode/vsce-sign`, which downloads a signi
 ```powershell
 npm run build                       # bundles every extension with esbuild
 npm run typecheck
-npm run redcode:package             # dist/redcode-<version>.vsix
+npm run redcode:package             # dist/redcode-cyberpunk-<version>.vsix
+npm run mcp:build                   # packages/redcode-mcp/dist/server.cjs
 ```
 
 Press **F5** with the repository open in VS Code to run the `redcode` extension in an Extension Development Host (`.vscode/launch.json` builds first). In that window, set `redcode.bridgePath` to a built `REDbridge.exe` and, with a per-user .NET runtime, `redcode.dotnetRoot` to `%LOCALAPPDATA%\Microsoft\dotnet`.
@@ -59,7 +60,7 @@ On the reference machine the smoke test indexes the game and runs search, conver
 
 ## 5. REDbridge
 
-The extensions need a built REDbridge to do anything with game files. See [REDbridge's setup guide](https://edgemodders.github.io/REDbridge/dev-setup.html). Verified on the reference machine: REDbridge at commit `0b4c865` or later.
+The extensions need REDbridge to do anything with game files: at least the version in `redcode.minBridgeVersion` in `extensions/redcode/package.json` (0.10.0 now). **REDcode: Install REDbridge** fetches the latest release; to build it yourself, see [REDbridge's setup guide](https://edgemodders.github.io/REDbridge/dev-setup.html) and point `redcode.bridgePath` at the build. With REDbridge checked out next to this repo (`../REDbridge`), `npm run bridge:build` and `npm run bridge:update` rebuild it.
 
 ## 6. Docs site and brand images
 
