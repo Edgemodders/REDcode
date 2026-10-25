@@ -144,9 +144,18 @@ REDcode returns an API from `activate()`: the bridge, the game folder, the open 
 
 A GLB with no `.mesh` at its path becomes a new mesh from a template: Import asks for a game mesh of a similar kind, whose materials and appearances the new mesh keeps.
 
-**Pack and Try** (the flame in the Project view) packs and gets the mod into the game as fast as the game allows. With Red Hot Tools installed, the archive goes to the hot folder and the running game reloads it; respawn or re-equip what uses it to see the change. Without it, the mod is packed and installed, and the change shows after a restart.
+**Pack and Try** (the flame in the Project view) packs and gets the mod into the game as fast as the game allows. Respawn or re-equip what uses the changed files to see the change.
 
-> **Two known crashes with the hot folder.** An archive with sound banks (`.opuspak`, `sfx_container.opusinfo`) crashes a running game when Red Hot Tools swaps it in ([issue #11](https://github.com/Edgemodders/REDcode/issues/11)): for those, use Pack and Install and restart, or swap through [REDnode](https://edgemodders.github.io/REDnode/), whose `archives_reload` swaps sound archives safely. And the official Red Hot Tools 1.3.0 can crash the game when it replaces an archive whose name has capital letters (`MyMod.archive`) a second time; give the mod a lowercase name, or use the [Edgemodders build of Red Hot Tools](https://github.com/CyberbuildsAI/cp2077-red-hot-tools/releases), which fixes it (the fix is offered upstream in [psiberx/cp2077-red-hot-tools#20](https://github.com/psiberx/cp2077-red-hot-tools/pull/20)).
+| When | Pack and Try does |
+|---|---|
+| The game runs with [REDnode](https://edgemodders.github.io/REDnode/) and its **MCP server** switch is on (launcher, Settings drawer) | Hands the packed archive to REDnode's `archives_reload`, which checks it and swaps it into the running game. Sound archives too: REDnode 0.26.8 or later pauses the game and loads the sound index again. A notification shows REDnode's answer: what was swapped, what failed and why, and its note on sounds |
+| No REDnode, Red Hot Tools installed, a plain archive | Copies the archive into the hot folder, and Red Hot Tools reloads it |
+| No REDnode, an archive with sound paks (`.opuspak`, `.opusinfo`) | Refuses the hot folder, since that swap crashes a running game ([issue #11](https://github.com/Edgemodders/REDcode/issues/11)). **Install for Next Start** installs it; restart the game, or start it with REDnode and press Pack and Try again |
+| No Red Hot Tools | Packs and installs; the change shows after a restart |
+
+REDcode reads REDnode's MCP port and token from `%APPDATA%\@rednode\overlay\settings.json`. When REDnode runs but refuses REDcode, the notification says to switch the MCP server on.
+
+> **The official Red Hot Tools 1.3.0 can end the game** when it replaces an archive in `archive/pc/mod` whose name mixes capital and small letters (`MyMod.archive`), among others that do. Without REDnode, Pack and Try and Install to the Hot Folder refuse such a replace and offer Install for Next Start; REDnode refuses it too. The [Edgemodders build of Red Hot Tools](https://github.com/CyberbuildsAI/cp2077-red-hot-tools/releases) fixes it, and REDcode then sends the archive as usual (the fix is offered upstream in [psiberx/cp2077-red-hot-tools#20](https://github.com/psiberx/cp2077-red-hot-tools/pull/20)).
 
 ## Export and import
 
@@ -161,7 +170,7 @@ The rocket button in the Project view, **REDcode: Pack and Install**, packs and 
 | [EDGEdeck](https://github.com/Edgemodders/EDGEdeck) | Hands the project to EDGEdeck: the first time it becomes a mod named after the project (version dev), after that the same mod gets the new files and keeps its place in the order. EDGEdeck deploys it with its manifest, conflict check and undo. When other mods have changes waiting, REDcode asks before the deploy takes them along. Uninstall turns the mod off in EDGEdeck and deploys |
 | No EDGEdeck | Copies `packed` into the game folder and records the files in the project's `.redcode/installed.json`. A file that was already in the game is backed up there first, after a question, and put back on Uninstall. Reinstalling removes the previous set first, so a file the project dropped does not stay behind |
 
-**Install to the Hot Folder** (the flame button) copies the packed archive into `archive/pc/hot`, which [Red Hot Tools](https://github.com/psiberx/cp2077-red-hot-tools) reloads while the game runs. It shows only when the game has Red Hot Tools under `red4ext/plugins`. **Run Game** starts the game through Steam when it is in a Steam library and from `bin/x64/Cyberpunk2077.exe` otherwise (`redcode.launch`), with `-modded` when the project packs as a REDmod.
+**Install to the Hot Folder** (the flame button) copies the packed archive into `archive/pc/hot`, which [Red Hot Tools](https://github.com/psiberx/cp2077-red-hot-tools) reloads while the game runs. It shows only when the game has Red Hot Tools under `red4ext/plugins`, and refuses an archive with sound paks and a replace the official Red Hot Tools would miss (see Pack and Try above). **Run Game** starts the game through Steam when it is in a Steam library and from `bin/x64/Cyberpunk2077.exe` otherwise (`redcode.launch`), with `-modded` when the project packs as a REDmod.
 
 ## Settings
 

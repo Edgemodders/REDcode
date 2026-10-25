@@ -30,6 +30,8 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [V2 audio player](#v2-audio-player) | By hand | C5 | 2026-10-15 | Pass on the retest |
 | [V3 TweakDB view](#v3-tweakdb-view) | By hand | C5 | 2026-10-15 | Pass, one fix |
 | [Release 0.10.0: issues #5 to #8 and V4](#release-0100-issues-5-to-8-and-v4) | By hand | C5 | 2026-10-16 | Pass, ten fixes retested |
+| [Unit checks](#unit-checks) | Automated | C4 on | 2026-10-25 | Pass |
+| [Issue #11: Pack and Try through REDnode](#issue-11-pack-and-try-through-rednode) | By hand, in the game | C4 | Not run | Waiting for the owner |
 | [Never run](#never-run) | | | Not run | |
 
 ## Automated
@@ -43,6 +45,16 @@ npm run build
 ```
 
 Expected: no errors. `npm run build` bundles every extension and the MCP server with esbuild.
+
+### Unit checks
+
+```powershell
+cd extensions/redcode
+npm run build
+npm test
+```
+
+Expected: `26 passed`. `scripts/unit.mjs` runs `dist/hotSwap.js` with no VS Code or game: REDnode's settings, sound pak detection, the Red Hot Tools lookup check, the choice without REDnode, and REDnode's replies. Added 2026-10-25 for issue #11; pass.
 
 ### Smoke test: the bridge client against the game
 
@@ -453,11 +465,27 @@ Given to the owner 2026-10-22. REDcode main, F5 with **Run REDcode**. Steps 2 an
 | 3 | Optional, from any extension: `openFile` on a `.mesh` game path with `appearances.0` | The tree, not the 3D view, at that node; the header button offers **3D** |
 | 4 | LocKeys: **Add to Project Onscreens** on an entry, with the Properties view open | The table view opens on the new row |
 
+## Issue #11: Pack and Try through REDnode
+
+Built 2026-10-25, given to the owner the same day. REDcode main, F5 with **Run REDcode**. Needs a game with REDnode 0.26.8 or later and Red Hot Tools, a loaded save, and two projects: one plain (a mesh or texture change) and one with a sound override (`.opuspak` and `sfx_container.opusinfo` under Archive, from Import of a `<hash>.wav` or from EDGEwave).
+
+Checked before: `npm test` (26 pass), and the MCP call against REDnode's own `mcp.js` with a stand-in host on another port: the answer, a sound answer, a failed file, a refusal (no save loaded), a wrong token and the launcher switch off (both 401, `unauthorized`), the tool switched off in the Tools Manager (refused, with a hint), and the server stopped (`unreachable`). A `tools/call` with no `initialize` works on REDnode's stateless server.
+
+| # | Do | Expected |
+|---|---|---|
+| 0 | In REDnode's launcher, switch on the **Test timer**, press **Start**, and press **Mark** after each step | Marks in REDnode's Mod log |
+| 1 | REDnode's launcher, Settings drawer: **MCP server** on. In the plain project, **Pack and Try** | A notification: REDnode swapped `<name>.archive` in some ms; the REDcode log has REDnode's answer as JSON; the change shows after a respawn or re-equip |
+| 2 | In the sound project, **Pack and Try** | REDnode swaps it; the notification has REDnode's note on sounds; the new sound plays (equip the weapon again if it played just before) |
+| 3 | **MCP server** off. Plain project, **Pack and Try** | The archive goes to the hot folder; the notification adds a hint to switch REDnode's MCP server on (with the official Red Hot Tools and a mixed-case archive name, step 6's warning instead) |
+| 4 | Sound project, **Pack and Try** (MCP server still off) | No hot swap, no crash: a warning that sound archives swap only through REDnode 0.26.8 or later, with **Install for Next Start** |
+| 5 | Quit the game. Sound project, **Pack and Try** | The same warning; **Install for Next Start** installs it |
+| 6 | Optional, official Red Hot Tools 1.3.0 only: a project whose archive name mixes capitals (`MyMod`), installed once, then **Pack and Try** without REDnode | A warning that the swap would end the game, with **Get the Edgemodders Build** and **Install for Next Start** |
+
 ## Never run
 
 | Test | Why |
 |---|---|
-| Hot folder install and Pack and Try's hot path | Red Hot Tools is not installed here; its detection is unverified |
+| Hot folder install and Pack and Try's hot path | Red Hot Tools is not installed here; its detection is unverified. Issue #11's test covers it |
 | The EDGEmat material hook in the mesh viewer | Waits on EDGEmat shipping `renderMaterials`; checked only with a stand-in |
 | The .NET runtime prompt | Needs a machine without .NET 10 |
 | Open in EDGEwave with EDGEwave from a store | Run only with EDGEwave from source (F5, 2026-10-16), where it works |
