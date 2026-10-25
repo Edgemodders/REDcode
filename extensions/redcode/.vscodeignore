@@ -5,5 +5,6 @@ tsconfig.json
 node_modules/**
 dist/**/*.map
 dist/bridgeClient.js
+dist/hotSwap.js
 *.vsix
 webview/**

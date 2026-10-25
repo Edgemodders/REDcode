@@ -1295,6 +1295,7 @@
     "watch": "node esbuild.mjs --watch",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p webview/tsconfig.json --noEmit",
     "smoke": "node scripts/smoke.mjs",
+    "test": "node scripts/unit.mjs",
     "release:check": "node scripts/check-bridge-release.mjs"
   },
   "dependencies": {
