@@ -491,6 +491,8 @@ Checked before: `npm test` (26 pass), and the MCP call against REDnode's own `mc
 | A | Game running with REDnode, a save loaded; REDnode's **MCP server** on. Plain project, **Pack and Try** | Packs, asks REDnode ("swapping through REDnode"); REDnode cannot swap without RED Hot Tools, and REDcode shows its reason (an error or a warning with **Show log**). No crash. REDnode's wording is not known yet |
 | B | **MCP server** off. Plain project, **Pack and Try**; then **Uninstall** from the Project view's `...` menu | Packed and installed (through EDGEdeck when present), with a notice to restart the game, since hot swaps need REDnode or RED Hot Tools. No crash |
 
+Result (owner, 2026-10-26): A passes. B ran against the wrong game: `redcode.gamePath` (user settings) was `L:\Backups\Cyberpunk 2077 (2026-10-21)`, the 2.31 backup, which still has a RedHotTools folder, so Pack and Try took the hot route ("packed and sent to the hot folder", with the MCP server hint) and copied `EDGEquest_Q2.archive` into the backup's `archive/pc/hot`. Uninstall then said the mod was "not installed in EDGEdeck or by REDcode": it does not look in the hot folder. B to run again with the game folder on the 2.5 game.
+
 ## Find Items in the 3D view
 
 Built 2026-10-26, given to the owner the same day. REDcode main, F5 with **Run REDcode**, with a REDbridge from main (REDbridge 1412a1d or later; **REDcode: Update REDbridge** on a checkout). Checked before: REDbridge's probe passes with a `mesh.items` step (17 items for the Converse high-tops, `Items.CasualShoes_01_basic_01` on `red_yellow_graphic`; 0.4 s after TweakDB), the smoke test passes with the same check (14.7 s), and type check, build and `npm test` (26) pass. The result matches the chain traced by hand on 2026-10-25.
