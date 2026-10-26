@@ -461,7 +461,7 @@ Given to the owner 2026-10-22. REDcode main, F5 with **Run REDcode**. Steps 2 an
 
 | # | Do | Expected |
 |---|---|---|
-| 1 | Game Assets: search `cooked_journal`, click `base\journal\cooked_journal.journal` | The CR2W editor, read-only, `gameJournalResource` with `entry` |
+| 1 | Game Assets: the funnel button (**Filter Game Assets**, not the magnifier), `cooked_journal`, then click `base\journal\cooked_journal.journal` in the tree | The CR2W editor, read-only, `gameJournalResource` with `entry` |
 | 2 | From EDGEquest, open a quest node's raw nodes (it calls `openFile(gamePath, nodePath)`) | The file opens, or its tab is focused, with the tree expanded to the node and the node selected; the Properties view shows it |
 | 3 | Optional, from any extension: `openFile` on a `.mesh` game path with `appearances.0` | The tree, not the 3D view, at that node; the header button offers **3D** |
 | 4 | LocKeys: **Add to Project Onscreens** on an entry, with the Properties view open | The table view opens on the new row |
