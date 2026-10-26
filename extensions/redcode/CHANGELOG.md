@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.10.4 (2026-10-26)
+
+For EDGEquest, EDGEmat and REDnode: journals in the CR2W editor, Find Items, and Pack and Try through REDnode. Needs REDbridge 0.10.0, as before; Find Items needs 0.11.0, the bridge for game 2.5.
 
 - **`.journal` files open in the CR2W editor** (REDcode issue #12, for EDGEquest): the game's two journals, `base\journal\cooked_journal.journal` and `ep1\journal\cooked_journal.journal`, read-only from Game Assets, and the partial journals quest mods ship.
 - **`REDcodeApi.openFile(target, node?)`** (issue #12): opens a game path, a file on disk or a URI in the CR2W editor, at a node path when given. The tree opens expanded to the node, with it selected.
