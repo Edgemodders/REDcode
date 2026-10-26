@@ -497,6 +497,8 @@ Built 2026-10-26, given to the owner the same day. REDcode main, F5 with **Run R
 | 5 | A weapon mesh, such as one under `base\weapons`, **Find Items** | A message that no item record shows it, or a list of `.app` looks to open |
 | 6 | With the released REDbridge 0.10.0 (optional) | A warning that Find Items needs a newer REDbridge |
 
+Result 2026-10-26, reported by the owner: steps 1 to 5 pass, with REDbridge main through Update REDbridge. Step 6 not run yet (optional).
+
 ## Issue #16: EDGEmat colors repeat past the UV square
 
 Built 2026-10-26, given to the owner the same day. REDcode main, F5 with **Run REDcode**, with EDGEmat installed. Found in the owner's EDGEmat test: the 3D view clamped EDGEmat's maps, so UVs outside 0 to 1 took the map's edge color. The fix sets three.js's `RepeatWrapping` on the maps EDGEmat provides. Own textures (a `.glb` opened with its textures; a game mesh is exported without them) load through three.js's glTF loader, which takes the file's samplers, and glTF repeats when a file names none. Checked before: type check and build pass. Not checked: whether any game material relies on clamping.
