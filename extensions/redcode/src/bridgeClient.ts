@@ -232,7 +232,7 @@ export class BridgeClient extends EventEmitter<BridgeEvents> {
 
   /**
    * The item records whose look shows a mesh (a game path), and every .app look that shows it. With
-   * appearance, only the looks that show that mesh appearance. Loads TweakDB on the first call. Bridge after 0.10.0.
+   * appearance, only the looks that show that mesh appearance. Loads TweakDB on the first call. Bridge 0.11.0.
    */
   meshItems(path: string, appearance?: string, language = "en-us"): Promise<MeshItems> {
     return this.call("mesh.items", { path, appearance: appearance ?? null, language });

@@ -577,7 +577,7 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       if (/method not found|mesh\.items/i.test(message) || (e as { code?: number }).code === -32601) {
-        void vscode.window.showWarningMessage("Find Items needs a newer REDbridge (after 0.10.0). Run REDcode: Update REDbridge.");
+        void vscode.window.showWarningMessage("Find Items needs a newer REDbridge (0.11.0 or later). Run REDcode: Update REDbridge.");
       } else {
         void vscode.window.showErrorMessage(`Find Items: ${message}`);
       }

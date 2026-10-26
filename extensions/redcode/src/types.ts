@@ -243,7 +243,7 @@ export interface TweakRecordFull {
   flats: { name: string; type: string; value: TweakValue }[];
 }
 
-/** An item record whose look shows a mesh (bridge mesh.items, after 0.10.0), with the files on the way. */
+/** An item record whose look shows a mesh (bridge mesh.items, 0.11.0), with the files on the way. */
 export interface MeshItem {
   record: string;
   type: string;

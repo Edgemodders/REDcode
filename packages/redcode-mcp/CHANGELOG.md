@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- `mesh_items`: the TweakDB item records whose look shows a mesh, with the `.app` look, root entity and mesh appearance on the way. Needs a REDbridge after 0.10.0.
+- `mesh_items`: the TweakDB item records whose look shows a mesh, with the `.app` look, root entity and mesh appearance on the way. Needs REDbridge 0.11.0 or later.
 
 ## 0.3.0 (2026-10-16)
 
