@@ -16,11 +16,25 @@
 #                                               main, or if the folder's CHANGELOG.md has no section for
 #                                               the version (tools/release-notes.mjs)
 #   npm run release / release:theme / release:mcp   the same as ticking the box, from a terminal
+#   ... and "Update Nexus Mods" ticked          REDcode only (npm run release:nexus): also, after the
+#   (REDcode only)                              GitHub release, uploads the Nexus zip to the page
+#                                               (nexus/nexus.json, 35421) as the main file's new
+#                                               version (the old one archived, Mod Manager Download
+#                                               off: an extension, not a game mod), adds its changelog
+#                                               and pushes nexus/description.bbcode
+#                                               (tools/nexus/nexus.mjs, copied from REDnode; NEXUS_KEY).
+#                                               It checks the page first and stops before building if
+#                                               the description changed on Nexus since the last pull
+#                                               (npm run nexus:pull, merge, commit, run again). If the
+#                                               upload fails after the GitHub release, run
+#                                               tools/nexus/nexus.mjs release on the dev PC with the
+#                                               release's zip: it skips what is already done.
 #
 # REDcode's vscode:prepublish runs scripts/check-bridge-release.mjs: no REDbridge release at
-# redcode.minBridgeVersion with its win-x64 zip, no package. The Nexus zip (tools/nexus-zip.mjs) is
-# uploaded to Nexus by hand. Only REDcode's releases become the repository's Latest release. The tokens
-# are Edgemodders organisation secrets, shared with EDGEdeck's and EDGEmat's workflows.
+# redcode.minBridgeVersion with its win-x64 zip, no package. The Nexus zip is tools/nexus-zip.mjs.
+# Only REDcode's releases become the repository's Latest release. The tokens are Edgemodders
+# organisation secrets, shared with EDGEdeck's and EDGEmat's workflows (NEXUS_KEY with REDnode's,
+# EDGEdeck's, EDGEmat's, EDGEchat's and REDagent's).
 # Release gate: make a release only after every test of the changes since the last release has passed.
 name: Release
 
@@ -34,6 +48,10 @@ on:
         default: REDcode
       release:
         description: Make a release (publishes it and tags this commit). Only after every test has passed
+        type: boolean
+        default: false
+      nexus:
+        description: Update Nexus Mods (REDcode, with Make a release) - upload the Nexus zip, its changelog and the page's description
         type: boolean
         default: false
 
@@ -55,6 +73,8 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # the tags: the Nexus check compares with the previous release's description
 
       - uses: actions/setup-node@v5
         with:
@@ -80,6 +100,10 @@ jobs:
             echo "NAME=${name}"; echo "VERSION=${version}"; echo "TAG=${prefix}${version}"
             echo "VSIX=${GITHUB_WORKSPACE}/dist/${name}-${version}.vsix"
           } >> "$GITHUB_ENV"
+          if [ "${{ inputs.nexus }}" = "true" ] && [ "${WHAT}" != "REDcode" ]; then
+            echo "::error::Only REDcode has a Nexus page; untick Update Nexus Mods for ${WHAT}"
+            exit 1
+          fi
           if [ "${{ inputs.release }}" = "true" ]; then
             if [ "${GITHUB_REF}" != "refs/heads/main" ]; then
               echo "::error::Releases are made from main, not ${GITHUB_REF_NAME}"
@@ -94,7 +118,15 @@ jobs:
       # Before anything is built: no CHANGELOG.md section for the version stops a release here.
       - name: Release notes from the CHANGELOG
         if: inputs.release
-        run: node tools/release-notes.mjs "${DIR}" "${VERSION}" --out "${RUNNER_TEMP}/notes.md"
+        run: |
+          node tools/release-notes.mjs "${DIR}" "${VERSION}" --out "${RUNNER_TEMP}/notes.md"
+          node tools/release-notes.mjs "${DIR}" "${VERSION}" --nexus --out "${RUNNER_TEMP}/nexus-notes.txt"
+
+      - name: Nexus Mods can take this release
+        if: inputs.release && inputs.nexus
+        env:
+          NEXUS_KEY: ${{ secrets.NEXUS_KEY }}
+        run: node tools/nexus/nexus.mjs check --version "${VERSION}"
 
       - run: npm ci
 
@@ -179,3 +211,11 @@ jobs:
             "REDnode HUD theme") files=("${VSIX}"); title="REDnode HUD" ;;
           esac
           gh release create "${TAG}" "${files[@]}" --target "${GITHUB_SHA}" --title "${title:-${WHAT}} ${VERSION}" --notes-file "${RUNNER_TEMP}/notes.md" ${latest}
+
+      # After the GitHub release a re-run stops at the tag check: if this step fails, run the same command
+      # on the dev PC with the release's zip; it skips what is already on Nexus.
+      - name: Nexus Mods
+        if: inputs.release && inputs.nexus
+        env:
+          NEXUS_KEY: ${{ secrets.NEXUS_KEY }}
+        run: node tools/nexus/nexus.mjs release --version "${VERSION}" --zip "dist/REDcode-${VERSION}-nexus.zip" --notes "${RUNNER_TEMP}/nexus-notes.txt"

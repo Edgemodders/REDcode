@@ -1,0 +1,18 @@
+{
+  "page": 35421,
+  "upload": {
+    "name": "REDcode for Cyberpunk 2077",
+    "category": "main",
+    "primary": false,
+    "modManager": false,
+    "archivePrevious": true,
+    "description": "REDcode for Cyberpunk 2077 {version}, the VS Code extension. Extract, then in VS Code: Extensions view, ..., Install from VSIX. Or install it from the Marketplace or Open VSX, where it updates itself."
+  },
+  "mod": "14315126032989",
+  "file": 8181825,
+  "pulled": {
+    "sha256": "3287d694bd90495a29e19130a6c33fbdfc63f710602643cac3c8e8fec9c41f2d",
+    "at": "2026-10-26T16:04:55.474Z",
+    "version": "0.10.2"
+  }
+}

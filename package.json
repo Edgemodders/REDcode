@@ -18,6 +18,9 @@
     "release": "gh workflow run release.yml --ref main -f what=REDcode -f release=true",
     "release:theme": "gh workflow run release.yml --ref main -f \"what=REDnode HUD theme\" -f release=true",
     "release:mcp": "gh workflow run release.yml --ref main -f what=redcode-mcp -f release=true",
+    "release:nexus": "gh workflow run release.yml --ref main -f what=REDcode -f release=true -f nexus=true",
+    "nexus:pull": "node tools/nexus/nexus.mjs pull",
+    "nexus:status": "node tools/nexus/nexus.mjs status",
     "mcp:start": "node packages/redcode-mcp/dist/server.cjs"
   },
   "devDependencies": {

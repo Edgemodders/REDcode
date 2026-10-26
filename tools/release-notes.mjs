@@ -3,9 +3,10 @@
 // when the version has no section. The same convention as every Edgemodders repo (REDnode's
 // tools/release/notes.mjs).
 //
-//   node tools/release-notes.mjs <folder> [version] [--out <file>]
+//   node tools/release-notes.mjs <folder> [version] [--nexus] [--out <file>]
 //     <folder>   extensions/redcode, extensions/rednode-hud-theme or packages/redcode-mcp
 //     version    defaults to the folder's package.json version
+//     --nexus    plain lines for Nexus's changelog field (tools/nexus/nexus.mjs release --notes)
 //     --out      writes the notes to a file (UTF-8)
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -13,11 +14,13 @@ import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const args = process.argv.slice(2);
+const nexus = args.includes("--nexus");
+if (nexus) args.splice(args.indexOf("--nexus"), 1);
 const outAt = args.indexOf("--out");
 const out = outAt >= 0 ? args.splice(outAt, 2)[1] : null;
 const [folder, given] = args;
 if (!folder) {
-  console.error("usage: node tools/release-notes.mjs <folder> [version] [--out <file>]");
+  console.error("usage: node tools/release-notes.mjs <folder> [version] [--nexus] [--out <file>]");
   process.exit(2);
 }
 const version = given ?? JSON.parse(readFileSync(join(root, folder, "package.json"), "utf8")).version;
@@ -39,5 +42,19 @@ if (!section) {
   process.exit(1);
 }
 
-if (out) writeFileSync(out, section + "\n", "utf8");
-else console.log(section);
+// Nexus's changelog takes one plain line per change: no markdown, links as "text (url)".
+const plain = (text) =>
+  text
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1 ($2)")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/`([^`]+)`/g, "$1");
+const notes = nexus
+  ? section
+      .split("\n")
+      .filter((line) => line.trim())
+      .map((line) => plain(line.startsWith("- ") ? line.slice(2) : line.trim()))
+      .join("\n")
+  : section;
+
+if (out) writeFileSync(out, notes + "\n", "utf8");
+else console.log(notes);
