@@ -254,6 +254,7 @@
       meshView = await window.REDcodeMesh.mount(grid, source, payload.dirty ? "Shows the saved file; save to see your edits" : "", {
         appearances: payload.appearances,
         materials: payload.materialProvider ? (appearance, materials) => request("renderMaterials", { appearance, materials }) : undefined,
+        actions: payload.findItems ? [{ label: "Find Items", title: "The TweakDB item records whose look shows this mesh, the appearance shown first", run: (appearance) => request("findItems", { appearance }) }] : [],
       });
       meshShown = true;
       status(payload.cached ? "" : `Exported to ${payload.path}`);

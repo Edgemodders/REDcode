@@ -51,6 +51,13 @@ try {
     const clothing = await bridge.tweakRecords({ type: "Clothing", flats: ["displayName"], limit: 1, resolveLocKeys: true });
     return `${names["0x0000000BF5E188EC"]}, quality ${flat.value}, ${clothing.total} clothing records`;
   });
+  await step("mesh.items (Find Items, bridge after 0.10.0)", async () => {
+    const mesh = "base\\characters\\garment\\player_equipment\\feet\\s1_055_shoe__converse\\s1_055_pma_shoe__converse.mesh";
+    const r = await bridge.meshItems(mesh, "red_yellow_graphic").catch((e) => ({ error: e.message }));
+    if (r.error) return `skipped: ${r.error}`;
+    if (!r.items.some((i) => i.record === "Items.CasualShoes_01_basic_01")) throw new Error("Items.CasualShoes_01_basic_01 not found");
+    return `${r.items.length} items show red_yellow_graphic, such as ${r.items[0].record} (${r.items[0].displayName?.text})`;
+  });
   const root = await step("archive.tree (root)", async () => {
     const t = await bridge.tree("");
     return t.folders.map((f) => `${f.name}:${f.files}`).join(" ") + ` files=${t.files.length}`;

@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- `mesh_items`: the TweakDB item records whose look shows a mesh, with the `.app` look, root entity and mesh appearance on the way. Needs a REDbridge after 0.10.0.
+
 ## 0.3.0 (2026-10-16)
 
 The new tools need REDbridge 0.10.0 (`loc_*`) and 0.9.0 (`sound_import`, `template`); the rest still work with 0.8.0.

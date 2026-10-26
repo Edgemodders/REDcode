@@ -481,6 +481,19 @@ Checked before: `npm test` (26 pass), and the MCP call against REDnode's own `mc
 | 5 | Quit the game. Sound project, **Pack and Try** | The same warning; **Install for Next Start** installs it |
 | 6 | Optional, official Red Hot Tools 1.3.0 only: a project whose archive name mixes capitals (`MyMod`), installed once, then **Pack and Try** without REDnode | A warning that the swap would end the game, with **Get the Edgemodders Build** and **Install for Next Start** |
 
+## Find Items in the 3D view
+
+Built 2026-10-26, given to the owner the same day. REDcode main, F5 with **Run REDcode**, with a REDbridge from main (REDbridge 1412a1d or later; **REDcode: Update REDbridge** on a checkout). Checked before: REDbridge's probe passes with a `mesh.items` step (17 items for the Converse high-tops, `Items.CasualShoes_01_basic_01` on `red_yellow_graphic`; 0.4 s after TweakDB), the smoke test passes with the same check (14.7 s), and type check, build and `npm test` (26) pass. The result matches the chain traced by hand on 2026-10-25.
+
+| # | Do | Expected |
+|---|---|---|
+| 1 | Game Assets: open `base\characters\garment\player_equipment\feet\s1_055_shoe__converse\s1_055_pma_shoe__converse.mesh`, pick appearance `red_yellow_graphic`, **Find Items** | A progress notification (about 10 s the first time, while TweakDB loads), then a list: under **Shows red_yellow_graphic**, `Items.CasualShoes_01_basic_01` (Sunny Ammo synthetic high-tops) and two more; under **Other appearances of this mesh**, the other high-tops, `Items.Q001_Shoes` and two outfits |
+| 2 | Pick `Items.CasualShoes_01_basic_01` | Its TweakDB record page opens |
+| 3 | **Find Items** again; on a row, the copy button, then the file button | The record name is on the clipboard; the file button opens `s1_casual_01.app` in the CR2W editor |
+| 4 | Open the same mesh from a project's Archive (add it to a project first), **Find Items** | The same list |
+| 5 | A weapon mesh, such as one under `base\weapons`, **Find Items** | A message that no item record shows it, or a list of `.app` looks to open |
+| 6 | With the released REDbridge 0.10.0 (optional) | A warning that Find Items needs a newer REDbridge |
+
 ## Never run
 
 | Test | Why |

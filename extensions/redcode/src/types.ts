@@ -243,6 +243,29 @@ export interface TweakRecordFull {
   flats: { name: string; type: string; value: TweakValue }[];
 }
 
+/** An item record whose look shows a mesh (bridge mesh.items, after 0.10.0), with the files on the way. */
+export interface MeshItem {
+  record: string;
+  type: string;
+  displayName: { key: string; text: string | null } | null;
+  appearanceName: string;
+  /** The mesh appearance the item's look shows. */
+  meshAppearance: string;
+  app: string;
+  look: string;
+  /** The root entity and its entries for this look, one per body and camera (s1_casual_01_basic_01_&Male). */
+  entity: string;
+  entityAppearances: string[];
+}
+
+export interface MeshItems {
+  mesh: string;
+  items: MeshItem[];
+  /** Every .app look that shows the mesh, also those no item reaches. */
+  looks: { app: string; look: string; meshAppearance: string; items: number }[];
+  indexSeconds: number;
+}
+
 /** An on-screen text (bridge 0.10.0 loc.*): the LocKey number as text, the secondary key, both texts. */
 export interface LocEntry {
   key: string;

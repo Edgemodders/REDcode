@@ -45,6 +45,8 @@ export interface MountOptions {
   appearances?: { name: string; chunkMaterials: string[] }[];
   /** Renderable materials by name for an appearance, when EDGEmat is there. */
   materials?: (appearance: string | undefined, names: string[]) => Promise<Record<string, RenderedMaps>>;
+  /** Toolbar buttons after Frame; each gets the appearance shown. Find Items is one. */
+  actions?: { label: string; title: string; run: (appearance: string | undefined) => Promise<unknown> }[];
 }
 
 export interface MeshView {
@@ -297,7 +299,21 @@ export async function mount(container: HTMLElement, source: MeshSource, title = 
   fit.title = "Fit the view to what is shown";
   fit.addEventListener("click", frame);
   note2 = el("span", "dim");
-  bar.append(fit, stats, note2);
+  bar.append(fit);
+  for (const a of options.actions ?? []) {
+    const b = el("button", "", a.label);
+    b.title = a.title;
+    b.addEventListener("click", async () => {
+      b.disabled = true;
+      try {
+        await a.run(appearance);
+      } finally {
+        b.disabled = false;
+      }
+    });
+    bar.appendChild(b);
+  }
+  bar.append(stats, note2);
 
   // Side list: the submeshes of the current LOD, with their material and counts.
   const renderSide = () => {

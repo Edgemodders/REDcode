@@ -8,12 +8,12 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as vscode from "vscode";
 import type { BridgeClient } from "./bridgeClient";
-import { gamePathOfUri } from "./gameFs";
+import { gameUri, gamePathOfUri } from "./gameFs";
 import { meshGlbFor, meshPayload } from "./meshExport";
 import { findEdgemat, mapsForWebview } from "./edgemat";
 import { ProjectFolders } from "./project";
 import type { TextureViewer } from "./textureViewer";
-import type { DocumentInfo, PatchOp, PatchResult } from "./types";
+import type { DocumentInfo, MeshItem, PatchOp, PatchResult } from "./types";
 
 export const Cr2wViewType = "redcode.cr2w";
 /**
@@ -69,6 +69,12 @@ function projectDirOf(file: string): string | undefined {
   const marker = `${path.sep}${ProjectFolders.archive.toLowerCase()}${path.sep}`;
   const at = file.toLowerCase().indexOf(marker);
   return at >= 0 ? file.slice(0, at) : undefined;
+}
+
+/** The game path of a file under a project's source/archive (base\...), or undefined. */
+function archiveGamePathOf(file: string): string | undefined {
+  const dir = projectDirOf(file);
+  return dir === undefined ? undefined : file.slice(dir.length + ProjectFolders.archive.length + 2).split(path.sep).join("\\");
 }
 
 export class Cr2wDocument implements vscode.CustomDocument {
@@ -422,6 +428,8 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
     const reload = document.onDidReload((reason) => post({ type: "reload", reason }));
     // The mesh as EDGEmat knows it: its game path, or the file on disk.
     const meshRef = () => document.gamePath ?? document.uri.fsPath;
+    /** The mesh's game path, which the game's appearance files name: a game file's own, or a project file's under source/archive. */
+    const meshGamePath = () => document.gamePath ?? archiveGamePathOf(document.uri.fsPath);
     let materialWatch: vscode.Disposable | undefined;
     const messages = webview.onDidReceiveMessage(async (m: Request) => {
       try {
@@ -489,8 +497,11 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
                 if (!e.mesh || e.mesh.toLowerCase() === meshRef().toLowerCase()) post({ type: "materialsChanged", materials: e.materials });
               });
             }
-            return reply(m.id, { ...meshPayload(r.glb), path: r.glb, cached: r.cached, dirty: document.log.length > 0, appearances, materialProvider: !!edgemat });
+            return reply(m.id, { ...meshPayload(r.glb), path: r.glb, cached: r.cached, dirty: document.log.length > 0, appearances, materialProvider: !!edgemat, findItems: !!meshGamePath() });
           }
+          case "findItems":
+            await this.findItems(meshGamePath() ?? "", m.appearance);
+            return reply(m.id, null);
           case "renderMaterials": {
             const edgemat = await findEdgemat();
             if (!edgemat) throw new Error("EDGEmat is not installed or not running");
@@ -547,6 +558,98 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
       materialWatch?.dispose();
       this.pages.get(document)?.delete(webview);
     });
+  }
+
+  /**
+   * Find Items in the mesh viewer: the item records whose look shows the mesh, in a list with the
+   * appearance shown first. Picking one opens its record page; its buttons copy the record name or
+   * open the .app. Without items, the .app looks that show the mesh can be opened instead.
+   */
+  private async findItems(gamePath: string, appearance: string | undefined): Promise<void> {
+    if (!gamePath) return;
+    const language = vscode.workspace.getConfiguration("redcode").get<string>("loc.language", "en-us") || "en-us";
+    let found;
+    try {
+      found = await vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Notification, title: "Finding the items that use this mesh (the first time loads TweakDB)…" },
+        () => this.requireBridge().meshItems(gamePath, undefined, language),
+      );
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      if (/method not found|mesh\.items/i.test(message) || (e as { code?: number }).code === -32601) {
+        void vscode.window.showWarningMessage("Find Items needs a newer REDbridge (after 0.10.0). Run REDcode: Update REDbridge.");
+      } else {
+        void vscode.window.showErrorMessage(`Find Items: ${message}`);
+      }
+      return;
+    }
+    this.log.appendLine(`cr2w editor: mesh.items ${gamePath}: ${found.items.length} items, ${found.looks.length} looks`);
+    const name = gamePath.split("\\").pop() ?? gamePath;
+    if (found.items.length === 0) {
+      if (found.looks.length === 0) {
+        void vscode.window.showInformationMessage(`No item record shows ${name}. Find Items covers items that pick their look by appearanceName, such as clothing; weapons and NPC appearances are not found.`);
+        return;
+      }
+      const look = await vscode.window.showQuickPick(
+        found.looks.map((l) => ({ label: l.look, description: l.meshAppearance, detail: l.app, app: l.app })),
+        { title: `No item record shows ${name}; ${found.looks.length} appearance file looks do`, placeHolder: "Open an appearance file", matchOnDetail: true },
+      );
+      if (look) await this.openGameFile(look.app);
+      return;
+    }
+
+    // One entry per record and mesh appearance: a record often has a look per body and camera.
+    type Entry = vscode.QuickPickItem & { item?: MeshItem };
+    const groups = new Map<string, MeshItem[]>();
+    for (const i of found.items) {
+      const key = `${i.record}|${i.meshAppearance}`;
+      groups.set(key, [...(groups.get(key) ?? []), i]);
+    }
+    const copy: vscode.QuickInputButton = { iconPath: new vscode.ThemeIcon("copy"), tooltip: "Copy the record name" };
+    const openApp: vscode.QuickInputButton = { iconPath: new vscode.ThemeIcon("go-to-file"), tooltip: "Open the appearance file" };
+    const entryOf = (list: MeshItem[]): Entry => {
+      const i = list[0];
+      return {
+        label: i.record,
+        description: i.displayName?.text ?? undefined,
+        detail: `${i.meshAppearance}  ·  ${i.app.split("\\").pop()} ${[...new Set(list.map((x) => x.look))].join(", ")}  ·  ${i.appearanceName}`,
+        buttons: [copy, openApp],
+        item: i,
+      };
+    };
+    const shown = [...groups.values()].filter((l) => appearance && l[0].meshAppearance.toLowerCase() === appearance.toLowerCase());
+    const others = [...groups.values()].filter((l) => !shown.includes(l));
+    const entries: Entry[] = [];
+    if (shown.length > 0) entries.push({ label: `Shows ${appearance}`, kind: vscode.QuickPickItemKind.Separator }, ...shown.map(entryOf));
+    if (others.length > 0) entries.push({ label: shown.length > 0 ? "Other appearances of this mesh" : "Items", kind: vscode.QuickPickItemKind.Separator }, ...others.map(entryOf));
+
+    const pick = vscode.window.createQuickPick<Entry>();
+    pick.title = `Items that show ${name}`;
+    pick.placeholder = `${groups.size} items; pick one to open its record`;
+    pick.matchOnDescription = true;
+    pick.matchOnDetail = true;
+    pick.items = entries;
+    pick.onDidTriggerItemButton(async (e) => {
+      if (!e.item.item) return;
+      if (e.button === copy) {
+        await vscode.env.clipboard.writeText(e.item.item.record);
+        void vscode.window.setStatusBarMessage(`Copied ${e.item.item.record}`, 3000);
+      } else {
+        pick.hide();
+        await this.openGameFile(e.item.item.app);
+      }
+    });
+    pick.onDidAccept(() => {
+      const record = pick.selectedItems[0]?.item?.record;
+      pick.hide();
+      if (record) void vscode.commands.executeCommand("redcode.openTweakRecord", record);
+    });
+    pick.onDidHide(() => pick.dispose());
+    pick.show();
+  }
+
+  private async openGameFile(gamePath: string): Promise<void> {
+    await vscode.commands.executeCommand("vscode.openWith", gameUri(gamePath), cr2wViewTypeFor(gamePath));
   }
 
   /** A .mesh's appearances and the material each names per submesh (chunkMaterials), read from the document. */

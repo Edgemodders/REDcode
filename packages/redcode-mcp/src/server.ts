@@ -265,6 +265,12 @@ tool("tweakdb_names", "Paths for TweakDB ids (0x hex or decimal) from WolvenKit'
   ids: z.array(z.string()),
 }, (a, b) => b.tweakNames(a.ids));
 
+tool("mesh_items", "The TweakDB item records whose look shows a mesh: the reverse of record > factory .csv > root .ent > .app look > mesh. Each item has record, type, displayName ({ key, text }), appearanceName, meshAppearance (the mesh appearance its look shows), app and look, and entity with entityAppearances (one per body and camera, such as s1_casual_01_basic_01_&Male). looks lists every .app look that shows the mesh, also those no item reaches (NPC appearances). Covers items that pick their look by appearanceName, such as clothing; not weapons, nor a mesh only a part entity holds. Loads TweakDB on the first call (about 10 s); the index after it takes under a second. Bridge after 0.10.0.", {
+  path: z.string().describe("The mesh's game path, such as base\\characters\\garment\\player_equipment\\feet\\s1_055_shoe__converse\\s1_055_pma_shoe__converse.mesh."),
+  appearance: z.string().optional().describe("Only the looks that show this mesh appearance, such as red_yellow_graphic."),
+  language: z.string().optional().describe("Localization folder for display names, default en-us."),
+}, (a, b) => b.meshItems(a.path, a.appearance, a.language ?? "en-us"));
+
 // on-screen texts (LocKeys): the base game's and Phantom Liberty's onscreens.json per language,
 // with a project's own onscreens files (named in its .xl files) over them.
 const LocRules = "Languages are folder names such as en-us or de-de (default en-us). With projectDir, the project's onscreens entries replace the game's ones with the same key. The first call per language loads it, about 1 s. Bridge 0.10.0.";

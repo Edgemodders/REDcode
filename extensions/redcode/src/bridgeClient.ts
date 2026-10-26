@@ -6,7 +6,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { EventEmitter } from "node:events";
 import * as readline from "node:readline";
 import { createMessageConnection, StreamMessageReader, StreamMessageWriter, type MessageConnection } from "vscode-jsonrpc/node";
-import type { ArchiveInfo, BridgeInfo, LocEntry, LocLanguage, LocNewFile, LocProjectFile, LocSearch, DocumentInfo, ExtractManyResult, ExtractResult, FileList, HashResult, ExportOptions, JsonResult, ModArchiveInfo, ModkitResult, SoundEvents, SoundImportResult, TweakFlatValue, TweakRecordFull, TweakRecords, TweakRecordsQuery, TweakTypes, PackResult, NodeInfo, PatchOp, PatchResult, ResolveResult, SearchResult, TreeResult, TypeDescription } from "./types";
+import type { ArchiveInfo, BridgeInfo, LocEntry, LocLanguage, LocNewFile, LocProjectFile, LocSearch, DocumentInfo, MeshItems, ExtractManyResult, ExtractResult, FileList, HashResult, ExportOptions, JsonResult, ModArchiveInfo, ModkitResult, SoundEvents, SoundImportResult, TweakFlatValue, TweakRecordFull, TweakRecords, TweakRecordsQuery, TweakTypes, PackResult, NodeInfo, PatchOp, PatchResult, ResolveResult, SearchResult, TreeResult, TypeDescription } from "./types";
 
 export interface BridgeOptions {
   /** Path to REDbridge.exe. */
@@ -228,6 +228,14 @@ export class BridgeClient extends EventEmitter<BridgeEvents> {
   /** Paths for TweakDB ids (0x hex or decimal); only the low 40 bits count. Needs no TweakDB load. */
   tweakNames(ids: string[]): Promise<Record<string, string | null>> {
     return this.call("tweakdb.names", { ids });
+  }
+
+  /**
+   * The item records whose look shows a mesh (a game path), and every .app look that shows it. With
+   * appearance, only the looks that show that mesh appearance. Loads TweakDB on the first call. Bridge after 0.10.0.
+   */
+  meshItems(path: string, appearance?: string, language = "en-us"): Promise<MeshItems> {
+    return this.call("mesh.items", { path, appearance: appearance ?? null, language });
   }
 
   // ---- on-screen texts (bridge 0.10.0) ------------------------------------------------
