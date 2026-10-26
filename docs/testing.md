@@ -464,7 +464,7 @@ Given to the owner 2026-10-22. REDcode main, F5 with **Run REDcode**. Steps 2 an
 | 1 | Game Assets: the funnel button (**Filter Game Assets**, not the magnifier), `cooked_journal`, then click `base\journal\cooked_journal.journal` in the tree | The CR2W editor, read-only, `gameJournalResource` with `entry` |
 | 2 | From EDGEquest, open a quest node's raw nodes (it calls `openFile(gamePath, nodePath)`) | The file opens, or its tab is focused, with the tree expanded to the node and the node selected; the Properties view shows it |
 | 3 | Optional, from any extension: `openFile` on a `.mesh` game path with `appearances.0` | The tree, not the 3D view, at that node; the header button offers **3D** |
-| 4 | LocKeys: **Add to Project Onscreens** on an entry, with the Properties view open | The table view opens on the new row |
+| 4 | A test project open (the entry is written into its onscreens file). REDcode sidebar: open the **Properties** view, then the **LocKeys** view, magnifier, search a word such as `jacket`. Hover a game entry and press its **+** (or right-click, **Add to Project Onscreens**) | The project's onscreens file opens in the table view, scrolled to the new last row with the entry's key and texts; the Properties view does not take it. The first time, the file is created under `source\archive` and named in the project's `.xl`; the Output channel REDcode says so |
 
 ## Issue #11: Pack and Try through REDnode
 
