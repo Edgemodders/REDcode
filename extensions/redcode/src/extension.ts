@@ -25,7 +25,7 @@ import {
 import { Cr2wEditorProvider, Cr2wPropertiesView, Cr2wViewType, cr2wViewTypeFor, opensInCr2wEditor } from "./cr2wEditor";
 import { GameFileSystem, gameUri } from "./gameFs";
 import { compareJson, formatDifference, type JsonComparison } from "./jsonDiff";
-import { hasRedHotTools, installDirect, installHot, launchTarget, planInstall, readRecord, uninstallDirect } from "./install";
+import { hasRedHotTools, installDirect, installHot, launchTarget, planInstall, readRecord, uninstallDirect, uninstallHot } from "./install";
 import { callArchivesReload, chooseHotRoute, hotToolsMisses, isEdgemoddersHotTools, readRednodeMcp, rednodeHint, soundPaksIn, soundRefusal, summarize, type HotRoute, type ReloadResult } from "./hotSwap";
 import { isSoundWav, sourceFolderOf, targetsUnder } from "./modkit";
 import { compileFilter } from "./treeFilter";
@@ -604,9 +604,15 @@ async function installDirectCommand(p: ProjectInfo): Promise<boolean> {
   return true;
 }
 
-/** REDcode: Uninstall: turn the mod off in EDGEdeck and deploy, or remove the direct copy. */
+/** REDcode: Uninstall: take the archive out of the hot folder, then turn the mod off in EDGEdeck and deploy, or remove the direct copy. */
 async function uninstallCommand(): Promise<void> {
   const p = requireProject();
+  const gamePath = vscode.workspace.getConfiguration("redcode").get<string>("gamePath", "");
+  const hot = gamePath ? uninstallHot(p, gamePath) : [];
+  if (hot.length > 0) {
+    log.appendLine(`Uninstall: removed ${hot.join(", ")} from ${path.join(gamePath, "archive", "pc", "hot")}`);
+    vscode.window.setStatusBarMessage(`$(check) REDcode: removed ${hot.join(", ")} from the hot folder`, 6000);
+  }
   const deck = await findEDGEdeck();
   const id = deck?.projectMod(p.file);
   if (deck && id) {
@@ -620,7 +626,7 @@ async function uninstallCommand(): Promise<void> {
     vscode.window.setStatusBarMessage(`$(check) REDcode: removed ${removed} file(s) from the game`, 6000);
     return;
   }
-  void vscode.window.showInformationMessage(`${p.name} is not installed${deck ? " in EDGEdeck or" : ""} by REDcode.`);
+  if (hot.length === 0) void vscode.window.showInformationMessage(`${p.name} is not installed${deck ? " in EDGEdeck," : ""} by REDcode or in the hot folder.`);
 }
 
 /** The Edgemodders build of RED Hot Tools, which finds a replaced archive by its exact path. */

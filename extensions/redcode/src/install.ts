@@ -143,6 +143,23 @@ export function installHot(project: ProjectInfo, gamePath: string): string[] {
   return archives.map((a) => path.basename(a));
 }
 
+/** Removes the project's archives from archive/pc/hot, where a hot install put them. Returns the files removed. */
+export function uninstallHot(project: ProjectInfo, gamePath: string): string[] {
+  const hot = path.join(gamePath, "archive", "pc", "hot");
+  const packed = walk(path.join(project.dir, ProjectFolders.packed)).filter((f) => f.toLowerCase().endsWith(".archive"));
+  // The packed folder may be empty after a failed pack, so the archive Pack names after the mod counts too.
+  const names = new Set([`${project.modName}.archive`, ...packed.map((a) => path.basename(a))].map((n) => n.toLowerCase()));
+  let entries: string[];
+  try {
+    entries = fs.readdirSync(hot);
+  } catch {
+    return [];
+  }
+  const removed = entries.filter((n) => names.has(n.toLowerCase()));
+  for (const n of removed) fs.rmSync(path.join(hot, n), { force: true });
+  return removed;
+}
+
 /** How Run game starts the game: through Steam when the game sits in a Steam library, else the exe. */
 export function launchTarget(gamePath: string, how: "auto" | "steam" | "exe", modded: boolean): { kind: "steam"; url: string } | { kind: "exe"; exe: string; args: string[] } {
   const exe = path.join(gamePath, "bin", "x64", "Cyberpunk2077.exe");
