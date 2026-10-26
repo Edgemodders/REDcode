@@ -32,7 +32,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Release 0.10.0: issues #5 to #8 and V4](#release-0100-issues-5-to-8-and-v4) | By hand | C5 | 2026-10-16 | Pass, ten fixes retested |
 | [Unit checks](#unit-checks) | Automated | C4 on | 2026-10-25 | Pass |
 | [Issue #11: Pack and Try through REDnode](#issue-11-pack-and-try-through-rednode) | By hand, in the game | C4 | Not run | Waiting for the owner |
-| [Issue #16: EDGEmat colors repeat past the UV square](#issue-16-edgemat-colors-repeat-past-the-uv-square) | By hand | C5 | Not run | Waiting for the owner |
+| [Issue #16: EDGEmat colors repeat past the UV square](#issue-16-edgemat-colors-repeat-past-the-uv-square) | By hand | C5 | 2026-10-26 | Pass |
 | [Never run](#never-run) | | | Not run | |
 
 ## Automated
@@ -484,6 +484,13 @@ Checked before: `npm test` (26 pass), and the MCP call against REDnode's own `mc
 | 5 | Quit the game. Sound project, **Pack and Try** | The same warning; **Install for Next Start** installs it |
 | 6 | Optional, official Red Hot Tools 1.3.0 only: a project whose archive name mixes capitals (`MyMod`), installed once, then **Pack and Try** without REDnode | A warning that the swap would end the game, with **Get the Edgemodders Build** and **Install for Next Start** |
 
+**On game 2.5, until RED Hot Tools has a 2.5 build** (it is not installed on the dev PC, and REDnode swaps through it): steps 1 to 6 cannot run. These two can, and are what every 2.5 user gets from Pack and Try today. Given to the owner 2026-10-26.
+
+| # | Do | Expected |
+|---|---|---|
+| A | Game running with REDnode, a save loaded; REDnode's **MCP server** on. Plain project, **Pack and Try** | Packs, asks REDnode ("swapping through REDnode"); REDnode cannot swap without RED Hot Tools, and REDcode shows its reason (an error or a warning with **Show log**). No crash. REDnode's wording is not known yet |
+| B | **MCP server** off. Plain project, **Pack and Try**; then **Uninstall** from the Project view's `...` menu | Packed and installed (through EDGEdeck when present), with a notice to restart the game, since hot swaps need REDnode or RED Hot Tools. No crash |
+
 ## Find Items in the 3D view
 
 Built 2026-10-26, given to the owner the same day. REDcode main, F5 with **Run REDcode**, with a REDbridge from main (REDbridge 1412a1d or later; **REDcode: Update REDbridge** on a checkout). Checked before: REDbridge's probe passes with a `mesh.items` step (17 items for the Converse high-tops, `Items.CasualShoes_01_basic_01` on `red_yellow_graphic`; 0.4 s after TweakDB), the smoke test passes with the same check (14.7 s), and type check, build and `npm test` (26) pass. The result matches the chain traced by hand on 2026-10-25.
@@ -507,6 +514,8 @@ Built 2026-10-26, given to the owner the same day. REDcode main, F5 with **Run R
 |---|---|---|
 | 1 | Game Assets: open `base\characters\garment\player_equipment\legs\l1_012_pants__jeans_tight\l1_012_pwa_pants__jeans_tight.mesh`, appearance `leather`, EDGEmat shading | The pants are even all over; no seam or edge-colored patch on the left leg below the thigh |
 | 2 | Another appearance or two, and a garment you tried with EDGEmat before | No new seams or stripes where the maps used to stop at the edge |
+
+Result 2026-10-26, reported by the owner: pass, run in the EDGEmat session as part of EDGEmat's own tests.
 
 ## Never run
 
