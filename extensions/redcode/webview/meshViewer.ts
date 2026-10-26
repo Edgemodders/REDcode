@@ -158,6 +158,7 @@ export async function mount(container: HTMLElement, source: MeshSource, title = 
     try {
       const t = await new THREE.TextureLoader().loadAsync(url);
       t.flipY = false; // the glTF UV convention
+      t.wrapS = t.wrapT = THREE.RepeatWrapping; // the game repeats textures past 0 to 1
       if (colour) t.colorSpace = THREE.SRGBColorSpace;
       textures.push(t);
       return t;

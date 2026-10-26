@@ -32,6 +32,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Release 0.10.0: issues #5 to #8 and V4](#release-0100-issues-5-to-8-and-v4) | By hand | C5 | 2026-10-16 | Pass, ten fixes retested |
 | [Unit checks](#unit-checks) | Automated | C4 on | 2026-10-25 | Pass |
 | [Issue #11: Pack and Try through REDnode](#issue-11-pack-and-try-through-rednode) | By hand, in the game | C4 | Not run | Waiting for the owner |
+| [Issue #16: EDGEmat colors repeat past the UV square](#issue-16-edgemat-colors-repeat-past-the-uv-square) | By hand | C5 | Not run | Waiting for the owner |
 | [Never run](#never-run) | | | Not run | |
 
 ## Automated
@@ -493,6 +494,15 @@ Built 2026-10-26, given to the owner the same day. REDcode main, F5 with **Run R
 | 4 | Open the same mesh from a project's Archive (add it to a project first), **Find Items** | The same list |
 | 5 | A weapon mesh, such as one under `base\weapons`, **Find Items** | A message that no item record shows it, or a list of `.app` looks to open |
 | 6 | With the released REDbridge 0.10.0 (optional) | A warning that Find Items needs a newer REDbridge |
+
+## Issue #16: EDGEmat colors repeat past the UV square
+
+Built 2026-10-26, given to the owner the same day. REDcode main, F5 with **Run REDcode**, with EDGEmat installed. Found in the owner's EDGEmat test: the 3D view clamped EDGEmat's maps, so UVs outside 0 to 1 took the map's edge color. The fix sets three.js's `RepeatWrapping` on the maps EDGEmat provides. Own textures (a `.glb` opened with its textures; a game mesh is exported without them) load through three.js's glTF loader, which takes the file's samplers, and glTF repeats when a file names none. Checked before: type check and build pass. Not checked: whether any game material relies on clamping.
+
+| # | Do | Expected |
+|---|---|---|
+| 1 | Game Assets: open `base\characters\garment\player_equipment\legs\l1_012_pants__jeans_tight\l1_012_pwa_pants__jeans_tight.mesh`, appearance `leather`, EDGEmat shading | The pants are even all over; no seam or edge-colored patch on the left leg below the thigh |
+| 2 | Another appearance or two, and a garment you tried with EDGEmat before | No new seams or stripes where the maps used to stop at the edge |
 
 ## Never run
 
