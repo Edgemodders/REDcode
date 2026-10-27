@@ -8,6 +8,10 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 - **Open in EDGEmat in the 3D view** (REDcode issue #13): a toolbar button that puts the mesh on EDGEmat's Desk with the appearance shown open, to change its materials. Without EDGEmat it offers to install it.
 
+**Changed**
+
+- **Pack and Try is now Pack and Play** (REDcode issue #14): the same flame button in the Project view, and `REDcode: Pack and Play` in the Command Palette. The old command id `redcode.packAndTry` still works for keybindings and other tools, and so does `REDcodeApi.packAndTry()` beside the new `packAndPlay()`.
+
 **Other**
 
 - **Game Assets and Project view files say more about what they are to other extensions** (REDcode issue #15): `.mesh`, `.mlsetup` and `.mltemplate` game files get their own kind, so EDGEmat's Open in EDGEmat shows on those files only. In the Project view a `.mesh` is `projectFile.model.mesh`, apart from GLB files, and `.mltemplate` gets a kind. The kinds are listed in https://edgemodders.github.io/REDcode/api.html.

@@ -1,4 +1,4 @@
-// Unit checks for logic with no VS Code or game needed: Pack and Try's hot swap choice (REDcode issue #11).
+// Unit checks for logic with no VS Code or game needed: Pack and Play's hot swap choice (REDcode issue #11).
 //
 //   npm run build && npm test
 //

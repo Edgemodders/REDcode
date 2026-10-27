@@ -191,7 +191,9 @@ export function activate(context: vscode.ExtensionContext): REDcodeApi | undefin
     vscode.commands.registerCommand("redcode.packAndInstall", () => shipCommand(async () => (await packCommand(true)) && installCommand())),
     vscode.commands.registerCommand("redcode.uninstall", () => shipCommand(() => uninstallCommand())),
     vscode.commands.registerCommand("redcode.installHot", () => shipCommand(() => installHotCommand())),
-    vscode.commands.registerCommand("redcode.packAndTry", () => shipCommand(() => packAndTryCommand())),
+    vscode.commands.registerCommand("redcode.packAndPlay", () => shipCommand(() => packAndPlayCommand())),
+    // Pack and Play's old name and id (REDcode issue #14), kept for keybindings and other tools.
+    vscode.commands.registerCommand("redcode.packAndTry", () => shipCommand(() => packAndPlayCommand())),
     vscode.commands.registerCommand("redcode.editInBlender", (node?: ProjectNode) => shipCommand(() => editInBlenderCommand(node))),
     vscode.commands.registerCommand("redcode.stopBlender", () => stopBlender("Stopped watching for Blender's saves.")),
     vscode.commands.registerCommand("redcode.runGame", () => shipCommand(() => runGameCommand())),
@@ -243,7 +245,7 @@ export function activate(context: vscode.ExtensionContext): REDcodeApi | undefin
       explorer.refresh();
       return { packedDir: s.packedDir, archive: s.archive, archiveFiles: s.archiveFiles };
     },
-    packAndTry: () => packAndTryCommand(),
+    packAndPlay: () => packAndPlayCommand(),
     editInBlender: (file: string) => editInBlenderCommand(file),
     openFile: (target: string, node?: string) => openFileInEditor(target, node),
   });
@@ -516,7 +518,7 @@ function sourceEmpty(p: ProjectInfo): boolean {
 }
 
 /**
- * Install, Pack and Install or Pack and Try on a project with no files. EDGEdeck refuses a mod with
+ * Install, Pack and Install or Pack and Play on a project with no files. EDGEdeck refuses a mod with
  * no files, and an empty install would only take the old files out, which Uninstall does: so say
  * what is missing, and offer Uninstall when an earlier install is still there.
  */
@@ -673,9 +675,9 @@ function copyToHotFolder(p: ProjectInfo, gamePath: string): void {
   vscode.window.setStatusBarMessage(`$(flame) REDcode: ${files.join(", ")} in the hot folder; Red Hot Tools reloads it`, 6000);
 }
 
-/** Pack and Try when it cannot hot-swap: offers Install for the next start. "installed" when it was installed. */
+/** Pack and Play when it cannot hot-swap: offers Install for the next start. "installed" when it was installed. */
 async function offerInstallInstead(message: string, extra?: { label: string; url: string }): Promise<"installed" | undefined> {
-  log.appendLine(`Pack and Try: ${message}`);
+  log.appendLine(`Pack and Play: ${message}`);
   const install = "Install for Next Start";
   const pick = await vscode.window.showWarningMessage(`REDcode: ${message}`, install, ...(extra ? [extra.label] : []));
   if (extra && pick === extra.label) void vscode.env.openExternal(vscode.Uri.parse(extra.url));
@@ -685,13 +687,13 @@ async function offerInstallInstead(message: string, extra?: { label: string; url
 }
 
 /**
- * REDcode: Pack and Try (REDcode issues #7 and #11): pack, then get it into the game as fast as the game allows.
+ * REDcode: Pack and Play (REDcode issues #7 and #11): pack, then get it into the game as fast as the game allows.
  * With REDnode running and its MCP server on, REDnode's archives_reload swaps it (sound archives too). Without
  * REDnode, a plain archive goes to RED Hot Tools' hot folder; an archive with sound paks, or a replace the official
  * RED Hot Tools would miss, is not hot-swapped, since either ends the game. Without RED Hot Tools, Pack and Install
  * (through EDGEdeck when it is there), and the game needs a restart.
  */
-async function packAndTryCommand(): Promise<"rednode" | "hot" | "installed" | undefined> {
+async function packAndPlayCommand(): Promise<"rednode" | "hot" | "installed" | undefined> {
   if (!(await packCommand(true))) return undefined;
   const p = requireProject();
   if (packedFiles(p).length === 0) {
@@ -706,14 +708,14 @@ async function packAndTryCommand(): Promise<"rednode" | "hot" | "installed" | un
     tried = await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: "REDcode: swapping through REDnode" }, () => callArchivesReload({ port: mcp.port, token }, archives));
     if (tried.kind === "answer") {
       const a = tried.answer;
-      log.appendLine(`Pack and Try through REDnode: ${JSON.stringify(a)}`);
+      log.appendLine(`Pack and Play through REDnode: ${JSON.stringify(a)}`);
       const summary = summarize(a);
       if (a.failed.length > 0) void vscode.window.showWarningMessage(`REDcode: ${summary}`, "Show log").then((pick) => pick && log.show(true));
       else void vscode.window.showInformationMessage(`REDcode: ${summary} Respawn or re-equip what uses it to see the change.`);
       return a.reloaded.length > 0 ? "rednode" : undefined;
     }
     if (tried.kind === "refused") throw new Error(`REDnode did not swap the archive: ${tried.why}`);
-    log.appendLine(`Pack and Try: REDnode did not take the swap (${tried.kind === "unauthorized" ? "the token was refused" : tried.why}); trying RED Hot Tools' hot folder.`);
+    log.appendLine(`Pack and Play: REDnode did not take the swap (${tried.kind === "unauthorized" ? "the token was refused" : tried.why}); trying RED Hot Tools' hot folder.`);
   }
   const hint = rednodeHint(mcp, tried);
   const withHint = (text: string) => (hint ? `${text} ${hint}` : text);

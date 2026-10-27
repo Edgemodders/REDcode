@@ -419,8 +419,8 @@
         "icon": "$(flame)"
       },
       {
-        "command": "redcode.packAndTry",
-        "title": "Pack and Try",
+        "command": "redcode.packAndPlay",
+        "title": "Pack and Play",
         "category": "REDcode",
         "icon": "$(flame)"
       },
@@ -795,7 +795,7 @@
           "group": "navigation@1"
         },
         {
-          "command": "redcode.packAndTry",
+          "command": "redcode.packAndPlay",
           "when": "view == redcode.project && redcode.projectOpen",
           "group": "navigation@1"
         },
@@ -1091,7 +1091,7 @@
           "when": "redcode.tweakdbFiltered"
         },
         {
-          "command": "redcode.packAndTry",
+          "command": "redcode.packAndPlay",
           "when": "redcode.projectOpen"
         },
         {

@@ -207,7 +207,7 @@ export function hotToolsMisses(gamePath: string, archives: string[]): string[] {
 
 // ---- the choice ---------------------------------------------------------------------------------
 
-/** What Pack and Try does when REDnode did not take the swap. */
+/** What Pack and Play does when REDnode did not take the swap. */
 export type HotRoute =
   /** Copy into archive/pc/hot for RED Hot Tools. */
   | { route: "hot" }
@@ -229,14 +229,14 @@ export function chooseHotRoute(o: { hotTools: boolean; soundPaks: string[]; look
 /** Why an archive with sound paks is not sent to the hot folder, with what to do instead. */
 export function soundRefusal(paks: string[]): string {
   const first = path.basename(paks[0] ?? "");
-  return `The mod changes the game's sound (${paks.length} sound file${paks.length === 1 ? "" : "s"}, such as ${first}), and swapping it through RED Hot Tools' hot folder crashes a running game. Sound archives swap only through REDnode 0.26.8 or later: start the game with REDnode, switch its MCP server on, and press Pack and Try again; or install the mod and restart the game.`;
+  return `The mod changes the game's sound (${paks.length} sound file${paks.length === 1 ? "" : "s"}, such as ${first}), and swapping it through RED Hot Tools' hot folder crashes a running game. Sound archives swap only through REDnode 0.26.8 or later: start the game with REDnode, switch its MCP server on, and press Pack and Play again; or install the mod and restart the game.`;
 }
 
 /** What to tell the user about REDnode when its MCP server could not take the swap, or "" when REDnode is not on this PC. */
 export function rednodeHint(mcp: RednodeMcp, result?: ReloadResult): string {
   if (!mcp.installed) return "";
   if (!mcp.token) return "REDnode has not made its MCP token yet: start the game with REDnode once.";
-  if (result?.kind === "unauthorized") return "REDnode is running but refused REDcode: switch on MCP server in its launcher's Settings drawer (F10 shows the launcher), then press Pack and Try again.";
-  if (!mcp.enabled) return "If the game is running with REDnode, switch on MCP server in its launcher's Settings drawer (F10 shows the launcher) so Pack and Try can swap through it.";
+  if (result?.kind === "unauthorized") return "REDnode is running but refused REDcode: switch on MCP server in its launcher's Settings drawer (F10 shows the launcher), then press Pack and Play again.";
+  if (!mcp.enabled) return "If the game is running with REDnode, switch on MCP server in its launcher's Settings drawer (F10 shows the launcher) so Pack and Play can swap through it.";
   return "";
 }

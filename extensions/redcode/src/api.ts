@@ -94,7 +94,7 @@ export interface REDcodeApi {
   /** Packs the open project, as REDcode: Pack does. */
   pack(): Promise<{ packedDir: string; archive?: string; archiveFiles: number }>;
   /**
-   * Packs and gets the project into the game as fast as it allows (REDcode: Pack and Try): swapped into
+   * Packs and gets the project into the game as fast as it allows (REDcode: Pack and Play): swapped into
    * the running game by REDnode's archives_reload when REDnode runs with its MCP server on ("rednode");
    * otherwise with Red Hot Tools into the hot folder, which the running game reloads ("hot"), unless the
    * archive has sound paks; otherwise installed, through EDGEdeck when it is there, for the next game start
@@ -102,6 +102,8 @@ export interface REDcodeApi {
    * refused and the user did not install instead, or when it would break the mod (a missing REDmod custom
    * sound) and the user cancelled.
    */
+  packAndPlay(): Promise<"rednode" | "hot" | "installed" | undefined>;
+  /** Pack and Play's old name, the same function (REDcode issue #14). */
   packAndTry(): Promise<"rednode" | "hot" | "installed" | undefined>;
   /** Opens a project .glb, .gltf or .mesh in Blender; each save there is imported back (REDcode: Edit in Blender). */
   editInBlender(file: string): Promise<void>;
@@ -122,7 +124,7 @@ export interface ApiHost {
   audioCache: string;
   importFile(file: string, options?: { template?: string }): Promise<{ ok: boolean; written: string[]; mesh?: MeshImport | null }>;
   pack(): Promise<{ packedDir: string; archive?: string; archiveFiles: number }>;
-  packAndTry(): Promise<"rednode" | "hot" | "installed" | undefined>;
+  packAndPlay(): Promise<"rednode" | "hot" | "installed" | undefined>;
   editInBlender(file: string): Promise<void>;
   openFile(target: string, node?: string): Promise<void>;
 }
@@ -221,7 +223,8 @@ export function createApi(host: ApiHost): REDcodeApi {
 
     importFile: host.importFile,
     pack: host.pack,
-    packAndTry: host.packAndTry,
+    packAndPlay: host.packAndPlay,
+    packAndTry: host.packAndPlay,
     editInBlender: host.editInBlender,
     openFile: host.openFile,
   };
