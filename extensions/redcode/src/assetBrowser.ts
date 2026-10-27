@@ -119,7 +119,8 @@ export class AssetBrowser implements vscode.TreeDataProvider<AssetNode> {
       item.contextValue = "assetFile.texture";
       item.command = { command: "redcode.openTexture", title: "Open Texture", arguments: [node] };
     } else {
-      item.contextValue = "assetFile";
+      // Other extensions' menus match the kind, as in the Project view (REDcode issue #15, docs/api.md).
+      item.contextValue = "assetFile" + (/\.(mesh|mlsetup|mltemplate)$/i.exec(f.name)?.[0].toLowerCase() ?? "");
       item.command = { command: "redcode.openAssetInEditor", title: "Open in Editor", arguments: [node] };
     }
     return item;

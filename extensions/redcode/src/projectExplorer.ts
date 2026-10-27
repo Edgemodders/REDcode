@@ -135,9 +135,12 @@ export class ProjectExplorer implements vscode.TreeDataProvider<ProjectNode> {
   /** The kind part of a project file's contextValue: "projectFile" + kind + tags. Other extensions' menus match it. */
   private static readonly Kinds: [RegExp, string][] = [
     [/\.xbm$/i, ".texture"],
-    [/\.(glb|gltf|mesh)$/i, ".model"],
+    // A .mesh is a model too, with its own tag so an entry can leave GLB files out (REDcode issue #15).
+    [/\.mesh$/i, ".model.mesh"],
+    [/\.(glb|gltf)$/i, ".model"],
     [/\.(wem|wav|ogg|opus|mp3|flac)$/i, ".sound"],
     [/\.mlsetup$/i, ".mlsetup"],
+    [/\.mltemplate$/i, ".mltemplate"],
   ];
 
   /** ".export" for what Export takes (under source/archive), ".import" for what Import takes (under source/raw). Menus match on these. */
