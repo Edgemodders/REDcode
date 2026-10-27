@@ -33,6 +33,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Unit checks](#unit-checks) | Automated | C4 on | 2026-10-25 | Pass |
 | [Issue #11: Pack and Try through REDnode](#issue-11-pack-and-try-through-rednode) | By hand, in the game | C4 | Partly passed | On game 2.5, A and B pass (2026-10-26); steps 1 to 6 wait for Red Hot Tools on 2.5 |
 | [Issue #16: EDGEmat colors repeat past the UV square](#issue-16-edgemat-colors-repeat-past-the-uv-square) | By hand | C5 | 2026-10-26 | Pass |
+| [Release 0.10.5: requests #2, #13, #14, #15](#release-0105-requests-2-13-14-15) | By hand | C5 | Not run | Given to the owner 2026-10-27 |
 | [Never run](#never-run) | | | Not run | |
 
 ## Automated
@@ -493,6 +494,8 @@ Checked before: `npm test` (26 pass), and the MCP call against REDnode's own `mc
 
 Result (owner, 2026-10-26): A passes. B ran against the wrong game: `redcode.gamePath` (user settings) was `L:\Backups\Cyberpunk 2077 (2026-10-21)`, the 2.31 backup, which still has a RedHotTools folder, so Pack and Try took the hot route ("packed and sent to the hot folder", with the MCP server hint) and copied `EDGEquest_Q2.archive` into the backup's `archive/pc/hot`. Uninstall then said the mod was "not installed in EDGEdeck or by REDcode": it does not look in the hot folder. Fixed the same day: Uninstall removes the project's archives from `archive/pc/hot` first (checked against a fake game folder; the two archives left in the backup's hot folder were removed by hand). B to run again with the game folder on the 2.5 game (**REDcode: Set Game Folder**, `E:\SteamLibrary\steamapps\common\Cyberpunk 2077`). Retest the same day on the 2.5 game: B passes (EDGEdeck asked to quit the game, then installed the mod with the restart notice; Uninstall took it out through EDGEdeck). Steps 1 to 6 wait for a Red Hot Tools build for 2.5.
 
+Since REDnode 0.41.0 (2026-10-27), REDnode swaps archives on game 2.5 through REDswap, its own plugin, with no Red Hot Tools, and its answer says `via: "redswap"`. So steps 1 and 2 (through REDnode) can run on 2.5 now, with REDnode 0.41.0 or later. Steps 3 to 6 are the hot folder, which still needs Red Hot Tools. The command is called **Pack and Play** since issue #14.
+
 ## Find Items in the 3D view
 
 Built 2026-10-26, given to the owner the same day. REDcode main, F5 with **Run REDcode**, with a REDbridge from main (REDbridge 1412a1d or later; **REDcode: Update REDbridge** on a checkout). Checked before: REDbridge's probe passes with a `mesh.items` step (17 items for the Converse high-tops, `Items.CasualShoes_01_basic_01` on `red_yellow_graphic`; 0.4 s after TweakDB), the smoke test passes with the same check (14.7 s), and type check, build and `npm test` (26) pass. The result matches the chain traced by hand on 2026-10-25.
@@ -518,6 +521,18 @@ Built 2026-10-26, given to the owner the same day. REDcode main, F5 with **Run R
 | 2 | Another appearance or two, and a garment you tried with EDGEmat before | No new seams or stripes where the maps used to stop at the edge |
 
 Result 2026-10-26, reported by the owner: pass, run in the EDGEmat session as part of EDGEmat's own tests.
+
+## Release 0.10.5: requests #2, #13, #14, #15
+
+Built 2026-10-27, given to the owner the same day. REDcode main, F5 with **Run REDcode**. Checked before: type check, build and `npm test` (26) pass. Steps 2 and 3 need EDGEmat installed (its `edgemat.openMesh`); step 4 needs it uninstalled or disabled, or skip it.
+
+| # | Do | Expected |
+|---|---|---|
+| 1 | Command Palette: type **Pack and** | **REDcode: Pack and Play** is listed, and no Pack and Try. The flame button in the Project view's title bar says Pack and Play on hover and packs as before |
+| 2 | Game Assets: open `basecharactersgarmentplayer_equipmenteets1_055_shoe__converses1_055_pma_shoe__converse.mesh`, pick appearance `red_yellow_graphic`, press **Open in EDGEmat** in the 3D view's toolbar | EDGEmat shows the mesh on its Desk, with `red_yellow_graphic` open. Output > REDcode has an "Open in EDGEmat" line |
+| 3 | Game Assets: right-click that `.mesh`, then an `.mlsetup` and an `.ent`. Project view: right-click a `.mesh` and a `.glb` | EDGEmat's Open in EDGEmat entry shows on the `.mesh` and `.mlsetup` game files, and on the project `.mesh`. Whether it shows on the `.ent` and the `.glb` depends on EDGEmat's own menus: its current `when` still takes plain `assetFile` and every project model, until it narrows them to the new kinds (#15) |
+| 4 | Without EDGEmat: **Open in EDGEmat** in the 3D view | "Open in EDGEmat needs EDGEmat, the EDGE material editor." with **Install EDGEmat** |
+| 5 | In a project, make a folder `sourcescenes` with a file `test.scene.json` holding `{}` | The Project view shows a **Scenes** root holding it (refresh the view if it does not show), and a click opens it as JSON. **Pack** leaves it out of `packed` |
 
 ## Never run
 
