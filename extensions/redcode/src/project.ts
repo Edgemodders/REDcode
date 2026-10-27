@@ -25,13 +25,15 @@ export const ProjectFolders = {
   resources: path.join("source", "resources"),
   /** REDmod custom sounds, named in source/resources/info.json. Made by the tool that writes the first one, not by a new project. */
   customSounds: path.join("source", "customSounds"),
+  /** EDGEbuilder's scenes (<name>.scene.json, REDcode issue #2). Made by EDGEbuilder; not packed. */
+  scenes: path.join("source", "scenes"),
   packed: "packed",
 } as const;
 
 export type ProjectFolderKey = keyof typeof ProjectFolders;
 
 /** Folders only some projects have; the Project view shows them when they exist. */
-export const OptionalFolders: readonly ProjectFolderKey[] = ["customSounds"];
+export const OptionalFolders: readonly ProjectFolderKey[] = ["customSounds", "scenes"];
 
 /** Finds the first .cpmodproj directly inside the folder, or undefined. */
 export function findProject(dir: string): ProjectInfo | undefined {

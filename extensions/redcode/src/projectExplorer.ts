@@ -19,6 +19,7 @@ const RootLabels: Record<ProjectFolderKey, string> = {
   raw: "Raw",
   resources: "Resources",
   customSounds: "Custom Sounds",
+  scenes: "Scenes",
   packed: "Packed",
 };
 
@@ -27,6 +28,7 @@ const RootHints: Record<ProjectFolderKey, string> = {
   raw: "Exported files (glTF, PNG, JSON) and imports waiting to go back in.",
   resources: "Scripts, tweaks and other files copied into the game folder as they are.",
   customSounds: "REDmod custom sounds: the WAVs that source/resources/info.json names. A REDmod pack copies them into the mod.",
+  scenes: "EDGEbuilder scenes (<name>.scene.json), arranged in the game. Not packed: EDGEbuilder bakes them into a sector.",
   packed: "Build output: the mod as the game loads it.",
 };
 
