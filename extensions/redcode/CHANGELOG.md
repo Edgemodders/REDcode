@@ -12,6 +12,7 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 **Changed**
 
 - **Pack and Try is now Pack and Play** (REDcode issue #14): the same flame button in the Project view, and `REDcode: Pack and Play` in the Command Palette. The old command id `redcode.packAndTry` still works for keybindings and other tools, and so does `REDcodeApi.packAndTry()` beside the new `packAndPlay()`.
+- **Install and Uninstall through EDGEdeck touch only the project's mod** (EDGEdeck #2): with EDGEdeck 0.28.0 or later, Install, Pack and Install and Pack and Play deploy the project's mod alone, and other mods' changes keep waiting for a Deploy in EDGEdeck. REDcode no longer asks whether to deploy them too. Uninstall takes only the project's files out. The REDcode log says when the project lost files to another mod, and how many files of other mods' changes still wait. An older EDGEdeck deploys the whole list after asking, as before.
 
 **Other**
 

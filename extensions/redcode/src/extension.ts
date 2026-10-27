@@ -33,7 +33,7 @@ import { MeshViewer } from "./meshViewer";
 import { AudioPlayer, AudioViewType, SoundsViewType } from "./audioPlayer";
 import { GameSoundIndex } from "./audio";
 import { packProject, walk, type PackSummary } from "./pack";
-import { findEDGEdeck, runningEDGEdeck } from "./edgedeck";
+import { findEDGEdeck, runningEDGEdeck, type DeployResult } from "./edgedeck";
 import { findGames, isGameFolder, steamPath } from "./gameFinder";
 import { findBlender, writeBlenderScript } from "./blender";
 import { TweakDb, TweakHover, TweakTree, type TweakNode } from "./tweakView";
@@ -566,28 +566,44 @@ async function installCommand(): Promise<boolean> {
       return false;
     }
     log.appendLine(`${r.added ? "Added" : "Refreshed"} ${r.name} in EDGEdeck (${r.files} files, mod id ${r.id})`);
-    const others = deck.pendingMods(r.id);
-    if (others.length > 0) {
-      const pick = await vscode.window.showWarningMessage(
-        `Deploying ${r.name} also deploys changes waiting in EDGEdeck for ${others.join(", ")}.`,
-        { modal: true, detail: "Deploy puts the whole list EDGEdeck has into the game. Cancel to leave it for later; the mod is in EDGEdeck already." },
-        "Deploy all",
-      );
-      if (pick !== "Deploy all") {
-        log.appendLine(`Install: ${r.name} is in EDGEdeck; not deployed, at your choice.`);
-        return false;
-      }
-    }
     // EDGEdeck asks about changed files itself and reports the deploy with its own message.
-    const result = await deck.deploy();
+    let result: DeployResult | undefined;
+    if (deck.deployMod) {
+      // EDGEdeck 0.28.0 deploys this mod alone; other mods' changes keep waiting (EDGEdeck #2).
+      result = await deck.deployMod(r.id);
+    } else {
+      const others = deck.pendingMods(r.id);
+      if (others.length > 0) {
+        const pick = await vscode.window.showWarningMessage(
+          `Deploying ${r.name} also deploys changes waiting in EDGEdeck for ${others.join(", ")}.`,
+          { modal: true, detail: "Deploy puts the whole list EDGEdeck has into the game. Cancel to leave it for later; the mod is in EDGEdeck already." },
+          "Deploy all",
+        );
+        if (pick !== "Deploy all") {
+          log.appendLine(`Install: ${r.name} is in EDGEdeck; not deployed, at your choice.`);
+          return false;
+        }
+      }
+      result = await deck.deploy();
+    }
     if (result) {
-      log.appendLine(`EDGEdeck deployed: ${result.linked} added, ${result.removed} removed, ${result.kept} unchanged${result.skipped.length ? `; skipped ${result.skipped.join(", ")}` : ""}${result.conflicts ? `; ${result.conflicts} conflict(s), resolved by order` : ""}`);
+      log.appendLine(`EDGEdeck deployed: ${deployedText(result)}`);
     } else {
       log.appendLine(`Install: EDGEdeck did not deploy (refused or cancelled); ${r.name} is in its library.`);
     }
     return result !== undefined;
   }
   return installDirectCommand(p);
+}
+
+/** An EDGEdeck deploy for the log: counts, and what lost files or still waits (EDGEdeck 0.28.0). */
+function deployedText(r: DeployResult): string {
+  const parts = [`${r.linked} added, ${r.removed} removed, ${r.kept} unchanged`];
+  if (r.skipped.length) parts.push(`skipped ${r.skipped.join(", ")}`);
+  if (r.conflicts) parts.push(`${r.conflicts} conflict(s), resolved by order`);
+  for (const l of r.lost ?? []) parts.push(`${l.mod} lost ${l.files} file(s) to ${l.winnerName}`);
+  if (r.waiting) parts.push(`${r.waiting} file(s) of other mods' changes still waiting for a Deploy in EDGEdeck`);
+  return parts.join("; ");
 }
 
 async function installDirectCommand(p: ProjectInfo): Promise<boolean> {
@@ -619,8 +635,8 @@ async function uninstallCommand(): Promise<void> {
   const id = deck?.projectMod(p.file);
   if (deck && id) {
     deck.turnOff(id);
-    const result = await deck.deploy();
-    log.appendLine(result ? `Uninstalled ${p.name} through EDGEdeck: ${result.removed} file(s) removed` : `Uninstall: ${p.name} is off in EDGEdeck; not deployed yet.`);
+    const result = deck.deployMod ? await deck.deployMod(id) : await deck.deploy();
+    log.appendLine(result ? `Uninstalled ${p.name} through EDGEdeck: ${deployedText(result)}` : `Uninstall: ${p.name} is off in EDGEdeck; not deployed yet.`);
     return;
   }
   if (readRecord(p)) {

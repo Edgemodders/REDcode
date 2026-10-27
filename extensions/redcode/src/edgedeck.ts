@@ -1,12 +1,23 @@
 // EDGEdeck, the mod manager, when it is installed. REDcode installs a packed project through it, so
 // one tool owns the game folder. Found at runtime and never imported: the interface below copies the
-// shape of EDGEdeck's exported API (apiVersion 1, EDGEdeck 0.27.0, src/extension.ts there).
+// shape of EDGEdeck's exported API (apiVersion 1, EDGEdeck 0.28.0, src/extension.ts there).
 
 import * as vscode from "vscode";
 
 export const EDGEdeckId = "edgemodders.edgedeck";
 
 export interface InstalledMod { id: string; name: string; files: number; added: boolean }
+
+/** A deploy's result. lost (EDGEdeck 0.28.0): mods that lost files to another; waiting (deployMod): other mods' files left for the next deploy. */
+export interface DeployResult {
+  linked: number;
+  removed: number;
+  kept: number;
+  skipped: string[];
+  conflicts: number;
+  lost?: { mod: string; files: number; winner: string; winnerName: string }[];
+  waiting?: number;
+}
 
 export interface EDGEdeckApi {
   apiVersion: number;
@@ -15,7 +26,9 @@ export interface EDGEdeckApi {
   /** Sync in EDGEdeck so far; it may become async to ask about a mod of the same name (EDGEdeck #3), undefined when cancelled. */
   installProject(projectFile: string): InstalledMod | undefined | Promise<InstalledMod | undefined>;
   pendingMods(except?: string): string[];
-  deploy(): Promise<{ linked: number; removed: number; kept: number; skipped: string[]; conflicts: number } | undefined>;
+  deploy(): Promise<DeployResult | undefined>;
+  /** EDGEdeck 0.28.0 (EDGEdeck #2): deploys one mod's changes only; other mods' changes keep waiting. */
+  deployMod?(id: string): Promise<DeployResult | undefined>;
   turnOff(id: string): void;
 }
 

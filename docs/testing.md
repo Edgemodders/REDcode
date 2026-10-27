@@ -33,7 +33,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Unit checks](#unit-checks) | Automated | C4 on | 2026-10-25 | Pass |
 | [Issue #11: Pack and Try through REDnode](#issue-11-pack-and-try-through-rednode) | By hand, in the game | C4 | Partly passed | On game 2.5, A and B pass (2026-10-26); steps 1 to 6 wait for Red Hot Tools on 2.5 |
 | [Issue #16: EDGEmat colors repeat past the UV square](#issue-16-edgemat-colors-repeat-past-the-uv-square) | By hand | C5 | 2026-10-26 | Pass |
-| [Release 0.10.5: requests #2, #13, #14, #15](#release-0105-requests-2-13-14-15) | By hand | C5 | Not run | Given to the owner 2026-10-27 |
+| [Release 0.10.5: requests #2, #13, #14, #15 and deployMod](#release-0105-requests-2-13-14-15-and-edgedecks-deploymod) | By hand | C5 | Not run | Given to the owner 2026-10-27 |
 | [Never run](#never-run) | | | Not run | |
 
 ## Automated
@@ -522,9 +522,9 @@ Built 2026-10-26, given to the owner the same day. REDcode main, F5 with **Run R
 
 Result 2026-10-26, reported by the owner: pass, run in the EDGEmat session as part of EDGEmat's own tests.
 
-## Release 0.10.5: requests #2, #13, #14, #15
+## Release 0.10.5: requests #2, #13, #14, #15 and EDGEdeck's deployMod
 
-Built 2026-10-27, given to the owner the same day. REDcode main, F5 with **Run REDcode**. Checked before: type check, build and `npm test` (26) pass. Steps 2 and 3 need EDGEmat installed (its `edgemat.openMesh`); step 4 needs it uninstalled or disabled, or skip it.
+Built 2026-10-27, given to the owner the same day. REDcode main, F5 with **Run REDcode**. Checked before: type check, build and `npm test` (26) pass. Steps 2 and 3 need EDGEmat installed (its `edgemat.openMesh`); step 4 needs it uninstalled or disabled, or skip it. Steps 6 and 7 need EDGEdeck 0.28.0 or later (0.29.0 is installed here).
 
 | # | Do | Expected |
 |---|---|---|
@@ -533,6 +533,8 @@ Built 2026-10-27, given to the owner the same day. REDcode main, F5 with **Run R
 | 3 | Game Assets: right-click that `.mesh`, then an `.mlsetup` and an `.ent`. Project view: right-click a `.mesh` and a `.glb` | EDGEmat's Open in EDGEmat entry shows on the `.mesh` and `.mlsetup` game files, and on the project `.mesh`. Whether it shows on the `.ent` and the `.glb` depends on EDGEmat's own menus: its current `when` still takes plain `assetFile` and every project model, until it narrows them to the new kinds (#15) |
 | 4 | Without EDGEmat: **Open in EDGEmat** in the 3D view | "Open in EDGEmat needs EDGEmat, the EDGE material editor." with **Install EDGEmat** |
 | 5 | In a project, make a folder `sourcescenes` with a file `test.scene.json` holding `{}` | The Project view shows a **Scenes** root holding it (refresh the view if it does not show), and a click opens it as JSON. **Pack** leaves it out of `packed` |
+| 6 | With EDGEdeck 0.28.0 or later: in EDGEdeck, turn some other mod off (so it has a change waiting), then in REDcode **Pack and Install** the project | No question about deploying other mods. The project goes into the game; the other mod's change still waits in EDGEdeck. Output > REDcode: "EDGEdeck deployed: ..." ending with how many files of other mods' changes still wait |
+| 7 | **Uninstall** | The project's files come out; the other mod's change still waits. Then turn that mod back on in EDGEdeck |
 
 ## Never run
 
