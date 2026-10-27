@@ -7,7 +7,7 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 **New**
 
 - **Open in EDGEmat in the 3D view** (REDcode issue #13): a toolbar button that puts the mesh on EDGEmat's Desk with the appearance shown open, to change its materials. Without EDGEmat it offers to install it.
-- **EDGEbuilder's scenes show in the Project view** (REDcode issue #2): a project with a `sourcescenes` folder shows it as **Scenes**, and a `<name>.scene.json` there opens as JSON. Scenes are not packed; baking them comes with EDGEbuilder's bake.
+- **EDGEbuilder's scenes show in the Project view** (REDcode issue #2): a project with a `source\scenes` folder shows it as **Scenes**, and a `<name>.scene.json` there opens as JSON. Scenes are not packed; baking them comes with EDGEbuilder's bake.
 
 **Changed**
 
