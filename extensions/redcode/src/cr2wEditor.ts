@@ -10,7 +10,7 @@ import * as vscode from "vscode";
 import type { BridgeClient } from "./bridgeClient";
 import { gameUri, gamePathOfUri } from "./gameFs";
 import { meshGlbFor, meshPayload } from "./meshExport";
-import { findEdgemat, mapsForWebview } from "./edgemat";
+import { findEdgemat, mapsForWebview, openInEdgemat } from "./edgemat";
 import { ProjectFolders } from "./project";
 import type { TextureViewer } from "./textureViewer";
 import type { DocumentInfo, MeshItem, PatchOp, PatchResult } from "./types";
@@ -501,6 +501,9 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
           }
           case "findItems":
             await this.findItems(meshGamePath() ?? "", m.appearance);
+            return reply(m.id, null);
+          case "openInEdgemat":
+            await openInEdgemat({ mesh: meshRef(), ...(m.appearance ? { appearance: m.appearance } : {}) }, this.log);
             return reply(m.id, null);
           case "renderMaterials": {
             const edgemat = await findEdgemat();

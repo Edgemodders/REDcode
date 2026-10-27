@@ -41,3 +41,32 @@ export function mapsForWebview(r: RenderedMaterial): Record<string, string | und
   const b64 = (u?: Uint8Array) => (u ? Buffer.from(u).toString("base64") : undefined);
   return { baseColor: b64(r.baseColor), normal: b64(r.normal), roughness: b64(r.roughness), metalness: b64(r.metalness), fidelity: r.fidelity };
 }
+
+const OpenMesh = "edgemat.openMesh";
+
+/**
+ * The mesh viewer's Open in EDGEmat (REDcode issue #13): the mesh on EDGEmat's Desk with that look open.
+ * Without EDGEmat, offers to install it. Run on a click, so activating EDGEmat here is fine.
+ */
+export async function openInEdgemat(ref: { mesh: string; appearance?: string }, log: vscode.OutputChannel): Promise<void> {
+  const ext = vscode.extensions.getExtension(EDGEmatId);
+  if (!ext) {
+    const pick = await vscode.window.showInformationMessage("Open in EDGEmat needs EDGEmat, the EDGE material editor.", "Install EDGEmat");
+    if (pick) {
+      try {
+        await vscode.commands.executeCommand("workbench.extensions.installExtension", EDGEmatId);
+      } catch {
+        // Not on this marketplace yet: show the search, which says so or offers it.
+        await vscode.commands.executeCommand("workbench.extensions.search", EDGEmatId);
+      }
+    }
+    return;
+  }
+  if (!ext.isActive) await ext.activate();
+  if (!(await vscode.commands.getCommands(true)).includes(OpenMesh)) {
+    void vscode.window.showWarningMessage(`EDGEmat ${String((ext.packageJSON as { version?: string }).version ?? "")} cannot open meshes from REDcode yet (no ${OpenMesh}). Update EDGEmat.`);
+    return;
+  }
+  log.appendLine(`Open in EDGEmat: ${JSON.stringify(ref)}`);
+  await vscode.commands.executeCommand(OpenMesh, ref);
+}
