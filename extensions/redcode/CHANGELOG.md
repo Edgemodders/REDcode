@@ -1,5 +1,17 @@
 # Changelog
 
+What changed in each REDcode release. The release notes on GitHub, the stores and Nexus Mods come from these sections; changes are grouped as **New**, **Changed**, **Fixed** and **Other**, and older sections keep the form they had.
+
+## Unreleased
+
+**New**
+
+- **Open in EDGEmat in the 3D view** (REDcode issue #13): a toolbar button that puts the mesh on EDGEmat's Desk with the appearance shown open, to change its materials. Without EDGEmat it offers to install it.
+
+**Other**
+
+- **Game Assets and Project view files say more about what they are to other extensions** (REDcode issue #15): `.mesh`, `.mlsetup` and `.mltemplate` game files get their own kind, so EDGEmat's Open in EDGEmat shows on those files only. In the Project view a `.mesh` is `projectFile.model.mesh`, apart from GLB files, and `.mltemplate` gets a kind. The kinds are listed in https://edgemodders.github.io/REDcode/api.html.
+
 ## 0.10.4 (2026-10-26)
 
 For EDGEquest, EDGEmat and REDnode: journals in the CR2W editor, Find Items, and Pack and Try through REDnode. Needs REDbridge 0.10.0, as before; Find Items needs 0.11.0, the bridge for game 2.5.

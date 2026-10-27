@@ -25,6 +25,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+      - name: Changelog pages from the CHANGELOG files
+        run: node tools/docs-changelogs.mjs
       - name: Build site with Jekyll
         uses: actions/jekyll-build-pages@v1
         with:

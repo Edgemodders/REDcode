@@ -48,13 +48,19 @@ const plain = (text) =>
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1 ($2)")
     .replace(/\*\*([^*]+)\*\*/g, "$1")
     .replace(/`([^`]+)`/g, "$1");
-const notes = nexus
-  ? section
-      .split("\n")
-      .filter((line) => line.trim())
-      .map((line) => plain(line.startsWith("- ") ? line.slice(2) : line.trim()))
-      .join("\n")
-  : section;
+// A change under a group line (**New**, **Changed**, **Fixed**, **Other**) gets the group in front.
+function nexusLines() {
+  const result = [];
+  let group = "";
+  for (const line of section.split("\n")) {
+    const groupHeading = line.match(/^\*\*(.+)\*\*$/);
+    if (groupHeading) group = groupHeading[1];
+    else if (line.startsWith("- ")) result.push((group ? `${group}: ` : "") + plain(line.slice(2)));
+    else if (line.trim()) result.push(plain(line.trim()));
+  }
+  return result.join("\n");
+}
+const notes = nexus ? nexusLines() : section;
 
 if (out) writeFileSync(out, notes + "\n", "utf8");
 else console.log(notes);

@@ -15,3 +15,7 @@ extensions/redcode/media/mesh/
 
 # copied from the repository root by packages/redcode-mcp/esbuild.mjs for npm
 packages/redcode-mcp/LICENSE
+
+# Written by tools/docs-changelogs.mjs in the Pages workflow
+docs/changelog.md
+docs/mcp-changelog.md

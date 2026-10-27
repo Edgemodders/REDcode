@@ -1,5 +1,9 @@
 # Changelog
 
+What changed in each redcode-mcp release. The release notes on GitHub come from these sections; changes are grouped as **New**, **Changed**, **Fixed** and **Other**, and older sections keep the form they had.
+
+## Unreleased
+
 ## 0.4.0 (2026-10-27)
 
 The new tool needs REDbridge 0.11.0, the bridge for game 2.5; the rest work as in 0.3.0.

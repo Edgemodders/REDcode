@@ -38,3 +38,5 @@ nav:
     url: /mcp.html
   - title: Extension API
     url: /api.html
+  - title: Changelog
+    url: /changelog.html
