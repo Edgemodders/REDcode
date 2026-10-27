@@ -26,7 +26,12 @@ const Version = __VERSION__;
 
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(name);
-  return i >= 0 ? process.argv[i + 1] : undefined;
+  return i >= 0 ? process.argv[i + 1] || undefined : undefined;
+}
+
+/** An environment variable; empty counts as unset, since a plugin passes an unset option as an empty variable. */
+function env(name: string): string | undefined {
+  return process.env[name]?.trim() || undefined;
 }
 
 /** A value from VS Code's user settings, read tolerantly (the file may hold comments and trailing commas). */
@@ -37,14 +42,14 @@ function vscodeSetting(key: string): string | undefined {
   try {
     const text = fs.readFileSync(file, "utf8");
     const match = text.match(new RegExp(`"${key.replace(/\./g, "\\.")}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)"`));
-    return match ? JSON.parse(`"${match[1]}"`) : undefined;
+    return match ? JSON.parse(`"${match[1]}"`) || undefined : undefined;
   } catch {
     return undefined;
   }
 }
 
 function resolveBridgeExe(): string {
-  let exe = arg("--bridge") ?? process.env.REDBRIDGE_EXE ?? vscodeSetting("redcode.bridgePath") ?? "REDbridge.exe";
+  let exe = arg("--bridge") ?? env("REDBRIDGE_EXE") ?? vscodeSetting("redcode.bridgePath") ?? "REDbridge.exe";
   if (exe && fs.existsSync(exe) && fs.statSync(exe).isDirectory()) {
     exe = path.join(exe, "REDbridge.exe");
   }
@@ -53,8 +58,8 @@ function resolveBridgeExe(): string {
 
 const config = {
   exe: resolveBridgeExe(),
-  gamePath: arg("--game") ?? process.env.REDCODE_GAME_PATH ?? vscodeSetting("redcode.gamePath"),
-  dotnetRoot: arg("--dotnet-root") ?? process.env.DOTNET_ROOT ?? vscodeSetting("redcode.dotnetRoot") ?? undefined,
+  gamePath: arg("--game") ?? env("REDCODE_GAME_PATH") ?? vscodeSetting("redcode.gamePath"),
+  dotnetRoot: arg("--dotnet-root") ?? env("DOTNET_ROOT") ?? vscodeSetting("redcode.dotnetRoot") ?? undefined,
 };
 
 const log = (line: string) => process.stderr.write(`[redcode-mcp] ${line}\n`);

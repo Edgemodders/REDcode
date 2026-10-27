@@ -1,8 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 (2026-10-27)
+
+The new tool needs REDbridge 0.11.0, the bridge for game 2.5; the rest work as in 0.3.0.
 
 - `mesh_items`: the TweakDB item records whose look shows a mesh, with the `.app` look, root entity and mesh appearance on the way. Needs REDbridge 0.11.0 or later.
+- An empty `REDBRIDGE_EXE`, `REDCODE_GAME_PATH` or `DOTNET_ROOT` counts as unset, so REDcode's VS Code settings still apply. A Claude Code plugin passes an option left blank as an empty variable, which hid them before.
 
 ## 0.3.0 (2026-10-16)
 

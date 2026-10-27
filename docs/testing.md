@@ -11,7 +11,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Type check and build](#type-check-and-build) | Automated | All | 2026-10-16 | Pass |
 | [Smoke test](#smoke-test-the-bridge-client-against-the-game) | Automated, needs the game | C1 on | 2026-10-16 | Pass |
 | [Bridge checks against the game](#bridge-checks-against-the-game) | Scripts outside the repo | C3 on | 2026-10-16 | Pass |
-| [MCP server](#mcp-server) | MCP client script | C3 on | 2026-10-16 | Pass; `loc_*` not run |
+| [MCP server](#mcp-server) | MCP client script | C3 on | 2026-10-27 | Pass |
 | [WolvenKit round trip](#c2-wolvenkit-round-trip-and-extract-to) | By hand | C2 | 2026-10-11 | Pass |
 | [Save JSON to Project](#save-json-to-project) | By hand | C3 | 2026-10-11 | Pass |
 | [Texture viewer](#texture-viewer) | By hand | C3 | 2026-10-11 | Pass after a fix |
@@ -108,7 +108,7 @@ Register the server ([MCP](mcp.html)) and run a client against it. Checked by an
 | 2026-10-14 | `sound_events`, `sound_extract` | Pass |
 | 2026-10-15 | The six `tweakdb_*` tools | Pass |
 | 2026-10-16 | `@edgemodders/redcode-mcp` 0.2.0 installed from its packed `.tgz` into an empty folder and started through `npx` | All 38 tools listed; bridge, TweakDB and sound tools answer |
-| | `loc_languages`, `loc_search`, `loc_get` | **Not run through a client yet.** The bridge methods under them pass |
+| 2026-10-27 | `loc_languages`, `loc_search`, `loc_get`, `mesh_items` (Claude Code through the edge plugin, which in the REDcode checkout runs the workspace build; REDbridge 0.11.0, game 2.5) | Pass: 19 languages; "sunny ammo high-tops" finds LocKey#4123 with its onscreens file and row; de-de text for it and `null` for an unknown key; `mesh_items` on the high-tops mesh, `red_yellow_graphic`, gives `Items.CasualShoes_01_basic_01` and two more |
 
 ## Before any hand test
 
