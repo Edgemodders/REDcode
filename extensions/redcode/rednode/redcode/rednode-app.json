@@ -1,0 +1,9 @@
+{
+  "id": "redcode",
+  "name": "REDcode",
+  "version": "0.1.0",
+  "author": "Edgemodders",
+  "description": "REDcode's service for other packages and assistants: the WolvenKit project open in REDcode (VS Code), and when it changes. REDcode installs and updates this package; it has no window.",
+  "service": "service.mjs",
+  "open": true
+}

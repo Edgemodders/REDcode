@@ -40,7 +40,8 @@ import { TweakDb, TweakHover, TweakTree, type TweakNode } from "./tweakView";
 import { TweakRecordPanel } from "./tweakRecordPanel";
 import { LocHover, LocTree, locKeyOf, locLanguage, locTextOf, type LocNode } from "./locView";
 import type { LocEntry } from "./types";
-import { createApi, type REDcodeApi } from "./api";
+import { createApi, projectRef, type REDcodeApi } from "./api";
+import { publishProject, syncRednodePackage, withdrawProject } from "./rednodeService";
 import { shortType, tweakYaml, type TweakMode } from "./tweakYaml";
 import { createProject, findProject, gamePathOf, ProjectFolders, projectPathFor, type ProjectInfo } from "./project";
 import { ProjectExplorer, type ProjectNode } from "./projectExplorer";
@@ -87,6 +88,8 @@ let offeredUpdate = false;
 let offeredDotnet = false;
 /** Set in deactivate, so work that started at activation does not prompt in a closing window. */
 let deactivated = false;
+/** The extension's folder, which holds the REDnode package (rednode/redcode). */
+let extensionDir: string;
 
 /** REDcode's API for other extensions (src/api.ts, docs/api.md); undefined when REDcode did not start. */
 export function activate(context: vscode.ExtensionContext): REDcodeApi | undefined {
@@ -113,6 +116,7 @@ export function activate(context: vscode.ExtensionContext): REDcodeApi | undefin
   status.command = "redcode.showLog";
   status.show();
   storage = context.globalStorageUri;
+  extensionDir = context.extensionPath;
 
   assets = new AssetBrowser(() => bridge);
   tweakDb = new TweakDb(() => bridge);
@@ -213,8 +217,15 @@ export function activate(context: vscode.ExtensionContext): REDcodeApi | undefin
     vscode.commands.registerCommand("redcode.showLog", () => log.show(true)),
     vscode.workspace.onDidChangeWorkspaceFolders(() => detectProject()),
     vscode.window.onDidChangeActiveTextEditor(() => updateJsonContext()),
+    // With several windows, REDnode packages see the project of the one last focused (REDcode issue #18).
+    vscode.window.onDidChangeWindowState((w) => {
+      if (w.focused && project) shareProject();
+    }),
     vscode.workspace.onDidChangeConfiguration((e) => {
-      if (e.affectsConfiguration("redcode.gamePath")) updateHotToolsContext();
+      if (e.affectsConfiguration("redcode.gamePath")) {
+        updateHotToolsContext();
+        syncRednodeService();
+      }
       // Settings often change one after another; restart once they settle.
       if (["redcode.gamePath", "redcode.bridgePath", "redcode.dotnetRoot"].some((s) => e.affectsConfiguration(s)) && !updating) {
         clearTimeout(restartTimer);
@@ -225,6 +236,7 @@ export function activate(context: vscode.ExtensionContext): REDcodeApi | undefin
 
   detectProject();
   updateHotToolsContext();
+  syncRednodeService();
   void offerGameFolder();
   void resolveBlender().catch(() => undefined);
   startBridge(context);
@@ -253,6 +265,11 @@ export function activate(context: vscode.ExtensionContext): REDcodeApi | undefin
 
 export function deactivate(): void {
   deactivated = true;
+  try {
+    withdrawProject();
+  } catch {
+    // The state file is a convenience; a closed window is also spotted by its process id.
+  }
   stopBlender();
   bridge?.stop();
   watcher?.dispose();
@@ -271,6 +288,7 @@ function detectProject(): void {
   }
   void vscode.commands.executeCommand("setContext", "redcode.projectOpen", project !== undefined);
   projectChanged.fire(project);
+  shareProject();
 
   watcher?.dispose();
   watcher = undefined;
@@ -889,6 +907,30 @@ async function runGameCommand(): Promise<void> {
     void vscode.window.showErrorMessage(`REDcode: could not start the game. ${e.message}`);
   });
   child.unref();
+}
+
+/** Tells REDcode's REDnode package which project this window has open (REDcode issue #18). */
+function shareProject(): void {
+  try {
+    if (project) publishProject(projectRef(project)!);
+    else withdrawProject();
+  } catch (e) {
+    log.appendLine(`Could not write the project for REDnode: ${(e as Error).message}`);
+  }
+}
+
+/** Installs or updates REDcode's REDnode package when the game has REDnode, so packages such as EDGEbuilder can ask for the open project. */
+function syncRednodeService(): void {
+  const config = vscode.workspace.getConfiguration("redcode");
+  const gamePath = config.get<string>("gamePath", "");
+  if (!config.get<boolean>("rednode.installPackage", true) || !isGameFolder(gamePath)) return;
+  try {
+    const r = syncRednodePackage(path.join(extensionDir, "rednode", "redcode"), gamePath);
+    if (r.state === "installed") log.appendLine(`Installed REDcode's REDnode package ${r.version} in ${r.dir}, so REDnode packages such as EDGEbuilder can ask for the open project.`);
+    else if (r.state === "updated") log.appendLine(`Updated REDcode's REDnode package from ${r.from} to ${r.version} in ${r.dir}.`);
+  } catch (e) {
+    log.appendLine(`Could not install REDcode's REDnode package: ${(e as Error).message}`);
+  }
 }
 
 /** Context key for the hot install command: true when the game has Red Hot Tools. */

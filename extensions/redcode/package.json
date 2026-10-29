@@ -1175,6 +1175,11 @@
           "default": false,
           "description": "Pack as a REDmod under packed/mods/<mod name> instead of a plain archive under packed/archive/pc/mod, as WolvenKit's REDmod option does."
         },
+        "redcode.rednode.installPackage": {
+          "type": "boolean",
+          "default": true,
+          "description": "When the game has REDnode, install and update REDcode's small REDnode package (red4ext/plugins/REDnode/apps/redcode). It tells REDnode packages such as EDGEbuilder, and assistants, which project is open in REDcode."
+        },
         "redcode.export.textureFormat": {
           "type": "string",
           "enum": [

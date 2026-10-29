@@ -8,6 +8,7 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 - **Open in EDGEmat in the 3D view** (REDcode issue #13): a toolbar button that puts the mesh on EDGEmat's Desk with the appearance shown open, to change its materials. Without EDGEmat it offers to install it.
 - **EDGEbuilder's scenes show in the Project view** (REDcode issue #2): a project with a `source\scenes` folder shows it as **Scenes**, and a `<name>.scene.json` there opens as JSON. Scenes are not packed; baking them comes with EDGEbuilder's bake.
+- **REDnode mods can ask which project is open in REDcode** (REDcode issue #18, for EDGEbuilder): when the game has REDnode, REDcode installs a small REDnode package, `redcode`, whose service answers `project()` with the open project's name, mod name and folders, and sends `project-changed` when it changes. AI assistants connected to REDnode get it as the tool `redcode__project`. With several VS Code windows, the one last focused with a project counts. The setting `redcode.rednode.installPackage` turns the install off.
 
 **Changed**
 

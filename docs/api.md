@@ -89,3 +89,22 @@ Game files in Game Assets (`view == redcode.assets`) are `assetFile`, with a kin
 ```json
 { "command": "edgemat.openMesh", "when": "view == redcode.assets && viewItem =~ /^assetFile\\.(mesh|mlsetup|mltemplate)$/" }
 ```
+
+## REDnode packages: the redcode service
+
+REDnode packages, such as EDGEbuilder, cannot reach a VS Code extension's API. For them REDcode installs a small REDnode package with the id `redcode` into the game's `red4ext/plugins/REDnode/apps` folder, when the game has REDnode (REDcode issue #18, since 0.10.5; the setting `redcode.rednode.installPackage` turns it off). It has no window, only a service:
+
+```js
+import { service } from 'rednode';
+
+const redcode = await service.connect('redcode');
+const project = await redcode.project();   // or null
+redcode.$on('project-changed', (p) => console.log(p?.modName ?? 'no project'));
+```
+
+| Member | What it does |
+|---|---|
+| `project()` | The open project, in the same shape as `project()` above: `{ name, modName, file, dir, archive, raw, resources, packed }`. `null` when REDcode is not running or has no project open. Read-only, and a tool for AI assistants (`redcode__project`) |
+| `project-changed` | An event with the new `project()`, when a project opens or closes, another VS Code window with a project gets the focus, or VS Code closes (seen within 5 seconds) |
+
+With several VS Code windows, the window last focused with a project open is the one that counts. Without the package or without REDcode, `service.connect('redcode')` fails or `project()` answers `null`: carry on without a project. How it works: each REDcode window writes its project to `project.json` in the `REDcode` folder under `%LOCALAPPDATA%`, with its process id, and the package reads that file.

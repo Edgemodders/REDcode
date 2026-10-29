@@ -33,7 +33,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Unit checks](#unit-checks) | Automated | C4 on | 2026-10-25 | Pass |
 | [Issue #11: Pack and Try through REDnode](#issue-11-pack-and-try-through-rednode) | By hand, in the game | C4 | Partly passed | On game 2.5, A and B pass (2026-10-26); steps 1 to 6 wait for Red Hot Tools on 2.5 |
 | [Issue #16: EDGEmat colors repeat past the UV square](#issue-16-edgemat-colors-repeat-past-the-uv-square) | By hand | C5 | 2026-10-26 | Pass |
-| [Release 0.10.5: requests #2, #13, #14, #15 and deployMod](#release-0105-requests-2-13-14-15-and-edgedecks-deploymod) | By hand | C5 | Not run | Given to the owner 2026-10-27 |
+| [Release 0.10.5: requests #2, #13, #14, #15, #18 and deployMod](#release-0105-requests-2-13-14-15-18-and-edgedecks-deploymod) | By hand | C5 | Not run | Given to the owner 2026-10-27; steps 8 to 10 (#18) added 2026-10-29 |
 | [Never run](#never-run) | | | Not run | |
 
 ## Automated
@@ -522,9 +522,9 @@ Built 2026-10-26, given to the owner the same day. REDcode main, F5 with **Run R
 
 Result 2026-10-26, reported by the owner: pass, run in the EDGEmat session as part of EDGEmat's own tests.
 
-## Release 0.10.5: requests #2, #13, #14, #15 and EDGEdeck's deployMod
+## Release 0.10.5: requests #2, #13, #14, #15, #18 and EDGEdeck's deployMod
 
-Built 2026-10-27, given to the owner the same day. REDcode main, F5 with **Run REDcode**. Checked before: type check, build and `npm test` (26) pass. Steps 2 and 3 need EDGEmat installed (its `edgemat.openMesh`); step 4 needs it uninstalled or disabled, or skip it. Steps 6 and 7 need EDGEdeck 0.28.0 or later (0.29.0 is installed here).
+Built 2026-10-27, given to the owner the same day. REDcode main, F5 with **Run REDcode**. Checked before: type check, build and `npm test` (26) pass. Steps 2 and 3 need EDGEmat installed (its `edgemat.openMesh`); step 4 needs it uninstalled or disabled, or skip it. Steps 6 and 7 need EDGEdeck 0.28.0 or later (0.29.0 is installed here). Steps 8 to 10 (#18, built 2026-10-29) need REDnode in the game; the project file is `project.json` in the `REDcode` folder under `%LOCALAPPDATA%`. Checked before: a mock check of the state file, the package's `service.mjs` (with a stand-in `rednode` module) and its install (scratchpad `svc18/check.mjs`, 14 checks), and REDnode's `rednode describe` reads the service with no warnings.
 
 | # | Do | Expected |
 |---|---|---|
@@ -535,6 +535,9 @@ Built 2026-10-27, given to the owner the same day. REDcode main, F5 with **Run R
 | 5 | In a project, make a folder `source\scenes` with a file `test.scene.json` holding `{}` | The Project view shows a **Scenes** root holding it (refresh the view if it does not show), and a click opens it as JSON. **Pack** leaves it out of `packed` |
 | 6 | With EDGEdeck 0.28.0 or later: in EDGEdeck, turn some other mod off (so it has a change waiting), then in REDcode **Pack and Install** the project | No question about deploying other mods. The project goes into the game; the other mod's change still waits in EDGEdeck. Output > REDcode: "EDGEdeck deployed: ..." ending with how many files of other mods' changes still wait |
 | 7 | **Uninstall** | The project's files come out; the other mod's change still waits. Then turn that mod back on in EDGEdeck |
+| 8 | (#18) With `redcode.gamePath` on the game with REDnode, reload the window with a project open | Output > REDcode: "Installed REDcode's REDnode package 0.1.0 in ..." naming the game's REDnode apps folder, which now has a `redcode` folder with `rednode-app.json` and `service.mjs`. The project file under LOCALAPPDATA (see below) names the project and a `pid` |
+| 9 | Start the game with REDnode, MCP server on in its launcher's Settings drawer. Ask Claude to call the tool `redcode__project` | The Mod Manager lists **REDcode** with the function `project`. The tool answers the open project: name, mod name, the `.cpmodproj` file and its folders. It runs without asking (read-only) |
+| 10 | Close the project's folder in VS Code (File > Close Folder), call `redcode__project` again; then open the project again, close the VS Code window, wait 5 seconds and call it again | `null` after the folder closes, the project again after it opens, `null` after the window closes |
 
 ## Never run
 
