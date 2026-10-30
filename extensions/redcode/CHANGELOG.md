@@ -4,6 +4,10 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 ## Unreleased
 
+## 0.10.5 (2026-10-29)
+
+For EDGEmat, EDGEbuilder and EDGEdeck: Open in EDGEmat, EDGEbuilder's scenes and the open project for REDnode mods, Pack and Play, and installs that touch only your mod. Needs REDbridge 0.10.0, as before.
+
 **New**
 
 - **Open in EDGEmat in the 3D view** (REDcode issue #13): a toolbar button that puts the mesh on EDGEmat's Desk with the appearance shown open, to change its materials. Without EDGEmat it offers to install it.

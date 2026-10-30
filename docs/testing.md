@@ -33,7 +33,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Unit checks](#unit-checks) | Automated | C4 on | 2026-10-25 | Pass |
 | [Issue #11: Pack and Try through REDnode](#issue-11-pack-and-try-through-rednode) | By hand, in the game | C4 | Partly passed | On game 2.5, A and B pass (2026-10-26); steps 1 to 6 wait for Red Hot Tools on 2.5 |
 | [Issue #16: EDGEmat colors repeat past the UV square](#issue-16-edgemat-colors-repeat-past-the-uv-square) | By hand | C5 | 2026-10-26 | Pass |
-| [Release 0.10.5: requests #2, #13, #14, #15, #18 and deployMod](#release-0105-requests-2-13-14-15-18-and-edgedecks-deploymod) | By hand | C5 | 2026-10-29 | Pass, steps 1 to 10 |
+| [Release 0.10.5: requests #2, #13, #14, #15, #18 and deployMod](#release-0105-requests-2-13-14-15-18-and-edgedecks-deploymod) | By hand | C5 | 2026-10-29 | Pass, steps 1 to 11 |
 | [Never run](#never-run) | | | Not run | |
 
 ## Automated
@@ -546,6 +546,8 @@ Added 2026-10-29 for the game file cache fix (3ebf726, six unit checks). The cac
 | # | Do | Expected |
 |---|---|---|
 | 11 | F5 on main. **REDcode: Browse Game Sounds**, play three sound effects. Then open `cache\audio\game\stamp.txt`, change its text to `x`, save, reload the window (Developer: Reload Window) and play one of them again | Each sound plays. After the reload, `stamp.txt` holds the game folder again and the files beside it are newly written (their times are now) |
+
+**Result (2026-10-29, the owner):** step 11 passes.
 
 ## Never run
 
