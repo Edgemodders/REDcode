@@ -17,7 +17,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { BridgeClient } from "./bridgeClient";
-import { cachedExport, sourceFile, type CachedExport, type ExportSource } from "./exportCache";
+import { cachedExport, gameCacheReady, sourceFile, type CachedExport, type ExportSource } from "./exportCache";
 
 /** A .wem as an .ogg in the cache, exported again only when the .wem is newer. */
 export function wemOggFor(bridge: BridgeClient, cacheRoot: string, source: ExportSource): Promise<CachedExport> {
@@ -262,14 +262,15 @@ export function wwiseHash(name: string): number {
 /** The game's sound effect index. */
 export const GameSoundIndex = "base\\sound\\soundbanks\\sfx_container.opusinfo";
 
-let gameIndex: { bridge: BridgeClient; index: Promise<OpusIndex> } | undefined;
+let gameIndex: { bridge: BridgeClient; stamp: string | undefined; index: Promise<OpusIndex> } | undefined;
 
-/** The game's sound effect index, extracted into the cache and parsed once per bridge process. */
-export function gameSoundIndex(bridge: BridgeClient, cacheRoot: string): Promise<OpusIndex> {
-  if (gameIndex?.bridge !== bridge) {
+/** The game's sound effect index, extracted into the cache and parsed once per bridge process and game build. */
+export async function gameSoundIndex(bridge: BridgeClient, cacheRoot: string): Promise<OpusIndex> {
+  const stamp = await gameCacheReady(bridge, cacheRoot);
+  if (gameIndex?.bridge !== bridge || gameIndex.stamp !== stamp) {
     const index = sourceFile(bridge, cacheRoot, { gamePath: GameSoundIndex }).then(({ file }) => parseOpusInfo(fs.readFileSync(file)));
     index.catch(() => (gameIndex = undefined));
-    gameIndex = { bridge, index };
+    gameIndex = { bridge, stamp, index };
   }
   return gameIndex.index;
 }

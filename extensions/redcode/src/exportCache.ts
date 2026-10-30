@@ -28,9 +28,64 @@ export const mtime = (f: string): number => {
   }
 };
 
+/**
+ * What the game files in a cache were extracted from: the game folder and its exe's size and
+ * modified time, so a game patch or another game folder shows.
+ */
+export function gameStamp(gameDir: string | null): string {
+  if (!gameDir) return "no game";
+  try {
+    const s = fs.statSync(path.join(gameDir, "bin", "x64", "Cyberpunk2077.exe"));
+    return `${path.resolve(gameDir).toLowerCase()}|${s.size}|${Math.round(s.mtimeMs)}`;
+  } catch {
+    return `${path.resolve(gameDir).toLowerCase()}|no exe`;
+  }
+}
+
+/**
+ * Empties cacheRoot/game when its files came from another game build or folder, or from before
+ * the stamp existed (so every cache made on game 2.31): a patch moves sounds inside the sound
+ * index and its packs, and an old index read against new packs finds no sound. Returns the
+ * stamp. Exports made from the old files are made again, since the new files are newer.
+ */
+export function checkGameCache(cacheRoot: string, stamp: string): string {
+  const dir = path.join(cacheRoot, "game");
+  const file = path.join(dir, "stamp.txt");
+  let old: string | undefined;
+  try {
+    old = fs.readFileSync(file, "utf8").trim();
+  } catch {
+    // none yet
+  }
+  if (old === stamp) return stamp;
+  fs.rmSync(dir, { recursive: true, force: true });
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(file, `${stamp}\n`);
+  return stamp;
+}
+
+// The stamp each cache was last checked against in this process, so a check is a compare.
+const checkedStamps = new Map<string, string>();
+
+/**
+ * Checks the cache against the game the bridge has loaded (Set Game Folder can change it while
+ * the bridge runs) and returns its stamp; undefined with no game loaded.
+ */
+export async function gameCacheReady(bridge: BridgeClient, cacheRoot: string): Promise<string | undefined> {
+  const info = await bridge.info();
+  if (!info.gameDir) return undefined;
+  const stamp = gameStamp(info.gameDir);
+  if (checkedStamps.get(cacheRoot) !== stamp) {
+    checkGameCache(cacheRoot, stamp);
+    checkedStamps.set(cacheRoot, stamp);
+  }
+  return stamp;
+}
+
 /** Where a source sits for the exporter: a game path is extracted into cacheRoot/game/archive first. */
 export async function sourceFile(bridge: BridgeClient, cacheRoot: string, source: ExportSource): Promise<{ file: string; archiveDir: string }> {
   if (source.gamePath) {
+    await gameCacheReady(bridge, cacheRoot);
     const archiveDir = path.join(cacheRoot, "game", "archive");
     const file = path.join(archiveDir, ...source.gamePath.split("\\"));
     if (!fs.existsSync(file)) await bridge.extract(source.gamePath, file);

@@ -1,8 +1,9 @@
-// Unit checks for logic with no VS Code or game needed: Pack and Play's hot swap choice (REDcode issue #11).
+// Unit checks for logic with no VS Code or game needed: Pack and Play's hot swap choice (REDcode issue #11)
+// and the export cache's game stamp (a game patch empties the cached game files).
 //
 //   npm run build && npm test
 //
-// Uses dist/hotSwap.js, which the build writes.
+// Uses dist/hotSwap.js and dist/exportCache.js, which the build writes.
 import assert from "node:assert/strict";
 import * as fs from "node:fs";
 import * as http from "node:http";
@@ -12,6 +13,7 @@ import * as path from "node:path";
 
 const require = createRequire(import.meta.url);
 const hs = require("../dist/hotSwap.js");
+const ec = require("../dist/exportCache.js");
 
 let passed = 0;
 const failures = [];
@@ -160,6 +162,52 @@ await check("call: nothing listening is unreachable", async () => {
   await new Promise((r) => server.close(r));
   const r = await hs.callArchivesReload({ port, token: "t" }, ["x.archive"], 5000);
   assert.equal(r.kind, "unreachable");
+});
+
+// ---- the export cache's game stamp ----
+
+const fakeGame = (dir, exeBytes) => write(path.join(dir, "bin", "x64", "Cyberpunk2077.exe"), "x".repeat(exeBytes));
+const fakeBridge = (gameDir) => ({ info: async () => ({ gameDir }), extract: async (gamePath, out) => { fs.mkdirSync(path.dirname(out), { recursive: true }); fs.writeFileSync(out, `from ${gameDir}`); } });
+
+await check("cache: a cache from before the stamp is emptied", async () => {
+  const root = path.join(tmp, "cacheA");
+  write(path.join("cacheA", "game", "archive", "base", "sound", "soundbanks", "sfx_container.opusinfo"), "2.31 index");
+  const game = path.join(tmp, "gameA");
+  fakeGame("gameA", 10);
+  const r = await ec.sourceFile(fakeBridge(game), root, { gamePath: "base\sound\soundbanks\sfx_container.opusinfo" });
+  assert.equal(fs.readFileSync(r.file, "utf8"), `from ${game}`);
+  assert.ok(fs.readFileSync(path.join(root, "game", "stamp.txt"), "utf8").includes("|10|"));
+});
+await check("cache: the same game keeps its files", async () => {
+  const root = path.join(tmp, "cacheA");
+  const file = path.join(root, "game", "archive", "kept.txt");
+  fs.writeFileSync(file, "kept");
+  await ec.sourceFile(fakeBridge(path.join(tmp, "gameA")), root, { gamePath: "kept.txt" });
+  assert.equal(fs.readFileSync(file, "utf8"), "kept");
+});
+await check("cache: a patched game (another exe) empties it", async () => {
+  const root = path.join(tmp, "cacheA");
+  fakeGame("gameA", 12);
+  const r = await ec.sourceFile(fakeBridge(path.join(tmp, "gameA")), root, { gamePath: "kept.txt" });
+  assert.equal(fs.readFileSync(r.file, "utf8"), `from ${path.join(tmp, "gameA")}`);
+});
+await check("cache: another game folder empties it", async () => {
+  const root = path.join(tmp, "cacheA");
+  fakeGame("gameB", 12);
+  const r = await ec.sourceFile(fakeBridge(path.join(tmp, "gameB")), root, { gamePath: "kept.txt" });
+  assert.equal(fs.readFileSync(r.file, "utf8"), `from ${path.join(tmp, "gameB")}`);
+});
+await check("cache: no game loaded leaves it alone", async () => {
+  const root = path.join(tmp, "cacheA");
+  const before = fs.readFileSync(path.join(root, "game", "stamp.txt"), "utf8");
+  assert.equal(await ec.gameCacheReady(fakeBridge(null), root), undefined);
+  assert.equal(fs.readFileSync(path.join(root, "game", "stamp.txt"), "utf8"), before);
+});
+await check("cache: files on disk are never touched", async () => {
+  const f = write("project/source/archive/base/x.mesh", "mine");
+  const r = await ec.sourceFile(fakeBridge(path.join(tmp, "gameC")), path.join(tmp, "cacheA"), { file: f });
+  assert.equal(r.file, f);
+  assert.equal(fs.readFileSync(f, "utf8"), "mine");
 });
 
 fs.rmSync(tmp, { recursive: true, force: true });

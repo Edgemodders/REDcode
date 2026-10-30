@@ -15,6 +15,10 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 - **Pack and Try is now Pack and Play** (REDcode issue #14): the same flame button in the Project view, and `REDcode: Pack and Play` in the Command Palette. The old command id `redcode.packAndTry` still works for keybindings and other tools, and so does `REDcodeApi.packAndTry()` beside the new `packAndPlay()`.
 - **Install and Uninstall through EDGEdeck touch only the project's mod** (EDGEdeck #2): with EDGEdeck 0.28.0 or later, Install, Pack and Install and Pack and Play deploy the project's mod alone, and other mods' changes keep waiting for a Deploy in EDGEdeck. REDcode no longer asks whether to deploy them too. Uninstall takes only the project's files out. The REDcode log says when the project lost files to another mod, and how many files of other mods' changes still wait. An older EDGEdeck deploys the whole list after asking, as before.
 
+**Fixed**
+
+- **Game sounds play again after a game patch**: REDcode keeps the game files it extracts for the sound player, the 3D view and EDGEwave in its cache, and kept them across a game update, so after 2.5 it read 2.31's sound index against 2.5's sound packs and EDGEwave said it "could not read sound" for most variations. The cache now remembers which game folder and build its files came from and empties itself when either changes; a cache made before this fix is emptied once.
+
 **Other**
 
 - **Game Assets and Project view files say more about what they are to other extensions** (REDcode issue #15): `.mesh`, `.mlsetup` and `.mltemplate` game files get their own kind, so EDGEmat's Open in EDGEmat shows on those files only. In the Project view a `.mesh` is `projectFile.model.mesh`, apart from GLB files, and `.mltemplate` gets a kind. The kinds are listed in https://edgemodders.github.io/REDcode/api.html.
