@@ -33,7 +33,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Unit checks](#unit-checks) | Automated | C4 on | 2026-10-25 | Pass |
 | [Issue #11: Pack and Try through REDnode](#issue-11-pack-and-try-through-rednode) | By hand, in the game | C4 | Partly passed | On game 2.5, A and B pass (2026-10-26); steps 1 to 6 wait for Red Hot Tools on 2.5 |
 | [Issue #16: EDGEmat colors repeat past the UV square](#issue-16-edgemat-colors-repeat-past-the-uv-square) | By hand | C5 | 2026-10-26 | Pass |
-| [Release 0.10.5: requests #2, #13, #14, #15, #18 and deployMod](#release-0105-requests-2-13-14-15-18-and-edgedecks-deploymod) | By hand | C5 | Not run | Given to the owner 2026-10-27; steps 8 to 10 (#18) added 2026-10-29 |
+| [Release 0.10.5: requests #2, #13, #14, #15, #18 and deployMod](#release-0105-requests-2-13-14-15-18-and-edgedecks-deploymod) | By hand | C5 | 2026-10-29 | Pass, steps 1 to 10 |
 | [Never run](#never-run) | | | Not run | |
 
 ## Automated
@@ -538,6 +538,14 @@ Built 2026-10-27, given to the owner the same day. REDcode main, F5 with **Run R
 | 8 | (#18) With `redcode.gamePath` on the game with REDnode, reload the window with a project open | Output > REDcode: "Installed REDcode's REDnode package 0.1.0 in ..." naming the game's REDnode apps folder, which now has a `redcode` folder with `rednode-app.json` and `service.mjs`. The project file under LOCALAPPDATA (see below) names the project and a `pid` |
 | 9 | Start the game with REDnode, MCP server on in its launcher's Settings drawer. Ask Claude to call the tool `redcode__project` | The Mod Manager lists **REDcode** with the function `project`. The tool answers the open project: name, mod name, the `.cpmodproj` file and its folders. It runs without asking (read-only) |
 | 10 | Close the project's folder in VS Code (File > Close Folder), call `redcode__project` again; then open the project again, close the VS Code window, wait 5 seconds and call it again | `null` after the folder closes, the project again after it opens, `null` after the window closes |
+
+**Result (2026-10-29, the owner):** steps 1 to 10 pass, with no fixes.
+
+Added 2026-10-29 for the game file cache fix (3ebf726, six unit checks). The cache is `cache\audio\game` in REDcode's global storage (`%APPDATA%\Code\User\globalStorage\edgemodders.redcode-cyberpunk`); on this machine the fix had already stamped it for game 2.5 at 21:12 and extracted the sound index again.
+
+| # | Do | Expected |
+|---|---|---|
+| 11 | F5 on main. **REDcode: Browse Game Sounds**, play three sound effects. Then open `cache\audio\game\stamp.txt`, change its text to `x`, save, reload the window (Developer: Reload Window) and play one of them again | Each sound plays. After the reload, `stamp.txt` holds the game folder again and the files beside it are newly written (their times are now) |
 
 ## Never run
 
