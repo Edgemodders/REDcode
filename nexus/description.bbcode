@@ -38,7 +38,7 @@ Every file in the game, in folders, with search as you type and a filter that na
 [img]https://raw.githubusercontent.com/Edgemodders/REDcode/main/nexus/images/cr2w-editor.webp[/img]
 
 [size=4][b][color=#19f3ff]Textures, meshes and sounds[/color][/b][/size]
-Textures show as images. Meshes open in 3D: orbit, pick the LOD, switch appearances, turn submeshes on and off, see each one's material. [b]Find Items[/b] lists the game's items that wear the mesh, with their names in the game. Voice lines and sound effects play in a player with a waveform, and [b]Browse Game Sounds[/b] lists the game's 73,000 sound effects as events to filter and play.
+Textures show as images. Meshes open in 3D: orbit, pick the LOD, switch appearances, turn submeshes on and off, see each one's material. [b]Find Items[/b] lists the game's items that wear the mesh, with their names in the game. [b]Open in EDGEmat[/b] takes the mesh to [url=https://github.com/Edgemodders/EDGEmat]EDGEmat[/url] to change its materials. Voice lines and sound effects play in a player with a waveform, and [b]Browse Game Sounds[/b] lists the game's 73,000 sound effects as events to filter and play.
 
 [color=#19f3ff][i][img]https://raw.githubusercontent.com/Edgemodders/REDcode/main/nexus/images/textures-meshes-sounds.webp[/img][/i][/color]
 
@@ -59,13 +59,13 @@ Every record type and record, with a page per record where links take you to the
 [b][img]https://raw.githubusercontent.com/Edgemodders/REDcode/main/nexus/images/lockeys.webp[/img][/b]
 
 [color=#00ffff][size=4][b]Pack, install, play[/b][/size][/color]
-[b]Pack[/b] builds your mod the way WolvenKit does (Ctrl+Shift+B), [b]Install[/b] puts it in the game (through EDGEdeck when you have it, so you can undo it), and [b]Run Game[/b] starts Cyberpunk. [b]Pack and Play[/b] does it in one click, straight into the running game: through [url=https://github.com/Edgemodders/REDnode]REDnode[/url] when the game runs with it and its MCP server is on (edited sound banks too), or else through Red Hot Tools' hot folder (not for edited sound banks: that swap crashes a running game, so REDcode installs them for the next start instead). Export to glTF, PNG and WAV, edit, and import back: a GLB can become a new mesh, and edited sound effects go back into the game's sound banks. REDmod packs carry your custom sounds.
+[b]Pack[/b] builds your mod the way WolvenKit does (Ctrl+Shift+B), [b]Install[/b] puts it in the game (through EDGEdeck when you have it, so you can undo it, and only your mod: other mods' changes wait for you), and [b]Run Game[/b] starts Cyberpunk. [b]Pack and Play[/b] does it in one click, straight into the running game: through [url=https://github.com/Edgemodders/REDnode]REDnode[/url] when the game runs with it and its MCP server is on (edited sound banks too), or else through Red Hot Tools' hot folder (not for edited sound banks: that swap crashes a running game, so REDcode installs them for the next start instead). Export to glTF, PNG and WAV, edit, and import back: a GLB can become a new mesh, and edited sound effects go back into the game's sound banks. REDmod packs carry your custom sounds.
 
 [size=4][b][color=#19f3ff]TweakXL files[/color][/b][/size]
 Syntax highlighting, brackets, comments and snippets for TweakXL's [i].tweak[/i] format.
 
 [size=4][b][color=#19f3ff]For AI assistants[/color][/b][/size]
-[url=https://www.npmjs.com/package/@edgemodders/redcode-mcp]@edgemodders/redcode-mcp[/url] gives Claude Code and other assistants the same engine: browse the archives, read and patch CR2W files, export, import, pack, and query the TweakDB and the game's texts. Ask your assistant to make the mod, and watch it work in the same project.
+[url=https://www.npmjs.com/package/@edgemodders/redcode-mcp]@edgemodders/redcode-mcp[/url] gives Claude Code and other assistants the same engine: browse the archives, read and patch CR2W files, export, import, pack, and query the TweakDB and the game's texts. Ask your assistant to make the mod, and watch it work in the same project. With REDnode in the game, REDcode also tells REDnode mods and the assistants connected to it which project is open, so EDGEbuilder can place your own objects.
 
 [size=4][b][color=#19f3ff]Coming next[/color][/b][/size]
 Planned: the [b]REDnode loop[/b], to edit a REDnode mod and see it in the running game without a restart, with the game's logs and a debugger in VS Code.
