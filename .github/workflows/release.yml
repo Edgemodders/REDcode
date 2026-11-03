@@ -14,7 +14,10 @@
 #                                               the GitHub release, which tags the commit. Stops first if
 #                                               that tag exists (raise the version), if it is not run on
 #                                               main, or if the folder's CHANGELOG.md has no section for
-#                                               the version (tools/release-notes.mjs)
+#                                               the version (tools/release-notes.mjs), or, for REDcode,
+#                                               if README.md's status line and badge do not say the
+#                                               version (tools/release/readme-check.mjs; the README's
+#                                               status is REDcode's, so the theme and redcode-mcp skip it)
 #   npm run release / release:theme / release:mcp   the same as ticking the box, from a terminal
 #   ... and "Update Nexus Mods" ticked          REDcode only (npm run release:nexus): also, after the
 #   (REDcode only)                              GitHub release, uploads the Nexus zip to the page
@@ -114,6 +117,11 @@ jobs:
               exit 1
             fi
           fi
+
+      # Before anything is built: a README that does not say REDcode's version stops its release here.
+      - name: The README says this release
+        if: inputs.release && inputs.what == 'REDcode'
+        run: node tools/release/readme-check.mjs --version "${VERSION}"
 
       # Before anything is built: no CHANGELOG.md section for the version stops a release here.
       - name: Release notes from the CHANGELOG
