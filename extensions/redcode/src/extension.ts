@@ -37,7 +37,7 @@ import { packProject, walk, type PackSummary } from "./pack";
 import { findEDGEdeck, runningEDGEdeck, type DeployResult } from "./edgedeck";
 import { findGames, isGameFolder, steamPath } from "./gameFinder";
 import { findBlender, writeBlenderScript } from "./blender";
-import { TweakDb, TweakHover, TweakTree, type TweakNode } from "./tweakView";
+import { TweakClaims, TweakDb, TweakHover, TweakTree, type TweakNode } from "./tweakView";
 import { TweakRecordPanel } from "./tweakRecordPanel";
 import { LocHover, LocTree, locKeyOf, locLanguage, locTextOf, type LocNode } from "./locView";
 import type { LocEntry } from "./types";
@@ -71,6 +71,8 @@ let projectView: vscode.TreeView<ProjectNode>;
 let assetsView: vscode.TreeView<AssetNode>;
 let tweakDb: TweakDb;
 let tweakTree: TweakTree;
+/** The records other tools open, from their package.json (REDcode issue #22). */
+let tweakClaims: TweakClaims;
 let tweakView: vscode.TreeView<TweakNode>;
 let tweakPanel: TweakRecordPanel;
 let locTree: LocTree;
@@ -121,9 +123,10 @@ export function activate(context: vscode.ExtensionContext): REDcodeApi | undefin
 
   assets = new AssetBrowser(() => bridge);
   tweakDb = new TweakDb(() => bridge);
-  tweakTree = new TweakTree(tweakDb);
+  tweakClaims = new TweakClaims(tweakDb, (line) => log.appendLine(line));
+  tweakTree = new TweakTree(tweakDb, tweakClaims);
   locTree = new LocTree(() => bridge, () => project?.dir);
-  tweakPanel = new TweakRecordPanel(context.extensionUri, tweakDb, log, (gamePath) => void openGameFileByPath(gamePath));
+  tweakPanel = new TweakRecordPanel(context.extensionUri, tweakDb, tweakClaims, log, (gamePath) => void openGameFileByPath(gamePath));
   explorer = new ProjectExplorer(() => project);
   textures = new TextureViewer(() => bridge, storage, log);
   const cr2w = new Cr2wEditorProvider(
@@ -152,6 +155,12 @@ export function activate(context: vscode.ExtensionContext): REDcodeApi | undefin
     (tweakView = tweakTree.view = vscode.window.createTreeView("redcode.tweakdb", { treeDataProvider: tweakTree, showCollapseAll: true })),
     vscode.languages.registerHoverProvider([{ language: "yaml" }, { language: "tweak" }], new TweakHover(tweakDb)),
     vscode.commands.registerCommand("redcode.openTweakRecord", (arg?: string | TweakNode) => openTweakRecord(arg)),
+    vscode.commands.registerCommand("redcode.openTweakRecordIn", (arg?: string | TweakNode) => openTweakRecordIn(arg)),
+    // A tool installed or removed may claim records, or stop claiming them.
+    vscode.extensions.onDidChange(() => {
+      tweakClaims.reload();
+      tweakTree.refresh();
+    }),
     vscode.commands.registerCommand("redcode.newTweakFromRecord", (arg?: string | TweakNode) => newTweakFromRecord(arg)),
     vscode.commands.registerCommand("redcode.copyTweakPath", (node?: TweakNode) => node?.kind === "record" && copyText(node.ref.path ?? node.ref.id)),
     vscode.commands.registerCommand("redcode.filterTweakDB", () => filterInput("tweakdb")),
@@ -1246,6 +1255,21 @@ async function openLocEntry(entry: LocEntry): Promise<void> {
 async function openTweakRecord(arg?: string | TweakNode): Promise<void> {
   const target = tweakTarget(arg) ?? (await pickTweakRecord());
   if (target) tweakPanel.show(target);
+}
+
+/** Open In...: the tools that claim a record, and REDcode's own record page. */
+async function openTweakRecordIn(arg?: string | TweakNode): Promise<void> {
+  const target = tweakTarget(arg);
+  if (!target) return;
+  const claims = arg && typeof arg !== "string" && arg.kind === "record" ? (arg.claims ?? []) : [...(await tweakClaims.of([{ id: (await tweakDb.record(target))?.id ?? target }])).values()].flat();
+  const items: (vscode.QuickPickItem & { command?: string })[] = [
+    ...claims.map((c) => ({ label: `Open in ${c.title}`, description: c.extension, command: c.command })),
+    { label: "Open Record", description: "REDcode's record page" },
+  ];
+  const pick = await vscode.window.showQuickPick(items, { title: target, placeHolder: "Open the record in" });
+  if (!pick) return;
+  if (pick.command) await vscode.commands.executeCommand(pick.command, target);
+  else tweakPanel.show(target);
 }
 
 /** A quick pick over record paths, searched in the bridge as you type. */

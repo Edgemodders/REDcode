@@ -9,6 +9,7 @@
     const m = e.data;
     $("back").disabled = !m.canBack;
     $("forward").disabled = !m.canForward;
+    if (m.type === "loading" || m.type === "error") $("tools").replaceChildren();
     if (m.type === "loading") {
       $("path").textContent = m.path;
       $("type").textContent = "";
@@ -31,6 +32,16 @@
       $("path").textContent = record.path ?? record.id;
       $("type").textContent = `${m.shortType}  ·  ${record.type}`;
       $("id").textContent = record.id;
+      // Open in <tool>, for each tool that claims the record (the open contract, REDcode issue #22).
+      $("tools").replaceChildren(
+        ...(m.tools ?? []).map((title, index) => {
+          const b = document.createElement("button");
+          b.textContent = `Open in ${title}`;
+          b.title = `Open this record in ${title}`;
+          b.addEventListener("click", () => vscode.postMessage({ type: "tool", index }));
+          return b;
+        }),
+      );
       render();
     }
   });

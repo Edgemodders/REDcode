@@ -8,3 +8,4 @@ dist/bridgeClient.js
 dist/hotSwap.js
 *.vsix
 webview/**
+dist/opens.js

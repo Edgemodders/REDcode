@@ -1,0 +1,20 @@
+{
+  "name": "opens-test",
+  "displayName": "Opens Test",
+  "description": "A stand-in for a tool that claims TweakDB records through the open contract (REDcode issue #22). For REDcode's hand test only; never published.",
+  "version": "0.0.1",
+  "publisher": "edgemodders",
+  "private": true,
+  "license": "MIT",
+  "engines": { "vscode": "^1.74.0" },
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [{ "command": "openstest.open", "title": "Opens Test: Open" }]
+  },
+  "edgemodders": {
+    "opens": [
+      { "tweakdb": { "type": "Item", "flat": "itemType", "is": "ItemType.Prt_Program" }, "command": "openstest.open" },
+      { "tweakdb": { "type": "ObjectAction", "flat": "isQuickHack", "is": true }, "command": "openstest.open" }
+    ]
+  }
+}

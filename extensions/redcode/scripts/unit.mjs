@@ -1,10 +1,10 @@
 // Unit checks for logic with no VS Code or game needed: Pack and Play's hot swap choice (REDcode issue #11),
-// the export cache's game stamp (a game patch empties the cached game files), and Add to Library's item
-// (REDcode issue #19).
+// the export cache's game stamp (a game patch empties the cached game files), Add to Library's item
+// (REDcode issue #19) and the open contract (REDcode issue #22).
 //
 //   npm run build && npm test
 //
-// Uses dist/hotSwap.js, dist/exportCache.js and dist/library.js, which the build writes.
+// Uses dist/hotSwap.js, dist/exportCache.js, dist/library.js and dist/opens.js, which the build writes.
 import assert from "node:assert/strict";
 import * as fs from "node:fs";
 import * as http from "node:http";
@@ -341,6 +341,57 @@ await check("library: the root: read, written keeping other fields, refused insi
   assert.equal(lib.readLibraryRoot(file), root);
   assert.equal(JSON.parse(fs.readFileSync(file, "utf8")).other, 1);
   await assert.rejects(add(libBridge(), { root: path.join(tmp, "game", "Library"), gameDir: path.join(tmp, "game") }), /inside the game/);
+});
+
+// ---- the open contract (REDcode issue #22) ----------------------------------------------------
+
+const opens = require("../dist/opens.js");
+const edgehack = {
+  id: "edgemodders.edgehack",
+  packageJSON: {
+    displayName: "EDGEhack",
+    edgemodders: {
+      opens: [
+        { tweakdb: { type: "Item", flat: "itemType", is: "ItemType.Prt_Program" }, command: "edgehack.openQuickhack" },
+        { tweakdb: { type: "ObjectAction", flat: "isQuickHack", is: true }, command: "edgehack.openQuickhack" },
+        { files: "**/*.quickhack.json", command: "edgehack.openFile" },
+      ],
+    },
+  },
+};
+
+await check("open contract: a tool's tweakdb claims are read, in order, with its display name", () => {
+  const claims = opens.readClaims([{ id: "other.ext", packageJSON: { name: "other" } }, edgehack]);
+  assert.equal(claims.length, 2);
+  assert.deepEqual(claims[0], { tweakdb: { type: "Item", flat: "itemType", is: "ItemType.Prt_Program" }, command: "edgehack.openQuickhack", extension: "edgemodders.edgehack", title: "EDGEhack" });
+  assert.deepEqual(claims[1].tweakdb, { type: "ObjectAction", flat: "isQuickHack", is: true });
+});
+
+await check("open contract: malformed entries are skipped and said, a files entry is not an error", () => {
+  const said = [];
+  const claims = opens.readClaims(
+    [
+      { id: "a.list", packageJSON: { edgemodders: { opens: { tweakdb: {} } } } },
+      { id: "b.bad", packageJSON: { edgemodders: { opens: [{ tweakdb: { type: "Item" } }, { tweakdb: { type: "Item", flat: "x" }, command: "b.c" }, { tweakdb: { type: "Item" }, command: "b.ok" }] } } },
+      edgehack,
+    ],
+    (m) => said.push(m),
+  );
+  assert.deepEqual(claims.map((c) => c.command), ["b.ok", "edgehack.openQuickhack", "edgehack.openQuickhack"]);
+  assert.equal(claims[0].title, "b.bad");
+  assert.equal(said.length, 3, said.join("\n"));
+});
+
+await check("open contract: flat values match as tweakdb.records gives them", () => {
+  assert.equal(opens.flatIs("ItemType.Prt_Program", "itemtype.prt_program"), true);
+  assert.equal(opens.flatIs("ItemType.Con_Ammo", "ItemType.Prt_Program"), false);
+  assert.equal(opens.flatIs(true, true), true);
+  assert.equal(opens.flatIs(false, true), false);
+  assert.equal(opens.flatIs("true", true), false);
+  assert.equal(opens.flatIs(["Tags.A", "Tags.Quickhack"], "tags.quickhack"), true);
+  assert.equal(opens.flatIs({ key: "LocKey#1", text: "x" }, "LocKey#1"), true);
+  assert.equal(opens.flatIs(undefined, true), false);
+  assert.equal(opens.matchKey({ type: "Item", flat: "itemType", is: "X" }), opens.matchKey({ type: "item", flat: "itemType", is: "X" }));
 });
 
 fs.rmSync(tmp, { recursive: true, force: true });

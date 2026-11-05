@@ -22,6 +22,19 @@
       "preLaunchTask": "build redcode"
     },
     {
+      "name": "Run REDcode with Opens Test (no other extensions)",
+      "type": "extensionHost",
+      "request": "launch",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}/extensions/redcode",
+        "--extensionDevelopmentPath=${workspaceFolder}/extensions/rednode-hud-theme",
+        "--extensionDevelopmentPath=${workspaceFolder}/tools/test-extensions/opens-test",
+        "--disable-extensions"
+      ],
+      "outFiles": ["${workspaceFolder}/extensions/redcode/dist/**/*.js"],
+      "preLaunchTask": "build redcode"
+    },
+    {
       "name": "Run REDcode and EDGEdeck (no other extensions)",
       "type": "extensionHost",
       "request": "launch",

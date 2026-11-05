@@ -30,6 +30,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [V2 audio player](#v2-audio-player) | By hand | C5 | 2026-10-15 | Pass on the retest |
 | [V3 TweakDB view](#v3-tweakdb-view) | By hand | C5 | 2026-10-15 | Pass, one fix |
 | [Add to Library (#19)](#add-to-library-19) | By hand | Requests | Not run yet | Waiting |
+| [Open contract (#22)](#open-contract-22) | By hand | Requests | Not run yet | Given to the owner 2026-11-05 |
 | [Release 0.10.0: issues #5 to #8 and V4](#release-0100-issues-5-to-8-and-v4) | By hand | C5 | 2026-10-16 | Pass, ten fixes retested |
 | [Unit checks](#unit-checks) | Automated | C4 on | 2026-10-25 | Pass |
 | [Issue #11: Pack and Try through REDnode](#issue-11-pack-and-try-through-rednode) | By hand, in the game | C4 | Partly passed | On game 2.5, A and B pass (2026-10-26); steps 1 to 6 wait for Red Hot Tools on 2.5 |
@@ -57,7 +58,7 @@ npm run build
 npm test
 ```
 
-Expected: `43 passed`. `scripts/unit.mjs` runs `dist/hotSwap.js`, `dist/exportCache.js` and `dist/library.js` with no VS Code or game: REDnode's settings, sound pak detection, the Red Hot Tools lookup check, the choice without REDnode, REDnode's replies, the export cache's stamp, and Add to Library's walk and item. Added 2026-10-25 for issue #11; pass.
+Expected: `46 passed`. `scripts/unit.mjs` runs `dist/hotSwap.js`, `dist/exportCache.js`, `dist/library.js` and `dist/opens.js` with no VS Code or game: REDnode's settings, sound pak detection, the Red Hot Tools lookup check, the choice without REDnode, REDnode's replies, the export cache's stamp, and Add to Library's walk and item, and the open contract's reader and matcher (#22). Added 2026-10-25 for issue #11; pass.
 
 ### Smoke test: the bridge client against the game
 
@@ -568,6 +569,19 @@ REDcode 0.10.6: `code --install-extension "E:\Modding\Cyberpunk 2077\REDcode\dis
 | 10 | Add `henry_2020_rockerboy.mesh` to a test project, then right-click it in the Project view | **Add to Library...** is there. In the item's `asset.json`, `from` names the project and the path |
 | 11 | In the Project view, right-click a file under `source/raw` | No Add to Library |
 | 12 | Delete `Test19` from the Library | Your other Library folders are untouched |
+
+## Open contract (#22)
+
+Built 2026-11-05 for EDGEhack, in REDcode 0.10.6. F5 with **Run REDcode with Opens Test (no other extensions)**: it loads `tools/test-extensions/opens-test`, a stand-in that claims EDGEhack's two kinds of record (items of type `ItemType.Prt_Program`, object actions with `isQuickHack` true) and shows a notice with what it was given. Checked before: type check, build, `npm test` (46, three for the contract). On game 2.5 the two claims match 92 of 10,203 items and 417 of 2,195 object actions, in under 0.1 s (scratchpad `probe22.mjs`).
+
+| # | Do | Expected |
+|---|---|---|
+| 1 | TweakDB view: open **Item**, find `Items.BlackWallProgramLvl2`, hover it, then click it | The tooltip ends "Click opens it in Opens Test". The click shows "Opens Test got "Items.BlackWallProgramLvl2"", and REDcode's record page does not open |
+| 2 | Click an item that is no program, such as `Items.Preset_Lexington_Default` | REDcode's record page, as before |
+| 3 | Right-click `Items.BlackWallProgramLvl2` | **Open Record**, **Open In...**, New Tweak and Copy Path. **Open Record** opens REDcode's page. **Open In...** lists **Open in Opens Test** and **Open Record** |
+| 4 | Filter the view on `AIHackDeath`, click `AIQuickHack.AIHackDeath` (an ObjectAction) | The Opens Test notice with `AIQuickHack.AIHackDeath` |
+| 5 | On REDcode's page for `Items.BlackWallProgramLvl2` (from step 3) | An **Open in Opens Test** button beside Copy Path; it shows the notice. On the page of a record no tool claims, such as a link from it to its `ItemType`, the button is gone |
+| 6 | Restart with plain **Run REDcode**, without Opens Test | Every record opens REDcode's page on a click again, and no record has **Open In...** |
 
 ## Never run
 

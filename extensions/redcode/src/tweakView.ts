@@ -6,6 +6,7 @@
 
 import * as vscode from "vscode";
 import type { BridgeClient } from "./bridgeClient";
+import { flatIs, matchKey, readClaims, type TweakClaim, type TweakMatch } from "./opens";
 import { mainFlats, shortType, shortValue } from "./tweakYaml";
 import type { TweakRecordFull, TweakTypes } from "./types";
 
@@ -18,7 +19,7 @@ export interface TweakRef {
 export type TweakNode =
   | { kind: "type"; type: string; count: number; records?: TweakRef[] }
   | { kind: "group"; type: string; prefix: string; records: TweakRef[] }
-  | { kind: "record"; ref: TweakRef }
+  | { kind: "record"; ref: TweakRef; claims?: TweakClaim[] }
   | { kind: "note"; text: string };
 
 /** Records a group shows; past this, the filter narrows. */
@@ -31,6 +32,7 @@ export class TweakDb {
   private types: Promise<TweakTypes> | undefined;
   private byType = new Map<string, Promise<TweakRef[]>>();
   private records = new Map<string, Promise<TweakRecordFull | undefined>>();
+  private matching = new Map<string, Promise<Set<string>>>();
   private readonly changed = new vscode.EventEmitter<void>();
   readonly onDidLoad = this.changed.event;
   loaded = false;
@@ -48,6 +50,7 @@ export class TweakDb {
     this.types = undefined;
     this.byType.clear();
     this.records.clear();
+    this.matching.clear();
     this.loaded = false;
   }
 
@@ -85,6 +88,26 @@ export class TweakDb {
     return p;
   }
 
+  /** The ids of the records a claim matches: its type with subtypes, and the flat's value when it names one. */
+  idsMatching(m: TweakMatch): Promise<Set<string>> {
+    const key = matchKey(m);
+    let p = this.matching.get(key);
+    if (!p) {
+      p = (async () => {
+        const ids = new Set<string>();
+        for (let offset = 0; ; offset += 20000) {
+          const page = await this.bridge().tweakRecords({ type: m.type, ...(m.flat ? { flats: [m.flat] } : {}), offset, limit: 20000 });
+          for (const r of page.items) if (!m.flat || flatIs(r.flats?.[m.flat], m.is)) ids.add(r.id);
+          if (offset + page.items.length >= page.total || page.items.length === 0) break;
+        }
+        return ids;
+      })();
+      p.catch(() => this.matching.delete(key));
+      this.matching.set(key, p);
+    }
+    return p;
+  }
+
   /** One record with its flats and LocKey text, or undefined when there is none at that path. */
   record(pathOrId: string): Promise<TweakRecordFull | undefined> {
     let p = this.records.get(pathOrId);
@@ -102,13 +125,58 @@ export class TweakDb {
   }
 }
 
+/** The records other tools open (the open contract, src/opens.ts, REDcode issue #22), read from every installed extension. */
+export class TweakClaims {
+  private list: TweakClaim[] = [];
+
+  constructor(
+    private readonly db: TweakDb,
+    private readonly log: (line: string) => void,
+  ) {
+    this.reload();
+  }
+
+  /** Reads the claims again, after extensions were installed or removed. */
+  reload(): void {
+    this.list = readClaims(vscode.extensions.all, (m) => this.log(`Open contract: ${m}`));
+  }
+
+  get all(): readonly TweakClaim[] {
+    return this.list;
+  }
+
+  /** The claims on each record, by record id; records no tool claims are left out. A claim whose type the bridge refuses is logged and skipped. */
+  async of(refs: readonly { id: string }[]): Promise<Map<string, TweakClaim[]>> {
+    const out = new Map<string, TweakClaim[]>();
+    for (const claim of this.list) {
+      let ids: Set<string>;
+      try {
+        ids = await this.db.idsMatching(claim.tweakdb);
+      } catch (e) {
+        this.log(`Open contract: ${claim.extension}'s claim on ${claim.tweakdb.type}: ${(e as Error).message}`);
+        continue;
+      }
+      for (const r of refs) {
+        if (!ids.has(r.id)) continue;
+        const list = out.get(r.id) ?? [];
+        if (!list.some((c) => c.extension === claim.extension && c.command === claim.command)) list.push(claim);
+        out.set(r.id, list);
+      }
+    }
+    return out;
+  }
+}
+
 export class TweakTree implements vscode.TreeDataProvider<TweakNode> {
   private readonly changed = new vscode.EventEmitter<TweakNode | undefined>();
   readonly onDidChangeTreeData = this.changed.event;
   private filtered: { text: string; total: number; byType: Map<string, TweakRef[]> } | undefined;
   view: vscode.TreeView<TweakNode> | undefined;
 
-  constructor(private readonly db: TweakDb) {}
+  constructor(
+    private readonly db: TweakDb,
+    private readonly claims: TweakClaims,
+  ) {}
 
   refresh(): void {
     this.changed.fire(undefined);
@@ -177,6 +245,13 @@ export class TweakTree implements vscode.TreeDataProvider<TweakNode> {
         item.iconPath = new vscode.ThemeIcon("symbol-field");
         item.contextValue = "tweakRecord";
         item.command = { command: "redcode.openTweakRecord", title: "Open Record", arguments: [node.ref.path ?? node.ref.id] };
+        // A record another tool claims opens in that tool on a click; Open Record stays in the menu.
+        const claim = node.claims?.[0];
+        if (claim) {
+          item.contextValue = "tweakRecord.claimed";
+          item.command = { command: claim.command, title: `Open in ${claim.title}`, arguments: [node.ref.path ?? node.ref.id] };
+          item.tooltip += `\nClick opens it in ${claim.title}`;
+        }
         return item;
       }
       case "note": {
@@ -204,10 +279,19 @@ export class TweakTree implements vscode.TreeDataProvider<TweakNode> {
     }
     if (node.kind === "type") {
       const records = node.records ?? (await this.db.recordsOf(node.type));
-      return this.grouped(node.type, records, !!node.records);
+      return this.withClaims(this.grouped(node.type, records, !!node.records));
     }
-    if (node.kind === "group") return this.capped(node.records);
+    if (node.kind === "group") return this.withClaims(this.capped(node.records));
     return [];
+  }
+
+  /** Record nodes with the tools that claim them, so a click opens the tool. */
+  private async withClaims(nodes: TweakNode[]): Promise<TweakNode[]> {
+    if (this.claims.all.length === 0) return nodes;
+    const records = nodes.flatMap((n) => (n.kind === "record" ? [n.ref] : []));
+    if (records.length === 0) return nodes;
+    const claims = await this.claims.of(records);
+    return nodes.map((n) => (n.kind === "record" && claims.has(n.ref.id) ? { ...n, claims: claims.get(n.ref.id) } : n));
   }
 
   /** Records under a type: grouped by the part of the path before the first dot when there are many. */

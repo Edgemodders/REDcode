@@ -90,6 +90,36 @@ Game files in Game Assets (`view == redcode.assets`) are `assetFile`, with a kin
 { "command": "edgemat.openMesh", "when": "view == redcode.assets && viewItem =~ /^assetFile\\.(mesh|mlsetup|mltemplate)$/" }
 ```
 
+## Opening TweakDB records in your tool
+
+A tool can claim the TweakDB records it is made for, so a click on one in REDcode's TweakDB view opens it in the tool, not in REDcode's record page (REDcode issue #22, for EDGEhack; since 0.10.6). Declare them in your extension's `package.json`. REDcode reads every installed extension's `package.json`, so your extension need not be running, and needs no `extensionDependencies` for this.
+
+```json
+"edgemodders": {
+  "opens": [
+    { "tweakdb": { "type": "Item", "flat": "itemType", "is": "ItemType.Prt_Program" }, "command": "edgehack.openQuickhack" },
+    { "tweakdb": { "type": "ObjectAction", "flat": "isQuickHack", "is": true }, "command": "edgehack.openQuickhack" }
+  ]
+}
+```
+
+| Field | Means |
+|---|---|
+| `tweakdb.type` | A record type as `tweakdb.records` takes it: the short form (`Item`) or the RED class (`gamedataItem_Record`). Subtypes are included |
+| `tweakdb.flat`, `tweakdb.is` | Optional, and only together: only records whose flat has that value. A record link or name matches ignoring case (`ItemType.Prt_Program`), a number or boolean exactly, a list when one of its elements does |
+| `command` | Your command. It gets one argument: the record's path, or its id (`0x...`) when it has no path |
+
+What REDcode does with it:
+
+- A click on a matching record runs your command, in the TweakDB view and its filter results. The record's tooltip says so.
+- The record's right-click menu keeps **Open Record** for REDcode's page, and adds **Open In...**, which lists every tool that claims it.
+- The record page has an **Open in <tool>** button, for a record reached by a link.
+- When two tools claim a record, the first one found wins the click; both are in **Open In...**.
+- A claimed record's `viewItem` is `tweakRecord.claimed`; others stay `tweakRecord`. Match `/^tweakRecord/` for an entry on every record.
+- REDcode works out a claim's records when the view first lists them, once per bridge: for EDGEhack's two claims on game 2.5, 92 of 10,203 items and 417 of 2,195 object actions, in under 0.1 s.
+
+A malformed entry is skipped, with a line in Output > REDcode. `"files"` entries, for files in the Project and Game Assets views, are planned and are not read yet.
+
 ## REDnode packages: the redcode service
 
 REDnode packages, such as EDGEbuilder, cannot reach a VS Code extension's API. For them REDcode installs a small REDnode package with the id `redcode` into the game's `red4ext/plugins/REDnode/apps` folder, when the game has REDnode (REDcode issue #18, since 0.10.5; the setting `redcode.rednode.installPackage` turns it off). It has no window, only a service:

@@ -3,17 +3,21 @@
 // file. See docs/design/view.md, V3.
 
 import * as vscode from "vscode";
-import type { TweakDb } from "./tweakView";
+import type { TweakClaim } from "./opens";
+import type { TweakClaims, TweakDb } from "./tweakView";
 import { shortType } from "./tweakYaml";
 
 export class TweakRecordPanel {
   private panel: vscode.WebviewPanel | undefined;
   private history: string[] = [];
   private at = -1;
+  /** The tools that claim the record shown, for its Open in buttons. */
+  private tools: TweakClaim[] = [];
 
   constructor(
     private readonly extensionUri: vscode.Uri,
     private readonly db: TweakDb,
+    private readonly claims: TweakClaims,
     private readonly log: vscode.OutputChannel,
     private readonly openGameFile: (gamePath: string) => void,
   ) {}
@@ -39,7 +43,7 @@ export class TweakRecordPanel {
       this.history = [];
       this.at = -1;
     });
-    panel.webview.onDidReceiveMessage((m: { type?: string; path?: string; text?: string }) => {
+    panel.webview.onDidReceiveMessage((m: { type?: string; path?: string; text?: string; index?: number }) => {
       switch (m.type) {
         case "ready":
           void this.load();
@@ -59,6 +63,12 @@ export class TweakRecordPanel {
         case "newTweak":
           void vscode.commands.executeCommand("redcode.newTweakFromRecord", this.history[this.at]);
           return;
+        case "tool": {
+          // Open in <tool>: the open contract (REDcode issue #22).
+          const claim = this.tools[m.index ?? -1];
+          if (claim) void vscode.commands.executeCommand(claim.command, this.history[this.at]);
+          return;
+        }
         case "resource":
           if (m.path) this.openGameFile(m.path);
           return;
@@ -79,7 +89,7 @@ export class TweakRecordPanel {
 <body>
 <header>
   <button id="back" class="icon" title="Back (Alt+Left)" disabled>←</button><button id="forward" class="icon" title="Forward (Alt+Right)" disabled>→</button>
-  <span class="name" id="path"></span><span class="meta" id="type"></span><span class="spacer"></span>
+  <span class="name" id="path"></span><span class="meta" id="type"></span><span class="spacer"></span><span id="tools"></span>
   <button id="copy" title="Copy the record path">Copy Path</button><button id="newTweak" title="Write a TweakXL YAML file that clones or changes this record">New Tweak…</button>
 </header>
 <div class="toolbar tweakbar"><input id="filter" type="text" placeholder="Filter flats by name or value" spellcheck="false"><span id="count" class="dim"></span><span class="spacer"></span><span id="id" class="dim mono"></span></div>
@@ -105,7 +115,9 @@ export class TweakRecordPanel {
         return;
       }
       panel.title = (record.path ?? record.id).replace(/^.*\./, "");
-      void panel.webview.postMessage({ type: "record", record, shortType: shortType(record.type), ...nav });
+      this.tools = (await this.claims.of([record]).catch(() => new Map<string, TweakClaim[]>())).get(record.id) ?? [];
+      if (this.history[this.at] !== path) return;
+      void panel.webview.postMessage({ type: "record", record, shortType: shortType(record.type), tools: this.tools.map((c) => c.title), ...nav });
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       this.log.appendLine(`tweakdb: ${path}: ${message}`);
