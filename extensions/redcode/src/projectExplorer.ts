@@ -145,11 +145,12 @@ export class ProjectExplorer implements vscode.TreeDataProvider<ProjectNode> {
     [/\.mltemplate$/i, ".mltemplate"],
   ];
 
-  /** ".export" for what Export takes (under source/archive), ".import" for what Import takes (under source/raw). Menus match on these. */
+  /** ".export" for what Export takes (under source/archive), ".archive" for the other files there, ".import" for what Import takes (under source/raw). Menus match on these. */
   private tags(p: string, folder: boolean): string {
     const project = this.getProject();
     const where = project ? sourceFolderOf(project, p) : undefined;
     if (where === "archive" && (folder || isExportable(p))) return ".export";
+    if (where === "archive") return ".archive";
     if (where === "raw" && (folder || isImportable(p))) return ".import";
     return "";
   }

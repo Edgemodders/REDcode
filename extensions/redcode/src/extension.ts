@@ -5,6 +5,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as vscode from "vscode";
 import { AssetBrowser, type AssetNode } from "./assetBrowser";
+import { addToLibrary } from "./libraryCommand";
 import { BridgeClient } from "./bridgeClient";
 import {
   checkDotnetRuntime,
@@ -178,6 +179,7 @@ export function activate(context: vscode.ExtensionContext): REDcodeApi | undefin
     vscode.commands.registerCommand("redcode.openAssetAsJson", (node: AssetNode) => withBridge((b) => openAssetAsJson(b, node))),
     vscode.commands.registerCommand("redcode.addToProject", (node: AssetNode) => withBridge((b) => addToProject(b, node))),
     vscode.commands.registerCommand("redcode.extractTo", (node: AssetNode) => withBridge((b) => extractTo(b, node))),
+    vscode.commands.registerCommand("redcode.addToLibrary", (node: AssetNode | ProjectNode) => withBridge((b) => addNodeToLibrary(b, node, context))),
     vscode.commands.registerCommand("redcode.copyAssetPath", (node: AssetNode) => copyAssetPath(node)),
     vscode.commands.registerCommand("redcode.openProjectFile", (node: ProjectNode) => openProjectFile(node)),
     vscode.commands.registerCommand("redcode.openProjectFileAsJson", (node: ProjectNode) => withBridge((b) => openProjectFileAsJson(b, node))),
@@ -2034,6 +2036,20 @@ async function addToProject(b: BridgeClient, node: AssetNode): Promise<void> {
   } else if (node.kind === "folder") {
     void vscode.window.showInformationMessage(`Added ${result.extracted.toLocaleString()} files to ${p.name}.`);
   }
+}
+
+/** Add to Library (REDcode issue #19), on a file in Game Assets or under a project's source/archive. */
+async function addNodeToLibrary(b: BridgeClient, node: AssetNode | ProjectNode, context: vscode.ExtensionContext): Promise<void> {
+  if (node.kind !== "file") return;
+  const file = node.file;
+  if (typeof file !== "string") return addToLibrary(b, { path: file.name }, context, log);
+  const p = requireProject();
+  const gamePath = gamePathOf(p, file);
+  if (!gamePath) {
+    void vscode.window.showWarningMessage("REDcode: Add to Library takes files under the project's source/archive.");
+    return;
+  }
+  return addToLibrary(b, { path: gamePath, project: { name: p.name, dir: p.dir } }, context, log);
 }
 
 async function extractTo(b: BridgeClient, node: AssetNode): Promise<void> {

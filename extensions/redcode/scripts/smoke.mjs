@@ -4,6 +4,7 @@
 //
 // Set DOTNET_ROOT in the environment when the .NET runtime is installed per user.
 // Build first: npm run build (this uses dist/bridgeClient.js).
+import * as fs from "node:fs";
 import { createRequire } from "node:module";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -133,6 +134,23 @@ try {
     await step("project.import (the PNG back)", async () => { const r = await bridge.importFile(png, rawDir, archiveDir); if (!r.ok || !r.written.length) throw new Error("import wrote nothing"); return r.written.join(", "); });
     if ((await setupOf()) !== before) throw new Error("the re-imported texture lost settings");
     console.log("        the re-imported texture kept its setup");
+  }
+  // REDcode #19: an asset item in a scratch Library, with what it names followed through real files.
+  {
+    const { planAsset, writeAsset } = require("../dist/library.js");
+    const root = path.join(os.tmpdir(), "redcode-smoke", "library");
+    fs.rmSync(root, { recursive: true, force: true });
+    const mesh = (await bridge.search("nokota", 200)).items.find((f) => f.name.endsWith(".mesh"));
+    const added = await step(`Add to Library ${mesh.name}`, async () => {
+      const plan = await planAsset(bridge, { path: mesh.name });
+      const r = await writeAsset(bridge, { path: mesh.name }, plan, { root, folder: "Development/Meshes", gamePathFolders: true, tool: "smoke", gameDir: info.gameDir });
+      return JSON.stringify({ relative: r.relative, files: r.files, stay: r.stay.length, missing: r.missing.length, unread: r.unread.length, longPaths: r.longPaths });
+    });
+    const item = path.join(root, JSON.parse(added).relative);
+    const asset = JSON.parse(fs.readFileSync(path.join(item, "asset.json"), "utf8"));
+    if (asset.main !== mesh.name || asset.kind !== "mesh" || asset.version !== 1) throw new Error(`wrong asset.json: ${JSON.stringify(asset)}`);
+    if (!fs.existsSync(path.join(item, "source", "archive", ...mesh.name.split("\\")))) throw new Error("the main file is not in the item");
+    fs.rmSync(root, { recursive: true, force: true });
   }
   console.log(`done in ${((Date.now() - started) / 1000).toFixed(1)}s`);
 } finally {

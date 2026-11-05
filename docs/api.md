@@ -72,7 +72,7 @@ Another extension can add entries to the right-click menu of REDcode's Project v
 | Part | Values | For |
 |---|---|---|
 | Kind | `.texture` (`.xbm`), `.model.mesh` (`.mesh`), `.model` (`.glb`, `.gltf`), `.sound` (`.wem`, `.wav`, `.ogg`, `.opus`, `.mp3`, `.flac`), `.mlsetup`, `.mltemplate`, or none | What the file is |
-| Tag | `.export` (under `source/archive`, exportable), `.import` (under `source/raw`, importable), or none | What Export and Import take |
+| Tag | `.export` (under `source/archive`, exportable), `.archive` (under `source/archive`, not exportable), `.import` (under `source/raw`, importable), or none | What Export, Import and Add to Library take |
 
 For example, `projectFile.sound.import` is a `.wav` under `source/raw`. Match the start, so later tags do not break an entry:
 
@@ -80,7 +80,7 @@ For example, `projectFile.sound.import` is a `.wav` under `source/raw`. Match th
 { "command": "edgewave.open", "when": "view == redcode.project && viewItem =~ /^projectFile\\.sound/" }
 ```
 
-The kinds `.sound` and `.mlsetup` are there since REDcode 0.10.3, for EDGEwave and EDGEmat; `.model.mesh` and `.mltemplate` since 0.10.5 (`/^projectFile\.model/` still matches every model). Folders are `projectFolder` and the source roots `projectRoot`, with the same tags.
+The kinds `.sound` and `.mlsetup` are there since REDcode 0.10.3, for EDGEwave and EDGEmat; `.model.mesh` and `.mltemplate` since 0.10.5 (`/^projectFile\.model/` still matches every model); the tag `.archive` since 0.10.6. Folders are `projectFolder` and the source roots `projectRoot`, with the same tags.
 
 ## Menus in the Game Assets view
 

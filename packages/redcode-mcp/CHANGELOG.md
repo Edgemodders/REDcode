@@ -4,6 +4,10 @@ What changed in each redcode-mcp release. The release notes on GitHub come from 
 
 ## Unreleased
 
+**New**
+
+- `library_add`: a game file or a project's file, with the files it needs, as one asset item in the EDGE Library (REDcode issue #19). With no Library yet or no folder given, it answers what to ask the modder. `gamePathFolders` is the Use the game path choice. Works with REDbridge 0.10.0 or later.
+
 ## 0.4.0 (2026-10-27)
 
 The new tool needs REDbridge 0.11.0, the bridge for game 2.5; the rest work as in 0.3.0.

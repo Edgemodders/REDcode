@@ -29,6 +29,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Copy path](#copy-path) | By hand | C5 | 2026-10-14 | Pass |
 | [V2 audio player](#v2-audio-player) | By hand | C5 | 2026-10-15 | Pass on the retest |
 | [V3 TweakDB view](#v3-tweakdb-view) | By hand | C5 | 2026-10-15 | Pass, one fix |
+| [Add to Library (#19)](#add-to-library-19) | By hand | Requests | Not run yet | Waiting |
 | [Release 0.10.0: issues #5 to #8 and V4](#release-0100-issues-5-to-8-and-v4) | By hand | C5 | 2026-10-16 | Pass, ten fixes retested |
 | [Unit checks](#unit-checks) | Automated | C4 on | 2026-10-25 | Pass |
 | [Issue #11: Pack and Try through REDnode](#issue-11-pack-and-try-through-rednode) | By hand, in the game | C4 | Partly passed | On game 2.5, A and B pass (2026-10-26); steps 1 to 6 wait for Red Hot Tools on 2.5 |
@@ -56,7 +57,7 @@ npm run build
 npm test
 ```
 
-Expected: `26 passed`. `scripts/unit.mjs` runs `dist/hotSwap.js` with no VS Code or game: REDnode's settings, sound pak detection, the Red Hot Tools lookup check, the choice without REDnode, and REDnode's replies. Added 2026-10-25 for issue #11; pass.
+Expected: `43 passed`. `scripts/unit.mjs` runs `dist/hotSwap.js`, `dist/exportCache.js` and `dist/library.js` with no VS Code or game: REDnode's settings, sound pak detection, the Red Hot Tools lookup check, the choice without REDnode, REDnode's replies, the export cache's stamp, and Add to Library's walk and item. Added 2026-10-25 for issue #11; pass.
 
 ### Smoke test: the bridge client against the game
 
@@ -548,6 +549,25 @@ Added 2026-10-29 for the game file cache fix (3ebf726, six unit checks). The cac
 | 11 | F5 on main. **REDcode: Browse Game Sounds**, play three sound effects. Then open `cache\audio\game\stamp.txt`, change its text to `x`, save, reload the window (Developer: Reload Window) and play one of them again | Each sound plays. After the reload, `stamp.txt` holds the game folder again and the files beside it are newly written (their times are now) |
 
 **Result (2026-10-29, the owner):** step 11 passes.
+
+## Add to Library (#19)
+
+REDcode 0.10.6: `code --install-extension "E:\Modding\Cyberpunk 2077\REDcode\dist\redcode-cyberpunk-0.10.6.vsix"`, then **Developer: Reload Window**. Checked before: type check, build, `npm test` (43), the smoke test's new step, `library_add` through the real MCP server (16 checks) and the command driven in real VS Code with a scratch Library (all but the menus themselves and Show in Explorer), each on game 2.5. No game needs to run. This writes into your real Library; delete `Test19` from it after.
+
+| # | Do | Expected |
+|---|---|---|
+| 1 | Game Assets: filter on `henry_2020_rockerboy`, right-click `henry_2020_rockerboy.mesh` | **Add to Library...** under Add to Project and Extract to |
+| 2 | Click it. In the picker, select **Use the game path** twice | Title `Add to Library: henry_2020_rockerboy.mesh.asset`; your Library folders, The Library's root and **New Folder...**. The switch goes On and Off, and the picker stays open |
+| 3 | **New Folder...**, type `Test19/Meshes`, Enter | A notice: `Added Test19/Meshes/henry_2020_rockerboy.mesh.asset to the Library: 5 file(s) copied, 3 stay in the game.` |
+| 4 | Click **Show in Explorer** on the notice | Explorer on `asset.json`, beside `source`. Under `source\archive\base\characters\...`: the mesh and four `.xbm` |
+| 5 | Open `asset.json` | `format` 1, an `id`, `name`, `kind` mesh, `main`, `version` 1, `from` with `gameVersion` 2.5, `license` game, one `history` line `REDcode 0.10.6` |
+| 6 | Add the same file again | `Test19/Meshes` comes first, marked Last used. Picking it asks: **Replace It** or **Add Another**. Add Another makes `henry_2020_rockerboy_2.mesh.asset` |
+| 7 | Again, **Replace It** | `henry_2020_rockerboy.mesh.asset` keeps its `id`, `version` 2, two `history` lines |
+| 8 | Filter on `vending_machine_v`, Add to Library on `vending_machine_v.ent`. Switch **Use the game path** on, pick `Test19` | The item in `Test19\base\gameplay\devices\vending_machines\`: about 41 files, about 54 staying, 1 it names not in the game. If it warns of paths past 259 characters, try opening the item's deepest folders in Explorer and say what happens |
+| 9 | Add a third file | Use the game path is still on, as you left it |
+| 10 | Add `henry_2020_rockerboy.mesh` to a test project, then right-click it in the Project view | **Add to Library...** is there. In the item's `asset.json`, `from` names the project and the path |
+| 11 | In the Project view, right-click a file under `source/raw` | No Add to Library |
+| 12 | Delete `Test19` from the Library | Your other Library folders are untouched |
 
 ## Never run
 

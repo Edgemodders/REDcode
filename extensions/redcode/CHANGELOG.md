@@ -4,6 +4,10 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 ## Unreleased
 
+**New**
+
+- **Add to Library** (REDcode issue #19, for EDGEfab): right-click a file in Game Assets, or under a project's `source/archive`, to put it in the EDGE Library, the store every EDGE tool shares, as one asset item: `<name>.<kind>.asset` with `asset.json` and the file with what it needs, at their game paths. A mesh takes its materials, masks and textures; an entity also its appearances and meshes. Game-wide files (base materials, templates, surfaces, effects, rigs) stay in the game and are referred to. It offers your own Library folders, the last one first, **New Folder...**, and **Use the game path**, which puts the item in its game folders so the Library browses like the game's files. With no Library yet, it asks where it goes, offering `Documents\EDGE Library`. An item already there can be replaced, keeping its id and raising its version, or added again beside it. The rules: https://edgemodders.ai/wiki/library.html
+
 ## 0.10.5 (2026-10-29)
 
 For EDGEmat, EDGEbuilder and EDGEdeck: Open in EDGEmat, EDGEbuilder's scenes and the open project for REDnode mods, Pack and Play, and installs that touch only your mod. Needs REDbridge 0.10.0, as before.

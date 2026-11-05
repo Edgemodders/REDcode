@@ -16,6 +16,8 @@ import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z, type ZodRawShape } from "zod";
 import { audioFormat, GameSoundIndex, opusSound, parseOpusInfo, wwiseHash, type OpusIndex } from "../../../extensions/redcode/src/audio";
 import { BridgeClient } from "../../../extensions/redcode/src/bridgeClient";
+import { gameVersionOf, isInside, libraryFolders, planAsset, readLibraryRoot, suggestedLibraryRoot, writeAsset, writeLibraryRoot, type AssetSource } from "../../../extensions/redcode/src/library";
+import { findProject, gamePathOf } from "../../../extensions/redcode/src/project";
 import type { PatchOp } from "../../../extensions/redcode/src/types";
 
 // The package version, set by esbuild from package.json.
@@ -214,6 +216,36 @@ tool("project_import", "Import a raw file under a project's source/raw back into
   keep: z.boolean().optional().describe("Keep the replaced file's settings; default true."),
   template: z.string().optional().describe("For a GLB with no mesh to import over: a game path (base\\...mesh) or a .mesh file to start the new mesh from."),
 }, (a, b) => b.importFile(a.file, a.rawDir, a.archiveDir, a.keep ?? true, a.template));
+
+tool("library_add", "Add a game file or a project's file to the EDGE Library, the modder's store shared by every EDGE tool, as one asset item: <name>.<kind>.asset with asset.json and source/archive holding the file and the files it needs (a mesh's materials and textures; an entity's appearances and meshes), at their game paths. Game-wide files (base materials, templates, surfaces, effects, rigs) stay in the game and are referred to. Returns the item's folder, id, version, the files copied, those that stay, and those it names that are not in the game (the game's own files name some such). Writes outside the game, in the modder's Library only. With no Library yet, it answers where one would go: ask the modder, then call again with root. With no folder, it answers the modder's folders: ask which, or pass the folder, since the folders are theirs and tools never pick one on their own.", {
+  path: z.string().describe("A game path (base\\...\\comfy_rocker.mesh), or the full path of a file under a WolvenKit project's source/archive, whose project copies then win over the game's."),
+  folder: z.string().optional().describe("A folder under the Library's root, with /, for example Production/Meshes; made if missing. An empty string is the root itself."),
+  gamePathFolders: z.boolean().optional().describe("Puts the item in its game path's folders under the folder, each made if missing: <folder>/base/.../comfy_rocker.mesh.asset, so the Library browses like the game's files. The modder's choice."),
+  root: z.string().optional().describe("Only when there is no Library yet: where to make it, written to %APPDATA%\\EDGE\\library.json for every EDGE tool. Ask the modder first."),
+  ifExists: z.enum(["stop", "replace", "another"]).optional().describe("When the item is there already: stop (default), another (a second item beside it), or replace (a new copy, version raised, id kept; anything changed in the item since is lost, so ask the modder first)."),
+  allowLarge: z.boolean().optional().describe("Copy more than 500 files. An entity's walk can reach that; check with the modder first."),
+}, async (a, b) => {
+  const known = readLibraryRoot();
+  if (a.root && known) throw new Error(`The EDGE Library is already at ${known}. Leave root out; moving it is Relocate, in EDGEbuilder.`);
+  if (!a.root && !known) return { needsRoot: true, suggested: suggestedLibraryRoot(), note: "No EDGE Library yet. Ask the modder where it should go, then call again with root." };
+  const info = await b.info();
+  if (a.root && info.gameDir && isInside(path.resolve(a.root), info.gameDir)) throw new Error("The EDGE Library cannot be inside the game's folder.");
+  const root = known ?? writeLibraryRoot(a.root as string);
+  if (a.folder === undefined) return { needsFolder: true, root, folders: libraryFolders(root), note: "Ask the modder which folder, or for a new one, then call again with folder (an empty string is the root)." };
+
+  const source: AssetSource = { path: a.path };
+  if (path.isAbsolute(a.path)) {
+    const m = /^(.*?)[\\/]source[\\/]archive[\\/]/i.exec(a.path);
+    const project = m ? findProject(m[1]) : undefined;
+    const gamePath = project && gamePathOf(project, path.normalize(a.path));
+    if (!project || !gamePath) throw new Error(`${a.path} is not under a WolvenKit project's source/archive.`);
+    source.path = gamePath;
+    source.project = { name: project.name, dir: project.dir };
+  }
+  const plan = await planAsset(b, source);
+  if (plan.take.length > 500 && !a.allowLarge) throw new Error(`${plan.main} needs ${plan.take.length} files. Check with the modder, then pass allowLarge.`);
+  return writeAsset(b, source, plan, { root, folder: a.folder, gamePathFolders: a.gamePathFolders, ifExists: a.ifExists, tool: `redcode-mcp ${Version}`, gameVersion: await gameVersionOf(info.gameDir), gameDir: info.gameDir });
+});
 
 tool("project_pack", "Pack a folder (a project's source/archive) into <modName>.archive in outDir through WolvenKit's packer. Returns the archive path, size, file count and warnings for paths with capital letters or spaces. Bridge 0.6.1.", {
   dir: z.string().describe("The folder to pack, laid out as game paths (base/..., ep1/...)."),

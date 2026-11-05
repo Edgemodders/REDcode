@@ -36,6 +36,8 @@ const client = {
 const hotSwap = { ...client, entryPoints: ["src/hotSwap.ts"], outfile: "dist/hotSwap.js" };
 // The export cache's game stamp on its own, for scripts/unit.mjs.
 const exportCache = { ...client, entryPoints: ["src/exportCache.ts"], outfile: "dist/exportCache.js" };
+// Add to Library's item on its own, for scripts/unit.mjs and scripts/smoke.mjs.
+const library = { ...client, entryPoints: ["src/library.ts"], outfile: "dist/library.js" };
 
 // The 3D mesh viewer for the webviews, three.js included, as one browser script.
 const meshViewer = {
@@ -55,7 +57,7 @@ fs.mkdirSync("media/mesh", { recursive: true });
 // three's exports hide its package.json; its main entry sits in <package>/build/.
 fs.copyFileSync(path.join(path.dirname(require.resolve("three")), "..", "LICENSE"), "media/mesh/three.LICENSE.txt");
 
-const builds = [extension, client, hotSwap, exportCache, meshViewer];
+const builds = [extension, client, hotSwap, exportCache, library, meshViewer];
 if (watch) {
   const contexts = await Promise.all(builds.map((b) => esbuild.context(b)));
   await Promise.all(contexts.map((c) => c.watch()));

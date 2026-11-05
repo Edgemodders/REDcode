@@ -23,6 +23,7 @@ The server finds REDbridge.exe and the game folder from `--bridge` and `--game`,
 | Archives | `bridge_info`, `archive_search`, `archive_list`, `archive_tree`, `archive_extract`, `archive_extract_many`, `archive_open_mod`, `archive_extract_from_mod` |
 | Conversion | `cr2w_to_json`, `cr2w_file_to_json`, `cr2w_from_json`, `texture_to_png`, `texture_file_to_png`, `hash_fnv1a64`, `hash_resolve` |
 | Project | `project_export` (a game file under `source/archive` to glTF, an image, Ogg and so on under `source/raw`), `project_import` (back again), `project_pack` |
+| Library | `library_add`: a game file or a project's file, with the files it needs, as one asset item in the EDGE Library. It never picks a folder or a Library place on its own: with none given, it answers what to ask the modder |
 | LocKeys | `loc_languages`, `loc_search` (by LocKey, secondary key or words of the text), `loc_get` (by LocKey or secondary key): the game's on-screen texts per language, with a project's own over them |
 | TweakDB | `tweakdb_types`, `tweakdb_records` (by type or prefix, with chosen flats and LocKey text), `tweakdb_record`, `tweakdb_flat`, `tweakdb_search`, `tweakdb_names`: the game's TweakDB as shipped, read offline (REDnode reads the live one) |
 | Items | `mesh_items`: the item records whose look shows a mesh (clothing; not weapons), with the `.app` look and root entity on the way |

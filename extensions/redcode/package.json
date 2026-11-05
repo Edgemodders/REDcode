@@ -3,7 +3,7 @@
   "displayName": "REDcode for Cyberpunk 2077",
   "description": "REDcode for Visual Studio Code: a Cyberpunk 2077 modding workspace on WolvenKit's engine. Browse the game's archives, edit CR2W files, view textures, meshes and sounds, export, import, pack and install WolvenKit projects.",
   "preview": true,
-  "version": "0.10.5",
+  "version": "0.10.6",
   "publisher": "edgemodders",
   "license": "MIT",
   "icon": "images/icon.png",
@@ -535,6 +535,12 @@
         "icon": "$(add)"
       },
       {
+        "command": "redcode.addToLibrary",
+        "title": "Add to Library...",
+        "category": "REDcode",
+        "icon": "$(library)"
+      },
+      {
         "command": "redcode.extractTo",
         "title": "Extract to...",
         "category": "REDcode"
@@ -832,6 +838,11 @@
           "group": "1_project@2"
         },
         {
+          "command": "redcode.addToLibrary",
+          "when": "view == redcode.assets && viewItem =~ /^assetFile/",
+          "group": "1_project@3"
+        },
+        {
           "command": "redcode.openTexture",
           "when": "view == redcode.assets && viewItem == assetFile.texture",
           "group": "2_open@0"
@@ -880,6 +891,11 @@
           "command": "redcode.import",
           "when": "view == redcode.project && viewItem =~ /\\.import$/",
           "group": "1_modkit@1"
+        },
+        {
+          "command": "redcode.addToLibrary",
+          "when": "view == redcode.project && viewItem =~ /^projectFile.*\\.(export|archive)$/",
+          "group": "1_modkit@5"
         },
         {
           "command": "redcode.openProjectFileAsJson",
@@ -1000,6 +1016,10 @@
         },
         {
           "command": "redcode.addToProject",
+          "when": "false"
+        },
+        {
+          "command": "redcode.addToLibrary",
           "when": "false"
         },
         {

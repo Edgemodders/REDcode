@@ -1,9 +1,10 @@
-// Unit checks for logic with no VS Code or game needed: Pack and Play's hot swap choice (REDcode issue #11)
-// and the export cache's game stamp (a game patch empties the cached game files).
+// Unit checks for logic with no VS Code or game needed: Pack and Play's hot swap choice (REDcode issue #11),
+// the export cache's game stamp (a game patch empties the cached game files), and Add to Library's item
+// (REDcode issue #19).
 //
 //   npm run build && npm test
 //
-// Uses dist/hotSwap.js and dist/exportCache.js, which the build writes.
+// Uses dist/hotSwap.js, dist/exportCache.js and dist/library.js, which the build writes.
 import assert from "node:assert/strict";
 import * as fs from "node:fs";
 import * as http from "node:http";
@@ -14,6 +15,7 @@ import * as path from "node:path";
 const require = createRequire(import.meta.url);
 const hs = require("../dist/hotSwap.js");
 const ec = require("../dist/exportCache.js");
+const lib = require("../dist/library.js");
 
 let passed = 0;
 const failures = [];
@@ -208,6 +210,137 @@ await check("cache: files on disk are never touched", async () => {
   const r = await ec.sourceFile(fakeBridge(path.join(tmp, "gameC")), path.join(tmp, "cacheA"), { file: f });
   assert.equal(r.file, f);
   assert.equal(fs.readFileSync(f, "utf8"), "mine");
+});
+
+// ---- Add to Library ---------------------------------------------------------------------------------
+const ref = (p) => ({ DepotPath: { $type: "ResourcePath", $storage: "string", $value: p }, Flags: "Default" });
+const G = {
+  "base\\props\\chair.mesh": { externalMaterials: [ref("base\\props\\chair.mi"), ref("engine\\materials\\x.mi")], local: { MultilayerSetup: ref("base\\props\\chair.mlsetup"), Mask: ref("base\\props\\chair.mlmask"), none: { DepotPath: { $type: "ResourcePath", $storage: "uint64", $value: "0" } }, hashed: { DepotPath: { $type: "ResourcePath", $storage: "uint64", $value: "123" } } } },
+  "base\\props\\chair.mi": { baseMaterial: ref("base\\materials\\metal_base.remt"), d: ref("base\\props\\chair_d.xbm"), gone: ref("base\\props\\gone.xbm"), loop: ref("base\\props\\chair.mesh"), bad: ref("..\\..\\evil.xbm") },
+  "base\\props\\chair.mlsetup": { layer: ref("base\\surfaces\\materials\\metal.mltemplate"), micro: ref("base\\surfaces\\microblends\\m.xbm") },
+  "base\\props\\chair_d.xbm": "leaf",
+  "base\\props\\chair.mlmask": "leaf",
+};
+const libBridge = (game = G) => {
+  const seen = { read: [] };
+  return {
+    seen,
+    async toJson(p) { seen.read.push(p); if (!(p in game)) throw new Error("not in the game"); return { json: JSON.stringify(game[p]) }; },
+    async fileToJson(f) { seen.read.push(f); return { json: fs.readFileSync(f, "utf8") }; },
+    async extractMany(items) {
+      const failed = [];
+      let extracted = 0;
+      for (const i of items) {
+        if (i.path in game) { fs.mkdirSync(path.dirname(i.outFile), { recursive: true }); fs.writeFileSync(i.outFile, "game:" + i.path); extracted++; } else failed.push(i.path);
+      }
+      return { extracted, bytes: extracted * 10, failed };
+    },
+  };
+};
+const main = "base\\props\\chair.mesh";
+const add = async (b, opts = {}, source = { path: main }) => lib.writeAsset(b, source, await lib.planAsset(b, source), { root: path.join(tmp, "lib"), tool: "REDcode 1.0", gameVersion: "2.5", ...opts });
+
+await check("library: references: named ones and hash-only ones, no zero hashes", () => {
+  const r = lib.referencesIn(G[main]);
+  assert.deepEqual([...r.named].sort(), ["base\\props\\chair.mi", "base\\props\\chair.mlmask", "base\\props\\chair.mlsetup", "engine\\materials\\x.mi"]);
+  assert.equal(r.unnamed, 1);
+});
+await check("library: the walk takes materials and textures, and leaves game-wide files", async () => {
+  const p = await lib.planAsset(libBridge(), { path: main });
+  assert.deepEqual(p.take.sort(), ["base\\props\\chair.mesh", "base\\props\\chair.mi", "base\\props\\chair.mlmask", "base\\props\\chair.mlsetup", "base\\props\\chair_d.xbm", "base\\props\\gone.xbm"]);
+  assert.deepEqual(p.stay, ["base\\materials\\metal_base.remt", "base\\surfaces\\materials\\metal.mltemplate", "base\\surfaces\\microblends\\m.xbm", "engine\\materials\\x.mi"]);
+  assert.deepEqual(p.badPaths, ["..\\..\\evil.xbm"]);
+  assert.equal(p.unnamed, 1);
+});
+await check("library: the main file is taken even from a shared folder, and has to exist", async () => {
+  const path2 = "base\\surfaces\\m.mi";
+  const p = await lib.planAsset(libBridge({ [path2]: {} }), { path: path2 });
+  assert.deepEqual(p.take, [path2]);
+  await assert.rejects(lib.planAsset(libBridge(), { path: "base\\nothing.mesh" }), /not in the game/);
+});
+await check("library: an item: asset.json as asked, files at their game paths, a missing file reported", async () => {
+  const r = await add(libBridge(), { folder: "Production/Meshes" });
+  assert.equal(r.relative, "Production/Meshes/chair.mesh.asset");
+  const a = JSON.parse(fs.readFileSync(path.join(r.item, "asset.json"), "utf8"));
+  assert.match(a.id, /^[0-9a-f]{16}$/);
+  assert.deepEqual({ ...a, id: 0, history: 0 }, { format: 1, id: 0, name: "chair", kind: "mesh", main, version: 1, from: { game: main, gameVersion: "2.5" }, license: "game", history: 0 });
+  assert.equal(a.history[0].tool, "REDcode 1.0");
+  assert.equal(a.history[0].did, "Added from the game");
+  assert.equal(fs.readFileSync(path.join(r.item, "source", "archive", "base", "props", "chair_d.xbm"), "utf8"), "game:base\\props\\chair_d.xbm");
+  assert.equal(fs.existsSync(path.join(r.item, "source", "archive", "base", "surfaces")), false);
+  assert.deepEqual(r.missing, ["base\\props\\gone.xbm"]);
+  assert.equal(r.files, 5);
+});
+await check("library: Use the game path, and the name is lowercase", async () => {
+  const game = { "base\\Props\\Big_Chair.MESH": {} };
+  const r = await add(libBridge(game), { folder: "Dev", gamePathFolders: true }, { path: "base\\Props\\Big_Chair.MESH" });
+  assert.equal(r.relative, "Dev/base/Props/big_chair.mesh.asset");
+  assert.equal(JSON.parse(fs.readFileSync(path.join(r.item, "asset.json"), "utf8")).name, "Big_Chair");
+});
+await check("library: an item already there stops, or goes beside it, or is replaced keeping id and name", async () => {
+  const opts = { folder: "Twice" };
+  const first = await add(libBridge(), opts);
+  const fileOf = (r) => JSON.parse(fs.readFileSync(path.join(r.item, "asset.json"), "utf8"));
+  const was = fileOf(first);
+  fs.writeFileSync(path.join(first.item, "asset.json"), JSON.stringify({ ...was, name: "My chair" }));
+  await assert.rejects(add(libBridge(), opts), (e) => e instanceof lib.ItemExists);
+  const other = await add(libBridge(), { ...opts, ifExists: "another" });
+  assert.equal(other.relative, "Twice/chair_2.mesh.asset");
+  assert.notEqual(fileOf(other).id, was.id);
+  fs.writeFileSync(path.join(first.item, "note.txt"), "gone after a replace");
+  const again = await add(libBridge(), { ...opts, ifExists: "replace" });
+  const now = fileOf(again);
+  assert.deepEqual([now.id, now.name, now.version, now.history.length], [was.id, "My chair", 2, 2]);
+  assert.equal(fs.existsSync(path.join(again.item, "note.txt")), false);
+});
+await check("library: nothing half made is left when it fails", async () => {
+  const b = libBridge();
+  const plan = await lib.planAsset(b, { path: main });
+  b.extractMany = async () => { throw new Error("disk full"); };
+  const root = path.join(tmp, "libFail");
+  await assert.rejects(lib.writeAsset(b, { path: main }, plan, { root, folder: "F", tool: "t" }), /disk full/);
+  assert.deepEqual(fs.readdirSync(path.join(root, "F")), []);
+});
+await check("library: a project's copies win, and a file only in the project is the modder's own", async () => {
+  const dir = path.join(tmp, "proj");
+  const own = "edgemodders\\new\\thing.mesh";
+  write("proj/source/archive/edgemodders/new/thing.mesh", JSON.stringify({ a: ref("base\\props\\chair_d.xbm"), b: ref("edgemodders\\new\\thing.mi") }));
+  write("proj/source/archive/edgemodders/new/thing.mi", JSON.stringify({}));
+  write("proj/source/archive/base/props/chair_d.xbm", "mine");
+  const r = await add(libBridge(), { folder: "P" }, { path: own, project: { name: "Proj", dir } });
+  assert.equal(fs.readFileSync(path.join(r.item, "source", "archive", "base", "props", "chair_d.xbm"), "utf8"), "mine");
+  const a = JSON.parse(fs.readFileSync(path.join(r.item, "asset.json"), "utf8"));
+  assert.deepEqual(a.from, { project: "Proj", path: own });
+  assert.equal(a.license.source, "own");
+  assert.equal(a.history[0].did, "Added from project Proj");
+});
+await check("library: a project's edited copy of a game file still carries the game's terms", async () => {
+  const dir = path.join(tmp, "proj2");
+  write("proj2/source/archive/base/props/chair.mesh", JSON.stringify({}));
+  const r = await add(libBridge(), { folder: "P2" }, { path: main, project: { name: "Proj2", dir } });
+  assert.equal(JSON.parse(fs.readFileSync(path.join(r.item, "asset.json"), "utf8")).license, "game");
+});
+await check("library: folders: the modder's, without items or hidden ones; nothing leaves the root", () => {
+  const root = path.join(tmp, "libList");
+  write("libList/Prod/Meshes/chair.mesh.asset/source/x.txt", "");
+  write("libList/Prod/b.bake/x.txt", "");
+  write("libList/.redcode-add-1/x.txt", "");
+  assert.deepEqual(lib.libraryFolders(root), ["Prod", "Prod/Meshes"]);
+  assert.equal(lib.safeFolder("Prod\\Meshes/"), "Prod/Meshes");
+  assert.equal(lib.safeFolder(undefined), "");
+  for (const bad of ["..", "a/../b", "C:/x", "a/b.mesh.asset", "con:"]) assert.throws(() => lib.safeFolder(bad), bad);
+  assert.equal(lib.safeGamePath("a/../b.xbm"), undefined);
+  assert.equal(lib.safeGamePath("base/x/y.xbm"), "base\\x\\y.xbm");
+});
+await check("library: the root: read, written keeping other fields, refused inside the game", async () => {
+  const file = path.join(tmp, "cfg", "library.json");
+  assert.equal(lib.readLibraryRoot(file), undefined);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, JSON.stringify({ other: 1 }));
+  const root = lib.writeLibraryRoot(path.join(tmp, "rootA"), file);
+  assert.equal(lib.readLibraryRoot(file), root);
+  assert.equal(JSON.parse(fs.readFileSync(file, "utf8")).other, 1);
+  await assert.rejects(add(libBridge(), { root: path.join(tmp, "game", "Library"), gameDir: path.join(tmp, "game") }), /inside the game/);
 });
 
 fs.rmSync(tmp, { recursive: true, force: true });
