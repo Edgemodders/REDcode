@@ -11,12 +11,14 @@
 //
 // <dir> is the folder with nexus.json (default: nexus). nexus.json names the page ("page": 35419)
 // and how the file is uploaded ("upload"); pull adds the internal mod id, the main file's id and
-// the hash of the description it pulled.
+// the hash of the description it pulled. A page released with tags of its own sets their prefix
+// ("tag": "wardrobe-designer-v"); without it the page's release tags are v<version>.
 //
 // The description is pushed only when the live one is what the repo last saw: the one pulled
 // (nexus.json's hash) or the one the previous release pushed (description.bbcode at the previous
-// v* tag). Anything else is an edit made on Nexus since, and the release stops before it uploads
-// anything, so that edit is never overwritten: pull, merge, commit, and run it again.
+// release tag, v* or nexus.json's "tag" prefix). Anything else is an edit made on Nexus since,
+// and the release stops before it uploads anything, so that edit is never overwritten: pull,
+// merge, commit, and run it again.
 
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -67,12 +69,16 @@ async function mainFile(modId, fileId) {
   throw new Error('No primary file on the page, and more than one file: set "file" in nexus.json');
 }
 
-/** description.bbcode as the previous release (the newest v* tag that is not this version; any, with no version) had it, or null. */
-function previousReleaseDescription(version) {
+/**
+ * description.bbcode as the previous release had it, or null: the newest tag with the page's
+ * prefix (nexus.json's "tag", "v" when absent) that is not this version's; any, with no version.
+ */
+function previousReleaseDescription(config, version) {
+  const prefix = config.tag ?? 'v';
   try {
     const git = (...a) => execFileSync('git', a, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
     const top = git('rev-parse', '--show-toplevel');
-    const tag = git('tag', '--list', 'v*', '--sort=-v:refname').split('\n').find((t) => t && t !== `v${version}`);
+    const tag = git('tag', '--list', `${prefix}*`, '--sort=-v:refname').split('\n').find((t) => t && t !== `${prefix}${version}`);
     if (!tag) return null;
     return { tag, text: git('show', `${tag}:${relative(top, descFile).replace(/\\/g, '/')}`) };
   } catch {
@@ -86,7 +92,7 @@ function descriptionPlan(mod, config, version) {
   const repo = sha(repoDescription());
   if (live === repo) return { push: false, why: 'the repo and Nexus have the same description' };
   if (live === config.pulled?.sha256) return { push: true, why: 'the live description is the one last pulled' };
-  const prev = previousReleaseDescription(version);
+  const prev = previousReleaseDescription(config, version);
   if (prev && live === sha(prev.text)) return { push: true, why: `the live description is the one ${prev.tag} pushed` };
   throw new Error(
     'The description on Nexus has changed since the last pull and the last release, so pushing would lose that edit. ' +
@@ -116,7 +122,7 @@ async function status() {
       ? `Main file ${file.id}: ${versions.map((v) => `${v.version}${v.is_primary ? ' (primary)' : ''}${v.category !== 'main' ? ` (${v.category})` : ''}`).join(', ')}`
       : 'No files yet: the first release creates the main file',
   );
-  const prev = previousReleaseDescription();
+  const prev = previousReleaseDescription(config);
   const seen =
     live === config.pulled?.sha256
       ? 'the one last pulled'
@@ -134,7 +140,11 @@ async function plan(version) {
   const mod = await modByPage(config.page);
   const { file, versions } = await mainFile(mod.id, config.file);
   const already = versions.find((v) => v.version === version);
-  const previous = versions.find((v) => v.is_primary) ?? null;
+  // The version this release replaces: the primary one, or else the newest not archived (as EDGEwave's).
+  // is_primary is the primary mod manager download, which a page with "primary": false never has,
+  // and which can be a version archived since (REDcode's 0.10.2): an archived one is never the one replaced.
+  const newest = versions.filter((v) => v.category !== 'archived').sort((a, b) => String(b.uploaded_at).localeCompare(String(a.uploaded_at)))[0];
+  const previous = versions.find((v) => v.is_primary && v.category !== 'archived') ?? newest ?? null;
   const description = descriptionPlan(mod, config, version);
   console.log(`${mod.name} on Nexus (page ${config.page}): version ${mod.version}, ${file ? `main file ${file.id}` : 'no files yet'}`);
   console.log(
