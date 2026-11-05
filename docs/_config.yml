@@ -34,6 +34,8 @@ nav:
     url: /design/ship.html
   - title: View
     url: /design/view.html
+  - title: Animations
+    url: /design/animation.html
   - title: MCP
     url: /mcp.html
   - title: Extension API

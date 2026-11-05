@@ -100,7 +100,7 @@ Edit a REDnode mod in REDcode, deploy it into the running game without a restart
 ## Deferred
 
 - **Textures on meshes** beyond flat colours, if the export's material files turn out to be costly to map: V1 ships geometry first.
-- **Animations** played on a rig in the mesh viewer: needs the rig and `.anims` export, a later step.
+- **Animations** played on a rig in the mesh viewer: designed in [Animations](animation.html) (draft, 2026-11-05, for REDcode issue #21).
 
 ## Decisions
 
