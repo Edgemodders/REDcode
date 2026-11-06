@@ -141,6 +141,18 @@ try {
     const root = path.join(os.tmpdir(), "redcode-smoke", "library");
     fs.rmSync(root, { recursive: true, force: true });
     const mesh = (await bridge.search("nokota", 200)).items.find((f) => f.name.endsWith(".mesh"));
+    // REDcode #21: an .anims to a .glb, then the skeleton and one clip the animation view gets.
+    {
+      const { animsClip, animsGlbFor, animsList, animsSkeleton, readAnimsGlb } = require("../dist/animsGlb.js");
+      const set = (await bridge.search("q001_00c_trauma_arrives_male_average", 5)).items.find((f) => f.name.endsWith(".anims"));
+      if (!set) throw new Error("no .anims to test the animation view with");
+      await step(`Animations ${set.name}`, async () => {
+        const glb = readAnimsGlb((await animsGlbFor(bridge, path.join(os.tmpdir(), "redcode-smoke", "anims"), { gamePath: set.name })).glb);
+        const list = animsList(glb);
+        if (list.length === 0) throw new Error("the export has no animations");
+        return JSON.stringify({ clips: list.length, first: list[0], skeleton: animsSkeleton(glb).length, clip: animsClip(glb, 0).length });
+      });
+    }
     const added = await step(`Add to Library ${mesh.name}`, async () => {
       const plan = await planAsset(bridge, { path: mesh.name });
       const r = await writeAsset(bridge, { path: mesh.name }, plan, { root, folder: "Development/Meshes", gamePathFolders: true, tool: "smoke", gameDir: info.gameDir });

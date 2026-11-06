@@ -4,6 +4,10 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 ## Unreleased
 
+**New**
+
+- **Game animations play on their rig** (REDcode issue #21, for EDGEquest): an `.anims` file opens on an **Animations** view. It lists the file's animations with their length, shows the rig it names as bones and joints, and plays the one you pick, with play and pause, a scrub bar, single frames, loop and speed. **Tree** is one click away. Bodies on the rig and moving through the scene (root motion) come next. A large file takes about a minute to open the first time, and is quick after that. Other tools can open it with `REDcodeApi.openAnimation`: https://edgemodders.github.io/REDcode/api.html
+
 ## 0.10.6 (2026-11-06)
 
 For EDGEfab and EDGEhack: Add to Library, and a click on a TweakDB record that opens the tool made for it. Needs REDbridge 0.12.0; REDcode offers the update.

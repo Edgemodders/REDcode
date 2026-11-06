@@ -31,6 +31,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [V3 TweakDB view](#v3-tweakdb-view) | By hand | C5 | 2026-10-15 | Pass, one fix |
 | [Add to Library (#19)](#add-to-library-19) | By hand | Requests | 2026-11-06 | Pass, one fix |
 | [Open contract (#22)](#open-contract-22) | By hand | Requests | 2026-11-06 | Pass |
+| [Animations A1 (#21)](#animations-a1) | By hand | Requests | Not run yet | Given to the owner 2026-11-06 |
 | [Release 0.10.0: issues #5 to #8 and V4](#release-0100-issues-5-to-8-and-v4) | By hand | C5 | 2026-10-16 | Pass, ten fixes retested |
 | [Unit checks](#unit-checks) | Automated | C4 on | 2026-10-25 | Pass |
 | [Issue #11: Pack and Try through REDnode](#issue-11-pack-and-try-through-rednode) | By hand, in the game | C4 | Partly passed | On game 2.5, A and B pass (2026-10-26); steps 1 to 6 wait for Red Hot Tools on 2.5 |
@@ -58,7 +59,7 @@ npm run build
 npm test
 ```
 
-Expected: `47 passed`. `scripts/unit.mjs` runs `dist/hotSwap.js`, `dist/exportCache.js`, `dist/library.js` and `dist/opens.js` with no VS Code or game: REDnode's settings, sound pak detection, the Red Hot Tools lookup check, the choice without REDnode, REDnode's replies, the export cache's stamp, and Add to Library's walk and item, and the open contract's reader and matcher (#22). Added 2026-10-25 for issue #11; pass.
+Expected: `50 passed`. `scripts/unit.mjs` runs `dist/hotSwap.js`, `dist/exportCache.js`, `dist/library.js`, `dist/opens.js` and `dist/animsGlb.js` with no VS Code or game: REDnode's settings, sound pak detection, the Red Hot Tools lookup check, the choice without REDnode, REDnode's replies, the export cache's stamp, and Add to Library's walk and item, the open contract's reader and matcher (#22), and the animation view's list, skeleton and clips (#21). Added 2026-10-25 for issue #11; pass.
 
 ### Smoke test: the bridge client against the game
 
@@ -590,6 +591,29 @@ Built 2026-11-05 for EDGEhack, in REDcode 0.10.6. F5 with **Run REDcode with Ope
 **Result (2026-11-06, the owner, on the laptop):** steps 1 to 6 pass, with no fixes.
 
 Before release 0.10.6 with `redcode.minBridgeVersion` 0.12.0: the smoke test passes against REDbridge 0.12.0, built from its tag (2026-11-06, game 2.5, in 21.4 s).
+
+## Animations A1
+
+Built 2026-11-06 for REDcode issue #21 ([design](design/animation.html)). F5 with **Run REDcode with Opens Test (no other extensions)**. No game needs to run. Checked before: type check, build, `npm test` (50, three for the clips), the smoke test's new step against REDbridge 0.12.0, and in Chrome with the real bundle and the real bridge (scratchpad `harnessA1.mjs` and `harnessA1e.mjs`, the second with the real editor page and a fake VS Code host): the crew file, the AV and the largest file, every control, Tree and back, `showAnimation` from each state and a name not in the file. That automated tab ran at about one frame a second, so smooth playback has not been seen.
+
+| # | Do | Expected |
+|---|---|---|
+| 1 | Game Assets: filter on `q001_00c_trauma_arrives_male_average`, click `q001_00c_trauma_arrives_male_average.anims` | It opens on **Animations**. Toolbar: Frame, `Rig man_base.rig`. On the right, 13 animations with their lengths, the first selected. A figure in lines and dots stands on the grid and moves smoothly. Hover a row: its length, frames and 30 fps |
+| 2 | **Pause**, then **◀** and **▶** | It holds still, and each press moves one frame (about 0.03 s). The time shows under the view |
+| 3 | Drag the scrub bar | The figure follows, and playback stays paused |
+| 4 | Press **Play**, then turn **Loop** off and let it reach the end | It stops at the end, and the button says Play. **Play** starts it again from 0. Turn Loop back on: it repeats |
+| 5 | Set the speed to 0.25×, then back to 1× | A quarter speed, then normal |
+| 6 | Type `soldier point` in the filter, click a row | Three rows are left, and the one clicked plays. Clear the filter: all 13 are back |
+| 7 | Orbit and zoom with the mouse, then **Frame** | The view moves as in the 3D mesh view, and Frame fits the rig again |
+| 8 | Press **Tree**, then **Animations** | The file's tree and grid, then the view again, playing |
+| 9 | Switch to another editor tab for a while, then back | It carries on without jumping far ahead |
+| 10 | Command Palette: **Opens Test: Open an Animation** | The crew file opens with `q001_00c_trauma_arrives___med_2_idle__01` selected and playing, whether or not its tab was already open. Run it once with the tab closed and once with it open on another animation |
+| 11 | Command Palette: **Opens Test: Open an Animation from a File That Is Not One** | A notice: REDcode refused it, as `openAnimation` takes an `.anims` file |
+| 12 | Game Assets: filter on `synced__q001_00c__trauma_av`, click the `.anims` | `Rig av_zetatech_atlus_skeleton.rig`, 6 animations, and a star of lines that moves. It does not fly through the air: that is root motion, in A2 |
+| 13 | Filter on `generic_average_male_transitions`, click the `.anims` | "Exporting the animations..." for up to about two minutes, and VS Code stays usable. Then 1,246 animations. Filter on `walk` and pick one: it plays within a moment. Close it and open it again: the export is not repeated. **Say how the wait felt** |
+| 14 | Add `q001_00c_trauma_arrives_male_average.anims` to a test project and click it in the Project view | The same view, not read-only. Then delete the project's copy |
+
+Tell me if anything looks wrong about the figure itself: its proportions, or a limb bending the wrong way.
 
 ## Never run
 

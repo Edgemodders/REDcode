@@ -9,6 +9,8 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { mountAnimations } from "./animViewer";
+import { cssColour, el } from "./viewerKit";
 
 export interface MeshSource {
   /** The bytes of a .glb. */
@@ -57,27 +59,11 @@ export interface MeshView {
 
 type Shading = "flat" | "own" | "edgemat";
 
-const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string): HTMLElementTagNameMap[K] => {
-  const e = document.createElement(tag);
-  if (cls) e.className = cls;
-  if (text !== undefined) e.textContent = text;
-  return e;
-};
-
 /** A colour per material name, stable across opens, so submeshes that share a material look alike. */
 function colourFor(name: string): THREE.Color {
   let h = 0;
   for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
   return new THREE.Color().setHSL((h % 360) / 360, 0.35, 0.6);
-}
-
-function cssColour(name: string, fallback: string): THREE.Color {
-  const v = getComputedStyle(document.body).getPropertyValue(name).trim();
-  try {
-    return new THREE.Color(v || fallback);
-  } catch {
-    return new THREE.Color(fallback);
-  }
 }
 
 /** Builds the viewer into container: the canvas, a toolbar and a side list of submeshes. */
@@ -379,4 +365,4 @@ export async function mount(container: HTMLElement, source: MeshSource, title = 
 }
 
 // Exposed for the plain scripts that host the viewer (the CR2W editor page and the glTF viewer page).
-(window as unknown as { REDcodeMesh: { mount: typeof mount } }).REDcodeMesh = { mount };
+(window as unknown as { REDcodeMesh: { mount: typeof mount; mountAnimations: typeof mountAnimations } }).REDcodeMesh = { mount, mountAnimations };

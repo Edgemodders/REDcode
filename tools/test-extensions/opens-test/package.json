@@ -1,7 +1,7 @@
 {
   "name": "opens-test",
   "displayName": "Opens Test",
-  "description": "A stand-in for a tool that claims TweakDB records through the open contract (REDcode issue #22). For REDcode's hand test only; never published.",
+  "description": "A stand-in for another EDGE tool: it claims TweakDB records through the open contract (REDcode issue #22) and calls openAnimation (REDcode issue #21). For REDcode's hand tests only; never published.",
   "version": "0.0.1",
   "publisher": "edgemodders",
   "private": true,
@@ -9,7 +9,11 @@
   "engines": { "vscode": "^1.74.0" },
   "main": "./extension.js",
   "contributes": {
-    "commands": [{ "command": "openstest.open", "title": "Opens Test: Open" }]
+    "commands": [
+      { "command": "openstest.open", "title": "Opens Test: Open" },
+      { "command": "openstest.openAnimation", "title": "Opens Test: Open an Animation" },
+      { "command": "openstest.openAnimationNotAnims", "title": "Opens Test: Open an Animation from a File That Is Not One" }
+    ]
   },
   "edgemodders": {
     "opens": [

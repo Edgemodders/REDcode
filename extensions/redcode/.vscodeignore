@@ -9,3 +9,4 @@ dist/hotSwap.js
 *.vsix
 webview/**
 dist/opens.js
+dist/animsGlb.js

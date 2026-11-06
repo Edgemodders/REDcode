@@ -10,6 +10,7 @@ import * as vscode from "vscode";
 import type { BridgeClient } from "./bridgeClient";
 import { gameUri, gamePathOfUri } from "./gameFs";
 import { meshGlbFor, meshPayload } from "./meshExport";
+import { animsClip, animsGlbFor, animsList, animsSkeleton, readAnimsGlb, type AnimsGlb } from "./animsGlb";
 import { findEdgemat, mapsForWebview, openInEdgemat } from "./edgemat";
 import { ProjectFolders } from "./project";
 import type { TextureViewer } from "./textureViewer";
@@ -206,6 +207,8 @@ interface Request {
   id?: number;
   path?: string;
   paths?: string[];
+  /** An animation by its place in the file, for animClip. */
+  index?: number;
   offset?: number;
   limit?: number;
   name?: string;
@@ -236,6 +239,7 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
   /** Table rows and nodes to show once the editor page of the document is ready, by URI. */
   private readonly pendingRows = new Map<string, number>();
   private readonly pendingNodes = new Map<string, string>();
+  private readonly pendingAnimations = new Map<string, string>();
   private readonly saved = new vscode.EventEmitter<Cr2wDocument>();
   /** Fired after a document is saved, for views that read the file (the LocKeys view). */
   readonly onDidSave = this.saved.event;
@@ -266,6 +270,20 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
       return;
     }
     for (const w of pages) void w.postMessage({ type: "reveal", path: nodePath });
+  }
+
+  /**
+   * Goes to an animation of an .anims file, by name: the open pages of the document do, or the editor
+   * page does when it opens. For REDcodeApi.openAnimation.
+   */
+  showAnimation(uri: vscode.Uri, name: string): void {
+    const document = this.documents.get(uri.toString());
+    const pages = document ? [...(this.pages.get(document) ?? [])] : [];
+    if (pages.length === 0) {
+      this.pendingAnimations.set(uri.toString(), name);
+      return;
+    }
+    for (const w of pages) void w.postMessage({ type: "showAnimation", name });
   }
 
   /** The open document for an editor tab's URI, for the Properties view. */
@@ -428,6 +446,8 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
     const reload = document.onDidReload((reason) => post({ type: "reload", reason }));
     // The mesh as EDGEmat knows it: its game path, or the file on disk.
     const meshRef = () => document.gamePath ?? document.uri.fsPath;
+    /** This page's exported .anims, read when its animations mode asks: the JSON can be large. */
+    let anims: AnimsGlb | undefined;
     /** The mesh's game path, which the game's appearance files name: a game file's own, or a project file's under source/archive. */
     const meshGamePath = () => document.gamePath ?? archiveGamePathOf(document.uri.fsPath);
     let materialWatch: vscode.Disposable | undefined;
@@ -457,6 +477,11 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
             if (node !== undefined) {
               this.pendingNodes.delete(key);
               post({ type: "reveal", path: node });
+            }
+            const animation = this.pendingAnimations.get(key);
+            if (animation !== undefined) {
+              this.pendingAnimations.delete(key);
+              post({ type: "showAnimation", name: animation });
             }
             return;
           }
@@ -499,6 +524,21 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
             }
             return reply(m.id, { ...meshPayload(r.glb), path: r.glb, cached: r.cached, dirty: document.log.length > 0, appearances, materialProvider: !!edgemat, findItems: !!meshGamePath() });
           }
+          case "animsPayload": {
+            // The open .anims, exported to a cached .glb (the saved file: unsaved edits show after a save).
+            // The page gets the skeleton and the list; each animation's keys come by animClip when picked.
+            const cache = path.join(this.textures.root.fsPath, "mesh");
+            const r = await animsGlbFor(this.requireBridge(), cache, document.gamePath ? { gamePath: document.gamePath } : { file: document.uri.fsPath });
+            anims = readAnimsGlb(r.glb);
+            const rig = await this.animsRig(document).catch(() => "");
+            const animations = animsList(anims);
+            const frames = await this.animsFrames(document).catch(() => new Map<string, number>());
+            for (const a of animations) a.frames = frames.get(a.name) ?? a.frames;
+            return reply(m.id, { skeleton: animsSkeleton(anims).toString("base64"), animations, rig, path: r.glb, cached: r.cached, dirty: document.log.length > 0 });
+          }
+          case "animClip":
+            if (!anims) throw new Error("The animations are not loaded");
+            return reply(m.id, animsClip(anims, m.index ?? -1).toString("base64"));
           case "findItems":
             await this.findItems(meshGamePath() ?? "", m.appearance);
             return reply(m.id, null);
@@ -653,6 +693,32 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
 
   private async openGameFile(gamePath: string): Promise<void> {
     await vscode.commands.executeCommand("vscode.openWith", gameUri(gamePath), cr2wViewTypeFor(gamePath));
+  }
+
+  /** The game path of the rig an .anims names, read from the document. */
+  private async animsRig(document: Cr2wDocument): Promise<string> {
+    const bridge = this.requireBridge();
+    await document.ensureOpen(bridge);
+    const node = await bridge.getNode(document.doc, "rig", 0, 1);
+    const rig = (node.value as { DepotPath?: { $value?: unknown } } | undefined)?.DepotPath?.$value;
+    return typeof rig === "string" ? rig : "";
+  }
+
+  /** Each animation's frames by name, as the file says: the export's key counts are thinned. */
+  private async animsFrames(document: Cr2wDocument): Promise<Map<string, number>> {
+    const bridge = this.requireBridge();
+    await document.ensureOpen(bridge);
+    const list = await bridge.getNode(document.doc, "animations", 0, 1);
+    const count = list.total ?? 0;
+    const paths = Array.from({ length: count }, (_, i) => [`animations.${i}.Data.animation.Data.name`, `animations.${i}.Data.animation.Data.animBuffer.Data.numFrames`]).flat();
+    const nodes = await bridge.getNodes(document.doc, paths, 1);
+    const out = new Map<string, number>();
+    for (let i = 0; i < count; i++) {
+      const name = nodes[i * 2]?.value as { $value?: unknown } | undefined;
+      const frames = nodes[i * 2 + 1]?.value;
+      if (typeof name?.$value === "string" && typeof frames === "number") out.set(name.$value, frames);
+    }
+    return out;
   }
 
   /** A .mesh's appearances and the material each names per submesh (chunkMaterials), read from the document. */

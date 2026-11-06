@@ -113,6 +113,12 @@ export interface REDcodeApi {
    * paths are in the JSON (graph.Data.nodes.12), and the grid shows it.
    */
   openFile(target: string, node?: string): Promise<void>;
+  /**
+   * Opens an .anims file on its animations, playing them on the rig the file names. path is what openFile
+   * takes. With animationName, it opens at that animation. Since 0.10.7 (REDcode issue #21): check that the
+   * member is there before calling it.
+   */
+  openAnimation(path: string, animationName?: string): Promise<void>;
 }
 
 export interface ApiHost {
@@ -127,6 +133,7 @@ export interface ApiHost {
   packAndPlay(): Promise<"rednode" | "hot" | "installed" | undefined>;
   editInBlender(file: string): Promise<void>;
   openFile(target: string, node?: string): Promise<void>;
+  openAnimation(path: string, animationName?: string): Promise<void>;
 }
 
 export function projectRef(p: ProjectInfo | undefined): ProjectRef | undefined {
@@ -227,5 +234,6 @@ export function createApi(host: ApiHost): REDcodeApi {
     packAndTry: host.packAndPlay,
     editInBlender: host.editInBlender,
     openFile: host.openFile,
+    openAnimation: host.openAnimation,
   };
 }

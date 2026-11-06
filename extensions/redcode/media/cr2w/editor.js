@@ -77,6 +77,14 @@
       if (sidebar) return;
       pendingRow = m.index;
       if (table && mode === "table") void showPendingRow();
+    } else if (m.type === "showAnimation") {
+      // The host asks for an animation (REDcodeApi.openAnimation); before the view is up, it waits for it.
+      if (sidebar) return;
+      if (meshView?.showAnimation && mode === "anims") meshView.showAnimation(m.name);
+      else {
+        pendingAnimation = m.name;
+        if (!opening && home === "anims" && mode !== "anims") { mode = "anims"; void render(true); }
+      }
     } else if (m.type === "flush") {
       void flush(m.id);
     } else if (m.type === "error") {
@@ -105,10 +113,10 @@
   let table = null;             // { path, type, entryType, keys } when the file is a localization table
   let atlas = null;             // { slots, slot, parts, image } when the file is an inkTextureAtlas (see the atlas section)
   // "table" and "atlas" replace the tree; "texture" is the tree with the image above the grid.
-  const isSpecial = () => mode === "table" || mode === "atlas" || mode === "mesh";
-  // The file's own view, which the header button switches to and from the tree: table, atlas or mesh (3D).
+  const isSpecial = () => mode === "table" || mode === "atlas" || mode === "mesh" || mode === "anims";
+  // The file's own view, which the header button switches to and from the tree: table, atlas, mesh (3D) or anims.
   let home = null;
-  const HomeLabels = { table: "Table", atlas: "Atlas", mesh: "3D" };
+  const HomeLabels = { table: "Table", atlas: "Atlas", mesh: "3D", anims: "Animations" };
 
   const status = (text, kind = "") => { const s = $("status"); s.textContent = text; s.className = kind; };
   const join = (a, b) => (a ? `${a}.${b}` : b);
@@ -155,6 +163,10 @@
     } else if (info.type === "CMesh" && window.REDcodeMesh) {
       // A mesh opens on the 3D view; the tree is one click away.
       mode = home = "mesh";
+      $("view").hidden = false;
+    } else if (info.type === "animAnimSet" && window.REDcodeMesh) {
+      // An .anims opens on its animations, played on the rig; the tree is one click away.
+      mode = home = "anims";
       $("view").hidden = false;
     } else if (info.type === "CBitmapTexture") {
       // A texture: the image above the grid, and the setup fields selected, since they are what gets edited.
@@ -205,9 +217,9 @@
   async function render(force = false) {
     document.body.classList.toggle("table-mode", mode === "table");
     document.body.classList.toggle("atlas-mode", mode === "atlas");
-    document.body.classList.toggle("mesh-mode", mode === "mesh");
+    document.body.classList.toggle("mesh-mode", mode === "mesh" || mode === "anims");
     $("view").textContent = isSpecial() ? "Tree" : HomeLabels[home] ?? "Tree";
-    if (mode !== "mesh") disposeMesh();
+    if (mode !== "mesh" && mode !== "anims") disposeMesh();
     if (mode === "table") {
       if (pendingRow !== null) await showPendingRow();
       else await renderTable();
@@ -215,6 +227,8 @@
       await renderAtlas();
     } else if (mode === "mesh") {
       await renderMesh();
+    } else if (mode === "anims") {
+      await renderAnims();
     } else {
       // The Properties view draws the selection the host gave it; sending it back would make the editor draw the grid.
       await select(selected, force, sidebar);
@@ -225,7 +239,7 @@
   async function rerender() {
     if (mode === "table") await renderTable();
     else if (mode === "atlas") await renderAtlas();
-    else if (mode === "mesh") return; // the 3D view shows the saved file; it reloads after a save
+    else if (mode === "mesh" || mode === "anims") return; // these show the saved file; they reload after a save
     else await renderGrid();
   }
 
@@ -263,6 +277,37 @@
       status(payload.cached ? "" : `Exported to ${payload.path}`);
     } catch (e) {
       grid.replaceChildren(el("div", "error", `Could not show the mesh: ${e.message}`));
+    }
+  }
+
+  // ---- animations (animAnimSet) ----------------------------------------------------------------
+  // The extension exports the saved file to a .glb in its cache and sends the skeleton and the list.
+  // Each animation's keys come when it is picked, since the export can be hundreds of MB.
+  let pendingAnimation = null;
+
+  async function renderAnims() {
+    if (meshShown) return;
+    const grid = $("grid");
+    disposeMesh();
+    $("propsLabel").textContent = `${info.type}  ·  Animations`;
+    grid.replaceChildren(el("div", "note", "Exporting the animations, which can take a minute for a large file…"));
+    try {
+      const payload = await request("animsPayload");
+      const initial = pendingAnimation ?? undefined;
+      pendingAnimation = null;
+      meshView = await window.REDcodeMesh.mountAnimations(grid, {
+        skeleton: base64ToBuffer(payload.skeleton),
+        rig: payload.rig,
+        animations: payload.animations,
+        clip: async (index) => base64ToBuffer(await request("animClip", { index })),
+        initial,
+        note: payload.dirty ? "Shows the saved file; save to see your edits" : "",
+        say: (message) => status(message, "error"),
+      });
+      meshShown = true;
+      status(payload.cached ? "" : `Exported to ${payload.path}`);
+    } catch (e) {
+      grid.replaceChildren(el("div", "error", `Could not show the animations: ${e.message}`));
     }
   }
 

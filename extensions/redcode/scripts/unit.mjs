@@ -1,10 +1,10 @@
 // Unit checks for logic with no VS Code or game needed: Pack and Play's hot swap choice (REDcode issue #11),
 // the export cache's game stamp (a game patch empties the cached game files), Add to Library's item
-// (REDcode issue #19) and the open contract (REDcode issue #22).
+// (REDcode issue #19), the open contract (REDcode issue #22) and the animation view's clips (REDcode issue #21).
 //
 //   npm run build && npm test
 //
-// Uses dist/hotSwap.js, dist/exportCache.js, dist/library.js and dist/opens.js, which the build writes.
+// Uses dist/hotSwap.js, dist/exportCache.js, dist/library.js, dist/opens.js and dist/animsGlb.js, which the build writes.
 import assert from "node:assert/strict";
 import * as fs from "node:fs";
 import * as http from "node:http";
@@ -406,6 +406,93 @@ await check("open contract: flat values match as tweakdb.records gives them", ()
   assert.equal(opens.flatIs({ key: "LocKey#1", text: "x" }, "LocKey#1"), true);
   assert.equal(opens.flatIs(undefined, true), false);
   assert.equal(opens.matchKey({ type: "Item", flat: "itemType", is: "X" }), opens.matchKey({ type: "item", flat: "itemType", is: "X" }));
+});
+
+// ---- the animation view's clips (REDcode issue #21) ------------------------------------------
+
+const anims = require("../dist/animsGlb.js");
+
+/** A small .glb as WolvenKit writes an .anims: two bones, two clips, all accessors in one buffer view. */
+function animsFixture(file) {
+  const floats = [0, 1, 2, /* clip 0 times */ 0, 0, 0, 1, 1, 1, 2, 2, 2, /* clip 0 positions */ 0, 0.5, /* clip 1 times */ 5, 5, 5, 6, 6, 6 /* clip 1 positions */];
+  const bin = Buffer.from(new Float32Array(floats).buffer);
+  const scalar = (byteOffset, count, max) => ({ bufferView: 0, byteOffset, componentType: 5126, count, type: "SCALAR", min: [0], max: [max] });
+  const vec3 = (byteOffset, count) => ({ bufferView: 0, byteOffset, componentType: 5126, count, type: "VEC3" });
+  const json = {
+    asset: { version: "2.0" },
+    scene: 0,
+    scenes: [{ nodes: [0] }],
+    nodes: [{ name: "Root", children: [1] }, { name: "Hips", translation: [0, 1, 0] }],
+    skins: [{ joints: [0, 1], inverseBindMatrices: 99, name: "Armature" }],
+    animations: [
+      { name: "walk", channels: [{ sampler: 0, target: { node: 1, path: "translation" } }], samplers: [{ input: 0, output: 1, interpolation: "LINEAR" }] },
+      { name: "idle", channels: [{ sampler: 0, target: { node: 1, path: "translation" } }], samplers: [{ input: 2, output: 3, interpolation: "LINEAR" }] },
+    ],
+    accessors: [scalar(0, 3, 2), vec3(12, 3), scalar(48, 2, 0.5), vec3(56, 2)],
+    bufferViews: [{ buffer: 0, byteOffset: 0, byteLength: bin.length }],
+    buffers: [{ byteLength: bin.length }],
+  };
+  const text = Buffer.from(JSON.stringify(json));
+  const pad = Buffer.alloc((4 - (text.length % 4)) % 4, 0x20);
+  const head = Buffer.alloc(20);
+  head.write("glTF", 0, "latin1");
+  head.writeUInt32LE(2, 4);
+  head.writeUInt32LE(20 + text.length + pad.length + 8 + bin.length, 8);
+  head.writeUInt32LE(text.length + pad.length, 12);
+  head.writeUInt32LE(0x4e4f534a, 16);
+  const binHead = Buffer.alloc(8);
+  binHead.writeUInt32LE(bin.length, 0);
+  binHead.writeUInt32LE(0x004e4942, 4);
+  fs.writeFileSync(file, Buffer.concat([head, text, pad, binHead, bin]));
+}
+
+/** A .glb in a Buffer: its JSON and its binary chunk. */
+function parseGlb(b) {
+  const jsonLength = b.readUInt32LE(12);
+  const json = JSON.parse(b.subarray(20, 20 + jsonLength).toString("utf8"));
+  const at = 20 + jsonLength;
+  return { json, bin: at < b.length ? b.subarray(at + 8, at + 8 + b.readUInt32LE(at)) : undefined };
+}
+
+await check("animations: the list gives each clip's name, length and frames", () => {
+  const file = path.join(tmp, "list.anims.glb");
+  animsFixture(file);
+  assert.deepEqual(anims.animsList(anims.readAnimsGlb(file)), [
+    { name: "walk", duration: 2, frames: 3 },
+    { name: "idle", duration: 0.5, frames: 2 },
+  ]);
+});
+
+await check("animations: the skeleton has the bones and no keys or binary", () => {
+  const file = path.join(tmp, "skel.anims.glb");
+  animsFixture(file);
+  const { json, bin } = parseGlb(anims.animsSkeleton(anims.readAnimsGlb(file)));
+  assert.equal(bin, undefined);
+  assert.deepEqual(json.nodes.map((n) => n.name), ["Root", "Hips"]);
+  assert.deepEqual(json.skins, [{ joints: [0, 1] }]);
+  assert.equal(json.animations, undefined);
+  assert.equal(json.accessors, undefined);
+});
+
+await check("animations: a clip holds only its own keys, from a shared buffer view", () => {
+  const file = path.join(tmp, "clip.anims.glb");
+  animsFixture(file);
+  const glb = anims.readAnimsGlb(file);
+  const { json, bin } = parseGlb(anims.animsClip(glb, 1));
+  assert.deepEqual(json.animations.map((a) => a.name), ["idle"]);
+  assert.equal(json.accessors.length, 2);
+  assert.equal(bin.length, 8 + 24, "2 times and 2 positions, nothing of the other clip");
+  const read = (i) => {
+    const a = json.accessors[i];
+    const v = json.bufferViews[a.bufferView];
+    const n = a.count * (a.type === "VEC3" ? 3 : 1);
+    return Array.from({ length: n }, (_, k) => bin.readFloatLE(v.byteOffset + a.byteOffset + k * 4));
+  };
+  const s = json.animations[0].samplers[0];
+  assert.deepEqual(read(s.input), [0, 0.5]);
+  assert.deepEqual(read(s.output), [5, 5, 5, 6, 6, 6]);
+  assert.equal(json.accessors[s.input].max[0], 0.5);
+  assert.throws(() => anims.animsClip(glb, 2), /No animation 2/);
 });
 
 fs.rmSync(tmp, { recursive: true, force: true });
