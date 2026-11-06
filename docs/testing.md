@@ -589,6 +589,8 @@ Built 2026-11-05 for EDGEhack, in REDcode 0.10.6. F5 with **Run REDcode with Ope
 
 **Result (2026-11-06, the owner, on the laptop):** steps 1 to 6 pass, with no fixes.
 
+Before release 0.10.6 with `redcode.minBridgeVersion` 0.12.0: the smoke test passes against REDbridge 0.12.0, built from its tag (2026-11-06, game 2.5, in 21.4 s).
+
 ## Never run
 
 | Test | Why |

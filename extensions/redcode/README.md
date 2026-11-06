@@ -20,7 +20,7 @@ REDcode stands on [WolvenKit](https://github.com/WolvenKit/WolvenKit). Every gam
 - Windows.
 - Cyberpunk 2077: the Steam, GOG or Epic install.
 - The .NET 10 runtime. REDcode offers to install it when it is missing.
-- REDbridge 0.10.0 or newer. REDcode offers to download it, and says when it is too old.
+- REDbridge 0.12.0 or newer. REDcode offers to download it, and says when it is too old.
 
 On first start REDcode looks for the game, which you can change with **REDcode: Set Game Folder**. It also offers to download REDbridge for you.
 
