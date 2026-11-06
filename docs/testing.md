@@ -31,7 +31,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [V3 TweakDB view](#v3-tweakdb-view) | By hand | C5 | 2026-10-15 | Pass, one fix |
 | [Add to Library (#19)](#add-to-library-19) | By hand | Requests | 2026-11-06 | Pass, one fix |
 | [Open contract (#22)](#open-contract-22) | By hand | Requests | 2026-11-06 | Pass |
-| [Animations A1 (#21)](#animations-a1) | By hand | Requests | Not run yet | Given to the owner 2026-11-06 |
+| [Animations A1 (#21)](#animations-a1) | By hand | Requests | 2026-11-06 | Pass |
 | [Release 0.10.0: issues #5 to #8 and V4](#release-0100-issues-5-to-8-and-v4) | By hand | C5 | 2026-10-16 | Pass, ten fixes retested |
 | [Unit checks](#unit-checks) | Automated | C4 on | 2026-10-25 | Pass |
 | [Issue #11: Pack and Try through REDnode](#issue-11-pack-and-try-through-rednode) | By hand, in the game | C4 | Partly passed | On game 2.5, A and B pass (2026-10-26); steps 1 to 6 wait for Red Hot Tools on 2.5 |
@@ -614,6 +614,8 @@ Built 2026-11-06 for REDcode issue #21 ([design](design/animation.html)). F5 wit
 | 14 | Add `q001_00c_trauma_arrives_male_average.anims` to a test project and click it in the Project view | The same view, not read-only. Then delete the project's copy |
 
 Tell me if anything looks wrong about the figure itself: its proportions, or a limb bending the wrong way.
+
+**Result (2026-11-06, the owner, on the laptop):** steps 1 to 14 pass, with no fixes. In step 14 the project's copy showed "Exporting the animations..." on its first open, as expected: it is a separate file with its own export.
 
 ## Never run
 

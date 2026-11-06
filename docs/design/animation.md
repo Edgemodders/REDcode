@@ -4,7 +4,7 @@ title: Animations (C5)
 
 # Animations: a game animation played on its rig
 
-Draft 0.3, 2026-11-06, agreed with the owner (decisions below). A1 is built, its hand test pending ([testing](../testing.html#animations-a1)). Asked for in [REDcode issue #21](https://github.com/Edgemodders/REDcode/issues/21) by EDGEquest, whose Animation picker needs a preview without a 3D viewer of its own. It is the "Animations" step that [View (C5)](view.html) deferred. Not urgent: EDGEquest needs it when its happenings around V (Q8 H4) are planned.
+Draft 0.3, 2026-11-06, agreed with the owner (decisions below). A1 is built and passed its hand test on 2026-11-06 ([testing](../testing.html#animations-a1)). Asked for in [REDcode issue #21](https://github.com/Edgemodders/REDcode/issues/21) by EDGEquest, whose Animation picker needs a preview without a 3D viewer of its own. It is the "Animations" step that [View (C5)](view.html) deferred. Not urgent: EDGEquest needs it when its happenings around V (Q8 H4) are planned.
 
 ## What the game gives
 
