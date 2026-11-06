@@ -343,6 +343,20 @@ await check("library: the root: read, written keeping other fields, refused insi
   await assert.rejects(add(libBridge(), { root: path.join(tmp, "game", "Library"), gameDir: path.join(tmp, "game") }), /inside the game/);
 });
 
+await check("Add to Library: a folder rename waits for a file held open, and says so if it stays open", async () => {
+  const dir = path.join(tmp, "rename");
+  const from = path.join(dir, "from");
+  fs.mkdirSync(path.join(from, "sub"), { recursive: true });
+  const file = path.join(from, "sub", "x.bin");
+  fs.writeFileSync(file, "x");
+  const fd = fs.openSync(file, "r");
+  await assert.rejects(lib.renameFolder(from, path.join(dir, "to"), [10, 10]), /something has a file in it open/);
+  setTimeout(() => fs.closeSync(fd), 100);
+  await lib.renameFolder(from, path.join(dir, "to"), [50, 100, 200, 400, 800]);
+  assert.ok(fs.existsSync(path.join(dir, "to", "sub", "x.bin")));
+  await assert.rejects(lib.renameFolder(path.join(dir, "none"), path.join(dir, "to2"), [10]), /ENOENT/);
+});
+
 // ---- the open contract (REDcode issue #22) ----------------------------------------------------
 
 const opens = require("../dist/opens.js");

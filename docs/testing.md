@@ -58,7 +58,7 @@ npm run build
 npm test
 ```
 
-Expected: `46 passed`. `scripts/unit.mjs` runs `dist/hotSwap.js`, `dist/exportCache.js`, `dist/library.js` and `dist/opens.js` with no VS Code or game: REDnode's settings, sound pak detection, the Red Hot Tools lookup check, the choice without REDnode, REDnode's replies, the export cache's stamp, and Add to Library's walk and item, and the open contract's reader and matcher (#22). Added 2026-10-25 for issue #11; pass.
+Expected: `47 passed`. `scripts/unit.mjs` runs `dist/hotSwap.js`, `dist/exportCache.js`, `dist/library.js` and `dist/opens.js` with no VS Code or game: REDnode's settings, sound pak detection, the Red Hot Tools lookup check, the choice without REDnode, REDnode's replies, the export cache's stamp, and Add to Library's walk and item, and the open contract's reader and matcher (#22). Added 2026-10-25 for issue #11; pass.
 
 ### Smoke test: the bridge client against the game
 
@@ -569,6 +569,8 @@ REDcode 0.10.6: `code --install-extension "E:\Modding\Cyberpunk 2077\REDcode\dis
 | 10 | Add `henry_2020_rockerboy.mesh` to a test project, then right-click it in the Project view | **Add to Library...** is there. In the item's `asset.json`, `from` names the project and the path |
 | 11 | In the Project view, right-click a file under `source/raw` | No Add to Library |
 | 12 | Delete `Test19` from the Library | Your other Library folders are untouched |
+
+**Found on 2026-11-06, the owner, on the laptop, step 8:** the toast `EPERM: operation not permitted, rename` for the move of the finished item into place. Windows refuses to rename a folder while anything has a file inside open (reproduced with a file held open). Which program held it on the laptop is unverified; an antivirus or the search indexer is the likely one, as the 41 files were just written. Fixed: `renameFolder` in `src/library.ts` tries for about 13 seconds, then says what is wrong. One unit check. Step 8 to be run again.
 
 ## Open contract (#22)
 

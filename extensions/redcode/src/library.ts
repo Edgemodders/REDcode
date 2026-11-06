@@ -330,6 +330,24 @@ function filesUnder(dir: string): string[] {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? filesUnder(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 }
 
+/**
+ * Renames a folder, waiting for Windows: it refuses while anything has a file inside open, and an
+ * antivirus or the search indexer opens files just written. Tries for about 13 seconds by default.
+ */
+export async function renameFolder(from: string, to: string, waits = [50, 100, 200, 400, 800, 1600, 3200, 6400]): Promise<void> {
+  for (let i = 0; ; i++) {
+    try {
+      fs.renameSync(from, to);
+      return;
+    } catch (e) {
+      const code = (e as NodeJS.ErrnoException).code;
+      if (code !== "EPERM" && code !== "EACCES" && code !== "EBUSY") throw e;
+      if (i >= waits.length) throw new Error(`Could not move ${from} to ${to}: something has a file in it open, such as an antivirus or the search indexer. Try again in a moment. (${code})`);
+      await new Promise((resolve) => setTimeout(resolve, waits[i]));
+    }
+  }
+}
+
 /** Writes the item. It is built beside its place and moved there whole, so a failure leaves nothing half made. */
 export async function writeAsset(b: LibraryBridge, source: AssetSource, plan: AssetPlan, opts: AddOptions): Promise<AddResult> {
   const root = path.resolve(opts.root);
@@ -393,21 +411,21 @@ export async function writeAsset(b: LibraryBridge, source: AssetSource, plan: As
 
     if (replacing) {
       const old = path.join(parent, `.redcode-old-${tag}`);
-      fs.renameSync(item, old);
+      await renameFolder(item, old);
       try {
-        fs.renameSync(building, item);
+        await renameFolder(building, item);
       } catch (e) {
-        fs.renameSync(old, item);
+        await renameFolder(old, item);
         throw e;
       }
-      fs.rmSync(old, { recursive: true, force: true });
+      fs.rmSync(old, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
     } else {
-      fs.renameSync(building, item);
+      await renameFolder(building, item);
     }
     const relative = path.relative(root, item).split(path.sep).join("/");
     return { item, relative, id: asset.id, kind: asset.kind, main: plan.main, version: asset.version, files, bytes, stay: plan.stay, missing, unread: plan.unread, badPaths: plan.badPaths, unnamed: plan.unnamed, longPaths };
   } finally {
-    fs.rmSync(building, { recursive: true, force: true });
+    fs.rmSync(building, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
   }
 }
 
