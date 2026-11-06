@@ -577,7 +577,7 @@ Built 2026-11-05 for EDGEhack, in REDcode 0.10.6. F5 with **Run REDcode with Ope
 | # | Do | Expected |
 |---|---|---|
 | 1 | TweakDB view: open **Item**, find `Items.BlackWallProgramLvl2`, hover it, then click it | The tooltip ends "Click opens it in Opens Test". The click shows "Opens Test got "Items.BlackWallProgramLvl2"", and REDcode's record page does not open |
-| 2 | Click an item that is no program, such as `Items.Preset_Lexington_Default` | REDcode's record page, as before |
+| 2 | Filter the view on `Preset_Lexington_Default`, click `Items.Preset_Lexington_Default` (a WeaponItem, no program) | REDcode's record page, as before |
 | 3 | Right-click `Items.BlackWallProgramLvl2` | **Open Record**, **Open In...**, New Tweak and Copy Path. **Open Record** opens REDcode's page. **Open In...** lists **Open in Opens Test** and **Open Record** |
 | 4 | Filter the view on `AIHackDeath`, click `AIQuickHack.AIHackDeath` (an ObjectAction) | The Opens Test notice with `AIQuickHack.AIHackDeath` |
 | 5 | On REDcode's page for `Items.BlackWallProgramLvl2` (from step 3) | An **Open in Opens Test** button beside Copy Path; it shows the notice. On the page of a record no tool claims, such as a link from it to its `ItemType`, the button is gone |
