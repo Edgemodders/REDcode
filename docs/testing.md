@@ -29,8 +29,8 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Copy path](#copy-path) | By hand | C5 | 2026-10-14 | Pass |
 | [V2 audio player](#v2-audio-player) | By hand | C5 | 2026-10-15 | Pass on the retest |
 | [V3 TweakDB view](#v3-tweakdb-view) | By hand | C5 | 2026-10-15 | Pass, one fix |
-| [Add to Library (#19)](#add-to-library-19) | By hand | Requests | Not run yet | Waiting |
-| [Open contract (#22)](#open-contract-22) | By hand | Requests | Not run yet | Given to the owner 2026-11-05 |
+| [Add to Library (#19)](#add-to-library-19) | By hand | Requests | 2026-11-06 | Pass, one fix |
+| [Open contract (#22)](#open-contract-22) | By hand | Requests | 2026-11-06 | Pass |
 | [Release 0.10.0: issues #5 to #8 and V4](#release-0100-issues-5-to-8-and-v4) | By hand | C5 | 2026-10-16 | Pass, ten fixes retested |
 | [Unit checks](#unit-checks) | Automated | C4 on | 2026-10-25 | Pass |
 | [Issue #11: Pack and Try through REDnode](#issue-11-pack-and-try-through-rednode) | By hand, in the game | C4 | Partly passed | On game 2.5, A and B pass (2026-10-26); steps 1 to 6 wait for Red Hot Tools on 2.5 |
@@ -570,7 +570,9 @@ REDcode 0.10.6: `code --install-extension "E:\Modding\Cyberpunk 2077\REDcode\dis
 | 11 | In the Project view, right-click a file under `source/raw` | No Add to Library |
 | 12 | Delete `Test19` from the Library | Your other Library folders are untouched |
 
-**Found on 2026-11-06, the owner, on the laptop, step 8:** the toast `EPERM: operation not permitted, rename` for the move of the finished item into place. Windows refuses to rename a folder while anything has a file inside open (reproduced with a file held open). Which program held it on the laptop is unverified; an antivirus or the search indexer is the likely one, as the 41 files were just written. Fixed: `renameFolder` in `src/library.ts` tries for about 13 seconds, then says what is wrong. One unit check. Step 8 to be run again.
+**Found on 2026-11-06, the owner, on the laptop, step 8:** the toast `EPERM: operation not permitted, rename` for the move of the finished item into place. Windows refuses to rename a folder while anything has a file inside open (reproduced with a file held open). Which program held it on the laptop is unverified; an antivirus or the search indexer is the likely one, as the 41 files were just written. Fixed: `renameFolder` in `src/library.ts` tries for about 13 seconds, then says what is wrong. One unit check.
+
+**Result (2026-11-06, the owner, on the laptop, from F5 on main):** steps 1 to 12 pass, with that fix. The owner turned Windows Search off around the retry of step 8, which may be why it passed, so the retry itself is checked only by its unit check.
 
 ## Open contract (#22)
 
@@ -584,6 +586,8 @@ Built 2026-11-05 for EDGEhack, in REDcode 0.10.6. F5 with **Run REDcode with Ope
 | 4 | Filter the view on `AIHackDeath`, click `AIQuickHack.AIHackDeath` (an ObjectAction) | The Opens Test notice with `AIQuickHack.AIHackDeath` |
 | 5 | On REDcode's page for `Items.BlackWallProgramLvl2` (from step 3) | An **Open in Opens Test** button beside Copy Path; it shows the notice. On the page of a record no tool claims, such as a link from it to its `ItemType`, the button is gone |
 | 6 | Restart with plain **Run REDcode**, without Opens Test | Every record opens REDcode's page on a click again, and no record has **Open In...** |
+
+**Result (2026-11-06, the owner, on the laptop):** steps 1 to 6 pass, with no fixes.
 
 ## Never run
 
