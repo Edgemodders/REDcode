@@ -117,33 +117,12 @@ export function uninstallDirect(project: ProjectInfo, log: (line: string) => voi
   return removed;
 }
 
-// ---- hot install and launching --------------------------------------------------------------------
+// ---- the old hot folder, and launching -------------------------------------------------------------
 
 /**
- * Red Hot Tools reloads archives from archive/pc/hot while the game runs. Unverified on the owner's
- * machine, which does not have it: the plugin is looked for under red4ext/plugins by its folder name.
+ * Removes the project's archives from archive/pc/hot, where REDcode 0.10.7 and earlier put them for Red Hot
+ * Tools. Kept for Uninstall so those copies still come out. Returns the files removed.
  */
-export function hasRedHotTools(gamePath: string): boolean {
-  const plugins = path.join(gamePath, "red4ext", "plugins");
-  try {
-    return fs.readdirSync(plugins).some((n) => n.toLowerCase() === "redhottools");
-  } catch {
-    return false;
-  }
-}
-
-/** Copies the packed archives into archive/pc/hot for Red Hot Tools to reload. Returns the files copied. */
-export function installHot(project: ProjectInfo, gamePath: string): string[] {
-  const packed = path.join(project.dir, ProjectFolders.packed);
-  const hot = path.join(gamePath, "archive", "pc", "hot");
-  const archives = walk(packed).filter((f) => f.toLowerCase().endsWith(".archive"));
-  if (archives.length === 0) throw new Error("The packed project has no archive. Pack it first.");
-  fs.mkdirSync(hot, { recursive: true });
-  for (const a of archives) fs.copyFileSync(a, path.join(hot, path.basename(a)));
-  return archives.map((a) => path.basename(a));
-}
-
-/** Removes the project's archives from archive/pc/hot, where a hot install put them. Returns the files removed. */
 export function uninstallHot(project: ProjectInfo, gamePath: string): string[] {
   const hot = path.join(gamePath, "archive", "pc", "hot");
   const packed = walk(path.join(project.dir, ProjectFolders.packed)).filter((f) => f.toLowerCase().endsWith(".archive"));

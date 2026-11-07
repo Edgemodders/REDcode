@@ -4,6 +4,11 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 ## Unreleased
 
+**Changed**
+
+- **Pack and Play swaps through REDnode only; Red Hot Tools is no longer used.** Red Hot Tools has no build for game 2.5, and REDnode 0.41.0 and later swap archives through their own plugin, REDswap: https://edgemodders.ai/wiki/rednode/redswap.html. With the game running under REDnode and its MCP server on, Pack and Play swaps the mod in as before; otherwise it packs and installs it for the next start. **Install to the Hot Folder (Red Hot Tools)** is gone, with the Red Hot Tools checks behind it. **Uninstall** still takes out archives an earlier REDcode left in `archive/pc/hot`.
+- For tool makers: `REDcodeApi.packAndPlay()` no longer answers `"hot"`.
+
 ## 0.10.7 (2026-11-06)
 
 For EDGEquest: game animations play on their rig, as bones and joints for now. Needs REDbridge 0.12.0, as before.

@@ -95,12 +95,11 @@ export interface REDcodeApi {
   pack(): Promise<{ packedDir: string; archive?: string; archiveFiles: number }>;
   /**
    * Packs and gets the project into the game as fast as it allows (REDcode: Pack and Play): swapped into
-   * the running game by REDnode's archives_reload when REDnode runs with its MCP server on ("rednode");
-   * otherwise with Red Hot Tools into the hot folder, which the running game reloads ("hot"), unless the
-   * archive has sound paks; otherwise installed, through EDGEdeck when it is there, for the next game start
-   * ("installed"). undefined when the pack failed, REDnode refused or swapped nothing, a hot swap was
-   * refused and the user did not install instead, or when it would break the mod (a missing REDmod custom
-   * sound) and the user cancelled.
+   * the running game by REDnode's archives_reload, through REDswap, when REDnode runs with its MCP server on
+   * ("rednode"); otherwise installed, through EDGEdeck when it is there, for the next game start ("installed").
+   * undefined when the pack failed, REDnode refused or swapped nothing, the install was cancelled, or when it
+   * would break the mod (a missing REDmod custom sound) and the user cancelled. "hot" (Red Hot Tools' hot
+   * folder) is not returned since 0.10.8, and stays in the type so callers that check for it still compile.
    */
   packAndPlay(): Promise<"rednode" | "hot" | "installed" | undefined>;
   /** Pack and Play's old name, the same function (REDcode issue #14). */

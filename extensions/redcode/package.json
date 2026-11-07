@@ -413,12 +413,6 @@
         "category": "REDcode"
       },
       {
-        "command": "redcode.installHot",
-        "title": "Install to the Hot Folder (Red Hot Tools)",
-        "category": "REDcode",
-        "icon": "$(flame)"
-      },
-      {
         "command": "redcode.packAndPlay",
         "title": "Pack and Play",
         "category": "REDcode",
@@ -721,11 +715,6 @@
           "group": "navigation@0"
         },
         {
-          "command": "redcode.installHot",
-          "when": "view == redcode.project && redcode.projectOpen && redcode.hotTools",
-          "group": "navigation@0"
-        },
-        {
           "command": "redcode.runGame",
           "when": "view == redcode.project",
           "group": "navigation@0"
@@ -1007,10 +996,6 @@
         {
           "command": "redcode.closeProject",
           "when": "redcode.projectOpen"
-        },
-        {
-          "command": "redcode.installHot",
-          "when": "redcode.projectOpen && redcode.hotTools"
         },
         {
           "command": "redcode.export",

@@ -1,10 +1,8 @@
 // Getting a packed archive into the running game without a restart (REDcode issue #11). With REDnode
-// running, the swap goes to its kernel MCP server's archives_reload, which checks the archive, queues
-// the swap and, for an archive with the game's sound paks, pauses the game, holds the audio thread and
-// loads the sound index again (REDnode 0.26.8 and later). Without REDnode, a plain archive goes to RED
-// Hot Tools' hot folder; an archive with sound paks is refused there, since swapping one that way ends
-// the game. The official RED Hot Tools 1.3.0 also ends the game on some replaces (a case-sensitive
-// search); the Edgemodders build fixes it, and the hot folder path refuses those replaces without it.
+// running, the swap goes to its kernel MCP server's archives_reload, which checks the archive, swaps it
+// through REDswap (REDnode 0.41.0 and later, game 2.5) and, for an archive with the game's sound paks,
+// pauses the game and loads the sound index again. Without REDnode, Pack and Play installs for the next
+// start. RED Hot Tools' hot folder was the other way until 0.10.7; it has no build for game 2.5.
 // No VS Code imports, so scripts/unit.mjs can run it.
 
 import * as fs from "node:fs";
@@ -49,11 +47,6 @@ export function readRednodeMcp(file = rednodeSettingsFile()): RednodeMcp {
   };
 }
 
-/** The game's sound paks among the given files: .opuspak and .opusinfo, which a hot folder swap cannot take. */
-export function soundPaksIn(files: string[]): string[] {
-  return files.filter((f) => /\.(opuspak|opusinfo)$/i.test(f));
-}
-
 /** REDnode's answer to archives_reload (result.content[0].text, as JSON). */
 export interface ReloadAnswer {
   reloaded: string[];
@@ -68,7 +61,7 @@ export interface ReloadAnswer {
 export type ReloadResult =
   /** REDnode swapped (or tried to swap) the files. */
   | { kind: "answer"; answer: ReloadAnswer }
-  /** REDnode answered but refused: no save loaded, RED Hot Tools missing, the tool switched off, ... */
+  /** REDnode answered but refused: no save loaded, REDswap unable to swap in this game, the tool switched off, ... */
   | { kind: "refused"; why: string }
   /** Something listens on the port but refused the token: REDnode runs with the MCP server switch off for outside callers, or the token changed. */
   | { kind: "unauthorized" }
@@ -147,91 +140,6 @@ export function summarize(answer: ReloadAnswer): string {
   return parts.join(" ") || "REDnode swapped nothing.";
 }
 
-// ---- RED Hot Tools' hot folder ------------------------------------------------------------------
-
-/** RED Hot Tools' DLL, when installed. */
-export function hotToolsDll(gamePath: string): string {
-  return path.join(gamePath, "red4ext", "plugins", "RedHotTools", "RedHotTools.dll");
-}
-
-/**
- * True when the installed RED Hot Tools is the Edgemodders build (1.3.0+edgemodders.1 and later), which
- * finds a replaced archive by its exact path. Its DLL carries the build tag as text; the official one does not.
- */
-export function isEdgemoddersHotTools(gamePath: string): boolean {
-  try {
-    return fs.readFileSync(hotToolsDll(gamePath)).includes("+edgemodders", 0, "latin1");
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Whether the official RED Hot Tools would miss `name` when it replaces it in archive/pc/mod, which ends
- * the game ("Failed to load archive ..., error 1"). It finds the mounted archive with a case-sensitive
- * binary search over a list the game sorts case-insensitively, so with upper- and lowercase names in the
- * folder the search can miss. Whether the game folds case up or down is unknown, so both are tried.
- * Only a replace is at risk: a new archive has nothing to reopen. The same check as REDnode's
- * hotToolsLookupMisses (packages/overlay/archive-index.js).
- */
-export function hotToolsLookupMisses(names: string[], name: string): boolean {
-  const archives = names.filter((n) => n.toLowerCase().endsWith(".archive"));
-  if (!archives.includes(name)) return false;
-  const byte = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
-  for (const fold of [(s: string) => s.toLowerCase(), (s: string) => s.toUpperCase()]) {
-    const order = [...archives].sort((a, b) => byte(fold(a), fold(b)) || byte(a, b));
-    let first = 0;
-    let count = order.length;
-    while (count > 0) {
-      const step = count >> 1;
-      if (byte(order[first + step], name) < 0) {
-        first += step + 1;
-        count -= step + 1;
-      } else count = step;
-    }
-    if (order[first] !== name) return true;
-  }
-  return false;
-}
-
-/** The archives the official RED Hot Tools would miss when replacing them in the game's archive/pc/mod. */
-export function hotToolsMisses(gamePath: string, archives: string[]): string[] {
-  let names: string[];
-  try {
-    names = fs.readdirSync(path.join(gamePath, "archive", "pc", "mod"));
-  } catch {
-    return [];
-  }
-  return archives.map((a) => path.basename(a)).filter((n) => hotToolsLookupMisses(names, n));
-}
-
-// ---- the choice ---------------------------------------------------------------------------------
-
-/** What Pack and Play does when REDnode did not take the swap. */
-export type HotRoute =
-  /** Copy into archive/pc/hot for RED Hot Tools. */
-  | { route: "hot" }
-  /** Install for the next start: no RED Hot Tools in the game. */
-  | { route: "install" }
-  /** Do not hot-deploy: the archive has sound paks, which only REDnode swaps safely. */
-  | { route: "refuse-sound"; paks: string[] }
-  /** Do not hot-deploy: the official RED Hot Tools would miss the replaced archive and end the game. */
-  | { route: "refuse-lookup"; archives: string[] };
-
-/** The way without REDnode: the hot folder for a plain archive, never for sound paks or a replace RED Hot Tools would miss. */
-export function chooseHotRoute(o: { hotTools: boolean; soundPaks: string[]; lookupMisses: string[] }): HotRoute {
-  if (!o.hotTools) return { route: "install" };
-  if (o.soundPaks.length > 0) return { route: "refuse-sound", paks: o.soundPaks };
-  if (o.lookupMisses.length > 0) return { route: "refuse-lookup", archives: o.lookupMisses };
-  return { route: "hot" };
-}
-
-/** Why an archive with sound paks is not sent to the hot folder, with what to do instead. */
-export function soundRefusal(paks: string[]): string {
-  const first = path.basename(paks[0] ?? "");
-  return `The mod changes the game's sound (${paks.length} sound file${paks.length === 1 ? "" : "s"}, such as ${first}), and swapping it through RED Hot Tools' hot folder crashes a running game. Sound archives swap only through REDnode 0.26.8 or later: start the game with REDnode, switch its MCP server on, and press Pack and Play again; or install the mod and restart the game.`;
-}
-
 /** What to tell the user about REDnode when its MCP server could not take the swap, or "" when REDnode is not on this PC. */
 export function rednodeHint(mcp: RednodeMcp, result?: ReloadResult): string {
   if (!mcp.installed) return "";
@@ -239,4 +147,15 @@ export function rednodeHint(mcp: RednodeMcp, result?: ReloadResult): string {
   if (result?.kind === "unauthorized") return "REDnode is running but refused REDcode: switch on MCP server in its launcher's Settings drawer (F10 shows the launcher), then press Pack and Play again.";
   if (!mcp.enabled) return "If the game is running with REDnode, switch on MCP server in its launcher's Settings drawer (F10 shows the launcher) so Pack and Play can swap through it.";
   return "";
+}
+
+/** REDswap's page, for a PC without REDnode. */
+export const RedswapUrl = "https://edgemodders.ai/wiki/rednode/redswap.html";
+
+/** What Pack and Play says when it installed the mod instead of swapping it into the running game. */
+export function installedNote(mcp: RednodeMcp, result?: ReloadResult): string {
+  const next = !mcp.installed
+    ? `Swapping into the running game needs REDnode 0.41.0 or later, which brings REDswap: ${RedswapUrl}`
+    : rednodeHint(mcp, result) || "To see changes without a restart, start the game with REDnode and press Pack and Play again.";
+  return `REDcode: packed and installed. Restart the game to see the change. ${next}`;
 }

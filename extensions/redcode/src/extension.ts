@@ -26,8 +26,8 @@ import {
 import { Cr2wEditorProvider, Cr2wPropertiesView, Cr2wViewType, cr2wViewTypeFor, opensInCr2wEditor } from "./cr2wEditor";
 import { GameFileSystem, gameUri } from "./gameFs";
 import { compareJson, formatDifference, type JsonComparison } from "./jsonDiff";
-import { hasRedHotTools, installDirect, installHot, launchTarget, planInstall, readRecord, uninstallDirect, uninstallHot } from "./install";
-import { callArchivesReload, chooseHotRoute, hotToolsMisses, isEdgemoddersHotTools, readRednodeMcp, rednodeHint, soundPaksIn, soundRefusal, summarize, type HotRoute, type ReloadResult } from "./hotSwap";
+import { installDirect, launchTarget, planInstall, readRecord, uninstallDirect, uninstallHot } from "./install";
+import { callArchivesReload, installedNote, readRednodeMcp, summarize, type ReloadResult } from "./hotSwap";
 import { isSoundWav, sourceFolderOf, targetsUnder } from "./modkit";
 import { compileFilter } from "./treeFilter";
 import { MeshViewer } from "./meshViewer";
@@ -205,7 +205,6 @@ export function activate(context: vscode.ExtensionContext): REDcodeApi | undefin
     vscode.commands.registerCommand("redcode.install", () => shipCommand(() => installCommand())),
     vscode.commands.registerCommand("redcode.packAndInstall", () => shipCommand(async () => (await packCommand(true)) && installCommand())),
     vscode.commands.registerCommand("redcode.uninstall", () => shipCommand(() => uninstallCommand())),
-    vscode.commands.registerCommand("redcode.installHot", () => shipCommand(() => installHotCommand())),
     vscode.commands.registerCommand("redcode.packAndPlay", () => shipCommand(() => packAndPlayCommand())),
     // Pack and Play's old name and id (REDcode issue #14), kept for keybindings and other tools.
     vscode.commands.registerCommand("redcode.packAndTry", () => shipCommand(() => packAndPlayCommand())),
@@ -234,7 +233,6 @@ export function activate(context: vscode.ExtensionContext): REDcodeApi | undefin
     }),
     vscode.workspace.onDidChangeConfiguration((e) => {
       if (e.affectsConfiguration("redcode.gamePath")) {
-        updateHotToolsContext();
         syncRednodeService();
       }
       // Settings often change one after another; restart once they settle.
@@ -246,7 +244,6 @@ export function activate(context: vscode.ExtensionContext): REDcodeApi | undefin
   );
 
   detectProject();
-  updateHotToolsContext();
   syncRednodeService();
   void offerGameFolder();
   void resolveBlender().catch(() => undefined);
@@ -652,7 +649,7 @@ async function installDirectCommand(p: ProjectInfo): Promise<boolean> {
   return true;
 }
 
-/** REDcode: Uninstall: take the archive out of the hot folder, then turn the mod off in EDGEdeck and deploy, or remove the direct copy. */
+/** REDcode: Uninstall: take the archive out of the old hot folder, then turn the mod off in EDGEdeck and deploy, or remove the direct copy. */
 async function uninstallCommand(): Promise<void> {
   const p = requireProject();
   const gamePath = vscode.workspace.getConfiguration("redcode").get<string>("gamePath", "");
@@ -677,69 +674,18 @@ async function uninstallCommand(): Promise<void> {
   if (hot.length === 0) void vscode.window.showInformationMessage(`${p.name} is not installed${deck ? " in EDGEdeck," : ""} by REDcode or in the hot folder.`);
 }
 
-/** The Edgemodders build of RED Hot Tools, which finds a replaced archive by its exact path. */
-const EdgemoddersHotToolsUrl = "https://github.com/CyberbuildsAI/cp2077-red-hot-tools/releases";
-
-/** The packed archives of a project: what goes to REDnode or the hot folder. */
+/** The packed archives of a project: what goes to REDnode. */
 function packedArchives(p: ProjectInfo): string[] {
   return walk(path.join(p.dir, ProjectFolders.packed)).filter((f) => f.toLowerCase().endsWith(".archive"));
 }
 
-/** The game's sound paks (.opuspak, .opusinfo) among the project's game files, which went into the archive. */
-function projectSoundPaks(p: ProjectInfo): string[] {
-  return soundPaksIn(walk(path.join(p.dir, ProjectFolders.archive)));
-}
-
-/** The way to the hot folder without REDnode: refused for sound paks and for a replace the official RED Hot Tools would miss. */
-function hotRouteFor(p: ProjectInfo, gamePath: string): HotRoute {
-  const hotTools = hasRedHotTools(gamePath);
-  const lookupMisses = hotTools && !isEdgemoddersHotTools(gamePath) ? hotToolsMisses(gamePath, packedArchives(p)) : [];
-  return chooseHotRoute({ hotTools, soundPaks: projectSoundPaks(p), lookupMisses });
-}
-
-/** Why the official RED Hot Tools must not replace these archives, and what to do. */
-function lookupRefusal(archives: string[]): string {
-  return `${archives.join(", ")} would end the game in a hot swap: the official RED Hot Tools cannot find an archive it replaces among the others in archive/pc/mod when their names mix capital and small letters (a known bug). Install the Edgemodders build of RED Hot Tools, which fixes it, or install the mod and restart the game.`;
-}
-
-/** REDcode: Install to hot folder: the packed archive into archive/pc/hot, which Red Hot Tools reloads in a running game. */
-async function installHotCommand(): Promise<void> {
-  const p = requireProject();
-  const gamePath = gameFolder();
-  const route = hotRouteFor(p, gamePath);
-  if (route.route === "install") {
-    throw new Error("Red Hot Tools is not installed in the game (red4ext/plugins/RedHotTools), and without it the hot folder does nothing.");
-  }
-  if (route.route === "refuse-sound") throw new Error(soundRefusal(route.paks));
-  if (route.route === "refuse-lookup") throw new Error(lookupRefusal(route.archives));
-  copyToHotFolder(p, gamePath);
-}
-
-function copyToHotFolder(p: ProjectInfo, gamePath: string): void {
-  const files = installHot(p, gamePath);
-  log.appendLine(`Hot install: ${files.join(", ")} into ${path.join(gamePath, "archive", "pc", "hot")}`);
-  vscode.window.setStatusBarMessage(`$(flame) REDcode: ${files.join(", ")} in the hot folder; Red Hot Tools reloads it`, 6000);
-}
-
-/** Pack and Play when it cannot hot-swap: offers Install for the next start. "installed" when it was installed. */
-async function offerInstallInstead(message: string, extra?: { label: string; url: string }): Promise<"installed" | undefined> {
-  log.appendLine(`Pack and Play: ${message}`);
-  const install = "Install for Next Start";
-  const pick = await vscode.window.showWarningMessage(`REDcode: ${message}`, install, ...(extra ? [extra.label] : []));
-  if (extra && pick === extra.label) void vscode.env.openExternal(vscode.Uri.parse(extra.url));
-  if (pick !== install || !(await installCommand())) return undefined;
-  void vscode.window.showInformationMessage("REDcode: installed. Restart the game to see the change.");
-  return "installed";
-}
-
 /**
  * REDcode: Pack and Play (REDcode issues #7 and #11): pack, then get it into the game as fast as the game allows.
- * With REDnode running and its MCP server on, REDnode's archives_reload swaps it (sound archives too). Without
- * REDnode, a plain archive goes to RED Hot Tools' hot folder; an archive with sound paks, or a replace the official
- * RED Hot Tools would miss, is not hot-swapped, since either ends the game. Without RED Hot Tools, Pack and Install
- * (through EDGEdeck when it is there), and the game needs a restart.
+ * With REDnode running and its MCP server on, REDnode's archives_reload swaps it through REDswap (sound archives
+ * too). Otherwise Pack and Install (through EDGEdeck when it is there), and the game needs a restart. RED Hot Tools'
+ * hot folder was a third way until 0.10.7; it has no build for game 2.5.
  */
-async function packAndPlayCommand(): Promise<"rednode" | "hot" | "installed" | undefined> {
+async function packAndPlayCommand(): Promise<"rednode" | "installed" | undefined> {
   if (!(await packCommand(true))) return undefined;
   const p = requireProject();
   if (packedFiles(p).length === 0) {
@@ -761,33 +707,17 @@ async function packAndPlayCommand(): Promise<"rednode" | "hot" | "installed" | u
       return a.reloaded.length > 0 ? "rednode" : undefined;
     }
     if (tried.kind === "refused") throw new Error(`REDnode did not swap the archive: ${tried.why}`);
-    log.appendLine(`Pack and Play: REDnode did not take the swap (${tried.kind === "unauthorized" ? "the token was refused" : tried.why}); trying RED Hot Tools' hot folder.`);
+    log.appendLine(`Pack and Play: REDnode did not take the swap (${tried.kind === "unauthorized" ? "the token was refused" : tried.why}); installing for the next start.`);
   }
-  const hint = rednodeHint(mcp, tried);
-  const withHint = (text: string) => (hint ? `${text} ${hint}` : text);
-  const gamePath = gameFolder();
   if (archives.length === 0) {
-    // Only loose files (resources, ArchiveXL files): nothing to hot-swap.
+    // Only loose files (resources, ArchiveXL files): nothing to swap.
     if (!(await installCommand())) return undefined;
     void vscode.window.showInformationMessage("REDcode: packed and installed. The pack has no archive to swap into the running game; restart the game to see the change.");
     return "installed";
   }
-  const route = hotRouteFor(p, gamePath);
-  switch (route.route) {
-    case "hot":
-      copyToHotFolder(p, gamePath);
-      void vscode.window.showInformationMessage(withHint("REDcode: packed and sent to the hot folder. Red Hot Tools reloads it in the running game; respawn or re-equip what uses it to see the change."));
-      return "hot";
-    case "refuse-sound":
-      // The refusal already says to switch REDnode's MCP server on; the hint adds only that REDnode refused REDcode.
-      return offerInstallInstead(tried?.kind === "unauthorized" ? withHint(soundRefusal(route.paks)) : soundRefusal(route.paks));
-    case "refuse-lookup":
-      return offerInstallInstead(withHint(lookupRefusal(route.archives)), { label: "Get the Edgemodders Build", url: EdgemoddersHotToolsUrl });
-    case "install":
-      if (!(await installCommand())) return undefined;
-      void vscode.window.showInformationMessage(withHint("REDcode: packed and installed. Restart the game to see the change: hot swaps need REDnode, or RED Hot Tools in the game."));
-      return "installed";
-  }
+  if (!(await installCommand())) return undefined;
+  void vscode.window.showInformationMessage(installedNote(mcp, tried));
+  return "installed";
 }
 
 // ---- Edit in Blender (REDcode issue #7) ---------------------------------------------------------
@@ -951,12 +881,6 @@ function syncRednodeService(): void {
   } catch (e) {
     log.appendLine(`Could not install REDcode's REDnode package: ${(e as Error).message}`);
   }
-}
-
-/** Context key for the hot install command: true when the game has Red Hot Tools. */
-function updateHotToolsContext(): void {
-  const gamePath = vscode.workspace.getConfiguration("redcode").get<string>("gamePath", "");
-  void vscode.commands.executeCommand("setContext", "redcode.hotTools", !!gamePath && hasRedHotTools(gamePath));
 }
 
 // ---- export and import ----------------------------------------------------------------------

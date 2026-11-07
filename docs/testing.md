@@ -32,6 +32,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Add to Library (#19)](#add-to-library-19) | By hand | Requests | 2026-11-06 | Pass, one fix |
 | [Open contract (#22)](#open-contract-22) | By hand | Requests | 2026-11-06 | Pass |
 | [Animations A1 (#21)](#animations-a1) | By hand | Requests | 2026-11-06 | Pass |
+| [No Red Hot Tools](#no-red-hot-tools) | By hand | C4 | Not run yet | Given to the owner 2026-11-07 |
 | [Release 0.10.0: issues #5 to #8 and V4](#release-0100-issues-5-to-8-and-v4) | By hand | C5 | 2026-10-16 | Pass, ten fixes retested |
 | [Unit checks](#unit-checks) | Automated | C4 on | 2026-10-25 | Pass |
 | [Issue #11: Pack and Try through REDnode](#issue-11-pack-and-try-through-rednode) | By hand, in the game | C4 | Partly passed | On game 2.5, A and B pass (2026-10-26); steps 1 to 6 wait for Red Hot Tools on 2.5 |
@@ -59,7 +60,7 @@ npm run build
 npm test
 ```
 
-Expected: `50 passed`. `scripts/unit.mjs` runs `dist/hotSwap.js`, `dist/exportCache.js`, `dist/library.js`, `dist/opens.js` and `dist/animsGlb.js` with no VS Code or game: REDnode's settings, sound pak detection, the Red Hot Tools lookup check, the choice without REDnode, REDnode's replies, the export cache's stamp, and Add to Library's walk and item, the open contract's reader and matcher (#22), and the animation view's list, skeleton and clips (#21). Added 2026-10-25 for issue #11; pass.
+Expected: `39 passed`. `scripts/unit.mjs` runs `dist/hotSwap.js`, `dist/exportCache.js`, `dist/library.js`, `dist/opens.js` and `dist/animsGlb.js` with no VS Code or game: REDnode's settings, what Pack and Play says when it installs, REDnode's replies, the export cache's stamp, and Add to Library's walk and item, the open contract's reader and matcher (#22), and the animation view's list, skeleton and clips (#21). Added 2026-10-25 for issue #11; pass.
 
 ### Smoke test: the bridge client against the game
 
@@ -497,7 +498,7 @@ Checked before: `npm test` (26 pass), and the MCP call against REDnode's own `mc
 
 Result (owner, 2026-10-26): A passes. B ran against the wrong game: `redcode.gamePath` (user settings) was `L:\Backups\Cyberpunk 2077 (2026-10-21)`, the 2.31 backup, which still has a RedHotTools folder, so Pack and Try took the hot route ("packed and sent to the hot folder", with the MCP server hint) and copied `EDGEquest_Q2.archive` into the backup's `archive/pc/hot`. Uninstall then said the mod was "not installed in EDGEdeck or by REDcode": it does not look in the hot folder. Fixed the same day: Uninstall removes the project's archives from `archive/pc/hot` first (checked against a fake game folder; the two archives left in the backup's hot folder were removed by hand). B to run again with the game folder on the 2.5 game (**REDcode: Set Game Folder**, `E:\SteamLibrary\steamapps\common\Cyberpunk 2077`). Retest the same day on the 2.5 game: B passes (EDGEdeck asked to quit the game, then installed the mod with the restart notice; Uninstall took it out through EDGEdeck). Steps 1 to 6 wait for a Red Hot Tools build for 2.5.
 
-Since REDnode 0.41.0 (2026-10-27), REDnode swaps archives on game 2.5 through REDswap, its own plugin, with no Red Hot Tools, and its answer says `via: "redswap"`. So steps 1 and 2 (through REDnode) can run on 2.5 now, with REDnode 0.41.0 or later. Steps 3 to 6 are the hot folder, which still needs Red Hot Tools. The command is called **Pack and Play** since issue #14.
+Since REDnode 0.41.0 (2026-10-27), REDnode swaps archives on game 2.5 through REDswap, its own plugin, with no Red Hot Tools, and its answer says `via: "redswap"`. So steps 1 and 2 (through REDnode) can run on 2.5 now, with REDnode 0.41.0 or later. Steps 3 to 6 are the hot folder, which still needs Red Hot Tools. The command is called **Pack and Play** since issue #14. Steps 3 to 6 are retired: REDcode 0.10.8 drops the hot folder ([No Red Hot Tools](#no-red-hot-tools)).
 
 ## Find Items in the 3D view
 
@@ -617,11 +618,21 @@ Tell me if anything looks wrong about the figure itself: its proportions, or a l
 
 **Result (2026-11-06, the owner, on the laptop):** steps 1 to 14 pass, with no fixes. In step 14 the project's copy showed "Exporting the animations..." on its first open, as expected: it is a separate file with its own export.
 
+## No Red Hot Tools
+
+Built 2026-11-07, after REDcode 0.10.7: Red Hot Tools has no build for game 2.5, so REDcode drops its hot folder. Pack and Play swaps through REDnode (REDswap) or installs for the next start, and **Install to the Hot Folder** is gone. F5 with **Run REDcode**. Checked before: type check, build, `npm test` (39, one new for the install notice).
+
+| # | Do | Expected |
+|---|---|---|
+| 1 | Open a test project. Look at the Project view's title bar, then type `hot` in the Command Palette | No **Install to the Hot Folder** button or command. **Pack and Play** (the flame) is still there |
+| 2 | Game running with REDnode 0.41.0 or later, a save loaded, its **MCP server** on. A plain project (a mesh or texture change), **Pack and Play** | "Swapping through REDnode", then REDnode's answer: the archive swapped, in some milliseconds. Re-equip or respawn what uses it to see the change |
+| 3 | Close the game. **Pack and Play** again | Packed and installed (through EDGEdeck), with "Restart the game to see the change" and a line on starting the game with REDnode. Nothing goes into `archive\pc\hot` |
+| 4 | **Uninstall** from the Project view's `...` menu | The mod comes out through EDGEdeck, as before |
+
 ## Never run
 
 | Test | Why |
 |---|---|
-| Hot folder install and Pack and Try's hot path | Red Hot Tools is not installed here; its detection is unverified. Issue #11's test covers it |
 | The EDGEmat material hook in the mesh viewer | Waits on EDGEmat shipping `renderMaterials`; checked only with a stand-in |
 | The .NET runtime prompt | Needs a machine without .NET 10 |
 | Open in EDGEwave with EDGEwave from a store | Run only with EDGEwave from source (F5, 2026-10-16), where it works |

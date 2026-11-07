@@ -17,7 +17,7 @@ Read from WolvenKit's `RED4Controller` and `ModTools` at the pinned submodule, s
 | Resources | Copies every other file under `source/resources`, keeping its relative path, except `.xl`, `.script`, `.ws`, `.tweak` and `info.json` | `packed/<same relative path>`, so `resources/r6/tweaks/x.yaml` becomes `packed/r6/tweaks/x.yaml` |
 | REDmod only | `info.json`, `customSounds`, scripts and tweaks | `packed/mods/<ModName>/` |
 | Install | Copies `packed/` onto the game folder and writes an install log of the files for uninstall | The game folder |
-| Hot install | Same, with archives sent to `archive/pc/hot` instead of `mod`, for Red Hot Tools to reload without a restart | `archive/pc/hot` |
+| Hot install | Removed in 0.10.8. Archives went to `archive/pc/hot` instead of `mod`, for Red Hot Tools to reload without a restart | None now |
 
 Only the archive writer needs WolvenKit's libraries. The copies are plain file operations.
 
@@ -63,11 +63,11 @@ Agreed 2026-10-13, after looking at the owner's game folder: Vortex has marked `
 | `deploy()` | EDGEdeck's own Deploy, with its questions and its message |
 | `turnOff(id)` | For Uninstall, followed by `deploy()` |
 
-The same install is `edgedeck install-project` on EDGEdeck's command line and the `edgedeck_install_project` MCP tool. The direct install, the hot folder and Run game are REDcode's own, as below.
+The same install is `edgedeck install-project` on EDGEdeck's command line and the `edgedeck_install_project` MCP tool. The direct install and Run game are REDcode's own, as below.
 
 
-- **REDcode: Install** copies `packed` onto `redcode.gamePath` and writes `.redcode/installed.json`. **REDcode: Uninstall** removes what that file lists. **REDcode: Pack and Install** chains the two. A hot variant, offered when `archive/pc/hot` exists or Red Hot Tools is detected under `bin/x64/plugins` (unverified until tested), sends the archive there.
-- **Pack and Play** (REDcode issues #7 and #11, added after S2; called Pack and Try until issue #14): pack, then swap into the running game. With REDnode running and its MCP server on, through REDnode's `archives_reload` (one POST to `http://127.0.0.1:<port>/mcp`, port and token from `%APPDATA%\@rednode\overlay\settings.json`), which also swaps sound archives safely. Otherwise the hot folder for a plain archive; an archive with sound paks, or a replace the official Red Hot Tools 1.3.0 would miss, is refused there (both end the game) with Install for Next Start offered. Logic in `src/hotSwap.ts`, checked by `npm test`.
+- **REDcode: Install** copies `packed` onto `redcode.gamePath` and writes `.redcode/installed.json`. **REDcode: Uninstall** removes what that file lists. **REDcode: Pack and Install** chains the two. A hot variant sent the archive to `archive/pc/hot` for Red Hot Tools until 0.10.7; Uninstall still clears that folder of the project's archives.
+- **Pack and Play** (REDcode issues #7 and #11, added after S2; called Pack and Try until issue #14): pack, then swap into the running game. With REDnode running and its MCP server on, through REDnode's `archives_reload` (one POST to `http://127.0.0.1:<port>/mcp`, port and token from `%APPDATA%\@rednode\overlay\settings.json`), which also swaps sound archives safely. Otherwise Pack and Install, for the next start. Until 0.10.7 a plain archive went to Red Hot Tools' hot folder instead, with refusals for sound paks and for a replace the official Red Hot Tools 1.3.0 would miss. Dropped in 0.10.8 (agreed with the owner on 2026-11-07): Red Hot Tools has no build for game 2.5, and REDnode 0.41.0 swaps through its own REDswap. Logic in `src/hotSwap.ts`, checked by `npm test`.
 - **REDcode: Run game** launches the game. Starting `bin/x64/Cyberpunk2077.exe` directly works for GOG; a Steam install may want `steam://rungameid/1091500` so Steam's overlay and achievements come along. Both are offered, the choice remembered in a setting.
 
 ## S3 Export
