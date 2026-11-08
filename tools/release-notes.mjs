@@ -6,7 +6,7 @@
 //   node tools/release-notes.mjs <folder> [version] [--nexus] [--out <file>]
 //     <folder>   extensions/redcode, extensions/rednode-hud-theme or packages/redcode-mcp
 //     version    defaults to the folder's package.json version
-//     --nexus    plain lines for Nexus's changelog field (tools/nexus/nexus.mjs release --notes)
+//     --nexus    plain lines for Nexus's changelog field (the Nexus tool's release --notes, EDGErepo's tools/nexus/nexus.mjs)
 //     --out      writes the notes to a file (UTF-8)
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
