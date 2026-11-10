@@ -155,6 +155,8 @@ A GLB with no `.mesh` at its path becomes a new mesh from a template: Import ask
 | The game runs with [REDnode](https://edgemodders.github.io/REDnode/) and its **MCP server** switch is on (launcher, Settings drawer) | Hands the packed archive to REDnode's `archives_reload`, which checks it and swaps it into the running game through REDswap (REDnode 0.41.0 or later). Sound archives too: REDnode 0.26.8 or later pauses the game and loads the sound index again. A notification shows REDnode's answer: what was swapped, what failed and why, and its note on sounds |
 | No REDnode, or the game closed | Packs and installs, through EDGEdeck when it is there; the change shows after a restart. Swaps into the running game need REDnode 0.41.0 or later, which brings [REDswap](https://edgemodders.ai/wiki/rednode/redswap.html) |
 
+A swap carries the mod's archives only. Its tweaks, scripts, ArchiveXL files and REDmod files reach the game through an install, and TweakXL and redscript read theirs only when the game starts. So when some of those are not in the game yet, or differ from what is there, Pack and Play says so after the swap and offers **Install for Next Start**: a new item or quickhack needs that and a restart.
+
 REDcode reads REDnode's MCP port and token from `%APPDATA%\@rednode\overlay\settings.json`. When REDnode runs but refuses REDcode, the notification says to switch the MCP server on.
 
 REDcode 0.10.7 and earlier could also send the archive to Red Hot Tools' hot folder. Red Hot Tools has no build for game 2.5, so REDcode no longer uses it. **Uninstall** still takes out archives an earlier REDcode left in `archive/pc/hot`.

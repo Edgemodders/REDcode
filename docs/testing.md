@@ -628,6 +628,10 @@ Built 2026-11-07, after REDcode 0.10.7: Red Hot Tools has no build for game 2.5,
 | 2 | Game running with REDnode 0.41.0 or later, a save loaded, its **MCP server** on. A plain project (a mesh or texture change), **Pack and Play** | "Swapping through REDnode", then REDnode's answer: the archive swapped, in some milliseconds. Re-equip or respawn what uses it to see the change |
 | 3 | Close the game. **Pack and Play** again | Packed and installed (through EDGEdeck), with "Restart the game to see the change" and a line on starting the game with REDnode. Nothing goes into `archive\pc\hot` |
 | 4 | **Uninstall** from the Project view's `...` menu | The mod comes out through EDGEdeck, as before |
+| 5 | Added 2026-11-10, after the owner's EDGEhack_Test1 report. With the mod uninstalled (step 4), the game running with REDnode as in step 2, a project with tweaks or scripts (EDGEhack_Test1): **Pack and Play** | REDnode swaps the archive, then a warning: the swap carries archives only, and names what is not in the game yet (for EDGEhack_Test1: 5 tweaks, 1 script and 1 ArchiveXL file), with **Install for Next Start**. Press it: EDGEdeck asks to quit the game first, then installs |
+| 6 | **Pack and Play** again, with the mod installed and nothing changed | The plain "swapped" notice, with no warning |
+
+Step 5's check (`looseNotInGame` in `src/hotSwap.ts`) was run on 2026-11-10 against the real EDGEhack_Test1 pack: nothing listed against the game after the owner's deploy, and all 7 files against an empty folder. Unit checks: 42.
 
 ## Never run
 

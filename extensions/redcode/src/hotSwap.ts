@@ -149,6 +149,74 @@ export function rednodeHint(mcp: RednodeMcp, result?: ReloadResult): string {
   return "";
 }
 
+// ---- what a swap does not carry ---------------------------------------------------------------
+
+/** Every file under dir, as paths relative to it with forward slashes. */
+function filesUnder(dir: string, rel = ""): string[] {
+  let entries: fs.Dirent[];
+  try {
+    entries = fs.readdirSync(path.join(dir, rel), { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  return entries.flatMap((e) => {
+    const r = rel ? `${rel}/${e.name}` : e.name;
+    return e.isDirectory() ? filesUnder(dir, r) : e.isFile() ? [r] : [];
+  });
+}
+
+/** True when the file at b holds the same bytes as a. */
+function sameFile(a: string, b: string): boolean {
+  try {
+    const sa = fs.statSync(a);
+    const sb = fs.statSync(b);
+    if (!sb.isFile() || sa.size !== sb.size) return false;
+    return fs.readFileSync(a).equals(fs.readFileSync(b));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The packed files a swap does not carry (everything but .archive files: tweaks, scripts, ArchiveXL files,
+ * REDmod files, other resources) that are missing from the game folder or differ from what is there, as
+ * paths relative to packed. A swap puts only archives into the running game, so these need an install, and
+ * TweakXL and redscript read theirs only at game start.
+ */
+export function looseNotInGame(packedDir: string, gamePath: string): string[] {
+  return filesUnder(packedDir)
+    .filter((r) => !r.toLowerCase().endsWith(".archive"))
+    .filter((r) => !sameFile(path.join(packedDir, r), path.join(gamePath, r)));
+}
+
+/** What those files are, in words, such as "5 tweaks, 1 script and 1 ArchiveXL file". */
+export function describeLoose(files: string[]): string {
+  const kinds: [string, string, (f: string) => boolean][] = [
+    ["tweak", "tweaks", (f) => f.startsWith("r6/tweaks/") || /\.(yaml|yml|tweak)$/.test(f)],
+    ["script", "scripts", (f) => f.startsWith("r6/scripts/") || /\.(reds|script|ws)$/.test(f)],
+    ["ArchiveXL file", "ArchiveXL files", (f) => f.endsWith(".xl")],
+    ["REDmod file", "REDmod files", (f) => f.startsWith("mods/")],
+  ];
+  const counts = new Map<string, number>();
+  const name = (one: string, many: string, n: number) => `${n} ${n === 1 ? one : many}`;
+  for (const raw of files) {
+    const f = raw.toLowerCase();
+    const k = kinds.find(([, , test]) => test(f));
+    const key = k ? k[0] : "other file";
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  const parts = [...kinds.map(([one, many]) => [one, many] as const), ["other file", "other files"] as const]
+    .filter(([one]) => counts.has(one))
+    .map(([one, many]) => name(one, many, counts.get(one)!));
+  return parts.length <= 1 ? (parts[0] ?? "") : `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
+}
+
+/** What Pack and Play adds after a swap when the pack has files the swap did not carry. */
+export function looseNote(files: string[]): string {
+  if (files.length === 0) return "";
+  return `The swap carries archives only: ${describeLoose(files)} of this mod ${files.length === 1 ? "is" : "are"} not in the game yet. Tweaks and scripts are read when the game starts, so install the mod and restart the game to get them.`;
+}
+
 /** REDswap's page, for a PC without REDnode. */
 export const RedswapUrl = "https://edgemodders.ai/wiki/rednode/redswap.html";
 

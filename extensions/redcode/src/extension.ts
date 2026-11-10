@@ -27,7 +27,7 @@ import { Cr2wEditorProvider, Cr2wPropertiesView, Cr2wViewType, cr2wViewTypeFor, 
 import { GameFileSystem, gameUri } from "./gameFs";
 import { compareJson, formatDifference, type JsonComparison } from "./jsonDiff";
 import { installDirect, launchTarget, planInstall, readRecord, uninstallDirect, uninstallHot } from "./install";
-import { callArchivesReload, installedNote, readRednodeMcp, summarize, type ReloadResult } from "./hotSwap";
+import { callArchivesReload, installedNote, looseNote, looseNotInGame, readRednodeMcp, summarize, type ReloadResult } from "./hotSwap";
 import { isSoundWav, sourceFolderOf, targetsUnder } from "./modkit";
 import { compileFilter } from "./treeFilter";
 import { MeshViewer } from "./meshViewer";
@@ -702,7 +702,21 @@ async function packAndPlayCommand(): Promise<"rednode" | "installed" | undefined
       const a = tried.answer;
       log.appendLine(`Pack and Play through REDnode: ${JSON.stringify(a)}`);
       const summary = summarize(a);
-      if (a.failed.length > 0) void vscode.window.showWarningMessage(`REDcode: ${summary}`, "Show log").then((pick) => pick && log.show(true));
+      // A swap carries archives only: tweaks, scripts and the rest reach the game through an install.
+      const gamePath = vscode.workspace.getConfiguration("redcode").get<string>("gamePath", "");
+      const loose = a.reloaded.length > 0 && gamePath ? looseNotInGame(path.join(p.dir, ProjectFolders.packed), gamePath) : [];
+      if (loose.length > 0) {
+        log.appendLine(`Pack and Play: not in the game, and not carried by the swap: ${loose.join(", ")}`);
+        const install = "Install for Next Start";
+        void vscode.window.showWarningMessage(`REDcode: ${summary} ${looseNote(loose)}`, install, "Show log").then((pick) => {
+          if (pick === "Show log") log.show(true);
+          if (pick === install) {
+            void shipCommand(async () => {
+              if (await installCommand()) void vscode.window.showInformationMessage("REDcode: installed. Restart the game to see the whole mod.");
+            });
+          }
+        });
+      } else if (a.failed.length > 0) void vscode.window.showWarningMessage(`REDcode: ${summary}`, "Show log").then((pick) => pick && log.show(true));
       else void vscode.window.showInformationMessage(`REDcode: ${summary} Respawn or re-equip what uses it to see the change.`);
       return a.reloaded.length > 0 ? "rednode" : undefined;
     }

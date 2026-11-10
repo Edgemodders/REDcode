@@ -62,6 +62,36 @@ await check("settings: the file lives under %APPDATA%\\@rednode\\overlay", () =>
   assert.equal(hs.rednodeSettingsFile("C:\\Users\\x\\AppData\\Roaming"), path.join("C:\\Users\\x\\AppData\\Roaming", "@rednode", "overlay", "settings.json"));
 });
 
+// ---- what a swap does not carry ----
+
+await check("loose: tweaks, scripts and .xl not in the game are listed; archives and same files are not", () => {
+  const packed = path.join(tmp, "loose", "packed");
+  const game = path.join(tmp, "loose", "game");
+  write("loose/packed/archive/pc/mod/My.archive", "a");
+  write("loose/packed/archive/pc/mod/my.archive.xl", "xl");
+  write("loose/packed/r6/tweaks/My/one.yaml", "one");
+  write("loose/packed/r6/tweaks/My/two.yaml", "two");
+  write("loose/packed/r6/scripts/My/x.reds", "reds");
+  write("loose/game/r6/tweaks/My/one.yaml", "one");
+  write("loose/game/r6/tweaks/My/two.yaml", "older");
+  assert.deepEqual(hs.looseNotInGame(packed, game).sort(), ["archive/pc/mod/my.archive.xl", "r6/scripts/My/x.reds", "r6/tweaks/My/two.yaml"]);
+});
+await check("loose: nothing to say when the game has them all", () => {
+  write("loose2/packed/archive/pc/mod/My.archive", "a");
+  write("loose2/packed/r6/tweaks/t.yaml", "t");
+  write("loose2/game/r6/tweaks/t.yaml", "t");
+  assert.deepEqual(hs.looseNotInGame(path.join(tmp, "loose2", "packed"), path.join(tmp, "loose2", "game")), []);
+  assert.equal(hs.looseNote([]), "");
+});
+await check("loose: the note names what is missing and the restart", () => {
+  const files = ["r6/tweaks/a.yaml", "r6/tweaks/b.yaml", "r6/scripts/x.reds", "archive/pc/mod/x.archive.xl", "mods/M/info.json"];
+  assert.equal(hs.describeLoose(files), "2 tweaks, 1 script, 1 ArchiveXL file and 1 REDmod file");
+  assert.equal(hs.describeLoose(["r6/tweaks/a.yaml"]), "1 tweak");
+  const note = hs.looseNote(files);
+  assert.match(note, /archives only/);
+  assert.match(note, /restart the game/);
+});
+
 // ---- what Pack and Play says ----
 
 await check("hint: none without REDnode, the switch when it is off", () => {
