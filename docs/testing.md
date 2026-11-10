@@ -33,6 +33,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Open contract (#22)](#open-contract-22) | By hand | Requests | 2026-11-06 | Pass |
 | [Animations A1 (#21)](#animations-a1) | By hand | Requests | 2026-11-06 | Pass |
 | [No Red Hot Tools](#no-red-hot-tools) | By hand | C4 | Not run yet | Given to the owner 2026-11-07 |
+| importFile's texture (#25) | By hand, through EDGEhack | Requests | 2026-11-10 | Pass: EDGEhack 0.0.19's H3b.2 Upload test (EDGEhack's `docs/testing.md`), all 10 steps, run by the owner with REDcode main e9b5e7b; the icons showed in the game. Reported by the EDGEhack session |
 | [Release 0.10.0: issues #5 to #8 and V4](#release-0100-issues-5-to-8-and-v4) | By hand | C5 | 2026-10-16 | Pass, ten fixes retested |
 | [Unit checks](#unit-checks) | Automated | C4 on | 2026-10-25 | Pass |
 | [Issue #11: Pack and Try through REDnode](#issue-11-pack-and-try-through-rednode) | By hand, in the game | C4 | Partly passed | On game 2.5, A and B pass (2026-10-26); steps 1 to 6 wait for Red Hot Tools on 2.5 |
