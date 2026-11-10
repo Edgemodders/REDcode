@@ -215,7 +215,18 @@ tool("project_import", "Import a raw file under a project's source/raw back into
   archiveDir: z.string().describe("The project's source/archive folder."),
   keep: z.boolean().optional().describe("Keep the replaced file's settings; default true."),
   template: z.string().optional().describe("For a GLB with no mesh to import over: a game path (base\\...mesh) or a .mesh file to start the new mesh from."),
-}, (a, b) => b.importFile(a.file, a.rawDir, a.archiveDir, a.keep ?? true, a.template));
+  texture: z.union([
+    z.string(),
+    z.object({
+      group: z.string().optional(),
+      compression: z.string().optional(),
+      rawFormat: z.string().optional(),
+      isGamma: z.boolean().optional(),
+      hasMipchain: z.boolean().optional(),
+      isStreamable: z.boolean().optional(),
+    }),
+  ]).optional().describe("For an image import: the .xbm's setup. A preset (color, normal, grayscale), a texture group name (TEXG_Generic_UI), or { group, compression, rawFormat, isGamma, hasMipchain, isStreamable } with the game's enum names, the rest from the group's defaults. Wins over the existing texture's setup; the answer's texture is the setup read back. Bridge 0.12.0."),
+}, (a, b) => b.importFile(a.file, a.rawDir, a.archiveDir, a.keep ?? true, a.template, a.texture));
 
 tool("library_add", "Add a game file or a project's file to the EDGE Library, the modder's store shared by every EDGE tool, as one asset item: <name>.<kind>.asset with asset.json and source/archive holding the file and the files it needs (a mesh's materials and textures; an entity's appearances and meshes), at their game paths. Game-wide files (base materials, templates, surfaces, effects, rigs) stay in the game and are referred to. Returns the item's folder, id, version, the files copied, those that stay, and those it names that are not in the game (the game's own files name some such). Writes outside the game, in the modder's Library only. With no Library yet, it answers where one would go: ask the modder, then call again with root. With no folder, it answers the modder's folders: ask which, or pass the folder, since the folders are theirs and tools never pick one on their own.", {
   path: z.string().describe("A game path (base\\...\\comfy_rocker.mesh), or the full path of a file under a WolvenKit project's source/archive, whose project copies then win over the game's."),

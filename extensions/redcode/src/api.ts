@@ -15,7 +15,7 @@ import * as path from "node:path";
 import * as vscode from "vscode";
 import { audioFormat, gameSoundIndex, opusSound, opusToWav, wemOggFor, GameSoundIndex } from "./audio";
 import type { BridgeClient } from "./bridgeClient";
-import type { MeshImport } from "./types";
+import type { MeshImport, TextureSetup } from "./types";
 import { sourceFile } from "./exportCache";
 import { gamePathOfUri } from "./gameFs";
 import { ProjectFolders, type ProjectInfo } from "./project";
@@ -89,8 +89,13 @@ export interface REDcodeApi {
    * Imports a file under the project's source/raw back into source/archive, as Import from Raw does.
    * A GLB with no .mesh at its path needs options.template, a game path or .mesh to start from; a mesh
    * import also returns what the mesh ended up with. A <hash>.wav replaces that game sound effect.
+   * options.texture sets up the .xbm an image import writes: a preset ("color", "normal", "grayscale"), a
+   * texture group name (TEXG_Generic_UI), or a TextureSetup, every field optional and the rest from the
+   * group's defaults. It wins over the existing texture's setup. The answer's texture is the setup read back
+   * from the written .xbm, null when no .xbm was written. Since 0.10.8 (REDcode issue #25): an answer
+   * without texture comes from an older REDcode.
    */
-  importFile(file: string, options?: { template?: string }): Promise<{ ok: boolean; written: string[]; mesh?: MeshImport | null }>;
+  importFile(file: string, options?: { template?: string; texture?: string | TextureSetup }): Promise<ImportResult>;
   /** Packs the open project, as REDcode: Pack does. */
   pack(): Promise<{ packedDir: string; archive?: string; archiveFiles: number }>;
   /**
@@ -120,6 +125,17 @@ export interface REDcodeApi {
   openAnimation(path: string, animationName?: string): Promise<void>;
 }
 
+/** What importFile answers. */
+export interface ImportResult {
+  ok: boolean;
+  written: string[];
+  mesh?: MeshImport | null;
+  /** Since 0.10.8: the written .xbm's setup, or null when the import wrote no .xbm. */
+  texture?: TextureSetup | null;
+}
+
+export type { TextureSetup };
+
 export interface ApiHost {
   version: string;
   getBridge(): BridgeClient | undefined;
@@ -127,7 +143,7 @@ export interface ApiHost {
   project(): ProjectInfo | undefined;
   onDidChangeProject: vscode.Event<ProjectInfo | undefined>;
   audioCache: string;
-  importFile(file: string, options?: { template?: string }): Promise<{ ok: boolean; written: string[]; mesh?: MeshImport | null }>;
+  importFile(file: string, options?: { template?: string; texture?: string | TextureSetup }): Promise<ImportResult>;
   pack(): Promise<{ packedDir: string; archive?: string; archiveFiles: number }>;
   packAndPlay(): Promise<"rednode" | "hot" | "installed" | undefined>;
   editInBlender(file: string): Promise<void>;

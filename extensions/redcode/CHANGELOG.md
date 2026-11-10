@@ -4,6 +4,10 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 ## Unreleased
 
+**New**
+
+- For tool makers: `REDcodeApi.importFile` takes a texture setup for an image import, such as the game's UI setup for icons, and answers the setup the `.xbm` ended up with (REDcode issue #25, for EDGEhack): https://edgemodders.github.io/REDcode/api.html
+
 **Changed**
 
 - **Pack and Play swaps through REDnode only; Red Hot Tools is no longer used.** Red Hot Tools has no build for game 2.5, and REDnode 0.41.0 and later swap archives through their own plugin, REDswap: https://edgemodders.ai/wiki/rednode/redswap.html. With the game running under REDnode and its MCP server on, Pack and Play swaps the mod in as before; otherwise it packs and installs it for the next start. **Install to the Hot Folder (Red Hot Tools)** is gone, with the Red Hot Tools checks behind it. **Uninstall** still takes out archives an earlier REDcode left in `archive/pc/hot`.

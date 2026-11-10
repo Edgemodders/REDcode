@@ -7,6 +7,7 @@ What changed in each redcode-mcp release. The release notes on GitHub come from 
 **New**
 
 - `library_add`: a game file or a project's file, with the files it needs, as one asset item in the EDGE Library (REDcode issue #19). With no Library yet or no folder given, it answers what to ask the modder. `gamePathFolders` is the Use the game path choice. Works with REDbridge 0.10.0 or later.
+- `project_import` takes `texture`, an image's `.xbm` setup (a preset, a texture group, or its fields), and answers the setup read back. Needs REDbridge 0.12.0.
 
 ## 0.4.0 (2026-10-27)
 

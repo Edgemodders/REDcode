@@ -81,7 +81,7 @@ Drives `bridgeClient.ts` without VS Code ([dev setup](dev-setup.html), section 4
 | `cr2w.open`, `getNode`, `patch` and its inverse, `save` | A document session: a value patched, undone, saved to a new file and read back after reopening |
 | `texture.toPng`, `texture.fileToPng` | Textures from the game and from disk |
 | `project.pack`, `archive.openMod`, `archive.extractFromMod` | Pack the extracted files and read the archive back (bridge 0.6.1 on) |
-| `project.export`, `project.import` | A texture to PNG and back, keeping its setup (bridge 0.7.0 on) |
+| `project.export`, `project.import` | A texture to PNG and back, keeping its setup (bridge 0.7.0 on); then imported with the game's UI setup (`TEXG_Generic_UI`, `TCM_QualityColor`, `TRF_TrueColor`, gamma, no mips, not streamed), and the answer's `texture` matches it field by field (bridge 0.12.0 on, REDcode #25; passed 2026-11-10 against REDbridge 0.12.1, 16.2 s in all) |
 
 About 8 seconds on the reference machine before TweakDB; the first TweakDB load adds about 12 seconds.
 

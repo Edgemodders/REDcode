@@ -134,6 +134,16 @@ try {
     await step("project.import (the PNG back)", async () => { const r = await bridge.importFile(png, rawDir, archiveDir); if (!r.ok || !r.written.length) throw new Error("import wrote nothing"); return r.written.join(", "); });
     if ((await setupOf()) !== before) throw new Error("the re-imported texture lost settings");
     console.log("        the re-imported texture kept its setup");
+    // REDcode #25: an image import with the game's UI setup, read back in the answer (bridge 0.12.0).
+    if (maj > 0 || min >= 12) {
+      const ui = { group: "TEXG_Generic_UI", compression: "TCM_QualityColor", rawFormat: "TRF_TrueColor", isGamma: true, hasMipchain: false, isStreamable: false };
+      await step("project.import with a texture setup (UI)", async () => {
+        const r = await bridge.importFile(png, rawDir, archiveDir, true, undefined, ui);
+        if (!r.ok || !r.texture) throw new Error("no texture in the answer");
+        for (const [k, v] of Object.entries(ui)) if (r.texture[k] !== v) throw new Error(`${k} is ${r.texture[k]}, not ${v}`);
+        return JSON.stringify(r.texture);
+      });
+    }
   }
   // REDcode #19: an asset item in a scratch Library, with what it names followed through real files.
   {

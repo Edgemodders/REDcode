@@ -335,6 +335,22 @@ export interface ModkitResult {
   written: string[];
   /** Set when a GLB import wrote a .mesh (bridge 0.9.0). */
   mesh?: MeshImport | null;
+  /** Set when an image import wrote a .xbm: its setup, read back from the file (bridge 0.12.0). */
+  texture?: TextureSetup | null;
+}
+
+/**
+ * A texture's setup, as an .xbm keeps it, with the enum names WolvenKit and the game use (TEXG_Generic_UI,
+ * TCM_QualityColor, TRF_TrueColor). As project.import's texture option every field is optional, and the rest
+ * come from the group's defaults; as its answer every field is there.
+ */
+export interface TextureSetup {
+  group?: string;
+  compression?: string;
+  rawFormat?: string;
+  isGamma?: boolean;
+  hasMipchain?: boolean;
+  isStreamable?: boolean;
 }
 
 /** What a GLB import made of a .mesh (project.import, bridge 0.9.0). */

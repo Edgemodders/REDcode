@@ -41,13 +41,13 @@ import { TweakClaims, TweakDb, TweakHover, TweakTree, type TweakNode } from "./t
 import { TweakRecordPanel } from "./tweakRecordPanel";
 import { LocHover, LocTree, locKeyOf, locLanguage, locTextOf, type LocNode } from "./locView";
 import type { LocEntry } from "./types";
-import { createApi, projectRef, type REDcodeApi } from "./api";
+import { createApi, projectRef, type ImportResult, type REDcodeApi } from "./api";
 import { publishProject, syncRednodePackage, withdrawProject } from "./rednodeService";
 import { shortType, tweakYaml, type TweakMode } from "./tweakYaml";
 import { createProject, findProject, gamePathOf, ProjectFolders, projectPathFor, type ProjectInfo } from "./project";
 import { ProjectExplorer, type ProjectNode } from "./projectExplorer";
 import { isTexture, TextureViewer, textureViewTypeFor } from "./textureViewer";
-import type { BridgeInfo, GameFileInfo, MeshImport } from "./types";
+import type { BridgeInfo, GameFileInfo, MeshImport, TextureSetup } from "./types";
 
 /**
  * The oldest REDbridge this extension works with, from redcode.minBridgeVersion in package.json. The
@@ -1385,7 +1385,7 @@ async function extractToProject(args: ExtractToProjectArgs): Promise<ExtractToPr
 
 /** A file an import rewrote and the CR2W editor has open is reloaded, unless it has unsaved edits. */
 /** REDcodeApi.importFile: one raw file back into source/archive, as Import from Raw does, without its prompts. */
-async function apiImportFile(file: string, options?: { template?: string }): Promise<{ ok: boolean; written: string[]; mesh?: MeshImport | null }> {
+async function apiImportFile(file: string, options?: { template?: string; texture?: string | TextureSetup }): Promise<ImportResult> {
   const p = requireProject();
   if (!bridge?.running) throw new Error('REDbridge is not running. Run "REDcode: Restart REDbridge".');
   const archiveDir = path.join(p.dir, ProjectFolders.archive);
@@ -1395,16 +1395,16 @@ async function apiImportFile(file: string, options?: { template?: string }): Pro
     log.appendLine(`Imported ${path.relative(p.dir, file)} for another extension: ${s.ok ? s.written.join(", ") : s.skipped.map((x) => x.reason).join("; ")}`);
     explorer.refresh();
     await revealWritten(soundFiles[0] && mainWritten(soundFiles));
-    return { ok: s.ok, written: soundFiles };
+    return { ok: s.ok, written: soundFiles, texture: null };
   }
-  const r = await bridge.importFile(path.resolve(file), path.join(p.dir, ProjectFolders.raw), archiveDir, vscode.workspace.getConfiguration("redcode").get<boolean>("import.keepSettings", true), options?.template);
+  const r = await bridge.importFile(path.resolve(file), path.join(p.dir, ProjectFolders.raw), archiveDir, vscode.workspace.getConfiguration("redcode").get<boolean>("import.keepSettings", true), options?.template, options?.texture);
   const written = r.written.map((w) => path.join(archiveDir, w));
   log.appendLine(`Imported ${path.relative(p.dir, file)} for another extension: ${written.length ? r.written.join(", ") : "nothing written"}`);
   explorer.refresh();
   await reloadImported(written);
   const stem = (f: string) => path.basename(f, path.extname(f)).toLowerCase();
   await revealWritten(written.find((w) => stem(w) === stem(file)) ?? (written[0] && mainWritten(written)));
-  return { ok: r.ok, written, mesh: r.mesh };
+  return { ok: r.ok, written, mesh: r.mesh, texture: r.texture ?? null };
 }
 
 /** Of the files an import wrote, the one to show: a sound import's .opuspak, which holds the sound, else the first. */

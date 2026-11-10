@@ -6,7 +6,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { EventEmitter } from "node:events";
 import * as readline from "node:readline";
 import { createMessageConnection, StreamMessageReader, StreamMessageWriter, type MessageConnection } from "vscode-jsonrpc/node";
-import type { ArchiveInfo, BridgeInfo, LocEntry, LocLanguage, LocNewFile, LocProjectFile, LocSearch, DocumentInfo, MeshItems, ExtractManyResult, ExtractResult, FileList, HashResult, ExportOptions, JsonResult, ModArchiveInfo, ModkitResult, SoundEvents, SoundImportResult, TweakFlatValue, TweakRecordFull, TweakRecords, TweakRecordsQuery, TweakTypes, PackResult, NodeInfo, PatchOp, PatchResult, ResolveResult, SearchResult, TreeResult, TypeDescription } from "./types";
+import type { ArchiveInfo, BridgeInfo, LocEntry, LocLanguage, LocNewFile, LocProjectFile, LocSearch, DocumentInfo, MeshItems, ExtractManyResult, ExtractResult, FileList, HashResult, ExportOptions, JsonResult, ModArchiveInfo, ModkitResult, SoundEvents, TextureSetup, SoundImportResult, TweakFlatValue, TweakRecordFull, TweakRecords, TweakRecordsQuery, TweakTypes, PackResult, NodeInfo, PatchOp, PatchResult, ResolveResult, SearchResult, TreeResult, TypeDescription } from "./types";
 
 export interface BridgeOptions {
   /** Path to REDbridge.exe. */
@@ -188,9 +188,11 @@ export class BridgeClient extends EventEmitter<BridgeEvents> {
   }
 
   /** Imports a raw file under rawDir back into archiveDir, through WolvenKit's importer. keep: an existing file keeps its settings. Bridge 0.7.0. */
-  importFile(file: string, rawDir: string, archiveDir: string, keep = true, template?: string): Promise<ModkitResult> {
+  importFile(file: string, rawDir: string, archiveDir: string, keep = true, template?: string, texture?: string | TextureSetup): Promise<ModkitResult> {
     // template (bridge 0.9.0): a game path or .mesh to start a new mesh from, for a GLB with no mesh to go over.
-    return this.call("project.import", { file, rawDir, archiveDir, keep, template: template ?? null });
+    // texture (bridge 0.12.0): an image import's .xbm setup, a preset ("color", "normal", "grayscale"), a texture
+    // group name or a TextureSetup; it wins over the existing texture's setup. Sent only when given.
+    return this.call("project.import", { file, rawDir, archiveDir, keep, template: template ?? null, ...(texture !== undefined ? { texture } : {}) });
   }
 
   /** The sound event names WolvenKit knows, with their Wwise hashes, which name the groups in an .opusinfo. Bridge 0.7.2. */
