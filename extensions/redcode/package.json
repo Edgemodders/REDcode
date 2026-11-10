@@ -969,12 +969,12 @@
         {
           "command": "redcode.copyLocKey",
           "when": "view == redcode.lockeys && viewItem =~ /^locEntry/",
-          "group": "inline@1"
+          "group": "inline@2"
         },
         {
           "command": "redcode.addLocKeyToProject",
           "when": "view == redcode.lockeys && viewItem =~ /^locEntry/ && redcode.projectOpen",
-          "group": "inline@2"
+          "group": "inline@1"
         },
         {
           "command": "redcode.copyLocKey",

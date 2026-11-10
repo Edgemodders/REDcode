@@ -32,7 +32,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Add to Library (#19)](#add-to-library-19) | By hand | Requests | 2026-11-06 | Pass, one fix |
 | [Open contract (#22)](#open-contract-22) | By hand | Requests | 2026-11-06 | Pass |
 | [Animations A1 (#21)](#animations-a1) | By hand | Requests | 2026-11-06 | Pass |
-| [No Red Hot Tools](#no-red-hot-tools) | By hand | C4 | Not run yet | Given to the owner 2026-11-07 |
+| [No Red Hot Tools](#no-red-hot-tools) | By hand | C4 | 2026-11-10 | Pass, one fix |
 | importFile's texture (#25) | By hand, through EDGEhack | Requests | 2026-11-10 | Pass: EDGEhack 0.0.19's H3b.2 Upload test (EDGEhack's `docs/testing.md`), all 10 steps, run by the owner with REDcode main e9b5e7b; the icons showed in the game. Reported by the EDGEhack session |
 | [Release 0.10.0: issues #5 to #8 and V4](#release-0100-issues-5-to-8-and-v4) | By hand | C5 | 2026-10-16 | Pass, ten fixes retested |
 | [Unit checks](#unit-checks) | Automated | C4 on | 2026-10-25 | Pass |
@@ -631,6 +631,8 @@ Built 2026-11-07, after REDcode 0.10.7: Red Hot Tools has no build for game 2.5,
 | 4 | **Uninstall** from the Project view's `...` menu | The mod comes out through EDGEdeck, as before |
 | 5 | Added 2026-11-10, after the owner's EDGEhack_Test1 report. With the mod uninstalled (step 4), the game running with REDnode as in step 2, a project with tweaks or scripts (EDGEhack_Test1): **Pack and Play** | REDnode swaps the archive, then a warning: the swap carries archives only, and names what is not in the game yet (for EDGEhack_Test1: 5 tweaks, 1 script and 1 ArchiveXL file), with **Install for Next Start**. Press it: EDGEdeck asks to quit the game first, then installs |
 | 6 | **Pack and Play** again, with the mod installed and nothing changed | The plain "swapped" notice, with no warning |
+
+Result (owner, 2026-11-10, F5 on main at d081a9b, EDGEhack_Test1, in the order given in chat: icons and buttons, swap of the installed mod, Uninstall, swap of the uninstalled mod with the warning and Install for Next Start, Pack and Play with the game closed, the new-file icons): **pass**. Found: at Uninstall, EDGEdeck asked whether to keep the "changed" archive. The bytes were the same; REDswap's copy breaks EDGEdeck's hardlink, which it checks by file identity. Filed as EDGEdeck #13, fixed there (e3d6f63, unreleased). Fix here: in LocKeys, Add to Project Onscreens now comes before Copy LocKey among the hover buttons.
 
 Step 5's check (`looseNotInGame` in `src/hotSwap.ts`) was run on 2026-11-10 against the real EDGEhack_Test1 pack: nothing listed against the game after the owner's deploy, and all 7 files against an empty folder. Unit checks: 42.
 
