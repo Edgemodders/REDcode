@@ -12,6 +12,7 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 - **Pack and Play swaps through REDnode only; Red Hot Tools is no longer used.** Red Hot Tools has no build for game 2.5, and REDnode 0.41.0 and later swap archives through their own plugin, REDswap: https://edgemodders.ai/wiki/rednode/redswap.html. With the game running under REDnode and its MCP server on, Pack and Play swaps the mod in as before; otherwise it packs and installs it for the next start. **Install to the Hot Folder (Red Hot Tools)** is gone, with the Red Hot Tools checks behind it. **Uninstall** still takes out archives an earlier REDcode left in `archive/pc/hot`.
 - For tool makers: `REDcodeApi.packAndPlay()` no longer answers `"hot"`.
+- **Add to Project** in Game Assets and **Add to Project Onscreens** in LocKeys show a new-file icon, the one the EDGE tools' Desks use for Add to Project.
 
 ## 0.10.7 (2026-11-06)
 

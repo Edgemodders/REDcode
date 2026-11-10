@@ -525,13 +525,13 @@
         "command": "redcode.addLocKeyToProject",
         "title": "Add to Project Onscreens",
         "category": "REDcode",
-        "icon": "$(add)"
+        "icon": "$(new-file)"
       },
       {
         "command": "redcode.addToProject",
         "title": "Add to Project",
         "category": "REDcode",
-        "icon": "$(add)"
+        "icon": "$(new-file)"
       },
       {
         "command": "redcode.addToLibrary",
