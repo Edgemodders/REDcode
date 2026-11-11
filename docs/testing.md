@@ -34,6 +34,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Animations A1 (#21)](#animations-a1) | By hand | Requests | 2026-11-06 | Pass |
 | [No Red Hot Tools](#no-red-hot-tools) | By hand | C4 | 2026-11-10 | Pass, one fix |
 | importFile's texture (#25) | By hand, through EDGEhack | Requests | 2026-11-10 | Pass: EDGEhack 0.0.19's H3b.2 Upload test (EDGEhack's `docs/testing.md`), all 10 steps, run by the owner with REDcode main e9b5e7b; the icons showed in the game. Reported by the EDGEhack session |
+| [Resizable table columns (#26)](#resizable-table-columns-26) | By hand | Requests | | Not run yet |
 | [Release 0.10.0: issues #5 to #8 and V4](#release-0100-issues-5-to-8-and-v4) | By hand | C5 | 2026-10-16 | Pass, ten fixes retested |
 | [Unit checks](#unit-checks) | Automated | C4 on | 2026-10-25 | Pass |
 | [Issue #11: Pack and Try through REDnode](#issue-11-pack-and-try-through-rednode) | By hand, in the game | C4 | Partly passed | On game 2.5, A and B pass (2026-10-26); steps 1 to 6 wait for Red Hot Tools on 2.5 |
@@ -635,6 +636,19 @@ Built 2026-11-07, after REDcode 0.10.7: Red Hot Tools has no build for game 2.5,
 Result (owner, 2026-11-10, F5 on main at d081a9b, EDGEhack_Test1, in the order given in chat: icons and buttons, swap of the installed mod, Uninstall, swap of the uninstalled mod with the warning and Install for Next Start, Pack and Play with the game closed, the new-file icons): **pass**. Found: at Uninstall, EDGEdeck asked whether to keep the "changed" archive. The bytes were the same; REDswap's copy breaks EDGEdeck's hardlink, which it checks by file identity. Filed as EDGEdeck #13, fixed there (e3d6f63, unreleased). Fix here: in LocKeys, Add to Project Onscreens now comes before Copy LocKey among the hover buttons.
 
 Step 5's check (`looseNotInGame` in `src/hotSwap.ts`) was run on 2026-11-10 against the real EDGEhack_Test1 pack: nothing listed against the game after the owner's deploy, and all 7 files against an empty folder. Unit checks: 42.
+
+## Resizable table columns (#26)
+
+Built 2026-11-10 for EDGEhack (REDcode issue #26): a localization file's table has a drag handle on each column header, a double-click fits a key column to its content (a text column goes back to sharing the width), and the widths are kept for every localization file in VS Code's global state. Run before the hand test in a page harness against REDbridge 0.12.1 and EDGEhack_Test1's `en-us.json` (read only, never saved): first widths # 52, primaryKey 120, secondaryKey 314 pixels with every key in full; drag, fit, reopen with the kept widths, a text column back to sharing, a 600-pixel pane with the texts kept at 240 pixels, the sticky header and the six ✕ buttons.
+
+| # | Do | Expected |
+|---|---|---|
+| 1 | F5. Open EDGEhack_Test1's `source/archive/edgehack_test1/localization/en-us.json` | The table. **secondaryKey** is as wide as its widest key, so every EDGEhack key reads in full; femaleVariant and maleVariant share the rest |
+| 2 | Hover a header's right edge, then drag it left and right | A resize cursor and a cyan handle; the column follows the mouse, the text columns give or take the width |
+| 3 | Double-click **secondaryKey**'s handle | It fits its keys again |
+| 4 | Drag **femaleVariant** narrower, then double-click its handle | It narrows, then shares the width with maleVariant again |
+| 5 | Set a width, close the file and open it again, then open another onscreens file (a game one from Game Assets) | The widths you set come back, in both files |
+| 6 | Make the editor narrow | The table scrolls sideways; the text columns stay readable. Scroll down: the header stays on top. A row's ✕ still deletes it (Undo brings it back) |
 
 ## Never run
 

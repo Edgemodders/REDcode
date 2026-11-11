@@ -224,7 +224,12 @@ interface Request {
   /** renderMaterials: the appearance shown and the material names it uses. */
   appearance?: string;
   materials?: string[];
+  /** columns: the localization table's column widths in pixels, by column name. */
+  widths?: Record<string, number>;
 }
+
+/** Where the localization table's column widths are kept, for every file. */
+const TableColumnsKey = "cr2w.tableColumns";
 
 export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocument> {
   private readonly changed = new vscode.EventEmitter<vscode.CustomDocumentEditEvent<Cr2wDocument>>();
@@ -464,7 +469,7 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
           }
           case "ready": {
             const info = await document.ensureOpen(this.requireBridge());
-            post({ type: "document", info, file: document.name, game: document.gamePath !== undefined, dirty: document.log.length > 0, selected: this.selection.get(document) ?? "" });
+            post({ type: "document", info, file: document.name, game: document.gamePath !== undefined, dirty: document.log.length > 0, selected: this.selection.get(document) ?? "", columns: this.context.globalState.get(TableColumnsKey, {}) });
             // The Properties view also says ready, often first; what waits is for the editor page.
             if (m.sidebar) return;
             const key = document.uri.toString();
@@ -590,6 +595,12 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
           case "log":
             this.log.appendLine(`cr2w page: ${m.label ?? ""}`);
             return;
+          case "columns": {
+            // The page sends its whole map; keep the finite, positive widths.
+            const widths = Object.fromEntries(Object.entries(m.widths ?? {}).filter(([, w]) => typeof w === "number" && Number.isFinite(w) && w > 0));
+            await this.context.globalState.update(TableColumnsKey, widths);
+            return;
+          }
         }
       } catch (e) {
         fail(m.id, e);

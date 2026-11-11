@@ -139,6 +139,7 @@
   // ---- document ----------------------------------------------------------------------------
   async function onDocument(m) {
     info = m.info;
+    columnWidths = m.columns && typeof m.columns === "object" ? { ...m.columns } : {};
     $("file").textContent = m.file;
     $("type").textContent = m.info.type;
     $("size").textContent = `${m.info.bytes.toLocaleString()} B` + (m.info.embeddedFiles ? `, ${m.info.embeddedFiles} embedded` : "") + (m.game ? "  ·  game copy, read-only" : "");
@@ -747,6 +748,112 @@
   const PageSize = 200;
   let pendingRow = null;
 
+  // Column widths by column name, the same for every localization file. The host keeps them (globalState),
+  // since a webview's own state is per panel. A column without one: # and the keys fit their content, the
+  // two texts share what is left.
+  let columnWidths = {};
+  const TextColumns = new Set(["femaleVariant", "maleVariant"]);
+  const ToolsColumn = 28;       // the ✕ column
+  const TextRoom = 240;         // the least a text column without a width gets
+  const ColumnMin = 40;
+  const ColumnMax = 1200;
+  const KeyColumnMin = 120;     // a key column's first width: its widest key on the page, within these
+  const KeyColumnMax = 420;
+  const CellPadding = 12;       // td padding, both sides
+  const InputPadding = 18;      // an input's padding and border, and a little room
+  const measureCtx = document.createElement("canvas").getContext("2d");
+  const fontOf = (e) => { const cs = getComputedStyle(e); return `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`; };
+  const textWidth = (text, font) => { measureCtx.font = font; return Math.ceil(measureCtx.measureText(text).width); };
+
+  /** The width that shows the column's header and every value on the page in full. */
+  function fitWidth(tbl, index) {
+    const label = tbl.rows[0]?.cells[index]?.querySelector(".label");
+    let widest = label ? label.scrollWidth + CellPadding + 8 : 0;
+    let inputFont = null;
+    let cellFont = null;
+    for (const row of [...tbl.rows].slice(1)) {
+      const cell = row.cells[index];
+      if (!cell) continue;
+      const input = cell.querySelector("input[type=text], select");
+      if (!input) {
+        cellFont ??= fontOf(cell);
+        widest = Math.max(widest, textWidth(cell.textContent ?? "", cellFont) + CellPadding);
+        continue;
+      }
+      inputFont ??= fontOf(input);
+      const select = input.tagName === "SELECT";
+      const text = select ? input.selectedOptions[0]?.textContent ?? "" : input.value;
+      widest = Math.max(widest, textWidth(text, inputFont) + (select ? 28 : InputPadding) + CellPadding);
+    }
+    return Math.min(Math.max(widest, ColumnMin), ColumnMax);
+  }
+
+  /** Keeps room for the text columns without a width; when every column has one, the table is their sum. */
+  function keepTextRoom(tbl, cols) {
+    const sum = cols.reduce((n, c) => n + (parseFloat(c.style.width) || TextRoom), ToolsColumn);
+    tbl.style.minWidth = `${sum}px`;
+    tbl.style.width = cols.every((c) => c.style.width) ? `${sum}px` : "";
+  }
+
+  function saveColumnWidth(name, width) {
+    if (width === undefined) delete columnWidths[name];
+    else columnWidths[name] = width;
+    vscode.postMessage({ type: "columns", widths: columnWidths });
+  }
+
+  /**
+   * A column's header, with the handle on its right edge: drag to resize. A double-click fits a key column
+   * (or #) to its content, and gives a text column back its share of the rest.
+   */
+  function columnHeader(tbl, cols, columns, i) {
+    const name = columns[i];
+    const th = el("th");
+    th.title = name;
+    th.appendChild(el("span", "label", name));
+    const grip = el("span", "colgrip");
+    grip.title = TextColumns.has(name) ? "Drag to resize. Double-click to share the width again." : "Drag to resize. Double-click to fit.";
+    grip.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      grip.setPointerCapture(e.pointerId);
+      grip.classList.add("active");
+      document.body.classList.add("col-resizing");
+      const startX = e.clientX;
+      const startWidth = Math.round(th.getBoundingClientRect().width);
+      let width = startWidth;
+      const move = (ev) => {
+        width = Math.min(Math.max(ColumnMin, Math.round(startWidth + ev.clientX - startX)), ColumnMax);
+        cols[i].style.width = `${width}px`;
+        keepTextRoom(tbl, cols);
+      };
+      const up = () => {
+        grip.removeEventListener("pointermove", move);
+        grip.removeEventListener("pointerup", up);
+        grip.removeEventListener("pointercancel", up);
+        grip.classList.remove("active");
+        document.body.classList.remove("col-resizing");
+        if (width !== startWidth) saveColumnWidth(name, width);
+      };
+      grip.addEventListener("pointermove", move);
+      grip.addEventListener("pointerup", up);
+      grip.addEventListener("pointercancel", up);
+    });
+    grip.addEventListener("dblclick", (e) => {
+      e.preventDefault();
+      if (TextColumns.has(name)) {
+        cols[i].style.removeProperty("width");
+        saveColumnWidth(name, undefined);
+      } else {
+        const width = fitWidth(tbl, i);
+        cols[i].style.width = `${width}px`;
+        saveColumnWidth(name, width);
+      }
+      keepTextRoom(tbl, cols);
+    });
+    th.appendChild(grip);
+    return th;
+  }
+
   /** Goes to the row the host asked for: its page, unfiltered, with the row focused. */
   async function showPendingRow() {
     const index = pendingRow;
@@ -812,11 +919,20 @@
     if (seq !== renderSeq) return;
 
     const tbl = el("table", "rows");
+    const columns = ["#", ...t.keys, "femaleVariant", "maleVariant"];
+    const colgroup = el("colgroup");
+    const cols = columns.map((name) => {
+      const c = el("col");
+      if (typeof columnWidths[name] === "number") c.style.width = `${columnWidths[name]}px`;
+      colgroup.appendChild(c);
+      return c;
+    });
+    const toolsCol = el("col");
+    toolsCol.style.width = `${ToolsColumn}px`;
+    colgroup.appendChild(toolsCol);
+    tbl.appendChild(colgroup);
     const head = el("tr");
-    head.appendChild(el("th", "", "#"));
-    for (const k of t.keys) head.appendChild(el("th", "", k));
-    head.appendChild(el("th", "", "femaleVariant"));
-    head.appendChild(el("th", "", "maleVariant"));
+    columns.forEach((name, i) => head.appendChild(columnHeader(tbl, cols, columns, i)));
     head.appendChild(el("th", ""));
     tbl.appendChild(head);
     const entryDesc = await typeOf(t.entryType).catch(() => null);
@@ -854,6 +970,13 @@
     if (seq !== renderSeq) return;
     $("propsLabel").textContent = `${t.type}  ·  ${t.entryType}`;
     grid.replaceChildren(...parts);
+    // Columns with no width kept: # and the keys fit their content on this page; the texts share the rest.
+    columns.forEach((name, i) => {
+      if (typeof columnWidths[name] === "number" || TextColumns.has(name)) return;
+      const fit = fitWidth(tbl, i);
+      cols[i].style.width = `${name === "#" ? fit : Math.min(Math.max(fit, KeyColumnMin), KeyColumnMax)}px`;
+    });
+    keepTextRoom(tbl, cols);
     if (focusRow) {
       focusRow.scrollIntoView({ block: "center" });
       focusRow.querySelector("input, select")?.focus();

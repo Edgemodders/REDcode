@@ -85,14 +85,19 @@ li.more { color: var(--cyan); cursor: pointer; }
 body.table-mode #body { grid-template-columns: 1fr; }
 body.table-mode aside, body.table-mode #splitter { display: none; }
 table.rows tr.focus td { background: var(--vscode-list-activeSelectionBackground); }
-table.rows { border-collapse: collapse; width: 100%; font-size: 12px; }
+/* Fixed layout: the <col> widths rule; columns without one (the two texts, at first) share what is left. */
+table.rows { border-collapse: collapse; width: 100%; font-size: 12px; table-layout: fixed; }
 table.rows th { text-align: left; font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); padding: 4px 6px; border-bottom: 1px solid var(--line); position: sticky; top: 28px; background: var(--vscode-editor-background); }
 table.rows td { padding: 2px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
 table.rows td.idx { color: var(--dim); font-family: var(--mono); white-space: nowrap; }
-table.rows td.key { width: 1%; white-space: nowrap; }
-table.rows td.key .leaf input { min-width: 90px; width: 100%; }
-table.rows td.text .leaf input { min-width: 240px; }
-table.rows td.tools { width: 1%; }
+table.rows td.key { white-space: nowrap; }
+table.rows td, table.rows th { overflow: hidden; }
+table.rows .leaf input[type=text], table.rows .leaf select { min-width: 0; width: 100%; }
+table.rows th .label { display: inline-block; max-width: 100%; vertical-align: bottom; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The handle on a header's right edge: drag to resize the column, double-click to fit it to its content. */
+table.rows th .colgrip { position: absolute; top: 0; right: 0; bottom: 0; width: 6px; cursor: col-resize; }
+table.rows th .colgrip:hover, table.rows th .colgrip.active { background: var(--accent); opacity: .5; }
+body.col-resizing { cursor: col-resize; user-select: none; }
 .pager { display: flex; gap: 12px; align-items: center; padding: 8px 0; }
 
 /* atlas mode: the parts list replaces the tree, the texture with the part rectangles over it fills the main pane */
