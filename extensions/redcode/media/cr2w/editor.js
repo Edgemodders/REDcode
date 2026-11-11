@@ -749,12 +749,14 @@
   let pendingRow = null;
 
   // Column widths by column name, the same for every localization file. The host keeps them (globalState),
-  // since a webview's own state is per panel. A column without one: # and the keys fit their content, the
-  // two texts share what is left.
+  // since a webview's own state is per panel. A column without one: # and the keys fit their content,
+  // femaleVariant shares what is left with maleVariant. maleVariant never gets a width: it takes whatever
+  // the others leave, so the ✕ column stays at the right edge.
   let columnWidths = {};
-  const TextColumns = new Set(["femaleVariant", "maleVariant"]);
-  const ToolsColumn = 28;       // the ✕ column
-  const TextRoom = 240;         // the least a text column without a width gets
+  const FlexColumn = "maleVariant";
+  const SharedColumns = new Set(["femaleVariant", FlexColumn]);
+  const ToolsColumn = 36;       // the ✕ column
+  const SharedMin = 120;        // the least femaleVariant (while sharing) and maleVariant keep
   const ColumnMin = 40;
   const ColumnMax = 1200;
   const KeyColumnMin = 120;     // a key column's first width: its widest key on the page, within these
@@ -788,11 +790,27 @@
     return Math.min(Math.max(widest, ColumnMin), ColumnMax);
   }
 
-  /** Keeps room for the text columns without a width; when every column has one, the table is their sum. */
+  /** The table's width: the grid's, less its padding. */
+  function roomFor(tbl) {
+    const grid = tbl.parentElement;
+    if (!grid) return Infinity;
+    const cs = getComputedStyle(grid);
+    return grid.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  }
+
+  /** The widest column i can be while the columns without a width keep their minimum and ✕ stays on screen. */
+  function widestFor(tbl, cols, i) {
+    const others = cols.reduce((n, c, k) => k === i ? n : n + (parseFloat(c.style.width) || SharedMin), ToolsColumn);
+    return Math.max(ColumnMin, Math.floor(roomFor(tbl) - others));
+  }
+
+  /**
+   * Sets the table's least width: every set width, and the minimum for the columns sharing the rest. Only
+   * widths kept from a wider editor, or an editor narrower than that, make the table scroll sideways; the
+   * ✕ column sticks to the right edge then.
+   */
   function keepTextRoom(tbl, cols) {
-    const sum = cols.reduce((n, c) => n + (parseFloat(c.style.width) || TextRoom), ToolsColumn);
-    tbl.style.minWidth = `${sum}px`;
-    tbl.style.width = cols.every((c) => c.style.width) ? `${sum}px` : "";
+    tbl.style.minWidth = `${cols.reduce((n, c) => n + (parseFloat(c.style.width) || SharedMin), ToolsColumn)}px`;
   }
 
   function saveColumnWidth(name, width) {
@@ -803,15 +821,16 @@
 
   /**
    * A column's header, with the handle on its right edge: drag to resize. A double-click fits a key column
-   * (or #) to its content, and gives a text column back its share of the rest.
+   * (or #) to its content, and gives femaleVariant back its share of the rest. maleVariant has no handle.
    */
   function columnHeader(tbl, cols, columns, i) {
     const name = columns[i];
     const th = el("th");
-    th.title = name;
+    th.title = name === FlexColumn ? `${name}: takes the width the other columns leave` : name;
     th.appendChild(el("span", "label", name));
+    if (name === FlexColumn) return th;
     const grip = el("span", "colgrip");
-    grip.title = TextColumns.has(name) ? "Drag to resize. Double-click to share the width again." : "Drag to resize. Double-click to fit.";
+    grip.title = SharedColumns.has(name) ? "Drag to resize. Double-click to share the width again." : "Drag to resize. Double-click to fit.";
     grip.addEventListener("pointerdown", (e) => {
       if (e.button !== 0) return;
       e.preventDefault();
@@ -820,9 +839,10 @@
       document.body.classList.add("col-resizing");
       const startX = e.clientX;
       const startWidth = Math.round(th.getBoundingClientRect().width);
+      const widest = Math.min(ColumnMax, Math.max(startWidth, widestFor(tbl, cols, i)));
       let width = startWidth;
       const move = (ev) => {
-        width = Math.min(Math.max(ColumnMin, Math.round(startWidth + ev.clientX - startX)), ColumnMax);
+        width = Math.min(Math.max(ColumnMin, Math.round(startWidth + ev.clientX - startX)), widest);
         cols[i].style.width = `${width}px`;
         keepTextRoom(tbl, cols);
       };
@@ -840,11 +860,11 @@
     });
     grip.addEventListener("dblclick", (e) => {
       e.preventDefault();
-      if (TextColumns.has(name)) {
+      if (SharedColumns.has(name)) {
         cols[i].style.removeProperty("width");
         saveColumnWidth(name, undefined);
       } else {
-        const width = fitWidth(tbl, i);
+        const width = Math.min(fitWidth(tbl, i), widestFor(tbl, cols, i));
         cols[i].style.width = `${width}px`;
         saveColumnWidth(name, width);
       }
@@ -923,7 +943,7 @@
     const colgroup = el("colgroup");
     const cols = columns.map((name) => {
       const c = el("col");
-      if (typeof columnWidths[name] === "number") c.style.width = `${columnWidths[name]}px`;
+      if (typeof columnWidths[name] === "number" && name !== FlexColumn) c.style.width = `${columnWidths[name]}px`;
       colgroup.appendChild(c);
       return c;
     });
@@ -933,7 +953,7 @@
     tbl.appendChild(colgroup);
     const head = el("tr");
     columns.forEach((name, i) => head.appendChild(columnHeader(tbl, cols, columns, i)));
-    head.appendChild(el("th", ""));
+    head.appendChild(el("th", "tools"));
     tbl.appendChild(head);
     const entryDesc = await typeOf(t.entryType).catch(() => null);
     let focusRow = null;
@@ -972,9 +992,11 @@
     grid.replaceChildren(...parts);
     // Columns with no width kept: # and the keys fit their content on this page; the texts share the rest.
     columns.forEach((name, i) => {
-      if (typeof columnWidths[name] === "number" || TextColumns.has(name)) return;
+      if (typeof columnWidths[name] === "number" || SharedColumns.has(name)) return;
       const fit = fitWidth(tbl, i);
-      cols[i].style.width = `${name === "#" ? fit : Math.min(Math.max(fit, KeyColumnMin), KeyColumnMax)}px`;
+      const first = name === "#" ? fit : Math.min(Math.max(fit, KeyColumnMin), KeyColumnMax);
+      // Narrower when the editor is, but a key column keeps its 120 pixels.
+      cols[i].style.width = `${Math.max(Math.min(first, widestFor(tbl, cols, i)), name === "#" ? ColumnMin : KeyColumnMin)}px`;
     });
     keepTextRoom(tbl, cols);
     if (focusRow) {

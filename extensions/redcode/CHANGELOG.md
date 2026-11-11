@@ -6,7 +6,7 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 **New**
 
-- **The columns of a localization file's table can be resized.** Drag the handle on a column header's right edge; double-click it to fit a key column to its keys, or to give a text column back its share of the width. The widths are kept for every localization file. The key columns now start as wide as their widest key on the page (up to 420 pixels), so mod keys such as EDGEhack's read in full (REDcode issue #26, https://github.com/Edgemodders/REDcode/issues/26).
+- **The columns of a localization file's table can be resized.** Drag the handle on a column header's right edge; double-click it to fit a key column to its keys, or to give femaleVariant back its share of the width. maleVariant takes whatever width the others leave, so the row's ✕ always stays at the right edge. The widths are kept for every localization file. The key columns now start as wide as their widest key on the page (up to 420 pixels), so mod keys such as EDGEhack's read in full (REDcode issue #26, https://github.com/Edgemodders/REDcode/issues/26).
 - For tool makers: `REDcodeApi.importFile` takes a texture setup for an image import, such as the game's UI setup for icons, and answers the setup the `.xbm` ended up with (REDcode issue #25, for EDGEhack): https://edgemodders.github.io/REDcode/api.html
 
 **Changed**

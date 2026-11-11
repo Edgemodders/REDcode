@@ -98,6 +98,9 @@ table.rows th .label { display: inline-block; max-width: 100%; vertical-align: b
 table.rows th .colgrip { position: absolute; top: 0; right: 0; bottom: 0; width: 6px; cursor: col-resize; }
 table.rows th .colgrip:hover, table.rows th .colgrip.active { background: var(--accent); opacity: .5; }
 body.col-resizing { cursor: col-resize; user-select: none; }
+/* The ✕ column stays at the right edge, even when kept widths make the table scroll sideways. */
+table.rows td.tools, table.rows th.tools { position: sticky; right: 0; padding: 2px 4px; text-align: center; overflow: visible; background: var(--vscode-editor-background); }
+table.rows th.tools { z-index: 1; }
 .pager { display: flex; gap: 12px; align-items: center; padding: 8px 0; }
 
 /* atlas mode: the parts list replaces the tree, the texture with the part rectangles over it fills the main pane */

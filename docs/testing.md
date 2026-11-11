@@ -639,16 +639,17 @@ Step 5's check (`looseNotInGame` in `src/hotSwap.ts`) was run on 2026-11-10 agai
 
 ## Resizable table columns (#26)
 
-Built 2026-11-10 for EDGEhack (REDcode issue #26): a localization file's table has a drag handle on each column header, a double-click fits a key column to its content (a text column goes back to sharing the width), and the widths are kept for every localization file in VS Code's global state. Run before the hand test in a page harness against REDbridge 0.12.1 and EDGEhack_Test1's `en-us.json` (read only, never saved): first widths # 52, primaryKey 120, secondaryKey 314 pixels with every key in full; drag, fit, reopen with the kept widths, a text column back to sharing, a 600-pixel pane with the texts kept at 240 pixels, the sticky header and the six ✕ buttons.
+Built 2026-11-10 for EDGEhack (REDcode issue #26): a localization file's table has a drag handle on each column header but maleVariant's, a double-click fits a key column to its content (femaleVariant goes back to sharing the width), maleVariant takes what the others leave and the ✕ column sticks to the right edge, and the widths are kept for every localization file in VS Code's global state. Run before the hand test in a page harness against REDbridge 0.12.1 and EDGEhack_Test1's `en-us.json` (read only, never saved): first widths # 52, primaryKey 120, secondaryKey 314 pixels with every key in full; drag, fit, reopen with the kept widths, a text column back to sharing, a 600-pixel pane with the texts kept at 240 pixels, the sticky header and the six ✕ buttons.
 
 | # | Do | Expected |
 |---|---|---|
 | 1 | F5. Open EDGEhack_Test1's `source/archive/edgehack_test1/localization/en-us.json` | The table. **secondaryKey** is as wide as its widest key, so every EDGEhack key reads in full; femaleVariant and maleVariant share the rest |
 | 2 | Hover a header's right edge, then drag it left and right | A resize cursor and a cyan handle; the column follows the mouse, the text columns give or take the width |
 | 3 | Double-click **secondaryKey**'s handle | It fits its keys again |
-| 4 | Drag **femaleVariant** narrower, then double-click its handle | It narrows, then shares the width with maleVariant again |
+| 4 | Drag **femaleVariant** narrower, then double-click its handle | It narrows, then shares the width with maleVariant again. maleVariant has no handle |
+| 4b | Added after the owner's first run (the ✕ column could scroll out of view, and its button's right border was cut off). Drag **secondaryKey**, then **femaleVariant**, as wide as they go; hover a row's ✕ | Each stops where maleVariant keeps 120 pixels. The ✕ column stays at the right edge, and the button's hover border shows on all four sides |
 | 5 | Set a width, close the file and open it again, then open another onscreens file (a game one from Game Assets) | The widths you set come back, in both files |
-| 6 | Make the editor narrow | The table scrolls sideways; the text columns stay readable. Scroll down: the header stays on top. A row's ✕ still deletes it (Undo brings it back) |
+| 6 | Make the editor narrow | The table scrolls sideways only when the set widths no longer fit, and the ✕ column stays at the right edge while it does. Scroll down: the header stays on top. A row's ✕ still deletes it (Undo brings it back) |
 
 ## Never run
 
