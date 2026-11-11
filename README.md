@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://edgemodders.github.io/REDcode/"><img src="docs/assets/brand/badges/docs.svg" alt="docs: read the docs"></a>
-  <img src="docs/assets/brand/badges/status.svg" alt="status: 0.10.7 preview">
+  <img src="docs/assets/brand/badges/status.svg" alt="status: 0.10.8 preview">
   <img src="docs/assets/brand/badges/vscode.svg" alt="VS Code: 1.70+">
   <img src="docs/assets/brand/badges/node.svg" alt="Node: 24">
   <a href="LICENSE"><img src="docs/assets/brand/badges/license.svg" alt="license: MIT"></a>
@@ -19,7 +19,7 @@ REDcode is the build-time half of an AI-first, Node-based modding ecosystem; [RE
 **[Read the docs](https://edgemodders.github.io/REDcode/)** &middot; [REDbridge](https://github.com/Edgemodders/REDbridge) &middot; [REDnode](https://github.com/Edgemodders/REDnode)
 
 > [!NOTE]
-> **Status: 0.10.7 released on 2026-11-06, a preview on the stores.** REDcode 0.10.7 is on the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=Edgemodders.redcode-cyberpunk) and [Open VSX](https://open-vsx.org/extension/edgemodders/redcode-cyberpunk) as **REDcode for Cyberpunk 2077**, and on [Nexus Mods](https://www.nexusmods.com/cyberpunk2077/mods/35421). It browses the archives, edits CR2W files, shows textures, meshes in 3D and sounds, browses the TweakDB and the game's texts, exports, imports, packs and installs. New in 0.10.7: game animations play on their rig, as bones and joints for now. Phases C0 to C4 are done, and C5's viewers (V1 to V4). Still to come: the REDnode loop (C5 V5), graph editors (C6) and the branded editor (C7). Tests since 2026-10-26 run on game 2.5, and REDcode needs [REDbridge 0.12.0](https://github.com/Edgemodders/REDbridge/releases/tag/v0.12.0) or later.
+> **Status: 0.10.8 released on 2026-11-10, a preview on the stores.** REDcode 0.10.8 is on the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=Edgemodders.redcode-cyberpunk) and [Open VSX](https://open-vsx.org/extension/edgemodders/redcode-cyberpunk) as **REDcode for Cyberpunk 2077**, and on [Nexus Mods](https://www.nexusmods.com/cyberpunk2077/mods/35421). It browses the archives, edits CR2W files, shows textures, meshes in 3D and sounds, browses the TweakDB and the game's texts, exports, imports, packs and installs. New in 0.10.8: Pack and Play swaps through REDnode only, since Red Hot Tools has no build for game 2.5, and says when a swap leaves out a mod's tweaks or scripts; a localization file's table has resizable columns. Phases C0 to C4 are done, and C5's viewers (V1 to V4). Still to come: the REDnode loop (C5 V5), graph editors (C6) and the branded editor (C7). Tests since 2026-10-26 run on game 2.5, and REDcode needs [REDbridge 0.12.0](https://github.com/Edgemodders/REDbridge/releases/tag/v0.12.0) or later.
 
 ## Get started
 

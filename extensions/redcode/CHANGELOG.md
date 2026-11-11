@@ -4,6 +4,10 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 ## Unreleased
 
+## 0.10.8 (2026-11-10)
+
+For EDGEhack: Pack and Play without Red Hot Tools, and it says when a swap is not the whole mod; image imports with a texture setup; resizable columns in a localization file's table. Needs REDbridge 0.12.0, as before.
+
 **New**
 
 - **The columns of a localization file's table can be resized.** Drag the handle on a column header's right edge; double-click it to fit a key column to its keys, or to give femaleVariant back its share of the width. maleVariant takes whatever width the others leave, so the row's ✕ always stays at the right edge. The widths are kept for every localization file. The key columns now start as wide as their widest key on the page (up to 420 pixels), so mod keys such as EDGEhack's read in full (REDcode issue #26, https://github.com/Edgemodders/REDcode/issues/26).

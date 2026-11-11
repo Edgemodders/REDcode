@@ -34,7 +34,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Animations A1 (#21)](#animations-a1) | By hand | Requests | 2026-11-06 | Pass |
 | [No Red Hot Tools](#no-red-hot-tools) | By hand | C4 | 2026-11-10 | Pass, one fix |
 | importFile's texture (#25) | By hand, through EDGEhack | Requests | 2026-11-10 | Pass: EDGEhack 0.0.19's H3b.2 Upload test (EDGEhack's `docs/testing.md`), all 10 steps, run by the owner with REDcode main e9b5e7b; the icons showed in the game. Reported by the EDGEhack session |
-| [Resizable table columns (#26)](#resizable-table-columns-26) | By hand | Requests | | Not run yet |
+| [Resizable table columns (#26)](#resizable-table-columns-26) | By hand | Requests | 2026-11-10 | Pass, one fix |
 | [Release 0.10.0: issues #5 to #8 and V4](#release-0100-issues-5-to-8-and-v4) | By hand | C5 | 2026-10-16 | Pass, ten fixes retested |
 | [Unit checks](#unit-checks) | Automated | C4 on | 2026-10-25 | Pass |
 | [Issue #11: Pack and Try through REDnode](#issue-11-pack-and-try-through-rednode) | By hand, in the game | C4 | Partly passed | On game 2.5, A and B pass (2026-10-26); steps 1 to 6 wait for Red Hot Tools on 2.5 |
@@ -650,6 +650,8 @@ Built 2026-11-10 for EDGEhack (REDcode issue #26): a localization file's table h
 | 4b | Added after the owner's first run (the ✕ column could scroll out of view, and its button's right border was cut off). Drag **secondaryKey**, then **femaleVariant**, as wide as they go; hover a row's ✕ | Each stops where maleVariant keeps 120 pixels. The ✕ column stays at the right edge, and the button's hover border shows on all four sides |
 | 5 | Set a width, close the file and open it again, then open another onscreens file (a game one from Game Assets) | The widths you set come back, in both files |
 | 6 | Make the editor narrow | The table scrolls sideways only when the set widths no longer fit, and the ✕ column stays at the right edge while it does. Scroll down: the header stays on top. A row's ✕ still deletes it (Undo brings it back) |
+
+Result (owner, 2026-11-10, F5 on main): the first run passed but found that the ✕ column could scroll out of view with some widths, and that its button's right border was cut off on hover. Fixed in 1eb37da: maleVariant takes the width the others leave and has no handle, drags stop where the shared columns keep 120 pixels, the ✕ column sticks to the right edge and is 36 pixels wide. Step 4b was added for it. The retest passed, all steps. The same run checked the LocKeys hover order (Add to Project Onscreens before Copy LocKey, 358c89d): pass.
 
 ## Never run
 
