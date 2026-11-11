@@ -4,6 +4,10 @@ What changed in each redcode-mcp release. The release notes on GitHub come from 
 
 ## Unreleased
 
+## 0.5.0 (2026-11-10)
+
+For EDGEfab and EDGEhack: `library_add`, and image imports with a texture setup. `texture` needs REDbridge 0.12.0; the rest work as in 0.4.0.
+
 **New**
 
 - `library_add`: a game file or a project's file, with the files it needs, as one asset item in the EDGE Library (REDcode issue #19). With no Library yet or no folder given, it answers what to ask the modder. `gamePathFolders` is the Use the game path choice. Works with REDbridge 0.10.0 or later.
