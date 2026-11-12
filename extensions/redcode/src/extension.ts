@@ -927,6 +927,8 @@ async function modkitCommand(b: BridgeClient, node: ProjectNode, action: "export
     textureFormat: config.get<string>("export.textureFormat", "png"),
     meshBinary: config.get<string>("export.meshFormat", "glb") === "glb",
     meshMaterials: config.get<boolean>("export.meshMaterials", true),
+    // WolvenKit filters out all but the most detailed LOD unless told otherwise.
+    meshLodFilter: !config.get<boolean>("export.meshLods", false),
   };
   const keep = config.get<boolean>("import.keepSettings", true);
   // A GLB or glTF with no .mesh at its path becomes a new mesh only from a template (REDbridge 0.9.0).

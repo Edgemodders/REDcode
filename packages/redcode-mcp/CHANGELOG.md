@@ -4,6 +4,10 @@ What changed in each redcode-mcp release. The release notes on GitHub come from 
 
 ## Unreleased
 
+**New**
+
+- `project_export` takes `meshLods`: every LOD of a mesh in the glTF, not only the most detailed one.
+
 ## 0.5.0 (2026-11-10)
 
 For EDGEfab and EDGEhack: `library_add`, and image imports with a texture setup. `texture` needs REDbridge 0.12.0; the rest work as in 0.4.0.

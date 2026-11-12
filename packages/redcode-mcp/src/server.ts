@@ -207,7 +207,8 @@ tool("project_export", "Export a game file under a project's source/archive to t
   textureFormat: z.enum(["png", "tga", "dds", "bmp", "jpg", "tiff"]).optional().describe("Image format for textures; default png."),
   meshBinary: z.boolean().optional().describe("Meshes as .glb (true, default) or .gltf."),
   meshMaterials: z.boolean().optional().describe("Export a mesh's materials and textures too; default true."),
-}, (a, b) => b.exportFile(a.file, a.archiveDir, a.rawDir, { textureFormat: a.textureFormat, meshBinary: a.meshBinary, meshMaterials: a.meshMaterials }));
+  meshLods: z.boolean().optional().describe("Export every LOD of a mesh; default false, only the most detailed one (WolvenKit's LOD filter)."),
+}, (a, b) => b.exportFile(a.file, a.archiveDir, a.rawDir, { textureFormat: a.textureFormat, meshBinary: a.meshBinary, meshMaterials: a.meshMaterials, ...(a.meshLods === undefined ? {} : { meshLodFilter: !a.meshLods }) }));
 
 tool("project_import", "Import a raw file under a project's source/raw back into source/archive through WolvenKit's importer (images to .xbm, glTF or GLB to .mesh, CSV and so on; sound effects go through sound_import). With keep (default), the file it replaces keeps its settings: a texture its group, format, compression and flags. A GLB imports only over an existing .mesh at the same path: for a new asset, pass template (a game path or .mesh to start from, bridge 0.9.0). A mesh import also returns mesh: submesh count, the GLB's material names per submesh, the mesh's material entries, appearances, and how appearances were sized to the new submeshes. Returns ok and the files written, relative to archiveDir. Bridge 0.7.0.", {
   file: z.string().describe("The raw file, under rawDir."),

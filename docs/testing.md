@@ -35,6 +35,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [No Red Hot Tools](#no-red-hot-tools) | By hand | C4 | 2026-11-10 | Pass, one fix |
 | importFile's texture (#25) | By hand, through EDGEhack | Requests | 2026-11-10 | Pass: EDGEhack 0.0.19's H3b.2 Upload test (EDGEhack's `docs/testing.md`), all 10 steps, run by the owner with REDcode main e9b5e7b; the icons showed in the game. Reported by the EDGEhack session |
 | [Resizable table columns (#26)](#resizable-table-columns-26) | By hand | Requests | 2026-11-10 | Pass, one fix |
+| [Export every LOD](#export-every-lod) | By hand | C4 | | Not run yet |
 | [Release 0.10.0: issues #5 to #8 and V4](#release-0100-issues-5-to-8-and-v4) | By hand | C5 | 2026-10-16 | Pass, ten fixes retested |
 | [Unit checks](#unit-checks) | Automated | C4 on | 2026-10-25 | Pass |
 | [Issue #11: Pack and Try through REDnode](#issue-11-pack-and-try-through-rednode) | By hand, in the game | C4 | Partly passed | On game 2.5, A and B pass (2026-10-26); steps 1 to 6 wait for Red Hot Tools on 2.5 |
@@ -84,6 +85,7 @@ Drives `bridgeClient.ts` without VS Code ([dev setup](dev-setup.html), section 4
 | `texture.toPng`, `texture.fileToPng` | Textures from the game and from disk |
 | `project.pack`, `archive.openMod`, `archive.extractFromMod` | Pack the extracted files and read the archive back (bridge 0.6.1 on) |
 | `project.export`, `project.import` | A texture to PNG and back, keeping its setup (bridge 0.7.0 on); then imported with the game's UI setup (`TEXG_Generic_UI`, `TCM_QualityColor`, `TRF_TrueColor`, gamma, no mips, not streamed), and the answer's `texture` matches it field by field (bridge 0.12.0 on, REDcode #25; passed 2026-11-10 against REDbridge 0.12.1, 16.2 s in all) |
+| `project.export` with every LOD, and back | A police Archer Hella door (15 submeshes over three LODs) exported as WolvenKit does (5 meshes in the `.glb`) and with `meshLodFilter: false` (15), then that `.glb` imported back over the mesh, which keeps its 15 submeshes (`redcode.export.meshLods`; passed 2026-11-12 against REDbridge 0.12.1, 21.7 s in all) |
 
 About 8 seconds on the reference machine before TweakDB; the first TweakDB load adds about 12 seconds.
 
@@ -653,6 +655,17 @@ Built 2026-11-10 for EDGEhack (REDcode issue #26): a localization file's table h
 | 6 | Make the editor narrow | The table scrolls sideways only when the set widths no longer fit, and the ✕ column stays at the right edge while it does. Scroll down: the header stays on top. A row's ✕ still deletes it (Undo brings it back) |
 
 Result (owner, 2026-11-10, F5 on main): the first run passed but found that the ✕ column could scroll out of view with some widths, and that its button's right border was cut off on hover. Fixed in 1eb37da: maleVariant takes the width the others leave and has no handle, drags stop where the shared columns keep 120 pixels, the ✕ column sticks to the right edge and is 36 pixels wide. Step 4b was added for it. The retest passed, all steps. The same run checked the LocKeys hover order (Add to Project Onscreens before Copy LocKey, 358c89d): pass.
+
+## Export every LOD
+
+Built 2026-11-12, asked for on the Discord ("Is possible to export a mesh to raw folder including all LOD levels?"): the setting `redcode.export.meshLods` turns WolvenKit's LOD filter off for **Export to Raw**, and the MCP tool `project_export` takes `meshLods`. Edit in Blender keeps the filter on. Checked before the hand test by the smoke step above.
+
+| # | Do | Expected |
+|---|---|---|
+| 1 | F5. In a test project, add a mesh with LODs from Game Assets, such as `v_standard2_archer_hella_police__ext01_door_fl_01.mesh` (search `archer_hella_police__ext01_door`). **Export to Raw** on it | The `.glb` in Raw. Opened in Blender or a glTF viewer, it has only the `_LOD_1` submeshes (5 for the door) |
+| 2 | Settings: tick **Redcode > Export: Mesh Lods**. **Export to Raw** again | The `.glb` now has every LOD's submeshes (15 for the door: `_LOD_1`, `_LOD_2` and `_LOD_0`) |
+| 3 | **Import from Raw** on that `.glb` | The mesh in Archive keeps its LODs: open it, `renderResourceBlob` > `header` > `renderChunkInfos` still has 15 entries |
+| 4 | Untick the setting | Export to Raw writes the most detailed LOD only again |
 
 ## Never run
 

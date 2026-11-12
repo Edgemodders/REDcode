@@ -145,6 +145,28 @@ try {
       });
     }
   }
+  // Export to Raw with every LOD (redcode.export.meshLods): a game mesh with three LODs, out and back.
+  if (maj > 0 || min >= 7) {
+    const door = "base\\vehicles\\standard\\v_standard2_archer_hella\\entities\\meshes\\v_standard2_archer_hella_police__ext01_door_fl_01.mesh";
+    const archiveDir = path.join(os.tmpdir(), "redcode-smoke", "lods", "archive");
+    const rawDir = path.join(os.tmpdir(), "redcode-smoke", "lods", "raw");
+    fs.rmSync(path.dirname(archiveDir), { recursive: true, force: true });
+    const file = path.join(archiveDir, ...door.split("\\"));
+    await bridge.extract(door, file);
+    const glbMeshes = (p) => { const b = fs.readFileSync(p); return JSON.parse(b.subarray(20, 20 + b.readUInt32LE(12)).toString("utf8")).meshes.length; };
+    const submeshes = async () => { const d = await bridge.openDocument({ file }); const n = await bridge.getNode(d.doc, "renderResourceBlob.Data.header.renderChunkInfos", 0, 1); await bridge.closeDocument(d.doc); return n.total; };
+    const before = await submeshes();
+    await step("project.export with every LOD, and back", async () => {
+      const one = await bridge.exportFile(file, archiveDir, path.join(rawDir, "one"), { meshMaterials: false });
+      const all = await bridge.exportFile(file, archiveDir, path.join(rawDir, "all"), { meshMaterials: false, meshLodFilter: false });
+      const glb = (r, dir) => path.join(rawDir, dir, r.written.find((w) => w.endsWith(".glb")));
+      const counts = [glbMeshes(glb(one, "one")), glbMeshes(glb(all, "all"))];
+      if (counts[1] !== before || counts[0] >= counts[1]) throw new Error(`${before} submeshes, but the exports hold ${counts.join(" and ")}`);
+      const back = await bridge.importFile(glb(all, "all"), path.join(rawDir, "all"), archiveDir, true);
+      if (!back.ok || (await submeshes()) !== before) throw new Error("the import back did not keep every LOD");
+      return `${before} submeshes: ${counts[0]} in the default export, ${counts[1]} with every LOD, ${before} after the import back`;
+    });
+  }
   // REDcode #19: an asset item in a scratch Library, with what it names followed through real files.
   {
     const { planAsset, writeAsset } = require("../dist/library.js");

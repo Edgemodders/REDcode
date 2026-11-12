@@ -1230,6 +1230,11 @@
           "default": true,
           "description": "Export a mesh's materials and their textures with it, into source/raw, as WolvenKit does by default."
         },
+        "redcode.export.meshLods": {
+          "type": "boolean",
+          "default": false,
+          "description": "Export every LOD of a mesh, not only the most detailed one. Off is WolvenKit's default (its LOD filter)."
+        },
         "redcode.import.keepSettings": {
           "type": "boolean",
           "default": true,
