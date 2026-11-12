@@ -8,6 +8,10 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 - **Export to Raw can write every LOD of a mesh.** Turn on the setting `redcode.export.meshLods` and the `.glb` holds each LOD's submeshes (named `_LOD_1`, `_LOD_2` and so on), not only the most detailed one, which stays the default as in WolvenKit. Asked for on the Discord.
 
+**Fixed**
+
+- **The 3D mesh view opens on the most detailed LOD.** WolvenKit names a mesh's least detailed parts LOD 0, and the viewer listed that first as "most detail". The LOD picker now orders LODs by triangles, the most detailed first.
+
 ## 0.10.8 (2026-11-10)
 
 For EDGEhack: Pack and Play without Red Hot Tools, and it says when a swap is not the whole mod; image imports with a texture setup; resizable columns in a localization file's table. Needs REDbridge 0.12.0, as before.

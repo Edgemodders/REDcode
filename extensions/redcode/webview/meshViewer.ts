@@ -177,7 +177,11 @@ export async function mount(container: HTMLElement, source: MeshSource, title = 
     }
   };
 
-  const lods = [...new Set(parts.map((p) => p.lod))].sort((a, b) => a - b);
+  // Most detailed first, by triangles: WolvenKit names them LOD_1, LOD_2 and so on, and the least detailed
+  // parts LOD_0 (lodMask 0), so the numbers alone do not give the order.
+  const lodTris = new Map<number, number>();
+  for (const p of parts) lodTris.set(p.lod, (lodTris.get(p.lod) ?? 0) + p.triangles);
+  const lods = [...lodTris.keys()].sort((a, b) => lodTris.get(b)! - lodTris.get(a)! || a - b);
   let lod = lods[0] ?? 1;
   const hidden = new Set<number>();
   const bounds = new THREE.Box3Helper(new THREE.Box3(), 0xfcee0a);

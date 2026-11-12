@@ -658,12 +658,14 @@ Result (owner, 2026-11-10, F5 on main): the first run passed but found that the 
 
 ## Export every LOD
 
-Built 2026-11-12, asked for on the Discord ("Is possible to export a mesh to raw folder including all LOD levels?"): the setting `redcode.export.meshLods` turns WolvenKit's LOD filter off for **Export to Raw**, and the MCP tool `project_export` takes `meshLods`. Edit in Blender keeps the filter on. Checked before the hand test by the smoke step above.
+Built 2026-11-12, asked for on the Discord ("Is possible to export a mesh to raw folder including all LOD levels?"): the setting `redcode.export.meshLods` turns WolvenKit's LOD filter off for **Export to Raw**, and the MCP tool `project_export` takes `meshLods`. Edit in Blender keeps the filter on. Checked before the hand test by the smoke step above. The mesh viewer now orders LODs by triangles, most detailed first: WolvenKit names the least detailed parts `LOD_0` (lodMask 0), which the viewer had listed first as "most detail".
+
+First run (owner, 2026-11-12, on the laptop): step 2 showed 5 submeshes. Not a fault: the search in step 1 also finds a `decoration` copy of the door with a single LOD, and that was the one exported. Step 1 now names the full path.
 
 | # | Do | Expected |
 |---|---|---|
-| 1 | F5. In a test project, add a mesh with LODs from Game Assets, such as `v_standard2_archer_hella_police__ext01_door_fl_01.mesh` (search `archer_hella_police__ext01_door`). **Export to Raw** on it | The `.glb` in Raw. Opened in Blender or a glTF viewer, it has only the `_LOD_1` submeshes (5 for the door) |
-| 2 | Settings: tick **Redcode > Export: Mesh Lods**. **Export to Raw** again | The `.glb` now has every LOD's submeshes (15 for the door: `_LOD_1`, `_LOD_2` and `_LOD_0`) |
+| 1 | F5. In a test project, add the door under `base\vehicles\standard\v_standard2_archer_hella\entities\meshes\v_standard2_archer_hella_police__ext01_door_fl_01.mesh` from Game Assets (search `archer_hella_police__ext01_door_fl_01`; the copy under `base\vehicles\decoration` has one LOD only). **Export to Raw** on it, then click the `.glb` | REDcode's viewer: 5 submeshes, no LOD picker in the toolbar |
+| 2 | Settings: tick **Redcode > Export: Mesh Lods**. **Export to Raw** again, click the `.glb` | An LOD picker in the toolbar: **LOD 1 (most detail)** first with 5 submeshes (body 1,903 triangles), then **LOD 2** (917) and **LOD 0** (468) |
 | 3 | **Import from Raw** on that `.glb` | The mesh in Archive keeps its LODs: open it, `renderResourceBlob` > `header` > `renderChunkInfos` still has 15 entries |
 | 4 | Untick the setting | Export to Raw writes the most detailed LOD only again |
 
