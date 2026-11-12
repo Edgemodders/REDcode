@@ -11,7 +11,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Type check and build](#type-check-and-build) | Automated | All | 2026-10-16 | Pass |
 | [Smoke test](#smoke-test-the-bridge-client-against-the-game) | Automated, needs the game | C1 on | 2026-10-16 | Pass |
 | [Bridge checks against the game](#bridge-checks-against-the-game) | Scripts outside the repo | C3 on | 2026-10-16 | Pass |
-| [MCP server](#mcp-server) | MCP client script | C3 on | 2026-11-10 | Pass |
+| [MCP server](#mcp-server) | MCP client script | C3 on | 2026-11-12 | Pass |
 | [WolvenKit round trip](#c2-wolvenkit-round-trip-and-extract-to) | By hand | C2 | 2026-10-11 | Pass |
 | [Save JSON to Project](#save-json-to-project) | By hand | C3 | 2026-10-11 | Pass |
 | [Texture viewer](#texture-viewer) | By hand | C3 | 2026-10-11 | Pass after a fix |
@@ -119,6 +119,7 @@ Register the server ([MCP](mcp.html)) and run a client against it. Checked by an
 | 2026-10-16 | `@edgemodders/redcode-mcp` 0.2.0 installed from its packed `.tgz` into an empty folder and started through `npx` | All 38 tools listed; bridge, TweakDB and sound tools answer |
 | 2026-10-27 | `loc_languages`, `loc_search`, `loc_get`, `mesh_items` (Claude Code through the edge plugin, which in the REDcode checkout runs the workspace build; REDbridge 0.11.0, game 2.5) | Pass: 19 languages; "sunny ammo high-tops" finds LocKey#4123 with its onscreens file and row; de-de text for it and `null` for an unknown key; `mesh_items` on the high-tops mesh, `red_yellow_graphic`, gives `Items.CasualShoes_01_basic_01` and two more |
 | 2026-11-10 | `project_import` with `texture`, before redcode-mcp 0.5.0 (an MCP SDK client script against the workspace build, REDbridge 0.12.1, game 2.5). `library_add` was checked the same way for REDcode 0.10.6 (16 checks) | 5 checks pass: `texture` in the tool's schema; a game texture's PNG imported as a new `.xbm` with `TEXG_Generic_UI`, with the six fields, and with the preset `normal`, each answering that setup read back; a number for `texture` refused |
+| 2026-11-12 | `project_export` with `meshLods`, before redcode-mcp 0.5.1 (an MCP SDK client script against the workspace build, REDbridge 0.12.1, game 2.5) | 4 checks pass: `meshLods` in the tool's schema; the police Archer Hella door (15 submeshes over three LODs) exports 5 meshes without it and with `false`, 15 with `true` |
 
 ## Before any hand test
 
