@@ -4,6 +4,10 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 ## Unreleased
 
+## 0.10.9 (2026-11-12)
+
+Export to Raw can write every LOD of a mesh, and the 3D view opens on the most detailed one. Needs REDbridge 0.12.0, as before.
+
 **New**
 
 - **Export to Raw can write every LOD of a mesh.** Turn on the setting `redcode.export.meshLods` and the `.glb` holds each LOD's submeshes (named `_LOD_1`, `_LOD_2` and so on), not only the most detailed one, which stays the default as in WolvenKit. Asked for on the Discord.

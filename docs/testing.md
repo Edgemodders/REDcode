@@ -35,7 +35,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [No Red Hot Tools](#no-red-hot-tools) | By hand | C4 | 2026-11-10 | Pass, one fix |
 | importFile's texture (#25) | By hand, through EDGEhack | Requests | 2026-11-10 | Pass: EDGEhack 0.0.19's H3b.2 Upload test (EDGEhack's `docs/testing.md`), all 10 steps, run by the owner with REDcode main e9b5e7b; the icons showed in the game. Reported by the EDGEhack session |
 | [Resizable table columns (#26)](#resizable-table-columns-26) | By hand | Requests | 2026-11-10 | Pass, one fix |
-| [Export every LOD](#export-every-lod) | By hand | C4 | | Not run yet |
+| [Export every LOD](#export-every-lod) | By hand | C4 | 2026-11-12 | Pass |
 | [Release 0.10.0: issues #5 to #8 and V4](#release-0100-issues-5-to-8-and-v4) | By hand | C5 | 2026-10-16 | Pass, ten fixes retested |
 | [Unit checks](#unit-checks) | Automated | C4 on | 2026-10-25 | Pass |
 | [Issue #11: Pack and Try through REDnode](#issue-11-pack-and-try-through-rednode) | By hand, in the game | C4 | Partly passed | On game 2.5, A and B pass (2026-10-26); steps 1 to 6 wait for Red Hot Tools on 2.5 |
@@ -661,6 +661,8 @@ Result (owner, 2026-11-10, F5 on main): the first run passed but found that the 
 Built 2026-11-12, asked for on the Discord ("Is possible to export a mesh to raw folder including all LOD levels?"): the setting `redcode.export.meshLods` turns WolvenKit's LOD filter off for **Export to Raw**, and the MCP tool `project_export` takes `meshLods`. Edit in Blender keeps the filter on. Checked before the hand test by the smoke step above. The mesh viewer now orders LODs by triangles, most detailed first: WolvenKit names the least detailed parts `LOD_0` (lodMask 0), which the viewer had listed first as "most detail".
 
 First run (owner, 2026-11-12, on the laptop): step 2 showed 5 submeshes. Not a fault: the search in step 1 also finds a `decoration` copy of the door with a single LOD, and that was the one exported. Step 1 now names the full path.
+
+Result (owner, 2026-11-12, on the laptop, with the `standard` door): pass.
 
 | # | Do | Expected |
 |---|---|---|
