@@ -36,6 +36,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | importFile's texture (#25) | By hand, through EDGEhack | Requests | 2026-11-10 | Pass: EDGEhack 0.0.19's H3b.2 Upload test (EDGEhack's `docs/testing.md`), all 10 steps, run by the owner with REDcode main e9b5e7b; the icons showed in the game. Reported by the EDGEhack session |
 | [Resizable table columns (#26)](#resizable-table-columns-26) | By hand | Requests | 2026-11-10 | Pass, one fix |
 | [Export every LOD](#export-every-lod) | By hand | C4 | 2026-11-12 | Pass |
+| [Reveal in Project (#27) and the search wording (#28)](#reveal-in-project-27-and-the-search-wording-28) | By hand | Requests | | Not run yet |
 | [Release 0.10.0: issues #5 to #8 and V4](#release-0100-issues-5-to-8-and-v4) | By hand | C5 | 2026-10-16 | Pass, ten fixes retested |
 | [Unit checks](#unit-checks) | Automated | C4 on | 2026-10-25 | Pass |
 | [Issue #11: Pack and Try through REDnode](#issue-11-pack-and-try-through-rednode) | By hand, in the game | C4 | Partly passed | On game 2.5, A and B pass (2026-10-26); steps 1 to 6 wait for Red Hot Tools on 2.5 |
@@ -671,6 +672,19 @@ Result (owner, 2026-11-12, on the laptop, with the `standard` door): pass.
 | 2 | Settings: tick **Redcode > Export: Mesh Lods**. **Export to Raw** again, click the `.glb` | An LOD picker in the toolbar: **LOD 1 (most detail)** first with 5 submeshes (body 1,903 triangles), then **LOD 2** (917) and **LOD 0** (468) |
 | 3 | **Import from Raw** on that `.glb` | The mesh in Archive keeps its LODs: open it, `renderResourceBlob` > `header` > `renderChunkInfos` still has 15 entries |
 | 4 | Untick the setting | Export to Raw writes the most detailed LOD only again |
+
+## Reveal in Project (#27) and the search wording (#28)
+
+Built 2026-11-13 for EDGEmat: `REDcodeApi.revealInProject(file)` selects a project file in the Project view and focuses the view, and Search Game Files says "file name or path". **Opens Test: Reveal in Project** (`tools/test-extensions/opens-test`) calls the API as EDGEmat does.
+
+| # | Do | Expected |
+|---|---|---|
+| 1 | Launch config **Run REDcode with Opens Test**, on a test project with files a few folders deep in Archive. Collapse every folder in the Project view, then switch the side bar to the Explorer | |
+| 2 | Open a project file under `source\archive` (a `.json` or `.xl` opens as text; or copy a path with Copy path). **Opens Test: Reveal in Project**, with that path | REDcode's side bar comes up with the Project view focused, its folders unfolded down to the file, the file selected. The message says `true` |
+| 3 | The same, with a path under `source\raw` and with a folder's path | Each is selected the same way, `true` |
+| 4 | The same, with a path in the project that does not exist, and with a file outside the project | Nothing moves; the message says `false` |
+| 5 | **REDcode: Search game files** and **REDcode: Open game file as JSON** (Command Palette) | The box says "Search game files (file name or path)" |
+| 6 | With EDGEmat installed: the Desk's **Add to Project** with a project picked from disk that is not open | The window opens on that project, and the added mesh is selected in the Project view |
 
 ## Never run
 

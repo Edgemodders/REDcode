@@ -44,6 +44,7 @@ if (api?.apiVersion === 1) {
 | `editInBlender(file)` | Opens a project `.glb`, `.gltf` or `.mesh` in Blender; each save there is imported back into `source/archive` |
 | `openFile(target, node?)` | Opens a file in the CR2W editor. `target` is a game path (`base\journal\cooked_journal.journal`, opened read-only), a file on disk, or a `file:` or `redcode-game:` URI string. With `node`, a path as in the JSON (`graph.Data.nodes.12`), the tree opens expanded to it with the node selected, also in a file that has its own view (3D, atlas, table). On `main`, in the next release after 0.10.3 |
 | `openAnimation(path, animationName?)` | Opens an `.anims` file on its Animations view, playing on the rig the file names. `path` is what `openFile` takes. With `animationName` it opens at that animation; a name not in the file is said in the editor's status line, and the first animation plays. A path that is not an `.anims` is refused. For a Preview button: check `typeof api.openAnimation === "function"` first. Since 0.10.7 |
+| `revealInProject(file)` | Selects a file or folder of the open project in the Project view, unfolding the folders above it, and shows and focuses the view. `file` is a path on disk, such as one under the project's `source\archive` or `source\raw`. Resolves `true` when it was shown, `false` when it is not in the open project or does not exist. Check `typeof api.revealInProject === "function"` first. Since 0.10.10 (REDcode issue #27) |
 
 ### Sound references
 

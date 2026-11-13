@@ -269,6 +269,7 @@ export function activate(context: vscode.ExtensionContext): REDcodeApi | undefin
     editInBlender: (file: string) => editInBlenderCommand(file),
     openFile: (target: string, node?: string) => openFileInEditor(target, node),
     openAnimation: (target: string, animationName?: string) => openAnimationInEditor(target, animationName),
+    revealInProject,
   });
 }
 
@@ -1434,6 +1435,19 @@ async function revealWritten(file: string | undefined): Promise<void> {
   if (node) await projectView.reveal(node, { select: true, focus: false, expand: true }).then(undefined, () => undefined);
 }
 
+/** REDcodeApi.revealInProject: selects a project file or folder in the Project view and focuses the view; false when it is not in the open project. */
+async function revealInProject(file: string): Promise<boolean> {
+  const node = typeof file === "string" && file && fs.existsSync(file) ? explorer.nodeFor(file) : undefined;
+  if (!node) return false;
+  return projectView.reveal(node, { select: true, focus: true, expand: true }).then(
+    () => true,
+    (e) => {
+      log.appendLine(`Could not reveal ${file} in the Project view: ${e}`);
+      return false;
+    },
+  );
+}
+
 async function reloadImported(written: string[]): Promise<void> {
   if (!bridge?.running) return;
   for (const f of written) {
@@ -1925,7 +1939,7 @@ async function showJson(file: string): Promise<void> {
 }
 
 async function openGameFileAsJson(b: BridgeClient): Promise<void> {
-  const file = await pickGameFile(b, "Search game files (name or path), then pick one to open as JSON");
+  const file = await pickGameFile(b, "Search game files (file name or path), then pick one to open as JSON");
   if (file) {
     await openJsonOf(b, file.name);
   }
@@ -1956,7 +1970,7 @@ async function openAssetAsJson(b: BridgeClient, node: AssetNode): Promise<void> 
 }
 
 async function searchGameFiles(b: BridgeClient): Promise<void> {
-  const file = await pickGameFile(b, "Search game files (name or path)");
+  const file = await pickGameFile(b, "Search game files (file name or path)");
   if (!file) {
     return;
   }

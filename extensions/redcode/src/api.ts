@@ -123,6 +123,13 @@ export interface REDcodeApi {
    * member is there before calling it.
    */
   openAnimation(path: string, animationName?: string): Promise<void>;
+  /**
+   * Selects a file or folder of the open project in the Project view, unfolding its folders, and shows and
+   * focuses the view. file is a path on disk, such as one under the project's source\archive. Resolves false
+   * when it is not in the open project or does not exist. Since 0.10.10 (REDcode issue #27): check that the
+   * member is there before calling it.
+   */
+  revealInProject(file: string): Promise<boolean>;
 }
 
 /** What importFile answers. */
@@ -149,6 +156,7 @@ export interface ApiHost {
   editInBlender(file: string): Promise<void>;
   openFile(target: string, node?: string): Promise<void>;
   openAnimation(path: string, animationName?: string): Promise<void>;
+  revealInProject(file: string): Promise<boolean>;
 }
 
 export function projectRef(p: ProjectInfo | undefined): ProjectRef | undefined {
@@ -250,5 +258,6 @@ export function createApi(host: ApiHost): REDcodeApi {
     editInBlender: host.editInBlender,
     openFile: host.openFile,
     openAnimation: host.openAnimation,
+    revealInProject: host.revealInProject,
   };
 }

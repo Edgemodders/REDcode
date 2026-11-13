@@ -4,6 +4,14 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 ## Unreleased
 
+**New**
+
+- Other tools can select a project file in the Project view: `revealInProject` in REDcode's API, which EDGEmat calls after adding a mesh to a project it has just opened (https://github.com/Edgemodders/REDcode/issues/27).
+
+**Changed**
+
+- Search game files says "file name or path", since it finds files, not items by their in-game name (https://github.com/Edgemodders/REDcode/issues/28).
+
 ## 0.10.9 (2026-11-12)
 
 Export to Raw can write every LOD of a mesh, and the 3D view opens on the most detailed one. Needs REDbridge 0.12.0, as before.

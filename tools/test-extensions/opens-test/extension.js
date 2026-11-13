@@ -31,5 +31,18 @@ exports.activate = (context) => {
         void vscode.window.showInformationMessage(`Opens Test: REDcode refused it: ${e.message}`);
       }
     }),
+    // REDcodeApi.revealInProject, as EDGEmat calls it after adding a mesh to a project (REDcode issue #27).
+    vscode.commands.registerCommand("openstest.revealInProject", async () => {
+      const api = await redcode();
+      if (typeof api?.revealInProject !== "function") {
+        void vscode.window.showWarningMessage("This REDcode has no revealInProject.");
+        return;
+      }
+      const active = vscode.window.activeTextEditor?.document.uri;
+      const file = await vscode.window.showInputBox({ prompt: "A path on disk to reveal in REDcode's Project view", value: active?.scheme === "file" ? active.fsPath : "" });
+      if (file === undefined) return;
+      const shown = await api.revealInProject(file);
+      void vscode.window.showInformationMessage(`Opens Test: revealInProject answered ${shown}`);
+    }),
   );
 };
