@@ -36,7 +36,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | importFile's texture (#25) | By hand, through EDGEhack | Requests | 2026-11-10 | Pass: EDGEhack 0.0.19's H3b.2 Upload test (EDGEhack's `docs/testing.md`), all 10 steps, run by the owner with REDcode main e9b5e7b; the icons showed in the game. Reported by the EDGEhack session |
 | [Resizable table columns (#26)](#resizable-table-columns-26) | By hand | Requests | 2026-11-10 | Pass, one fix |
 | [Export every LOD](#export-every-lod) | By hand | C4 | 2026-11-12 | Pass |
-| [Reveal in Project (#27) and the search wording (#28)](#reveal-in-project-27-and-the-search-wording-28) | By hand | Requests | | Not run yet |
+| [Reveal in Project (#27) and the search wording (#28)](#reveal-in-project-27-and-the-search-wording-28) | By hand | Requests | 2026-11-15 | Pass |
 | [Release 0.10.0: issues #5 to #8 and V4](#release-0100-issues-5-to-8-and-v4) | By hand | C5 | 2026-10-16 | Pass, ten fixes retested |
 | [Unit checks](#unit-checks) | Automated | C4 on | 2026-10-25 | Pass |
 | [Issue #11: Pack and Try through REDnode](#issue-11-pack-and-try-through-rednode) | By hand, in the game | C4 | Partly passed | On game 2.5, A and B pass (2026-10-26); steps 1 to 6 wait for Red Hot Tools on 2.5 |
@@ -676,6 +676,8 @@ Result (owner, 2026-11-12, on the laptop, with the `standard` door): pass.
 ## Reveal in Project (#27) and the search wording (#28)
 
 Built 2026-11-13 for EDGEmat: `REDcodeApi.revealInProject(file)` selects a project file in the Project view and focuses the view, and Search Game Files says "file name or path". **Opens Test: Reveal in Project** (`tools/test-extensions/opens-test`) calls the API as EDGEmat does.
+
+Result (owner, 2026-11-15, F5 on main, EDGEmat 0.3.2 from its clone): pass, all steps. Step 6 was rewritten before the run: EDGEmat asks for a project only when REDcode has none open, so the folder is closed first.
 
 | # | Do | Expected |
 |---|---|---|

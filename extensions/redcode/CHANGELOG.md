@@ -4,6 +4,10 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 ## Unreleased
 
+## 0.10.10 (2026-11-15)
+
+EDGEmat can show what it added to a project in the Project view, and Search game files says what it searches. Needs REDbridge 0.12.0, as before.
+
 **New**
 
 - Other tools can select a project file in the Project view: `revealInProject` in REDcode's API, which EDGEmat calls after adding a mesh to a project it has just opened (https://github.com/Edgemodders/REDcode/issues/27).
