@@ -4,6 +4,10 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 ## Unreleased
 
+## 0.10.11 (2026-11-15)
+
+Search game files finds clothing by its in-game name, and opens what you pick. Needs REDbridge 0.12.0, as before.
+
 **New**
 
 - Search game files finds clothing by its in-game name or TweakDB id: `comfy rocker` lists the Comfy rocker aramid-weave slim-fits, and picking it lists the meshes it wears for each body. The first search for a game version loads the names in the background (about 15 seconds); EDGEmat shares that list, so whichever runs first spares the other (https://github.com/Edgemodders/REDcode/issues/28).
