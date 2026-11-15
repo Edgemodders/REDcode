@@ -5,6 +5,8 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as vscode from "vscode";
 import { AssetBrowser, type AssetNode } from "./assetBrowser";
+import { searchGameFiles as showGameSearch } from "./gameSearch";
+import { ItemIndex } from "./itemSearch";
 import { addToLibrary } from "./libraryCommand";
 import { BridgeClient } from "./bridgeClient";
 import {
@@ -46,7 +48,7 @@ import { publishProject, syncRednodePackage, withdrawProject } from "./rednodeSe
 import { shortType, tweakYaml, type TweakMode } from "./tweakYaml";
 import { createProject, findProject, gamePathOf, ProjectFolders, projectPathFor, type ProjectInfo } from "./project";
 import { ProjectExplorer, type ProjectNode } from "./projectExplorer";
-import { isTexture, TextureViewer, textureViewTypeFor } from "./textureViewer";
+import { isGameTexture, isTexture, TextureViewer, textureViewTypeFor } from "./textureViewer";
 import type { BridgeInfo, GameFileInfo, MeshImport, TextureSetup } from "./types";
 
 /**
@@ -63,6 +65,8 @@ let bridge: BridgeClient | undefined;
 let project: ProjectInfo | undefined;
 let status: vscode.StatusBarItem;
 let log: vscode.OutputChannel;
+/** Clothing items by in-game name, for Search game files (issue #28). */
+const itemIndex = new ItemIndex();
 let storage: vscode.Uri;
 let restartTimer: NodeJS.Timeout | undefined;
 let assets: AssetBrowser;
@@ -1969,19 +1973,17 @@ async function openAssetAsJson(b: BridgeClient, node: AssetNode): Promise<void> 
   }
 }
 
+/** Search game files: files by name or path, clothing items by in-game name (issue #28). A pick opens the file as a click in Game Assets does. */
 async function searchGameFiles(b: BridgeClient): Promise<void> {
-  const file = await pickGameFile(b, "Search game files (file name or path)");
-  if (!file) {
-    return;
-  }
-  const action = await vscode.window.showInformationMessage(`${file.name}\n${file.archive}, ${file.size.toLocaleString()} bytes, hash ${file.hash}`, "Open as JSON", project ? "Add to project" : "Copy path", "Copy path");
-  if (action === "Open as JSON") {
-    await openJsonOf(b, file.name);
-  } else if (action === "Add to project") {
-    await addToProject(b, { kind: "file", file });
-  } else if (action === "Copy path") {
-    await vscode.env.clipboard.writeText(file.name);
-  }
+  showGameSearch(b, itemIndex, {
+    open: (file) => {
+      const node: AssetNode = { kind: "file", file };
+      return isGameTexture(file.name) ? openTexture(b, node) : openAssetInEditor(node);
+    },
+    addToProject: project ? (file) => addToProject(b, { kind: "file", file }) : undefined,
+    openAsJson: (file) => openJsonOf(b, file.name),
+    log: (line) => log.appendLine(line),
+  });
 }
 
 /** The files a node stands for: one file, or everything under a folder. */

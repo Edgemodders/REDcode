@@ -105,6 +105,11 @@ export class BridgeClient extends EventEmitter<BridgeEvents> {
     return this.connection.sendRequest<T>(method, params ?? {});
   }
 
+  /** Any bridge method by name, for libraries that take a call function, such as edgemat-core's bridgeOver. */
+  request<T = unknown>(method: string, params?: Record<string, unknown>): Promise<T> {
+    return this.call<T>(method, params);
+  }
+
   // ---- the bridge's methods, one wrapper each ---------------------------------------------
 
   info(): Promise<BridgeInfo> {

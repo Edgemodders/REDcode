@@ -4,6 +4,14 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 ## Unreleased
 
+**New**
+
+- Search game files finds clothing by its in-game name or TweakDB id: `comfy rocker` lists the Comfy rocker aramid-weave slim-fits, and picking it lists the meshes it wears for each body. The first search for a game version loads the names in the background (about 15 seconds); EDGEmat shares that list, so whichever runs first spares the other (https://github.com/Edgemodders/REDcode/issues/28).
+
+**Changed**
+
+- Search game files opens what you pick, as a click in Game Assets does: a mesh on its 3D view. Add to project, Copy path and Open as JSON are buttons on each row, in place of the message that came up after every pick.
+
 ## 0.10.10 (2026-11-15)
 
 EDGEmat can show what it added to a project in the Project view, and Search game files says what it searches. Needs REDbridge 0.12.0, as before.

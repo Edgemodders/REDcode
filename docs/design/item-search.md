@@ -4,7 +4,7 @@ title: Item search (#28)
 
 # Item search: from an in-game name to the files
 
-Draft 0.1, 2026-11-15, for the owner to agree; nothing is built. Asked for in [REDcode issue #28](https://github.com/Edgemodders/REDcode/issues/28) by EDGEmat, after the owner searched Game Assets for `comfy rocker` and found nothing. Its first part, the wording "Search game files (file name or path)", shipped in REDcode 0.10.10. This page is its second part: **Search game files** also finds clothing items by in-game name or TweakDB id, and leads from an item to the meshes it wears.
+Draft 0.2, 2026-11-15, agreed with the owner the same day (decisions below). Asked for in [REDcode issue #28](https://github.com/Edgemodders/REDcode/issues/28) by EDGEmat, after the owner searched Game Assets for `comfy rocker` and found nothing. Its first part, the wording "Search game files (file name or path)", shipped in REDcode 0.10.10. This page is its second part: **Search game files** also finds clothing items by in-game name or TweakDB id, and leads from an item to the meshes it wears.
 
 The owner's rule from the issue holds: a **search** goes and finds, in its own result list, and may match data the tree does not show; a **filter** narrows the tree in place. So this is for **Search game files** (the magnifier on Game Assets) only. **Filter Game Assets** stays a file filter.
 
@@ -70,20 +70,30 @@ A busy bar shows while `itemMaterials` walks the item. Picking a mesh does what 
 
 One step, with one hand test: search by name and by id, an item's meshes for each body, a mesh opened, the first load with no cache, and a path search that looks as it does today.
 
-## For the owner to decide
+## As built
 
-1. **Which items.** edgemat-core finds clothing only. Weapons, vehicles and other items have other records and other walks to their files. Proposed: clothing now, as the issue asks; the rest later, each on request.
+Built 2026-11-15, hand test pending ([testing](../testing.html#item-search-28)).
+
+- `src/itemSearch.ts` (no VS Code imports): `ItemIndex` loads the items once per bridge process into EDGEmat's folder, filters by decision 4, and walks an item to its meshes. `src/gameSearch.ts` is the box. `bridgeClient.ts` has `request(method, params)` for `bridgeOver`.
+- The quick pick sorts rows by match as you type, which drops its separators. Search game files turns that off with `sortByLabel = false`, a property VS Code 1.146 takes from any extension although it is not in the typed API (proposed `quickPickSortByLabel`). Where a VS Code ignores it, the rows mix by match; nothing breaks.
+- File and item rows show whatever the bridge or edgemat-core matched (`alwaysShow`). So a path typed across a folder and a file name, such as `legs\l1_012`, no longer hides rows that VS Code's own match missed.
+
+## Decisions
+
+Agreed with the owner, 2026-11-15, as proposed:
+
+1. **Which items.** edgemat-core finds clothing only. Weapons, vehicles and other items have other records and other walks to their files. Agreed: clothing now, as the issue asks; the rest later, each on request.
 2. **Where the cache lives.**
    - **(a) Share EDGEmat's**, `%LOCALAPPDATA%\EDGEmat\items.json` (edgemat-core's `defaultCacheDir()`): when EDGEmat has loaded the items, REDcode skips the 14 s, and the other way round. The file is whole, keyed by game version, and written by the same code, so the two tools agree on it.
    - **(b) REDcode's own**, in its global storage: each tool pays the first load once.
 
-   Proposed: (a).
+   Agreed: (a).
 3. **What picking a mesh, or a file, does.** Today a pick ends in a toast with Open as JSON, Add to project and Copy path. On 2026-10-26 you noted that this toast comes up for every file.
    - **(a) Keep the toast** for files and meshes alike.
    - **(b) A pick opens the file** in REDcode's editor, read-only, as a click in Game Assets does: a mesh opens on its 3D view. The other actions move onto the row as buttons (Add to project, Copy path, Open as JSON).
 
-   Proposed: (b), for files too, so both groups behave alike. **Reveal in Game Assets** is left out: the Game Assets tree cannot yet find a node by path (it has no `getParent`), so that would be work of its own.
-4. **Test records.** `TEST.ItemPass_LegArmor` and crafting records show after the game's own items. Proposed: keep them, last, since a modder may want them; hide only records with no name and no `Items.` id.
+   Agreed: (b), for files too, so both groups behave alike. **Reveal in Game Assets** is left out: the Game Assets tree cannot yet find a node by path (it has no `getParent`), so that would be work of its own.
+4. **Test records.** `TEST.ItemPass_LegArmor` and crafting records show after the game's own items. Agreed: keep them, last, since a modder may want them; hide only records with no name and no `Items.` id.
 
 ## Not in this design
 

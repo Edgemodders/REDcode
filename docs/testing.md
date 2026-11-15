@@ -37,6 +37,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Resizable table columns (#26)](#resizable-table-columns-26) | By hand | Requests | 2026-11-10 | Pass, one fix |
 | [Export every LOD](#export-every-lod) | By hand | C4 | 2026-11-12 | Pass |
 | [Reveal in Project (#27) and the search wording (#28)](#reveal-in-project-27-and-the-search-wording-28) | By hand | Requests | 2026-11-15 | Pass |
+| [Item search (#28)](#item-search-28) | By hand | Requests | | Not run yet |
 | [Release 0.10.0: issues #5 to #8 and V4](#release-0100-issues-5-to-8-and-v4) | By hand | C5 | 2026-10-16 | Pass, ten fixes retested |
 | [Unit checks](#unit-checks) | Automated | C4 on | 2026-10-25 | Pass |
 | [Issue #11: Pack and Try through REDnode](#issue-11-pack-and-try-through-rednode) | By hand, in the game | C4 | Partly passed | On game 2.5, A and B pass (2026-10-26); steps 1 to 6 wait for Red Hot Tools on 2.5 |
@@ -689,6 +690,24 @@ Result (owner, 2026-11-15, F5 on main, EDGEmat 0.3.2 from its clone): pass, all 
 | 6a | Launch config **Run REDcode with Opens Test and EDGEmat** (EDGEmat from its clone beside REDcode; a vsix installed in the other configs stays off, as they run with `--disable-extensions`). In Game Assets, right-click a mesh, **Open in EDGEmat** | The mesh is on EDGEmat's **Desk** (the EDGEmat icon in the activity bar, the first view) |
 | 6b | **File > Close Folder**, so REDcode has no project open (EDGEmat asks for a project only then; with a project open it adds to that one and opens nothing) | |
 | 6c | On the Desk's line for the mesh, the new-file icon (**Add to Project...**). Pick **A project folder or .cpmodproj...** and choose the test project. Say yes to adding it | The window reloads on the project (the Desk stays). REDcode's Project view is focused with the mesh selected under `source\archive`, and EDGEmat's message says what was added |
+
+## Item search (#28)
+
+Built 2026-11-15 ([design](design/item-search.html)): Search game files also finds clothing items by in-game name or TweakDB id, through `@edgemodders/edgemat-core` 0.3.2, and a pick opens the file. Checked before the hand test by scratchpad `items28.mjs` against the game: 2,074 items loaded in 14.4 s with no cache and 4 ms from it, `comfy rocker` first finds `Items.Pants_01_basic_01`, whose meshes are `l1_012_pwa_pants__jeans_tight.mesh` (feminine) and `l1_012_pma_pants__jeans_tight.mesh` (masculine), in 0.47 s.
+
+| # | Do | Expected |
+|---|---|---|
+| 1 | Close VS Code windows that run EDGEmat. Rename `%LOCALAPPDATA%\EDGEmat\items.json` to `items.json.bak`, so there is no cache. F5 (**Run REDcode**), open a test project | |
+| 2 | The magnifier on Game Assets (**Search game files**). Type `comfy rocker` | The box says "file name, path or item name". Files show at once (none for this one); under **Items**, "Loading item names" with a spinner. After about 15 s the box fills in by itself: **Items (2)**, **Comfy rocker aramid-weave slim-fits** with `Items.Pants_01_basic_01  LegArmor` first, then the `TEST.ItemPass_LegArmor` one; **Files (0)** |
+| 3 | Type `rocker comfy`, then `Items.Pants_01_basic_01`, then `slim fits` | The same item first each time. `slim fits` lists 9. While typing, the Items group stays above the Files group |
+| 4 | Type `jacket` | **Items (327)** with 20 rows and "and 307 more: type more words", then **Files** with 200 of 3,027 rows |
+| 5 | Type `comfy rocker` again and pick the first item | The box turns into the item's page: its name and id on top, a Back arrow, a busy bar for under a second, then **Feminine** `l1_012_pwa_pants__jeans_tight.mesh` and **Masculine** `l1_012_pma_pants__jeans_tight.mesh`, each "appearance leather", with the folder under it |
+| 6 | Back arrow | The search again, with `comfy rocker` in the box and the same results |
+| 7 | On the item's page, pick the feminine mesh | The search closes and the mesh opens on its 3D view, read-only, as a click in Game Assets opens it |
+| 8 | Search again, on the item's page hover the masculine mesh: the three buttons. **Copy path**, then **Add to project** | Copy path: the status bar says it was copied, and the path pastes. Add to project: the box closes, and the mesh is in the project and selected in the Project view |
+| 9 | Search a path, such as `legs\l1_012`: pick a file; then on a file row the **Open as JSON** button | The file opens as a click in Game Assets does (a texture in the texture viewer); Open as JSON opens its JSON. No message comes up after a pick |
+| 10 | Close the project folder (**File > Close Folder**), search again and hover a file | Two buttons only: Copy path and Open as JSON |
+| 11 | **Developer: Reload Window**, search `comfy rocker` | Items come up at once, with no loading row: the cache from step 2. Delete `items.json.bak` |
 
 ## Never run
 

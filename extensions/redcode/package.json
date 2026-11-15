@@ -1328,6 +1328,7 @@
     "release:check": "node scripts/check-bridge-release.mjs"
   },
   "dependencies": {
+    "@edgemodders/edgemat-core": "0.3.2",
     "opus-decoder": "0.7.12",
     "vscode-jsonrpc": "^9.0.3"
   },
