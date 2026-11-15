@@ -72,7 +72,7 @@ One step, with one hand test: search by name and by id, an item's meshes for eac
 
 ## As built
 
-Built 2026-11-15, hand test pending ([testing](../testing.html#item-search-28)).
+Built 2026-11-15, hand-tested the same day ([testing](../testing.html#item-search-28)).
 
 - `src/itemSearch.ts` (no VS Code imports): `ItemIndex` loads the items once per bridge process into EDGEmat's folder, filters by decision 4, and walks an item to its meshes. `src/gameSearch.ts` is the box. `bridgeClient.ts` has `request(method, params)` for `bridgeOver`.
 - The quick pick sorts rows by match as you type, which drops its separators. Search game files turns that off with `sortByLabel = false`, a property VS Code 1.146 takes from any extension although it is not in the typed API (proposed `quickPickSortByLabel`). Where a VS Code ignores it, the rows mix by match; nothing breaks.

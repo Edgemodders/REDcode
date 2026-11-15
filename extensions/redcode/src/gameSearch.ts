@@ -28,6 +28,7 @@ const JsonButton: vscode.QuickInputButton = { iconPath: new vscode.ThemeIcon("js
 type Row = vscode.QuickPickItem & { file?: GameFileInfo; item?: ItemEntry; mesh?: string };
 
 const separator = (label: string): Row => ({ label, kind: vscode.QuickPickItemKind.Separator });
+const count = (n: number, word: string) => `${n.toLocaleString()} ${word}${n === 1 ? "" : "s"}`;
 const BodyNames = { feminine: "Feminine", masculine: "Masculine", any: "Any body" } as const;
 
 /** A game file's entry by its exact path, for a mesh an item names; a bare one when the search misses it. */
@@ -95,7 +96,7 @@ export function searchGameFiles(b: BridgeClient, index: ItemIndex, actions: Sear
       if (rows.length) rows.push(separator(`Files (${files.total.toLocaleString()})`));
       rows.push(...files.items.map(fileRow));
       picker.items = rows;
-      const counts = [hits?.length ? `${hits.length.toLocaleString()} items` : "", `${files.total.toLocaleString()} files${files.total > files.items.length ? `, showing ${files.items.length}` : ""}`];
+      const counts = [hits?.length ? count(hits.length, "item") : "", `${count(files.total, "file")}${files.total > files.items.length ? `, showing ${files.items.length}` : ""}`];
       picker.title = counts.filter(Boolean).join(", ");
     } catch (e) {
       if (mine === latest) picker.title = `Search failed: ${e instanceof Error ? e.message : e}`;

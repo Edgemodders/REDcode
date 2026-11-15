@@ -37,7 +37,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Resizable table columns (#26)](#resizable-table-columns-26) | By hand | Requests | 2026-11-10 | Pass, one fix |
 | [Export every LOD](#export-every-lod) | By hand | C4 | 2026-11-12 | Pass |
 | [Reveal in Project (#27) and the search wording (#28)](#reveal-in-project-27-and-the-search-wording-28) | By hand | Requests | 2026-11-15 | Pass |
-| [Item search (#28)](#item-search-28) | By hand | Requests | 2026-11-15 | Run 1: 10 of 11, one fix; step 2 to run again |
+| [Item search (#28)](#item-search-28) | By hand | Requests | 2026-11-15 | Pass, one fix |
 | [Release 0.10.0: issues #5 to #8 and V4](#release-0100-issues-5-to-8-and-v4) | By hand | C5 | 2026-10-16 | Pass, ten fixes retested |
 | [Unit checks](#unit-checks) | Automated | C4 on | 2026-10-25 | Pass |
 | [Issue #11: Pack and Try through REDnode](#issue-11-pack-and-try-through-rednode) | By hand, in the game | C4 | Partly passed | On game 2.5, A and B pass (2026-10-26); steps 1 to 6 wait for Red Hot Tools on 2.5 |
@@ -701,7 +701,7 @@ Run 1 (2026-11-15, scripted by the EDGEweb session for the owner: an EDGEkit 1.1
 - "Type at least 3 characters" shows only after the first character is typed.
 - EDGEkit's Command Palette has no Close Folder; Ctrl+K F does it.
 
-Step 2 is to be run again.
+Rerun on 036f110 (2026-11-15, the same setup, the cache deleted first): step 2 passes. The loading row and its title came 0.3 s after typing, and the results by themselves at 9.5 s. Step 9's texture case passes too: `pants__jeans_tight_n01.xbm` opened in the texture viewer, with no message. The title said "1 files" for one hit; it now says "1 file" (not rerun, wording only).
 
 | # | Do | Expected |
 |---|---|---|
