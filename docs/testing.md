@@ -684,7 +684,9 @@ Built 2026-11-13 for EDGEmat: `REDcodeApi.revealInProject(file)` selects a proje
 | 3 | The same, with a path under `source\raw` and with a folder's path | Each is selected the same way, `true` |
 | 4 | The same, with a path in the project that does not exist, and with a file outside the project | Nothing moves; the message says `false` |
 | 5 | **REDcode: Search game files** and **REDcode: Open game file as JSON** (Command Palette) | The box says "Search game files (file name or path)" |
-| 6 | Launch config **Run REDcode with Opens Test and EDGEmat** (EDGEmat from its clone beside REDcode; a vsix installed in the other configs stays off, as they run with `--disable-extensions`). The Desk's **Add to Project** with a project picked from disk that is not open | The window opens on that project, and the added mesh is selected in the Project view |
+| 6a | Launch config **Run REDcode with Opens Test and EDGEmat** (EDGEmat from its clone beside REDcode; a vsix installed in the other configs stays off, as they run with `--disable-extensions`). In Game Assets, right-click a mesh, **Open in EDGEmat** | The mesh is on EDGEmat's **Desk** (the EDGEmat icon in the activity bar, the first view) |
+| 6b | **File > Close Folder**, so REDcode has no project open (EDGEmat asks for a project only then; with a project open it adds to that one and opens nothing) | |
+| 6c | On the Desk's line for the mesh, the new-file icon (**Add to Project...**). Pick **A project folder or .cpmodproj...** and choose the test project. Say yes to adding it | The window reloads on the project (the Desk stays). REDcode's Project view is focused with the mesh selected under `source\archive`, and EDGEmat's message says what was added |
 
 ## Never run
 
