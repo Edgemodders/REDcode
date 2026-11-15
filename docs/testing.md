@@ -703,6 +703,8 @@ Run 1 (2026-11-15, scripted by the EDGEweb session for the owner: an EDGEkit 1.1
 
 Rerun on 036f110 (2026-11-15, the same setup, the cache deleted first): step 2 passes. The loading row and its title came 0.3 s after typing, and the results by themselves at 9.5 s. Step 9's texture case passes too: `pants__jeans_tight_n01.xbm` opened in the texture viewer, with no message. The title said "1 files" for one hit; it now says "1 file" (not rerun, wording only).
 
+Owner's check on a5a34a6 (2026-11-15, VS Code, **Run REDcode**, the owner's real cache folder): `comfy rocker` shows **Items (2)** above **Files (0)**, the first item's page lists a feminine and a masculine mesh, and the feminine mesh opens on its 3D view. The items came up at once, with no loading row: REDcode read the `%LOCALAPPDATA%\EDGEmat\items.json` that EDGEmat had written, so the shared cache works.
+
 | # | Do | Expected |
 |---|---|---|
 | 1 | Close VS Code windows that run EDGEmat. Rename `%LOCALAPPDATA%\EDGEmat\items.json` to `items.json.bak`, so there is no cache. F5 (**Run REDcode**), open a test project | |
