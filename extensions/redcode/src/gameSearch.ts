@@ -78,12 +78,17 @@ export function searchGameFiles(b: BridgeClient, index: ItemIndex, actions: Sear
     try {
       const items = index.loaded(b);
       const hits = items && index.search(items, q);
+      const loading: Row[] = !hits && !itemsFailed ? [separator("Items"), { label: "$(loading~spin) Loading item names", detail: "The first time for a game version takes about 15 seconds", alwaysShow: true }] : [];
+      // REDbridge answers one call at a time, so during the first load the file search waits for it too.
+      // Say so at once, rather than leave the box empty.
+      if (loading.length) {
+        picker.items = loading;
+        picker.title = "Files come when the item names are loaded";
+      }
       const files = await b.search(q, 200);
       if (mine !== latest || page || closed) return;
-      const rows: Row[] = [];
-      if (!hits && !itemsFailed) {
-        rows.push(separator("Items"), { label: "$(loading~spin) Loading item names", detail: "The first time for a game version takes about 15 seconds", alwaysShow: true });
-      } else if (hits?.length) {
+      const rows: Row[] = [...loading];
+      if (hits?.length) {
         rows.push(separator(`Items (${hits.length.toLocaleString()})`), ...hits.slice(0, MaxItems).map(itemRow));
         if (hits.length > MaxItems) rows.push({ label: `$(ellipsis) and ${(hits.length - MaxItems).toLocaleString()} more: type more words`, alwaysShow: true });
       }

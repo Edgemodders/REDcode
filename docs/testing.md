@@ -37,7 +37,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Resizable table columns (#26)](#resizable-table-columns-26) | By hand | Requests | 2026-11-10 | Pass, one fix |
 | [Export every LOD](#export-every-lod) | By hand | C4 | 2026-11-12 | Pass |
 | [Reveal in Project (#27) and the search wording (#28)](#reveal-in-project-27-and-the-search-wording-28) | By hand | Requests | 2026-11-15 | Pass |
-| [Item search (#28)](#item-search-28) | By hand | Requests | | Not run yet |
+| [Item search (#28)](#item-search-28) | By hand | Requests | 2026-11-15 | Run 1: 10 of 11, one fix; step 2 to run again |
 | [Release 0.10.0: issues #5 to #8 and V4](#release-0100-issues-5-to-8-and-v4) | By hand | C5 | 2026-10-16 | Pass, ten fixes retested |
 | [Unit checks](#unit-checks) | Automated | C4 on | 2026-10-25 | Pass |
 | [Issue #11: Pack and Try through REDnode](#issue-11-pack-and-try-through-rednode) | By hand, in the game | C4 | Partly passed | On game 2.5, A and B pass (2026-10-26); steps 1 to 6 wait for Red Hot Tools on 2.5 |
@@ -695,10 +695,18 @@ Result (owner, 2026-11-15, F5 on main, EDGEmat 0.3.2 from its clone): pass, all 
 
 Built 2026-11-15 ([design](design/item-search.html)): Search game files also finds clothing items by in-game name or TweakDB id, through `@edgemodders/edgemat-core` 0.3.2, and a pick opens the file. Checked before the hand test by scratchpad `items28.mjs` against the game: 2,074 items loaded in 14.4 s with no cache and 4 ms from it, `comfy rocker` first finds `Items.Pants_01_basic_01`, whose meshes are `l1_012_pwa_pants__jeans_tight.mesh` (feminine) and `l1_012_pma_pants__jeans_tight.mesh` (masculine), in 0.47 s.
 
+Run 1 (2026-11-15, scripted by the EDGEweb session for the owner: an EDGEkit 1.140.6 trial editor with `--extensionDevelopmentPath` on de86cfa, its own profile, `LOCALAPPDATA` on a scratch folder so there was no cache, a scratch REDbridge 0.12.1, a scratch REDcode project): 10 of 11 steps pass, and step 2 passes in part. In step 2, the box stayed empty under a busy bar for 10.3 s and then filled in by itself as expected, but the "Loading item names" row never showed. The cause: REDbridge answers one call at a time, the file search waited behind the item load, and the rows were set only when it came back. Fixed: the loading row and a title saying files wait show at once, and step 2 now expects that, not files at once. Also seen:
+- Step 4: Items stayed above Files on EDGEkit 1.140.6 too.
+- Step 9: the texture case was not run (no `.xbm` among the rows).
+- "Type at least 3 characters" shows only after the first character is typed.
+- EDGEkit's Command Palette has no Close Folder; Ctrl+K F does it.
+
+Step 2 is to be run again.
+
 | # | Do | Expected |
 |---|---|---|
 | 1 | Close VS Code windows that run EDGEmat. Rename `%LOCALAPPDATA%\EDGEmat\items.json` to `items.json.bak`, so there is no cache. F5 (**Run REDcode**), open a test project | |
-| 2 | The magnifier on Game Assets (**Search game files**). Type `comfy rocker` | The box says "file name, path or item name". Files show at once (none for this one); under **Items**, "Loading item names" with a spinner. After about 15 s the box fills in by itself: **Items (2)**, **Comfy rocker aramid-weave slim-fits** with `Items.Pants_01_basic_01  LegArmor` first, then the `TEST.ItemPass_LegArmor` one; **Files (0)** |
+| 2 | The magnifier on Game Assets (**Search game files**). Type `comfy rocker` | The box says "file name, path or item name". At once: under **Items**, "Loading item names" with a spinner, and the title "Files come when the item names are loaded" (REDbridge answers one call at a time, so files wait for the load). After about 15 s the box fills in by itself: **Items (2)**, **Comfy rocker aramid-weave slim-fits** with `Items.Pants_01_basic_01  LegArmor` first, then the `TEST.ItemPass_LegArmor` one; **Files (0)** |
 | 3 | Type `rocker comfy`, then `Items.Pants_01_basic_01`, then `slim fits` | The same item first each time. `slim fits` lists 9. While typing, the Items group stays above the Files group |
 | 4 | Type `jacket` | **Items (327)** with 20 rows and "and 307 more: type more words", then **Files** with 200 of 3,027 rows |
 | 5 | Type `comfy rocker` again and pick the first item | The box turns into the item's page: its name and id on top, a Back arrow, a busy bar for under a second, then **Feminine** `l1_012_pwa_pants__jeans_tight.mesh` and **Masculine** `l1_012_pma_pants__jeans_tight.mesh`, each "appearance leather", with the folder under it |

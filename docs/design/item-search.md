@@ -57,7 +57,7 @@ l1_012_pma_pants__jeans_tight.mesh    appearance leather
 
 A busy bar shows while `itemMaterials` walks the item. Picking a mesh does what picking a file does (see decision 3).
 
-**The first load runs in the background.** The first time Search game files opens in a session with no cache for this game version, it starts `loadItems` and shows files at once. While it runs, the Items group is one row: "Loading item names, the first time for this game version (about 15 s)". When it ends, the box searches again with what is typed. It runs once, even when the box is closed and opened again. Nothing loads at REDcode's start.
+**The first load runs in the background.** The first time Search game files opens in a session with no cache for this game version, it starts `loadItems`. While it runs, the Items group is one row: "Loading item names, the first time for this game version (about 15 s)". REDbridge answers one call at a time, so file results wait for the load too; the box says so ("Files come when the item names are loaded"). Found in the hand test's run 1, 2026-11-15: the draft said files show at once, and they cannot while the bridge loads. When it ends, the box searches again with what is typed. It runs once, even when the box is closed and opened again. Nothing loads at REDcode's start.
 
 ## How it is built
 
