@@ -7,7 +7,7 @@ import * as vscode from "vscode";
 import { AssetBrowser, type AssetNode } from "./assetBrowser";
 import { searchGameFiles as showGameSearch } from "./gameSearch";
 import { ItemIndex } from "./itemSearch";
-import { addToLibrary, libraryRoot } from "./libraryCommand";
+import { addToLibrary, libraryChanged, libraryRoot } from "./libraryCommand";
 import { registerLibraryView, type LibraryTree } from "./libraryView";
 import { BridgeClient } from "./bridgeClient";
 import {
@@ -208,7 +208,9 @@ export function activate(context: vscode.ExtensionContext): REDcodeApi | undefin
     vscode.commands.registerCommand("redcode.openAssetAsJson", (node: AssetNode) => withBridge((b) => openAssetAsJson(b, node))),
     vscode.commands.registerCommand("redcode.addToProject", (node: AssetNode) => withBridge((b) => addToProject(b, node))),
     vscode.commands.registerCommand("redcode.extractTo", (node: AssetNode) => withBridge((b) => extractTo(b, node))),
-    vscode.commands.registerCommand("redcode.addToLibrary", (node: AssetNode | ProjectNode) => withBridge((b) => addNodeToLibrary(b, node, context)).finally(() => libraryTree.refresh())),
+    vscode.commands.registerCommand("redcode.addToLibrary", (node: AssetNode | ProjectNode) => withBridge((b) => addNodeToLibrary(b, node, context))),
+    libraryChanged,
+    libraryChanged.event(() => libraryTree.refresh()),
     vscode.commands.registerCommand("redcode.copyAssetPath", (node: AssetNode) => copyAssetPath(node)),
     vscode.commands.registerCommand("redcode.openProjectFile", (node: ProjectNode) => openProjectFile(node)),
     vscode.commands.registerCommand("redcode.openProjectFileAsJson", (node: ProjectNode) => withBridge((b) => openProjectFileAsJson(b, node))),

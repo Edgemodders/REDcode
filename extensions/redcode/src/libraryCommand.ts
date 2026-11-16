@@ -119,6 +119,9 @@ function pickFolder(context: vscode.ExtensionContext, root: string, main: string
   });
 }
 
+/** Fires when Add to Library has written an item, so the Library view shows it. */
+export const libraryChanged = new vscode.EventEmitter<void>();
+
 /** Add to Library on a file in Game Assets or the Project view. */
 export async function addToLibrary(b: BridgeClient, source: AssetSource, context: vscode.ExtensionContext, log: vscode.OutputChannel): Promise<void> {
   const info = await b.info();
@@ -162,6 +165,8 @@ export async function addToLibrary(b: BridgeClient, source: AssetSource, context
     });
   });
   if (!result) return;
+  // At once: the message below waits until it is closed, which can be never.
+  libraryChanged.fire();
   await context.globalState.update(LastFolder, picked.folder);
   await context.globalState.update(UseGamePath, picked.gamePath);
 

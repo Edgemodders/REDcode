@@ -649,6 +649,8 @@ Built 2026-11-15 ([design](design/library-view.html)). F5 with **Run REDcode wit
 
 Afterwards: delete the `REDcode test` folder from the Library in File Explorer, and press Refresh.
 
+Run 1 (2026-11-15, scripted by the EDGEweb session: an EDGEkit trial editor on a267d78, `APPDATA` on a scratch folder with a copy of the owner's Library, an invented EDGEfab prop and a loose `.glb`; the owner's Library untouched), in progress: steps 1 and 2 pass. Step 3 failed: the item was written (`REDcode test/delivery_crate_a.mesh.asset`, 3 files copied, 12 left in the game) but the view showed it only after Refresh. The cause, as EDGEweb read it: the view refreshed after Add to Library's command ended, and the command ends only when its closing message is closed or its button pressed. Fixed: Add to Library tells the view as soon as the item is written (`libraryChanged` in `src/libraryCommand.ts`). Step 3 waits for a rerun.
+
 ## Animations A2
 
 Built 2026-11-15 for REDcode issue #21 ([design](design/animation.html#a2-as-built)), on REDbridge 0.13.0. No game needs to run. Checked before: type check, build, `npm test` (42), the smoke test against REDbridge 0.13.0 (23.6 s), and against the game with REDbridge 0.13.0 built from its tag: scratchpad `a2probe.mjs` (each body has all the bones its clips drive), `a2mod.mjs` (8 checks of `src/animsGlb.ts`: bodies, the cache's variants, the entity's account) and `a2harness.mjs` in Chrome with the real bundle (the base male body on the crew's clips, the paramedic with root motion on and off, the AV with bones only; no console errors). That automated tab ran slowly, so smooth playback has not been seen.
