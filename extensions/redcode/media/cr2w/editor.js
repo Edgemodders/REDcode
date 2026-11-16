@@ -80,9 +80,15 @@
     } else if (m.type === "showAnimation") {
       // The host asks for an animation (REDcodeApi.openAnimation); before the view is up, it waits for it.
       if (sidebar) return;
-      if (meshView?.showAnimation && mode === "anims") meshView.showAnimation(m.name);
-      else {
-        pendingAnimation = m.name;
+      if (m.rebody && mode === "anims") {
+        // Another entity to play on: the view is built again on it, at the animation asked for.
+        pendingAnimation = m.name ?? null;
+        disposeMesh();
+        void render(true);
+      } else if (meshView?.showAnimation && mode === "anims") {
+        if (m.name) meshView.showAnimation(m.name);
+      } else {
+        pendingAnimation = m.name ?? null;
         if (!opening && home === "anims" && mode !== "anims") { mode = "anims"; void render(true); }
       }
     } else if (m.type === "flush") {
@@ -300,7 +306,10 @@
         skeleton: base64ToBuffer(payload.skeleton),
         rig: payload.rig,
         animations: payload.animations,
-        clip: async (index) => base64ToBuffer(await request("animClip", { index })),
+        clip: async (index, rootMotion) => base64ToBuffer(await request("animClip", { index, rootMotion })),
+        body: payload.body ? { data: base64ToBuffer(payload.body.data), label: payload.body.label, notes: payload.body.notes ?? [] } : undefined,
+        bodyNote: payload.bodyNote,
+        rootMotion: !!payload.rootMotion,
         initial,
         note: payload.dirty ? "Shows the saved file; save to see your edits" : "",
         say: (message) => status(message, "error"),

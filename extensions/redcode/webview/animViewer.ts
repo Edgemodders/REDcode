@@ -1,7 +1,8 @@
-// The animation view (docs/design/animation.md, A1), bundled with the mesh viewer into
+// The animation view (docs/design/animation.md, A1 and A2), bundled with the mesh viewer into
 // media/mesh/viewer.js and loaded by the CR2W editor's animations mode. It shows an .anims file's rig
-// as bones and joints, and plays the animation picked: the list and the skeleton come first, and each
-// animation's keys come from the host when it is picked, since an export can hold hundreds of MB.
+// as bones and joints, or a body on it, and plays the animation picked: the list and the skeleton come
+// first, and each animation's keys come from the host when it is picked, since an export can hold
+// hundreds of MB. Root motion is a switch: its keys come from a second export.
 
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
@@ -20,8 +21,17 @@ export interface AnimsSource {
   /** The game path of the rig the file names. */
   rig: string;
   animations: AnimClipInfo[];
-  /** The bytes of a .glb holding only the animation at this index. */
-  clip: (index: number) => Promise<ArrayBuffer>;
+  /** The bytes of a .glb holding only the animation at this index, with its root motion or in place. */
+  clip: (index: number, rootMotion: boolean) => Promise<ArrayBuffer>;
+  /**
+   * A body on the rig (A2): a .glb whose skin has the bones the clips drive, by name. A base body, or a
+   * character's or vehicle's meshes. Without one, the bones show alone.
+   */
+  body?: { data: ArrayBuffer; label: string; notes: string[] };
+  /** Why there is no body, or not the one asked for. */
+  bodyNote?: string;
+  /** Plays the root motion at first: the whole rig moves through the scene. */
+  rootMotion?: boolean;
   /** The animation to open at, by name. */
   initial?: string;
   /** Shown in the toolbar, such as when the file has unsaved edits. */
@@ -72,17 +82,41 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
     note.textContent = `Could not read the rig: ${e instanceof Error ? e.message : String(e)}`;
     return { dispose: () => renderer.dispose(), refreshMaterials: () => undefined, showAnimation: () => undefined };
   }
+  // A body, when there is one, is what the clips move: its bones carry the same names as the rig's.
+  let bodyRoot: THREE.Object3D | undefined;
+  let bodyError = "";
+  const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x9aa3b5, roughness: 0.75, metalness: 0 });
+  if (source.body) {
+    try {
+      bodyRoot = (await loader.parseAsync(source.body.data, "")).scene;
+      // Exported without materials: one plain material, and no culling by the bind pose's bounds, which
+      // root motion leaves behind.
+      bodyRoot.traverse((o) => {
+        const mesh = o as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        mesh.material = bodyMaterial;
+        mesh.frustumCulled = false;
+      });
+    } catch (e) {
+      bodyError = `Could not read the body: ${e instanceof Error ? e.message : String(e)}`;
+    }
+  }
+  const animated = bodyRoot ?? root;
   note.remove();
   stage.appendChild(renderer.domElement);
-  scene.add(root);
-  root.updateMatrixWorld(true);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x404040, 1.6));
+  const sun = new THREE.DirectionalLight(0xffffff, 1.4);
+  sun.position.set(2, 4, 3);
+  scene.add(sun);
+  scene.add(animated);
+  animated.updateMatrixWorld(true);
 
   // Bones as lines from each bone to its parent, joints as dots, both over anything else.
   const bones: THREE.Bone[] = [];
-  root.traverse((o) => {
+  animated.traverse((o) => {
     if ((o as THREE.Bone).isBone) bones.push(o as THREE.Bone);
   });
-  const lines = new THREE.SkeletonHelper(root);
+  const lines = new THREE.SkeletonHelper(animated);
   const accent = cssColour("--vscode-textLink-foreground", "#19f3ff");
   (lines.material as THREE.LineBasicMaterial).vertexColors = false;
   (lines.material as THREE.LineBasicMaterial).color = accent;
@@ -108,7 +142,7 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
   scene.add(grid);
 
   const frame = () => {
-    root.updateMatrixWorld(true);
+    animated.updateMatrixWorld(true);
     const box = new THREE.Box3();
     for (const b of bones) box.expandByPoint(b.getWorldPosition(at));
     if (box.isEmpty()) return;
@@ -122,13 +156,35 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
     controls.target.copy(centre);
     controls.update();
     const size = box.getSize(new THREE.Vector3());
-    const span = Math.ceil(Math.max(size.x, size.z, 1) * 2);
-    grid.scale.setScalar(span);
+    span = Math.ceil(Math.max(size.x, size.z, 1) * 2);
+    sizeGrid();
     grid.position.y = box.min.y;
+    followed = undefined;
+  };
+  let span = 1;
+  // With root motion the grid stays where it is and spans more, so the rig's travel shows against it.
+  const sizeGrid = () => grid.scale.setScalar(rootMotion ? Math.max(span, 50) : span);
+
+  // With root motion on, the camera keeps to the rig's Root: it moves by as much as Root moved.
+  const rootBone = bones.find((b) => b.name === "Root");
+  let followed: THREE.Vector3 | undefined;
+  const follow = () => {
+    if (!rootBone || !rootMotion) {
+      followed = undefined;
+      return;
+    }
+    const now = rootBone.getWorldPosition(new THREE.Vector3());
+    if (followed) {
+      const by = now.clone().sub(followed);
+      camera.position.add(by);
+      controls.target.add(by);
+    }
+    followed = now;
   };
 
   // ---- the transport ---------------------------------------------------------------------------
-  const mixer = new THREE.AnimationMixer(root);
+  const mixer = new THREE.AnimationMixer(animated);
+  let rootMotion = !!source.rootMotion;
   let action: THREE.AnimationAction | null = null;
   let current = -1;
   let playing = false;
@@ -171,8 +227,59 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
   fit.addEventListener("click", frame);
   const rigName = el("span", "dim mono animrig", source.rig ? `Rig ${source.rig.split("\\").pop()}` : "");
   rigName.title = source.rig;
-  bar.append(fit, rigName);
+  const toggle = (label: string, title: string, on: boolean, set: (on: boolean) => void) => {
+    const b = el("button", on ? "on" : "", label);
+    b.title = title;
+    b.addEventListener("click", () => {
+      const now = !b.classList.contains("on");
+      b.classList.toggle("on", now);
+      set(now);
+    });
+    return b;
+  };
+  // With a body the bones are off at first; without one they are all there is to see.
+  const showBones = (on: boolean) => {
+    lines.visible = on;
+    dots.visible = on;
+  };
+  const bonesButton = toggle("Bones", "Show the bones and joints", !bodyRoot, showBones);
+  bar.append(fit);
+  if (bodyRoot) {
+    const meshes: THREE.Object3D[] = [];
+    bodyRoot.traverse((o) => {
+      if ((o as THREE.Mesh).isMesh) meshes.push(o);
+    });
+    bar.append(toggle("Body", "Show the body", true, (on) => meshes.forEach((m) => (m.visible = on))), bonesButton);
+  }
+  bar.append(
+    toggle("Root motion", "Move the whole rig as the animation moves it through the scene; off, it plays in place", rootMotion, (on) => {
+      rootMotion = on;
+      // The keys come again from the other export; the same animation goes on at the same moment.
+      const at = action?.time ?? 0;
+      action?.stop();
+      action = null;
+      for (const c of clips.values()) mixer.uncacheClip(c);
+      clips.clear();
+      sizeGrid();
+      // The rig jumps to where the other keys put it: the view goes with it.
+      if (current >= 0) void pick(current, at).then(frame);
+    }),
+    rigName,
+  );
+  if (bodyRoot && source.body) {
+    const bodyName = el("span", "dim animrig", `On ${source.body.label}`);
+    bodyName.title = [source.body.label, ...source.body.notes].join("\n");
+    bar.append(bodyName);
+  }
+  const bodyProblem = bodyError || source.bodyNote;
+  if (bodyProblem) {
+    const warn = el("span", "dim", bodyRoot ? "(not the entity asked for)" : "(bones only)");
+    warn.title = bodyProblem;
+    bar.append(warn);
+    source.say?.(bodyProblem);
+  }
   if (source.note) bar.append(el("span", "dim", source.note));
+  if (bodyRoot) showBones(false);
 
   const info = () => source.animations[current];
   const showTime = () => {
@@ -200,6 +307,7 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
     action.enabled = true;
     mixer.update(0);
     moveDots();
+    follow();
     showTime();
   };
   const step = (by: number) => {
@@ -267,8 +375,8 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
     });
   });
 
-  /** Goes to an animation: asks the host for its keys unless they are here, then plays it. */
-  async function pick(index: number): Promise<void> {
+  /** Goes to an animation: asks the host for its keys unless they are here, then plays it, from at when given. */
+  async function pick(index: number, at?: number): Promise<void> {
     const a = source.animations[index];
     if (!a) return;
     const mine = ++asking;
@@ -279,7 +387,7 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
     let clip = clips.get(index);
     if (!clip) {
       try {
-        const parsed = await loader.parseAsync(await source.clip(index), "");
+        const parsed = await loader.parseAsync(await source.clip(index, rootMotion), "");
         clip = parsed.animations[0];
         if (!clip) throw new Error("the export holds no keys for it");
       } catch (e) {
@@ -305,9 +413,12 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
     action.play();
     scrub.max = String(a.duration || 1);
     scrub.value = "0";
-    setPlaying(true);
+    const wasPlaying = at === undefined || playing;
+    setPlaying(wasPlaying);
+    if (at !== undefined) action.time = Math.min(at, a.duration);
     mixer.update(0);
     moveDots();
+    follow();
     showTime();
   }
 
@@ -345,6 +456,7 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
     if (playing && action) {
       mixer.update(delta * speed);
       moveDots();
+      follow();
       showTime();
     }
     controls.update();
@@ -368,6 +480,8 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
       renderer.dispose();
       dotGeometry.dispose();
       dotMaterial.dispose();
+      bodyMaterial.dispose();
+      bodyRoot?.traverse((o) => (o as THREE.Mesh).geometry?.dispose());
       lines.dispose();
       grid.dispose();
     },

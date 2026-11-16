@@ -191,6 +191,23 @@ export interface ExportOptions {
   meshMaterials?: boolean;
   materialTextureFormat?: string;
   meshLodFilter?: boolean;
+  /** A .mesh skinned on a rig: a game path or a .rig file (bridge 0.13.0). */
+  rig?: string;
+  /** Several rigs joined into one skeleton, for a body that needs its deformations rig too (bridge 0.13.0). */
+  rigs?: string[];
+  /** A .ent in one appearance, "default" for the first: every mesh of it on one skeleton (bridge 0.13.0). */
+  appearance?: string;
+  /** An .anims with its root motion on the Root node's channels (bridge 0.13.0). */
+  rootMotion?: boolean;
+}
+
+/** What an entity export put on the skeleton and what it left out (bridge 0.13.0). */
+export interface EntityExport {
+  appearance: string;
+  rigs: string[];
+  joints: number;
+  meshes: { component: string; mesh: string; on: string; why?: string | null }[];
+  leftOut?: { component?: string; mesh?: string; why?: string }[];
 }
 
 // ---- tweakdb (bridge 0.8.0): TweakDB as the game ships it, read from r6/cache/tweakdb_ep1.bin ----
@@ -337,6 +354,8 @@ export interface ModkitResult {
   mesh?: MeshImport | null;
   /** Set when an image import wrote a .xbm: its setup, read back from the file (bridge 0.12.0). */
   texture?: TextureSetup | null;
+  /** Set when a .ent was exported in one appearance (bridge 0.13.0). */
+  entity?: EntityExport | null;
 }
 
 /**

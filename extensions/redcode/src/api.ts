@@ -120,9 +120,11 @@ export interface REDcodeApi {
   /**
    * Opens an .anims file on its animations, playing them on the rig the file names. path is what openFile
    * takes. With animationName, it opens at that animation. Since 0.10.7 (REDcode issue #21): check that the
-   * member is there before calling it.
+   * member is there before calling it. A man's or woman's base rig plays on the base body. Since 0.10.12, with
+   * options.entity (a game path or a .ent on disk), it plays on that character's or vehicle's meshes in
+   * options.appearance (the first when not given) instead.
    */
-  openAnimation(path: string, animationName?: string): Promise<void>;
+  openAnimation(path: string, animationName?: string, options?: AnimationOptions): Promise<void>;
   /**
    * Selects a file or folder of the open project in the Project view, unfolding its folders, and shows and
    * focuses the view. file is a path on disk, such as one under the project's source\archive. Resolves false
@@ -155,8 +157,16 @@ export interface ApiHost {
   packAndPlay(): Promise<"rednode" | "hot" | "installed" | undefined>;
   editInBlender(file: string): Promise<void>;
   openFile(target: string, node?: string): Promise<void>;
-  openAnimation(path: string, animationName?: string): Promise<void>;
+  openAnimation(path: string, animationName?: string, options?: AnimationOptions): Promise<void>;
   revealInProject(file: string): Promise<boolean>;
+}
+
+/** What REDcodeApi.openAnimation plays an animation on (since 0.10.12). */
+export interface AnimationOptions {
+  /** A character or vehicle entity: a game path or a .ent on disk. */
+  entity?: string;
+  /** The entity's appearance; the first when not given. */
+  appearance?: string;
 }
 
 export function projectRef(p: ProjectInfo | undefined): ProjectRef | undefined {

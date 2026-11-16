@@ -6,7 +6,7 @@ import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { BridgeClient } from "./bridgeClient";
-import type { ExportOptions } from "./types";
+import type { ExportOptions, ModkitResult } from "./types";
 
 /** A file on disk (a project's source/archive, or anywhere), or a game path. */
 export interface ExportSource {
@@ -102,11 +102,13 @@ export async function sourceFile(bridge: BridgeClient, cacheRoot: string, source
 /**
  * The export of a source with the extension ext (".glb", ".ogg"), from the cache when it is newer
  * than the source. what names the format in the error, for a file WolvenKit could not convert.
+ * variant keeps exports made with other options apart (a mesh on its rig, an .anims with root
+ * motion), since WolvenKit names the output by the source alone.
  */
-export async function cachedExport(bridge: BridgeClient, cacheRoot: string, source: ExportSource, ext: string, options: ExportOptions, what: string): Promise<CachedExport> {
+export async function cachedExport(bridge: BridgeClient, cacheRoot: string, source: ExportSource, ext: string, options: ExportOptions, what: string, variant?: string): Promise<CachedExport & { result?: ModkitResult }> {
   const { file, archiveDir } = await sourceFile(bridge, cacheRoot, source);
   const key = crypto.createHash("sha1").update(archiveDir.toLowerCase()).digest("hex").slice(0, 12);
-  const rawDir = path.join(cacheRoot, "raw", key);
+  const rawDir = path.join(cacheRoot, "raw", variant ? `${key}-${variant}` : key);
   const rel = path.relative(archiveDir, file);
   const out = path.join(rawDir, rel.slice(0, rel.length - path.extname(rel).length) + ext);
   if (mtime(out) > mtime(file)) return { file: out, cached: true };
@@ -114,5 +116,5 @@ export async function cachedExport(bridge: BridgeClient, cacheRoot: string, sour
   if (!r.ok || !fs.existsSync(out)) {
     throw new Error(`WolvenKit could not export ${path.basename(file)} to ${what}${r.written.length ? `; it wrote ${r.written.join(", ")}` : ""}`);
   }
-  return { file: out, cached: false };
+  return { file: out, cached: false, result: r };
 }

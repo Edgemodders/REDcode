@@ -4,6 +4,15 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 ## Unreleased
 
+**New**
+
+- The animation view puts a body on the rig. A man's or a woman's animations play on the base body, and on a character's or vehicle's own meshes when another tool asks for them, such as EDGEquest's Preview. **Body** and **Bones** switch each on and off (https://github.com/Edgemodders/REDcode/issues/21).
+- A **Root motion** switch in the animation view: the whole rig moves through the scene as the animation moves it, such as the Trauma Team soldiers landing from their AV, and the view follows it. It is off at first, and REDcode remembers your choice.
+
+**Changed**
+
+- Needs REDbridge 0.13.0 (https://github.com/Edgemodders/REDbridge/releases/tag/v0.13.0), for the bodies and root motion. REDcode offers the update when it starts.
+
 ## 0.10.11 (2026-11-15)
 
 Search game files finds clothing by its in-game name, and opens what you pick. Needs REDbridge 0.12.0, as before.

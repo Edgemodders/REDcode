@@ -4,7 +4,7 @@ title: Animations (C5)
 
 # Animations: a game animation played on its rig
 
-Draft 0.3, 2026-11-06, agreed with the owner (decisions below). A1 is built and passed its hand test on 2026-11-06 ([testing](../testing.html#animations-a1)). Asked for in [REDcode issue #21](https://github.com/Edgemodders/REDcode/issues/21) by EDGEquest, whose Animation picker needs a preview without a 3D viewer of its own. It is the "Animations" step that [View (C5)](view.html) deferred. Not urgent: EDGEquest needs it when its happenings around V (Q8 H4) are planned.
+Draft 0.4, 2026-11-15, agreed with the owner (decisions below). A1 is built and passed its hand test on 2026-11-06 ([testing](../testing.html#animations-a1)). A2 is built on REDbridge 0.13.0, hand test pending ([testing](../testing.html#animations-a2)). Asked for in [REDcode issue #21](https://github.com/Edgemodders/REDcode/issues/21) by EDGEquest, whose Animation picker needs a preview without a 3D viewer of its own. It is the "Animations" step that [View (C5)](view.html) deferred. Not urgent: EDGEquest needs it when its happenings around V (Q8 H4) are planned.
 
 ## What the game gives
 
@@ -39,6 +39,25 @@ Each step is a commit or two with a hand test on the owner's machine, as before.
 
 Found on the way: a vehicle rig hangs every bone off one root, so the AV is a star of lines, not a shape. Bones alone say little for vehicles, and root motion is off, so the AV's landing does not move through the air until A2. Some long lines on a human rig look like helper bones from the floor: unverified.
 
+## A2 as built
+
+Built 2026-11-15 on REDbridge 0.13.0, which took A2's part of [REDbridge #14](https://github.com/Edgemodders/REDbridge/issues/14) (`project.export` options `rig`/`rigs`, `appearance` and `rootMotion`). Checked on game 2.5 before the hand test (scratchpad `a2probe.mjs`, `a2mod.mjs`, and `a2harness.mjs` in Chrome with the real bundle):
+
+| Body | Export | Bones the clips drive that it has |
+|---|---|---|
+| Base male body, `t0_000_ma_base__full.mesh` on `man_base.rig` and `man_base_deformations.rig` | 1.2 s the first time, 2.1 MB, 187 joints | 71 of 71 (the crew's clips) |
+| Base female body, `t0_000_wa_base__full.mesh` on `woman_base.rig` and `woman_base_deformations.rig` | 0.2 s, 2.2 MB, 187 joints | 71 of 71 (two `woman_average` NPC clips) |
+| The Trauma Team paramedic, `corpo__ep1_traumateam_ma.ent` in `corpo__traumateam_ma_paramedic__lvl1_01` | 1.6 s, 13.8 MB, 22 meshes on 512 joints (its far proxy left out) | 71 of 71 |
+
+- **`src/animsGlb.ts`:** `baseBodyFor(rig)` gives the base body for exactly `man_base.rig` or `woman_base.rig`; any other rig (a vehicle's, a prop's, a cyberware rig) keeps its bones alone. The body needs its deformations rig for its muscle and twist bones, and the base rig for the six bones the clips drive that the deformations rig lacks (eyes, weapons, `Trajectory`, `reference_joint`). `baseBodyGlb` and `entityBodyGlb` export without materials. The bridge's account of an entity (meshes, joints, what was left out) is kept beside its GLB, since a cached export does not ask again.
+- **The export cache** takes a variant (`src/exportCache.ts`), so a mesh on its rig, an entity in each appearance and an `.anims` with root motion do not overwrite the plain export of the same file.
+- **The page** (`webview/animViewer.ts`) plays the clips on the body's own bones, bound by name, with one plain grey material. **Body** and **Bones** switch each on and off; with a body, the bones are off at first. **Root motion** asks for each clip again from the root motion export, at the same moment. With it on, the view follows the rig's `Root` and the grid spans at least 50 m, so the travel shows against it. Its setting is kept in global state (`cr2w.animsRootMotion`), off at first.
+- **`REDcodeApi.openAnimation(path, name, { entity, appearance })`**: an entity is kept per `.anims` while REDcode runs. A tab already open is built again on the new entity. An entity that cannot be exported falls back to the base body, and the status line says why.
+
+Found on the way:
+- The base bodies have no heads: a character's head is a mesh of its own. An entity has its head.
+- With root motion, the soldiers' landing carries the rig about 14 m. The drop from the AV is in the body's own bones (Root's height stays 0), so it shows with root motion on or off.
+
 ## Decisions
 
 Agreed with the owner, 2026-11-06:
@@ -47,6 +66,8 @@ Agreed with the owner, 2026-11-06:
 2. **A body when the caller passes none:** the base body of the rig's kind for human rigs. A vehicle rig keeps the skeleton.
 3. **A3 Synced sets** is in this design.
 4. **The view** is a mode of the CR2W editor, as the mesh viewer is: the same three.js bundle and toolbar.
+
+Agreed with the owner, 2026-11-15, for A2: bodies come without textures for now, and root motion is off at first.
 
 ## Not in this design
 

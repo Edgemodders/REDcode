@@ -4,6 +4,8 @@
 const vscode = require("vscode");
 
 const TraumaCrew = "base\\animations\\quest_custom\\q001\\q001_00c_rescuing_girl\\q001_00c_trauma_arrives\\q001_00c_trauma_arrives_male_average.anims";
+const TraumaSoldiers = "base\\animations\\quest\\main_quests\\prologue\\q001\\q001_00c_rescuing_girl\\anim\\synced\\synced__q001_00c__male_average.anims";
+const TraumaTeam = "ep1\\characters\\entities\\corpo\\corpo__ep1_traumateam_ma.ent";
 
 async function redcode() {
   const ext = vscode.extensions.getExtension("edgemodders.redcode-cyberpunk");
@@ -22,6 +24,15 @@ exports.activate = (context) => {
         return;
       }
       await api.openAnimation(TraumaCrew, "q001_00c_trauma_arrives___med_2_idle__01");
+    }),
+    vscode.commands.registerCommand("openstest.openAnimationOnEntity", async () => {
+      // A2 (REDcode 0.10.12): the soldiers' landing from the AV, on the Trauma Team paramedic's own meshes.
+      const api = await redcode();
+      if (typeof api?.openAnimation !== "function") {
+        void vscode.window.showWarningMessage("This REDcode has no openAnimation.");
+        return;
+      }
+      await api.openAnimation(TraumaSoldiers, "synced__q001_00c_trauma_arrives_soldiers__land_v1__soldier_01", { entity: TraumaTeam, appearance: "corpo__traumateam_ma_paramedic__lvl1_01" });
     }),
     vscode.commands.registerCommand("openstest.openAnimationNotAnims", async () => {
       const api = await redcode();

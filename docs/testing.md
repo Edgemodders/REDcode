@@ -32,6 +32,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Add to Library (#19)](#add-to-library-19) | By hand | Requests | 2026-11-06 | Pass, one fix |
 | [Open contract (#22)](#open-contract-22) | By hand | Requests | 2026-11-06 | Pass |
 | [Animations A1 (#21)](#animations-a1) | By hand | Requests | 2026-11-06 | Pass |
+| [Animations A2 (#21)](#animations-a2) | By hand | Requests | | Not run yet |
 | [No Red Hot Tools](#no-red-hot-tools) | By hand | C4 | 2026-11-10 | Pass, one fix |
 | importFile's texture (#25) | By hand, through EDGEhack | Requests | 2026-11-10 | Pass: EDGEhack 0.0.19's H3b.2 Upload test (EDGEhack's `docs/testing.md`), all 10 steps, run by the owner with REDcode main e9b5e7b; the icons showed in the game. Reported by the EDGEhack session |
 | [Resizable table columns (#26)](#resizable-table-columns-26) | By hand | Requests | 2026-11-10 | Pass, one fix |
@@ -625,6 +626,25 @@ Built 2026-11-06 for REDcode issue #21 ([design](design/animation.html)). F5 wit
 Tell me if anything looks wrong about the figure itself: its proportions, or a limb bending the wrong way.
 
 **Result (2026-11-06, the owner, on the laptop):** steps 1 to 14 pass, with no fixes. In step 14 the project's copy showed "Exporting the animations..." on its first open, as expected: it is a separate file with its own export.
+
+## Animations A2
+
+Built 2026-11-15 for REDcode issue #21 ([design](design/animation.html#a2-as-built)), on REDbridge 0.13.0. No game needs to run. Checked before: type check, build, `npm test` (42), the smoke test against REDbridge 0.13.0 (23.6 s), and against the game with REDbridge 0.13.0 built from its tag: scratchpad `a2probe.mjs` (each body has all the bones its clips drive), `a2mod.mjs` (8 checks of `src/animsGlb.ts`: bodies, the cache's variants, the entity's account) and `a2harness.mjs` in Chrome with the real bundle (the base male body on the crew's clips, the paramedic with root motion on and off, the AV with bones only; no console errors). That automated tab ran slowly, so smooth playback has not been seen.
+
+| # | Do | Expected |
+|---|---|---|
+| 1 | F5 with **Run REDcode with Opens Test (no other extensions)**. If REDcode says REDbridge is older than 0.13.0, press **Update REDbridge** | The REDcode output says REDbridge 0.13.0 |
+| 2 | Game Assets: filter on `q001_00c_trauma_arrives_male_average`, click `q001_00c_trauma_arrives_male_average.anims` | It opens on **Animations**. Toolbar: Frame, **Body** (on), Bones, Root motion, `Rig man_base.rig`, `On Base male body`. A plain grey male body, with no head (heads are meshes of their own), stands on the grid and plays the first animation smoothly |
+| 3 | **Bones** on, then **Body** off, then **Body** on and **Bones** off | Lines and dots over the body, moving with it; then the bones alone, as in A1; then the body again |
+| 4 | Pick a few animations: `soldier_2_point_left`, `soldier_1_look_down`, `med_2_idle` | The body points, looks down, idles. **Say if a limb bends the wrong way, or the body tears** |
+| 5 | Filter on `synced__q001_00c__male_average`, click the `.anims`. Pick `synced__q001_00c_trauma_arrives_soldiers__land_v1__soldier_01` | The base male body crouches and drops, in place |
+| 6 | **Root motion** on. Let it play, then pause and drag the scrub bar | A moment's "Loading…", then the same animation goes on from the same moment. The body travels about 14 m and the view follows it, with the grid passing under it. Dragging moves the body along its path |
+| 7 | **Root motion** off. Close the tab, open the file again, turn **Root motion** on, close and open it again | Back in place, and the view fits the body again. The second time it opens with Root motion on: REDcode remembers it. Turn it off again |
+| 8 | Command Palette: **Opens Test: Open an Animation on the Paramedic** | The same file switches to the Trauma Team paramedic: helmet, clothes and a head, plain grey, playing `..._land_v1__soldier_01`. Toolbar: `On corpo__ep1_traumateam_ma.ent, corpo__traumateam_ma_paramedic__lvl1_01`; hover it: 22 meshes on 512 joints, and the far proxy left out. A couple of seconds the first time |
+| 9 | Close the tab and run the same command again | It opens on the paramedic straight away |
+| 10 | Filter on `synced__q001_00c__trauma_av`, click the `.anims`. **Root motion** on | The AV's bones only, with no Body button, as in A1. With Root motion on, its landing moves through the air (it ends about 2 m from where it starts) |
+| 11 | Filter on `wa_gang_rifle_exploration`, click the `.anims` | `On Base female body`: a plain grey female body plays the clips |
+| 12 | Command Palette: **Opens Test: Open an Animation** (the A1 command) | The crew file at `q001_00c_trauma_arrives___med_2_idle__01`, on the base male body |
 
 ## No Red Hot Tools
 

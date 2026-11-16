@@ -43,7 +43,7 @@ import { TweakClaims, TweakDb, TweakHover, TweakTree, type TweakNode } from "./t
 import { TweakRecordPanel } from "./tweakRecordPanel";
 import { LocHover, LocTree, locKeyOf, locLanguage, locTextOf, type LocNode } from "./locView";
 import type { LocEntry } from "./types";
-import { createApi, projectRef, type ImportResult, type REDcodeApi } from "./api";
+import { createApi, projectRef, type AnimationOptions, type ImportResult, type REDcodeApi } from "./api";
 import { publishProject, syncRednodePackage, withdrawProject } from "./rednodeService";
 import { shortType, tweakYaml, type TweakMode } from "./tweakYaml";
 import { createProject, findProject, gamePathOf, ProjectFolders, projectPathFor, type ProjectInfo } from "./project";
@@ -272,7 +272,7 @@ export function activate(context: vscode.ExtensionContext): REDcodeApi | undefin
     packAndPlay: () => packAndPlayCommand(),
     editInBlender: (file: string) => editInBlenderCommand(file),
     openFile: (target: string, node?: string) => openFileInEditor(target, node),
-    openAnimation: (target: string, animationName?: string) => openAnimationInEditor(target, animationName),
+    openAnimation: (target: string, animationName?: string, options?: AnimationOptions) => openAnimationInEditor(target, animationName, options),
     revealInProject,
   });
 }
@@ -783,11 +783,13 @@ async function openFileInEditor(target: string, node?: string): Promise<void> {
   await vscode.commands.executeCommand("vscode.openWith", uri, cr2wViewTypeFor(uri.path));
 }
 
-/** REDcodeApi.openAnimation: an .anims file on its animations, at one animation when given. */
-async function openAnimationInEditor(target: string, animationName?: string): Promise<void> {
+/** REDcodeApi.openAnimation: an .anims file on its animations, at one animation when given, on an entity when given. */
+async function openAnimationInEditor(target: string, animationName?: string, options?: AnimationOptions): Promise<void> {
   const uri = /^[a-z][\w+.-]+:/i.test(target) ? vscode.Uri.parse(target) : path.isAbsolute(target) ? vscode.Uri.file(target) : gameUri(target);
   if (!/\.anims$/i.test(uri.path)) throw new Error(`openAnimation takes an .anims file, not ${target}`);
-  if (animationName) cr2wEditor.showAnimation(uri, animationName);
+  if (options?.entity !== undefined && (typeof options.entity !== "string" || !/\.ent$/i.test(options.entity))) throw new Error(`openAnimation's entity takes a .ent file, not ${options.entity}`);
+  const body = options?.entity ? { entity: options.entity, ...(options.appearance ? { appearance: options.appearance } : {}) } : undefined;
+  if (animationName || body) cr2wEditor.showAnimation(uri, animationName, body);
   await vscode.commands.executeCommand("vscode.openWith", uri, cr2wViewTypeFor(uri.path));
 }
 

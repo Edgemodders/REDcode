@@ -1,12 +1,15 @@
-// Animations for the animation view (docs/design/animation.md, A1): an .anims exported to a .glb in
-// REDcode's cache through REDbridge's project.export, with the rig as a skin and each animation as a
+// Animations for the animation view (docs/design/animation.md, A1 and A2): an .anims exported to a .glb
+// in REDcode's cache through REDbridge's project.export, with the rig as a skin and each animation as a
 // glTF clip. Those files are large (233 MB and 1,246 clips for the largest in game 2.5), so the page
-// never gets one whole: it gets the skeleton and the list, then one clip at a time, cut out here.
-// No VS Code imports.
+// never gets one whole: it gets the skeleton and the list, then one clip at a time, cut out here. A2
+// adds the body the clips play on (a base body, or an entity's meshes) and root motion, through
+// REDbridge 0.13.0's export options. No VS Code imports.
 
+import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import type { BridgeClient } from "./bridgeClient";
 import { cachedExport, type ExportSource } from "./exportCache";
+import type { EntityExport } from "./types";
 
 interface GlbAccessor {
   bufferView?: number;
@@ -71,10 +74,92 @@ const TypeCount: Record<string, number> = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4
 const JsonChunk = 0x4e4f534a;
 const BinChunk = 0x004e4942;
 
-/** The .glb for an .anims: WolvenKit writes <name>.anims.glb, again only when the source is newer. */
-export async function animsGlbFor(bridge: BridgeClient, cacheRoot: string, source: ExportSource): Promise<{ glb: string; cached: boolean }> {
-  const r = await cachedExport(bridge, cacheRoot, source, ".anims.glb", {}, "glTF");
+/**
+ * The .glb for an .anims: WolvenKit writes <name>.anims.glb, again only when the source is newer. With
+ * rootMotion, the root motion is on the Root node's channels (REDbridge 0.13.0); without it, Root holds
+ * one key at the origin, so the rig plays in place.
+ */
+export async function animsGlbFor(bridge: BridgeClient, cacheRoot: string, source: ExportSource, rootMotion = false): Promise<{ glb: string; cached: boolean }> {
+  const r = rootMotion
+    ? await cachedExport(bridge, cacheRoot, source, ".anims.glb", { rootMotion: true }, "glTF", "rootmotion")
+    : await cachedExport(bridge, cacheRoot, source, ".anims.glb", {}, "glTF");
   return { glb: r.file, cached: r.cached };
+}
+
+// ---- A2: a body on the rig ---------------------------------------------------------------------
+
+const BS = "\\";
+const gamePathOf = (...parts: string[]) => parts.join(BS);
+const ManBase = gamePathOf("base", "characters", "base_entities", "man_base");
+const WomanBase = gamePathOf("base", "characters", "base_entities", "woman_base");
+const Bodies = gamePathOf("base", "characters", "common", "base_bodies");
+
+/** A base body for a rig: its mesh, and the rigs its skin is joined from. */
+export interface BaseBody {
+  mesh: string;
+  rigs: string[];
+  label: string;
+}
+
+/**
+ * The base body worn by a man's or a woman's base rig, or undefined for any other rig (a vehicle's, a
+ * prop's), which keeps its bones alone. The body needs its deformations rig, which has its muscle and
+ * twist bones; the base rig adds the six the clips drive that the deformations rig lacks (eyes, weapons,
+ * Trajectory, reference_joint). Checked on game 2.5 with REDbridge 0.13.0: 71 of 71 animated bones for a
+ * man's and a woman's clips.
+ */
+export function baseBodyFor(rig: string): BaseBody | undefined {
+  const r = rig.toLowerCase();
+  if (r === gamePathOf(ManBase, "man_base.rig")) {
+    return { mesh: gamePathOf(Bodies, "man_average", "t0_000_ma_base__full.mesh"), rigs: [rig, gamePathOf(ManBase, "deformations_rigs", "man_base_deformations.rig")], label: "Base male body" };
+  }
+  if (r === gamePathOf(WomanBase, "woman_base.rig")) {
+    return { mesh: gamePathOf(Bodies, "woman_average", "t0_000_wa_base__full.mesh"), rigs: [rig, gamePathOf(WomanBase, "deformations_rigs", "woman_base_deformations.rig")], label: "Base female body" };
+  }
+  return undefined;
+}
+
+/** A body as the animation view gets it: the .glb, and what it is. */
+export interface BodyGlb {
+  glb: string;
+  cached: boolean;
+  label: string;
+  /** What was put on the skeleton or left out, for an entity; empty for a base body. */
+  notes: string[];
+}
+
+/** A base body skinned on its rigs, without materials (one character with them writes about 940 files). */
+export async function baseBodyGlb(bridge: BridgeClient, cacheRoot: string, body: BaseBody): Promise<BodyGlb> {
+  const r = await cachedExport(bridge, cacheRoot, { gamePath: body.mesh }, ".glb", { rigs: body.rigs, meshMaterials: false }, "glTF", "rigged");
+  return { glb: r.file, cached: r.cached, label: body.label, notes: [] };
+}
+
+/**
+ * An entity in one appearance, every mesh on one skeleton, without materials. The bridge's account of
+ * what went in is kept beside the .glb, since a cached export does not ask the bridge again.
+ */
+export async function entityBodyGlb(bridge: BridgeClient, cacheRoot: string, source: ExportSource, appearance = "default"): Promise<BodyGlb> {
+  const variant = `app-${crypto.createHash("sha1").update(appearance.toLowerCase()).digest("hex").slice(0, 10)}`;
+  const r = await cachedExport(bridge, cacheRoot, source, ".ent.glb", { appearance, meshMaterials: false }, "glTF", variant);
+  const side = `${r.file}.entity.json`;
+  let entity: EntityExport | undefined;
+  if (r.result?.entity) {
+    entity = r.result.entity;
+    fs.writeFileSync(side, JSON.stringify(entity));
+  } else {
+    try {
+      entity = JSON.parse(fs.readFileSync(side, "utf8")) as EntityExport;
+    } catch {
+      // an export from before the account was kept
+    }
+  }
+  const name = (source.gamePath ?? source.file ?? "").split(/[\\/]/).pop() ?? "";
+  const notes: string[] = [];
+  if (entity) {
+    notes.push(`${entity.meshes.length.toLocaleString()} meshes on ${entity.joints.toLocaleString()} joints`);
+    for (const x of entity.leftOut ?? []) notes.push(`Left out ${x.component ?? x.mesh ?? "a component"}${x.why ? `: ${x.why}` : ""}`);
+  }
+  return { glb: r.file, cached: r.cached, label: `${name}, ${entity?.appearance ?? appearance}`, notes };
 }
 
 /** Reads a .glb's JSON and finds its binary chunk, without reading the binary. */

@@ -10,7 +10,7 @@ import * as vscode from "vscode";
 import type { BridgeClient } from "./bridgeClient";
 import { gameUri, gamePathOfUri } from "./gameFs";
 import { meshGlbFor, meshPayload } from "./meshExport";
-import { animsClip, animsGlbFor, animsList, animsSkeleton, readAnimsGlb, type AnimsGlb } from "./animsGlb";
+import { animsClip, animsGlbFor, animsList, animsSkeleton, baseBodyFor, baseBodyGlb, entityBodyGlb, readAnimsGlb, type AnimsGlb, type BodyGlb } from "./animsGlb";
 import { findEdgemat, mapsForWebview, openInEdgemat } from "./edgemat";
 import { ProjectFolders } from "./project";
 import type { TextureViewer } from "./textureViewer";
@@ -209,6 +209,8 @@ interface Request {
   paths?: string[];
   /** An animation by its place in the file, for animClip. */
   index?: number;
+  /** animClip: the keys with the root motion on (REDbridge 0.13.0). */
+  rootMotion?: boolean;
   offset?: number;
   limit?: number;
   name?: string;
@@ -230,6 +232,16 @@ interface Request {
 
 /** Where the localization table's column widths are kept, for every file. */
 const TableColumnsKey = "cr2w.tableColumns";
+/** Whether the animation view plays root motion, for every file. Off at first: clips play in place. */
+const RootMotionKey = "cr2w.animsRootMotion";
+
+/** An entity whose meshes an .anims plays on, instead of the base body: REDcodeApi.openAnimation's entity. */
+export interface AnimationBody {
+  /** A game path or a file on disk. */
+  entity: string;
+  /** Its appearance; the first when not given. */
+  appearance?: string;
+}
 
 export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocument> {
   private readonly changed = new vscode.EventEmitter<vscode.CustomDocumentEditEvent<Cr2wDocument>>();
@@ -245,6 +257,8 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
   private readonly pendingRows = new Map<string, number>();
   private readonly pendingNodes = new Map<string, string>();
   private readonly pendingAnimations = new Map<string, string>();
+  /** The entity each .anims plays on, by URI, once REDcodeApi.openAnimation gave one: kept while REDcode runs. */
+  private readonly animationBodies = new Map<string, AnimationBody>();
   private readonly saved = new vscode.EventEmitter<Cr2wDocument>();
   /** Fired after a document is saved, for views that read the file (the LocKeys view). */
   readonly onDidSave = this.saved.event;
@@ -278,17 +292,21 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
   }
 
   /**
-   * Goes to an animation of an .anims file, by name: the open pages of the document do, or the editor
-   * page does when it opens. For REDcodeApi.openAnimation.
+   * Goes to an animation of an .anims file, by name, and plays it on an entity when body is given: the
+   * open pages of the document do, or the editor page does when it opens. For REDcodeApi.openAnimation.
    */
-  showAnimation(uri: vscode.Uri, name: string): void {
-    const document = this.documents.get(uri.toString());
+  showAnimation(uri: vscode.Uri, name?: string, body?: AnimationBody): void {
+    const key = uri.toString();
+    const old = this.animationBodies.get(key);
+    const rebody = !!body && (old?.entity !== body.entity || old?.appearance !== body.appearance);
+    if (body) this.animationBodies.set(key, body);
+    const document = this.documents.get(key);
     const pages = document ? [...(this.pages.get(document) ?? [])] : [];
     if (pages.length === 0) {
-      this.pendingAnimations.set(uri.toString(), name);
+      if (name) this.pendingAnimations.set(key, name);
       return;
     }
-    for (const w of pages) void w.postMessage({ type: "showAnimation", name });
+    for (const w of pages) void w.postMessage({ type: "showAnimation", name, rebody });
   }
 
   /** The open document for an editor tab's URI, for the Properties view. */
@@ -453,6 +471,9 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
     const meshRef = () => document.gamePath ?? document.uri.fsPath;
     /** This page's exported .anims, read when its animations mode asks: the JSON can be large. */
     let anims: AnimsGlb | undefined;
+    /** The same with root motion on, exported when the page first asks for it. */
+    let animsMoving: AnimsGlb | undefined;
+    const animsSource = () => (document.gamePath ? { gamePath: document.gamePath } : { file: document.uri.fsPath });
     /** The mesh's game path, which the game's appearance files name: a game file's own, or a project file's under source/archive. */
     const meshGamePath = () => document.gamePath ?? archiveGamePathOf(document.uri.fsPath);
     let materialWatch: vscode.Disposable | undefined;
@@ -533,17 +554,38 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
             // The open .anims, exported to a cached .glb (the saved file: unsaved edits show after a save).
             // The page gets the skeleton and the list; each animation's keys come by animClip when picked.
             const cache = path.join(this.textures.root.fsPath, "mesh");
-            const r = await animsGlbFor(this.requireBridge(), cache, document.gamePath ? { gamePath: document.gamePath } : { file: document.uri.fsPath });
+            const r = await animsGlbFor(this.requireBridge(), cache, animsSource());
             anims = readAnimsGlb(r.glb);
+            animsMoving = undefined;
             const rig = await this.animsRig(document).catch(() => "");
             const animations = animsList(anims);
             const frames = await this.animsFrames(document).catch(() => new Map<string, number>());
             for (const a of animations) a.frames = frames.get(a.name) ?? a.frames;
-            return reply(m.id, { skeleton: animsSkeleton(anims).toString("base64"), animations, rig, path: r.glb, cached: r.cached, dirty: document.log.length > 0 });
+            const { body, bodyNote } = await this.animsBody(document, rig);
+            return reply(m.id, {
+              skeleton: animsSkeleton(anims).toString("base64"),
+              animations,
+              rig,
+              path: r.glb,
+              cached: r.cached,
+              dirty: document.log.length > 0,
+              rootMotion: this.context.globalState.get(RootMotionKey, false),
+              ...(body ? { body: { data: fs.readFileSync(body.glb).toString("base64"), label: body.label, notes: body.notes } } : {}),
+              ...(bodyNote ? { bodyNote } : {}),
+            });
           }
-          case "animClip":
+          case "animClip": {
             if (!anims) throw new Error("The animations are not loaded");
-            return reply(m.id, animsClip(anims, m.index ?? -1).toString("base64"));
+            const moving = !!m.rootMotion;
+            if (moving !== this.context.globalState.get(RootMotionKey, false)) await this.context.globalState.update(RootMotionKey, moving);
+            if (moving && !animsMoving) {
+              const cache = path.join(this.textures.root.fsPath, "mesh");
+              const r = await animsGlbFor(this.requireBridge(), cache, animsSource(), true);
+              if (!r.cached) this.log.appendLine(`cr2w editor: exported ${document.name} with root motion to ${r.glb}`);
+              animsMoving = readAnimsGlb(r.glb);
+            }
+            return reply(m.id, animsClip(moving ? animsMoving! : anims, m.index ?? -1).toString("base64"));
+          }
           case "findItems":
             await this.findItems(meshGamePath() ?? "", m.appearance);
             return reply(m.id, null);
@@ -704,6 +746,40 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
 
   private async openGameFile(gamePath: string): Promise<void> {
     await vscode.commands.executeCommand("vscode.openWith", gameUri(gamePath), cr2wViewTypeFor(gamePath));
+  }
+
+  /**
+   * What an .anims plays on (docs/design/animation.md, A2): the entity REDcodeApi.openAnimation gave, or
+   * the base body of a man's or woman's base rig, or nothing (the bones alone). bodyNote says why not.
+   */
+  private async animsBody(document: Cr2wDocument, rig: string): Promise<{ body?: BodyGlb; bodyNote?: string }> {
+    const cache = path.join(this.textures.root.fsPath, "mesh");
+    const bridge = this.requireBridge();
+    const wanted = this.animationBodies.get(document.uri.toString());
+    let note: string | undefined;
+    if (wanted) {
+      const e = wanted.entity;
+      const source = path.isAbsolute(e) ? { file: e } : { gamePath: e.split("/").join(path.win32.sep) };
+      try {
+        const body = await entityBodyGlb(bridge, cache, source, wanted.appearance);
+        if (!body.cached) this.log.appendLine(`cr2w editor: exported ${body.label} to ${body.glb} for the animation view`);
+        return { body };
+      } catch (err) {
+        note = `Could not put ${path.basename(e)} on the rig: ${err instanceof Error ? err.message : String(err)}`;
+        this.log.appendLine(`cr2w editor: ${note}`);
+      }
+    }
+    const base = baseBodyFor(rig);
+    if (!base) return note ? { bodyNote: note } : {};
+    try {
+      const body = await baseBodyGlb(bridge, cache, base);
+      if (!body.cached) this.log.appendLine(`cr2w editor: exported ${body.label} to ${body.glb} for the animation view`);
+      return { body, ...(note ? { bodyNote: note } : {}) };
+    } catch (err) {
+      const why = `Could not put the ${base.label.toLowerCase()} on the rig: ${err instanceof Error ? err.message : String(err)}`;
+      this.log.appendLine(`cr2w editor: ${why}`);
+      return { bodyNote: note ? `${note}; ${why}` : why };
+    }
   }
 
   /** The game path of the rig an .anims names, read from the document. */
