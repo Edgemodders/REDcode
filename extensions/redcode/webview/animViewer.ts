@@ -141,10 +141,34 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
   const grid = new THREE.GridHelper(1, 10, 0x2a3346, 0x1a2030);
   scene.add(grid);
 
-  const frame = () => {
+  // Helper joints the fit leaves out: reference_joint can sit metres from the body (3.9 m in the
+  // Trauma Team soldiers' landing; a synced set's shared point, unverified), Trajectory too.
+  const HelperJoints = new Set(["reference_joint", "trajectory"]);
+  const framed = bones.filter((b) => !HelperJoints.has(b.name.toLowerCase()));
+  const poseBox = () => {
     animated.updateMatrixWorld(true);
     const box = new THREE.Box3();
-    for (const b of bones) box.expandByPoint(b.getWorldPosition(at));
+    for (const b of framed.length ? framed : bones) box.expandByPoint(b.getWorldPosition(at));
+    return box;
+  };
+  /**
+   * Fits the view: in place, to the whole animation, so a drop or a climb stays in view; with root
+   * motion, to the pose now, since the view follows the rig.
+   */
+  const frame = () => {
+    let box = poseBox();
+    const a = info();
+    if (action && a && !rootMotion && a.duration > 0) {
+      const keep = action.time;
+      for (let k = 0; k <= 8; k++) {
+        action.time = (a.duration * k) / 8;
+        mixer.update(0);
+        box = box.union(poseBox());
+      }
+      action.time = keep;
+      mixer.update(0);
+      moveDots();
+    }
     if (box.isEmpty()) return;
     const centre = box.getCenter(new THREE.Vector3());
     const radius = Math.max(box.getBoundingSphere(new THREE.Sphere()).radius, 0.25);
@@ -420,7 +444,13 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
     moveDots();
     follow();
     showTime();
+    // The first animation shown fits the view to itself; later picks keep the camera where it is.
+    if (!fitted) {
+      fitted = true;
+      frame();
+    }
   }
+  let fitted = false;
 
   const showAnimation = (name: string) => {
     const index = source.animations.findIndex((a) => a.name.toLowerCase() === name.toLowerCase());

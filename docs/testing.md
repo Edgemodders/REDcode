@@ -646,6 +646,11 @@ Built 2026-11-15 for REDcode issue #21 ([design](design/animation.html#a2-as-bui
 | 11 | Filter on `wa_gang_rifle_exploration`, click the `.anims` | `On Base female body`: a plain grey female body plays the clips |
 | 12 | Command Palette: **Opens Test: Open an Animation** (the A1 command) | The crew file at `q001_00c_trauma_arrives___med_2_idle__01`, on the base male body |
 
+Run 1 (2026-11-15, scripted by the EDGEweb session at the owner's request: an EDGEkit 1.140.6 trial editor with a scratch profile, REDcode from daf799c, Opens Test and the theme as development extensions, driven over CDP with screenshots): all 12 steps pass, with one finding. Update REDbridge took 0.12.1 to 0.13.0 (59 MB). The view ran at 60 fps, its longest gap 18 ms. No limb bent the wrong way and nothing tore in step 4. The paramedic opened in 1.8 s, and again in 0.6 s after the tab closed.
+- **Finding, step 6:** with Root motion on, the body sat small at the left edge of the view. Frame fitted every bone, and `reference_joint` (a child of Root) stays several metres from the body: 3.9 m in that clip, mid-way. Also, in steps 5, 9 and 11, a clip that starts high (the drop from the AV) or climbs left the view for part of it, since the view was fitted to one moment. Fixed: Frame leaves `reference_joint` and `Trajectory` out (the bones view still draws them). In place it fits the whole animation, sampled at nine moments; with Root motion on it fits the pose of that moment, since the view follows the rig. The first animation shown fits the view to itself. Checked in Chrome with the harness: the soldiers' landing is in view and centred at 0.1 s in place, and at 4 s with Root motion on.
+- A reopened file selects its first animation, not the last one picked; that is as in A1.
+- Once used, **Open an Animation on the Paramedic** ranks above **Open an Animation** in the Command Palette, so step 12 needs the second row.
+
 ## No Red Hot Tools
 
 Built 2026-11-07, after REDcode 0.10.7: Red Hot Tools has no build for game 2.5, so REDcode drops its hot folder. Pack and Play swaps through REDnode (REDswap) or installs for the next start, and **Install to the Hot Folder** is gone. F5 with **Run REDcode**. Checked before: type check, build, `npm test` (39, one new for the install notice).
