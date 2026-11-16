@@ -4,6 +4,10 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 ## Unreleased
 
+## 0.10.12 (2026-11-15)
+
+Animations play on a body, and can move through the scene with their root motion. Needs REDbridge 0.13.0, which REDcode offers to install.
+
 **New**
 
 - The animation view puts a body on the rig. A man's or a woman's animations play on the base body, and on a character's or vehicle's own meshes when another tool asks for them, such as EDGEquest's Preview. **Body** and **Bones** switch each on and off (https://github.com/Edgemodders/REDcode/issues/21).
