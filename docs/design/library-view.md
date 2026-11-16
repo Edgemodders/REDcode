@@ -4,7 +4,7 @@ title: Library view (#23)
 
 # Library view: browse the EDGE Library, and take items back out
 
-Draft 0.2, 2026-11-15, agreed with the owner the same day, with the proposals in the decisions below. Built the same day; hand test pending ([testing](../testing.html#library-view-23)). Asked for in [REDcode issue #23](https://github.com/Edgemodders/REDcode/issues/23), agreed on 2026-11-06 to wait for EDGEfab's Library view and work as it does. EDGEfab's view is built (EDGEfab ba48d79, 2026-11-13; not released yet, and its own notes say its Library commands are untested).
+Draft 0.2, 2026-11-15, agreed with the owner the same day, with the proposals in the decisions below. Built the same day, and passed its hand test the same day with two fixes ([testing](../testing.html#library-view-23)). Asked for in [REDcode issue #23](https://github.com/Edgemodders/REDcode/issues/23), agreed on 2026-11-06 to wait for EDGEfab's Library view and work as it does. EDGEfab's view is built (EDGEfab ba48d79, 2026-11-13; not released yet, and its own notes say its Library commands are untested).
 
 REDcode can put things into the Library (**Add to Library**, [#19](https://github.com/Edgemodders/REDcode/issues/19), REDcode 0.10.6) but cannot see the Library or take anything back out. Today a modder finds and deletes items in File Explorer, and nothing copies an item into a project.
 
