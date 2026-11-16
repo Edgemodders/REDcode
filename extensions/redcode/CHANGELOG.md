@@ -4,6 +4,10 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 ## Unreleased
 
+## 0.10.13 (2026-11-16)
+
+A Library view: browse the EDGE Library in REDcode and add its items to your project. Needs REDbridge 0.13.0, as before.
+
 **New**
 
 - A **Library** view in REDcode's sidebar shows the EDGE Library: your folders, the items in them by name, and loose model files. **Add to Project** copies a mesh, entity, texture or other game file item into the open project, and **Refresh Project from Library** brings in items that have a newer version in the Library. Other tools' items, such as EDGEfab's props, show too, and their own tool adds them (https://github.com/Edgemodders/REDcode/issues/23).
