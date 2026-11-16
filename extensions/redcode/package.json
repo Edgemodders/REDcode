@@ -338,6 +338,10 @@
           "name": "Game Assets"
         },
         {
+          "id": "redcode.library",
+          "name": "Library"
+        },
+        {
           "id": "redcode.tweakdb",
           "name": "TweakDB"
         },
@@ -353,6 +357,11 @@
       ]
     },
     "viewsWelcome": [
+      {
+        "view": "redcode.library",
+        "contents": "The EDGE Library is one folder of assets that every EDGE tool shares. Add to Library on a game or project file puts items in it.\n[Set Up the Library...](command:redcode.library.setUp)",
+        "when": "!redcode.hasLibrary"
+      },
       {
         "view": "redcode.project",
         "contents": "No REDcode project is open.\nA project is a folder with a WolvenKit .cpmodproj file.\n[New Project](command:redcode.newProject)\n[Open Folder](command:vscode.openFolder)"
@@ -534,6 +543,40 @@
         "icon": "$(new-file)"
       },
       {
+        "command": "redcode.library.refresh",
+        "title": "Refresh",
+        "category": "REDcode Library",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "redcode.library.setUp",
+        "title": "Set Up the Library...",
+        "category": "REDcode Library"
+      },
+      {
+        "command": "redcode.library.addToProject",
+        "title": "Add to Project",
+        "category": "REDcode Library",
+        "icon": "$(add)"
+      },
+      {
+        "command": "redcode.library.refreshProject",
+        "title": "Refresh Project from Library",
+        "category": "REDcode Library",
+        "icon": "$(sync)"
+      },
+      {
+        "command": "redcode.library.open",
+        "title": "Open",
+        "category": "REDcode Library",
+        "icon": "$(go-to-file)"
+      },
+      {
+        "command": "redcode.library.reveal",
+        "title": "Reveal in File Explorer",
+        "category": "REDcode Library"
+      },
+      {
         "command": "redcode.addToLibrary",
         "title": "Add to Library...",
         "category": "REDcode",
@@ -705,6 +748,20 @@
       ],
       "view/title": [
         {
+          "command": "redcode.library.refreshProject",
+          "when": "view == redcode.library && redcode.projectOpen",
+          "group": "navigation@0"
+        },
+        {
+          "command": "redcode.library.refresh",
+          "when": "view == redcode.library",
+          "group": "navigation@1"
+        },
+        {
+          "command": "redcode.library.setUp",
+          "when": "view == redcode.library && !redcode.hasLibrary"
+        },
+        {
           "command": "redcode.pack",
           "when": "view == redcode.project && redcode.projectOpen",
           "group": "navigation@0"
@@ -816,6 +873,26 @@
         }
       ],
       "view/item/context": [
+        {
+          "command": "redcode.library.addToProject",
+          "when": "view == redcode.library && viewItem == libitem.add",
+          "group": "inline@1"
+        },
+        {
+          "command": "redcode.library.addToProject",
+          "when": "view == redcode.library && viewItem == libitem.add",
+          "group": "1_library@1"
+        },
+        {
+          "command": "redcode.library.open",
+          "when": "view == redcode.library && viewItem == libitem.add",
+          "group": "1_library@2"
+        },
+        {
+          "command": "redcode.library.reveal",
+          "when": "view == redcode.library && viewItem =~ /^lib(folder|item|model)/",
+          "group": "2_reveal@1"
+        },
         {
           "command": "redcode.addToProject",
           "when": "view == redcode.assets && viewItem =~ /^asset/",
@@ -993,6 +1070,22 @@
         }
       ],
       "commandPalette": [
+        {
+          "command": "redcode.library.addToProject",
+          "when": "false"
+        },
+        {
+          "command": "redcode.library.open",
+          "when": "false"
+        },
+        {
+          "command": "redcode.library.reveal",
+          "when": "false"
+        },
+        {
+          "command": "redcode.library.refreshProject",
+          "when": "redcode.projectOpen"
+        },
         {
           "command": "redcode.closeProject",
           "when": "redcode.projectOpen"

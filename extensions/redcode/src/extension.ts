@@ -7,7 +7,8 @@ import * as vscode from "vscode";
 import { AssetBrowser, type AssetNode } from "./assetBrowser";
 import { searchGameFiles as showGameSearch } from "./gameSearch";
 import { ItemIndex } from "./itemSearch";
-import { addToLibrary } from "./libraryCommand";
+import { addToLibrary, libraryRoot } from "./libraryCommand";
+import { registerLibraryView, type LibraryTree } from "./libraryView";
 import { BridgeClient } from "./bridgeClient";
 import {
   checkDotnetRuntime,
@@ -72,6 +73,8 @@ let restartTimer: NodeJS.Timeout | undefined;
 let assets: AssetBrowser;
 let explorer: ProjectExplorer;
 let projectView: vscode.TreeView<ProjectNode>;
+/** The Library view (REDcode issue #23). */
+let libraryTree: LibraryTree;
 let assetsView: vscode.TreeView<AssetNode>;
 let tweakDb: TweakDb;
 let tweakTree: TweakTree;
@@ -143,6 +146,19 @@ export function activate(context: vscode.ExtensionContext): REDcodeApi | undefin
   );
   cr2wEditor = cr2w;
   const gameFs = new GameFileSystem(() => bridge, path.join(storage.fsPath, "cache"));
+  libraryTree = registerLibraryView(
+    context,
+    {
+      project: () => (project ? { name: project.name, dir: project.dir } : undefined),
+      openFile: (file) => openFileInEditor(file),
+      projectChanged: async (select) => {
+        explorer.refresh();
+        if (select) await revealInProject(select);
+      },
+      log: (line) => log.appendLine(line),
+    },
+    () => libraryRoot(lastInfo?.gameDir ?? null),
+  );
 
   context.subscriptions.push(
     log,
@@ -192,7 +208,7 @@ export function activate(context: vscode.ExtensionContext): REDcodeApi | undefin
     vscode.commands.registerCommand("redcode.openAssetAsJson", (node: AssetNode) => withBridge((b) => openAssetAsJson(b, node))),
     vscode.commands.registerCommand("redcode.addToProject", (node: AssetNode) => withBridge((b) => addToProject(b, node))),
     vscode.commands.registerCommand("redcode.extractTo", (node: AssetNode) => withBridge((b) => extractTo(b, node))),
-    vscode.commands.registerCommand("redcode.addToLibrary", (node: AssetNode | ProjectNode) => withBridge((b) => addNodeToLibrary(b, node, context))),
+    vscode.commands.registerCommand("redcode.addToLibrary", (node: AssetNode | ProjectNode) => withBridge((b) => addNodeToLibrary(b, node, context)).finally(() => libraryTree.refresh())),
     vscode.commands.registerCommand("redcode.copyAssetPath", (node: AssetNode) => copyAssetPath(node)),
     vscode.commands.registerCommand("redcode.openProjectFile", (node: ProjectNode) => openProjectFile(node)),
     vscode.commands.registerCommand("redcode.openProjectFileAsJson", (node: ProjectNode) => withBridge((b) => openProjectFileAsJson(b, node))),

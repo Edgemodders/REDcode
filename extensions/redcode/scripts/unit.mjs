@@ -324,6 +324,122 @@ await check("library: the root: read, written keeping other fields, refused insi
   await assert.rejects(add(libBridge(), { root: path.join(tmp, "game", "Library"), gameDir: path.join(tmp, "game") }), /inside the game/);
 });
 
+// ---- the Library view and Add to Project (REDcode issue #23) ----
+const libItem = (root, rel, asset, files = {}) => {
+  const dir = path.join(root, ...rel.split("/"));
+  fs.mkdirSync(dir, { recursive: true });
+  if (asset) fs.writeFileSync(path.join(dir, rel.endsWith(".bake") ? "bake.json" : "asset.json"), JSON.stringify(asset));
+  for (const [f, text] of Object.entries(files)) {
+    const out = path.join(dir, ...f.split("/"));
+    fs.mkdirSync(path.dirname(out), { recursive: true });
+    fs.writeFileSync(out, text);
+  }
+  return dir;
+};
+const chairAsset = (version = 1) => ({ format: 1, id: "a1b2c3d4e5f60718", name: "Chair", kind: "mesh", main: "base\\props\\chair.mesh", version, history: [{ tool: "REDcode 0.10.6", did: "Added from the game" }] });
+const chairFiles = (v = "1") => ({ "source/archive/base/props/chair.mesh": `mesh ${v}`, "source/archive/base/props/chair_d.xbm": `xbm ${v}` });
+
+await check("library view: a folder lists folders, items and model files; the kind from the folder's name, the tool from history", () => {
+  const root = path.join(tmp, "lv1");
+  libItem(root, "Meshes/chair.mesh.asset", chairAsset(), chairFiles());
+  libItem(root, "Meshes/jacket.prop.asset", { format: 1, id: "p1", name: "Red jacket", kind: "mesh", version: 3, history: [{ tool: "EDGEfab 0.1.0" }] }, { "source/archive/x/jacket.ent": "e" });
+  libItem(root, "Meshes/street.bake", { id: "b1", version: 2 });
+  libItem(root, "Meshes/.hidden", null);
+  libItem(root, "Meshes/Sub", null);
+  write("lv1/Meshes/model.glb", "glb");
+  write("lv1/Meshes/notes.txt", "x");
+  const l = lib.listLibraryFolder(path.join(root, "Meshes"));
+  assert.deepEqual(l.folders.map((f) => path.basename(f)), ["Sub"]);
+  assert.deepEqual(l.items.map((i) => [i.name, i.kind, i.tool ?? null, i.addable]), [
+    ["Chair", "mesh", "REDcode", true],
+    ["Red jacket", "prop", "EDGEfab", false],
+    ["street", "bake", null, false],
+  ]);
+  assert.deepEqual(l.models.map((f) => path.basename(f)), ["model.glb"]);
+  assert.equal(lib.libraryItems(root).length, 3);
+});
+
+await check("library: Add to Project copies the item's files and writes REDcode's entry, keeping other tools' entries and fields", () => {
+  const root = path.join(tmp, "lv2");
+  const item = libItem(root, "Meshes/chair.mesh.asset", chairAsset(), chairFiles());
+  const proj = path.join(tmp, "lv2proj");
+  write("lv2proj/source/library.json", JSON.stringify({ format: 1, extra: "kept", items: [{ id: "p1", by: "edgefab", kind: "prop", path: "x", version: 3, files: ["source/raw/x.json"] }] }));
+  const plan = lib.planAddToProject(item, proj);
+  assert.deepEqual(plan.clashes, []);
+  assert.deepEqual(plan.files, ["source/archive/base/props/chair.mesh", "source/archive/base/props/chair_d.xbm"]);
+  const r = lib.addItemToProject(plan, root, proj);
+  assert.deepEqual(r, { files: 2, replaced: false, removed: 0 });
+  assert.equal(fs.readFileSync(path.join(proj, "source", "archive", "base", "props", "chair.mesh"), "utf8"), "mesh 1");
+  const note = JSON.parse(fs.readFileSync(path.join(proj, "source", "library.json"), "utf8"));
+  assert.equal(note.extra, "kept");
+  assert.equal(note.items.length, 2);
+  assert.equal(note.items[0].by, "edgefab");
+  const ours = note.items[1];
+  assert.deepEqual({ ...ours, added: 0 }, { id: "a1b2c3d4e5f60718", kind: "mesh", path: "Meshes/chair.mesh.asset", version: 1, added: 0, by: "redcode", files: plan.files });
+});
+
+await check("library: Add to Project asks about the project's own files only, and removes files the item no longer has", () => {
+  const root = path.join(tmp, "lv3");
+  const item = libItem(root, "chair.mesh.asset", chairAsset(), chairFiles());
+  const proj = path.join(tmp, "lv3proj");
+  write("lv3proj/source/archive/base/props/chair_d.xbm", "the modder's own");
+  const first = lib.planAddToProject(item, proj);
+  assert.deepEqual(first.clashes, ["source/archive/base/props/chair_d.xbm"]);
+  lib.addItemToProject(first, root, proj);
+  // Version 2 drops the texture and adds a normal map: the earlier files are not clashes, the dropped one goes.
+  fs.rmSync(path.join(item, "source", "archive", "base", "props", "chair_d.xbm"));
+  libItem(root, "chair.mesh.asset", chairAsset(2), { "source/archive/base/props/chair.mesh": "mesh 2", "source/archive/base/props/chair_n.xbm": "n" });
+  const again = lib.planAddToProject(item, proj);
+  assert.deepEqual(again.clashes, []);
+  assert.equal(again.previous.version, 1);
+  assert.deepEqual(lib.addItemToProject(again, root, proj), { files: 2, replaced: true, removed: 1 });
+  assert.equal(fs.existsSync(path.join(proj, "source", "archive", "base", "props", "chair_d.xbm")), false);
+  assert.equal(fs.readFileSync(path.join(proj, "source", "archive", "base", "props", "chair.mesh"), "utf8"), "mesh 2");
+  const note = JSON.parse(fs.readFileSync(path.join(proj, "source", "library.json"), "utf8"));
+  assert.equal(note.items.length, 1);
+  assert.equal(note.items[0].version, 2);
+});
+
+await check("library: an earlier entry's file that would leave the project's source folder is never removed", () => {
+  const root = path.join(tmp, "lv4");
+  const item = libItem(root, "chair.mesh.asset", chairAsset(), chairFiles());
+  const proj = path.join(tmp, "lv4proj");
+  const outside = write("lv4outside.txt", "keep me");
+  write("lv4proj/source/library.json", JSON.stringify({ format: 1, items: [{ id: "a1b2c3d4e5f60718", by: "redcode", kind: "mesh", path: "chair.mesh.asset", version: 1, files: ["../../lv4outside.txt", "../lv4proj.cpmodproj"] }] }));
+  lib.addItemToProject(lib.planAddToProject(item, proj), root, proj);
+  assert.equal(fs.readFileSync(outside, "utf8"), "keep me");
+});
+
+await check("library: Refresh Project from Library finds items by id, else by path: newer, same, missing", () => {
+  const root = path.join(tmp, "lv5");
+  const proj = path.join(tmp, "lv5proj");
+  libItem(root, "Moved/chair.mesh.asset", chairAsset(3), chairFiles("3"));
+  libItem(root, "lamp.mesh.asset", { ...chairAsset(1), id: "ffff000011112222", name: "Lamp" }, chairFiles());
+  write("lv5proj/source/library.json", JSON.stringify({ format: 1, items: [
+    { id: "a1b2c3d4e5f60718", by: "redcode", kind: "mesh", path: "chair.mesh.asset", version: 1, files: [] },
+    { id: "old-id", by: "redcode", kind: "mesh", path: "lamp.mesh.asset", version: 1, files: [] },
+    { id: "gone", by: "redcode", kind: "mesh", path: "gone.mesh.asset", version: 1, files: [] },
+    { id: "p1", by: "edgefab", kind: "prop", path: "x", version: 1, files: [] },
+  ] }));
+  const s = lib.projectLibraryState(proj, root);
+  assert.deepEqual(s.map((x) => [x.entry.id, x.state, x.item?.name ?? null]), [
+    ["a1b2c3d4e5f60718", "newer", "Chair"],
+    ["old-id", "same", "Lamp"],
+    ["gone", "missing", null],
+  ]);
+});
+
+await check("library: other tools' items and bakes are theirs to add, and an item needs an id", () => {
+  const root = path.join(tmp, "lv6");
+  const prop = libItem(root, "jacket.prop.asset", { id: "p1", name: "Red jacket", history: [{ tool: "EDGEfab 0.1.0" }] }, { "source/archive/x/jacket.ent": "e" });
+  const bake = libItem(root, "street.bake", { id: "b1" }, { "source/archive/x.streamingsector": "s" });
+  const noId = libItem(root, "chair.mesh.asset", { name: "Chair" }, chairFiles());
+  const proj = path.join(tmp, "lv6proj");
+  assert.throws(() => lib.planAddToProject(prop, proj), /prop that EDGEfab adds/);
+  assert.throws(() => lib.planAddToProject(bake, proj), /EDGEbuilder's Include in project/);
+  assert.throws(() => lib.planAddToProject(noId, proj), /has no id/);
+});
+
 await check("Add to Library: a folder rename waits for a file held open, and says so if it stays open", async () => {
   const dir = path.join(tmp, "rename");
   const from = path.join(dir, "from");

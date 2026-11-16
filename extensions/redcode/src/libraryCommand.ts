@@ -12,7 +12,7 @@ const UseGamePath = "redcode.library.useGamePath";
 const AskPast = 200;
 
 /** Where the Library is, asking the first time, as the Library's rules say the first tool to need it does. */
-async function libraryRoot(gameDir: string | null): Promise<string | undefined> {
+export async function libraryRoot(gameDir: string | null): Promise<string | undefined> {
   const known = readLibraryRoot();
   if (known) return known;
   const suggested = suggestedLibraryRoot();

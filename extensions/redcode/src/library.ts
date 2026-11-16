@@ -435,3 +435,226 @@ async function existsInGame(b: LibraryBridge, gamePath: string): Promise<boolean
     () => false,
   );
 }
+
+// ---- the Library view and Add to Project (REDcode issue #23, docs/design/library-view.md) --------
+
+/** Kinds their own tools add to a project, keeping their own records: REDcode shows them and reveals them. */
+const OtherToolKinds = new Set(["prop", "sound", "quickhack", "bake"]);
+const ModelEnding = /\.(glb|gltf|fbx|blend)$/i;
+/** Who REDcode's entries in a project's came-from note are by. */
+export const NoteBy = "redcode";
+
+/** An item in the Library, as the view shows it. */
+export interface LibraryItem {
+  dir: string;
+  /** From asset.json, else from the folder's name. */
+  name: string;
+  /** From the folder's name, which wins over asset.json. */
+  kind: string;
+  id?: string;
+  version?: number;
+  main?: string;
+  /** The tool that last wrote it, from asset.json's history, without its version: "REDcode", "EDGEfab". */
+  tool?: string;
+  /** REDcode adds it to a project: a kind of game file, with a source/archive. */
+  addable: boolean;
+}
+
+export interface LibraryListing {
+  folders: string[];
+  items: LibraryItem[];
+  models: string[];
+}
+
+const byName = (a: string, b: string) => a.localeCompare(b, undefined, { sensitivity: "base" });
+
+/** Reads one item folder: `<name>.<kind>.asset` or `<name>.bake`. */
+export function readLibraryItem(dir: string): LibraryItem {
+  const base = path.basename(dir);
+  const asset = /^(.*)\.([^.]+)\.asset$/i.exec(base);
+  const kind = asset ? asset[2].toLowerCase() : /\.bake$/i.test(base) ? "bake" : "";
+  const folderName = asset ? asset[1] : base.replace(/\.bake$/i, "");
+  let json: { id?: unknown; name?: unknown; version?: unknown; main?: unknown; history?: unknown } = {};
+  try {
+    json = JSON.parse(fs.readFileSync(path.join(dir, kind === "bake" ? "bake.json" : "asset.json"), "utf8")) as typeof json;
+  } catch {
+    // An item with no readable asset.json still shows, by its folder's name.
+  }
+  const history = Array.isArray(json.history) ? (json.history as { tool?: unknown }[]) : [];
+  const last = [...history].reverse().find((h) => typeof h?.tool === "string")?.tool as string | undefined;
+  const item: LibraryItem = {
+    dir,
+    name: typeof json.name === "string" && json.name ? json.name : folderName,
+    kind,
+    ...(typeof json.id === "string" ? { id: json.id } : {}),
+    ...(typeof json.version === "number" ? { version: json.version } : {}),
+    ...(typeof json.main === "string" ? { main: json.main } : {}),
+    ...(last ? { tool: last.split(" ")[0] } : {}),
+    addable: false,
+  };
+  item.addable = !!kind && !OtherToolKinds.has(kind) && fs.existsSync(path.join(dir, "source", "archive"));
+  return item;
+}
+
+/** One folder of the Library: its folders, its items and its loose model files, each sorted by name. */
+export function listLibraryFolder(dir: string): LibraryListing {
+  const out: LibraryListing = { folders: [], items: [], models: [] };
+  let entries: fs.Dirent[];
+  try {
+    entries = fs.readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return out;
+  }
+  for (const e of entries.sort((a, b) => byName(a.name, b.name))) {
+    if (e.name.startsWith(".")) continue;
+    const full = path.join(dir, e.name);
+    if (e.isDirectory()) {
+      if (ItemEnding.test(e.name)) out.items.push(readLibraryItem(full));
+      else out.folders.push(full);
+    } else if (ModelEnding.test(e.name)) {
+      out.models.push(full);
+    }
+  }
+  return out;
+}
+
+/** Every item under the root, for finding a project's entries again. */
+export function libraryItems(root: string, cap = 20000): LibraryItem[] {
+  const found: LibraryItem[] = [];
+  const walk = (dir: string, depth: number): void => {
+    const l = listLibraryFolder(dir);
+    for (const i of l.items) if (found.length < cap) found.push(i);
+    if (depth < 16) for (const f of l.folders) if (found.length < cap) walk(f, depth + 1);
+  };
+  walk(root, 0);
+  return found;
+}
+
+/** An entry of a project's came-from note, `source/library.json`, as the shared rules give it. */
+export interface NoteEntry {
+  id: string;
+  kind: string;
+  /** The item, relative to the Library's root, with `/`. */
+  path: string;
+  version: number;
+  hash?: string;
+  added: string;
+  by: string;
+  /** Relative to the project, with `/`. */
+  files: string[];
+}
+
+interface Note {
+  format: number;
+  items: NoteEntry[];
+  [other: string]: unknown;
+}
+
+export const noteFile = (projectDir: string): string => path.join(projectDir, "source", "library.json");
+
+/** The project's came-from note, or an empty one. Other tools' entries come back as they are. */
+export function readNote(projectDir: string): Note {
+  try {
+    const n = JSON.parse(fs.readFileSync(noteFile(projectDir), "utf8")) as Partial<Note>;
+    return { ...n, format: typeof n.format === "number" ? n.format : 1, items: Array.isArray(n.items) ? n.items : [] };
+  } catch {
+    return { format: 1, items: [] };
+  }
+}
+
+const isOurs = (e: unknown, id?: string): e is NoteEntry => !!e && typeof e === "object" && (e as NoteEntry).by === NoteBy && (id === undefined || (e as NoteEntry).id === id);
+
+/** Writes REDcode's entry for one item, keeping every other tool's entries and the note's other fields. */
+function writeNoteEntry(projectDir: string, entry: NoteEntry): void {
+  const note = readNote(projectDir);
+  note.items = [...note.items.filter((e) => !isOurs(e, entry.id)), entry];
+  fs.mkdirSync(path.dirname(noteFile(projectDir)), { recursive: true });
+  fs.writeFileSync(noteFile(projectDir), JSON.stringify(note, null, 2) + "\n");
+}
+
+/** A project-relative path with `/` on disk, or undefined when it would leave the project's source folder. */
+function projectPath(projectDir: string, rel: string): string | undefined {
+  const full = path.resolve(projectDir, ...rel.split("/"));
+  return isInside(full, path.join(projectDir, "source")) ? full : undefined;
+}
+
+export interface AddToProjectPlan {
+  item: LibraryItem;
+  /** The item's files as the project will have them: `source/archive/...`, with `/`. */
+  files: string[];
+  /** REDcode's earlier entry for this item in the project, when it was added before. */
+  previous?: NoteEntry;
+  /** Files the project has already that did not come from this item: Add to Project asks before replacing them. */
+  clashes: string[];
+}
+
+/** What adding an item to a project would do. Reads only. */
+export function planAddToProject(itemDir: string, projectDir: string): AddToProjectPlan {
+  const item = readLibraryItem(itemDir);
+  if (!item.addable) {
+    const who = item.kind === "bake" ? "EDGEbuilder's Include in project" : item.tool && item.tool !== "REDcode" ? item.tool : "the tool that made it";
+    throw new Error(`${item.name} is a ${item.kind || "Library item"} that ${who} adds to a project, not REDcode.`);
+  }
+  if (!item.id) throw new Error(`${item.name} has no id in its asset.json, so the project could not find it in the Library again.`);
+  const archive = path.join(itemDir, "source", "archive");
+  const files = filesUnder(archive).map((f) => ["source", "archive", ...path.relative(archive, f).split(path.sep)].join("/"));
+  if (!files.length) throw new Error(`${item.name} has no files in its source/archive.`);
+  const previous = readNote(projectDir).items.find((e) => isOurs(e, item.id));
+  const before = new Set((previous?.files ?? []).map((f) => f.toLowerCase()));
+  const clashes = files.filter((f) => !before.has(f.toLowerCase()) && fs.existsSync(path.join(projectDir, ...f.split("/"))));
+  return { item, files, ...(previous ? { previous } : {}), clashes };
+}
+
+/**
+ * Copies the item's files into the project at the same game paths and writes REDcode's entry in the
+ * came-from note. The files its earlier entry put there and it no longer has are removed first, as
+ * EDGEfab does. root is the Library's root, for the entry's path.
+ */
+export function addItemToProject(plan: AddToProjectPlan, root: string, projectDir: string): { files: number; replaced: boolean; removed: number } {
+  const keep = new Set(plan.files.map((f) => f.toLowerCase()));
+  let removed = 0;
+  for (const f of plan.previous?.files ?? []) {
+    if (keep.has(f.toLowerCase())) continue;
+    const full = projectPath(projectDir, f);
+    if (full && fs.existsSync(full)) {
+      fs.rmSync(full, { force: true });
+      removed++;
+    }
+  }
+  for (const f of plan.files) {
+    const to = projectPath(projectDir, f);
+    if (!to) throw new Error(`${f} would leave the project`);
+    fs.mkdirSync(path.dirname(to), { recursive: true });
+    fs.copyFileSync(path.join(plan.item.dir, ...f.split("/")), to);
+  }
+  writeNoteEntry(projectDir, {
+    id: plan.item.id as string,
+    kind: plan.item.kind,
+    path: path.relative(root, plan.item.dir).split(path.sep).join("/"),
+    version: plan.item.version ?? 1,
+    added: new Date().toISOString(),
+    by: NoteBy,
+    files: plan.files,
+  });
+  return { files: plan.files.length, replaced: !!plan.previous, removed };
+}
+
+export interface ProjectLibraryEntry {
+  entry: NoteEntry;
+  item?: LibraryItem;
+  /** newer: the Library has a later version; missing: the item is not in the Library any more. */
+  state: "newer" | "same" | "missing";
+}
+
+/** REDcode's entries in the project's note, each found in the Library by id, else by path. */
+export function projectLibraryState(projectDir: string, root: string): ProjectLibraryEntry[] {
+  const ours = readNote(projectDir).items.filter((e): e is NoteEntry => isOurs(e));
+  if (!ours.length) return [];
+  const items = libraryItems(root);
+  const relOf = (i: LibraryItem) => path.relative(root, i.dir).split(path.sep).join("/").toLowerCase();
+  return ours.map((entry) => {
+    const item = items.find((i) => i.id === entry.id) ?? items.find((i) => relOf(i) === String(entry.path).toLowerCase());
+    if (!item) return { entry, state: "missing" as const };
+    return { entry, item, state: (item.version ?? 1) > entry.version ? ("newer" as const) : ("same" as const) };
+  });
+}

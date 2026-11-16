@@ -4,7 +4,7 @@ title: Library view (#23)
 
 # Library view: browse the EDGE Library, and take items back out
 
-Draft 0.1, 2026-11-15, for the owner to agree. Asked for in [REDcode issue #23](https://github.com/Edgemodders/REDcode/issues/23), agreed on 2026-11-06 to wait for EDGEfab's Library view and work as it does. EDGEfab's view is built (EDGEfab ba48d79, 2026-11-13; not released yet, and its own notes say its Library commands are untested).
+Draft 0.2, 2026-11-15, agreed with the owner the same day, with the proposals in the decisions below. Built the same day; hand test pending ([testing](../testing.html#library-view-23)). Asked for in [REDcode issue #23](https://github.com/Edgemodders/REDcode/issues/23), agreed on 2026-11-06 to wait for EDGEfab's Library view and work as it does. EDGEfab's view is built (EDGEfab ba48d79, 2026-11-13; not released yet, and its own notes say its Library commands are untested).
 
 REDcode can put things into the Library (**Add to Library**, [#19](https://github.com/Edgemodders/REDcode/issues/19), REDcode 0.10.6) but cannot see the Library or take anything back out. Today a modder finds and deletes items in File Explorer, and nothing copies an item into a project.
 
@@ -65,21 +65,27 @@ LIBRARY                                   ⟳  ⇣  …
 
 One step, with one hand test: the view with no Library, with REDcode's and EDGEfab's items, Add to Project into a project with and without the files, Refresh Project from Library after Add to Library again, and EDGEfab's view beside it reading the same note.
 
+## As built
+
+- `src/library.ts` (no VS Code imports): `listLibraryFolder`, `readLibraryItem` (the kind from the folder's name, the tool from `asset.json`'s last `history` entry, `addable` for a game file kind with a `source/archive`), `libraryItems`, `readNote`, `planAddToProject` (the files, REDcode's earlier entry, and the clashes: files the project has that the earlier entry did not put there), `addItemToProject` (removes the files the earlier entry put there and the item no longer has, never outside the project's `source` folder; copies; writes the entry) and `projectLibraryState`. Six unit checks in `scripts/unit.mjs`.
+- `src/libraryView.ts`: the tree, the confirmation, Add to Project, Refresh Project from Library, Open, Reveal. **Set Up the Library...** is Add to Library's root picker (`libraryRoot` in `src/libraryCommand.ts`). Add to Library refreshes the view.
+- The view sits under Game Assets. Its empty state shows while `%APPDATA%\EDGE\library.json` names no folder (context key `redcode.hasLibrary`).
+
 ## Decisions
 
-For the owner:
+Agreed with the owner, 2026-11-15:
 
 1. **Whose code reads the Library and writes the note.**
    - **(a) REDcode's own,** in `src/library.ts`: a folder listing, `asset.json` reading and the note's read and write, a few small functions. REDcode already owns its side of the Library rules (Add to Library is its own code, not EDGEfab's). It can start now. The risk is drift from EDGEfab's reading of the same rules; the hand test reads one note with both tools to catch it.
    - **(b) EDGEfab's,** through `@edgemodders/edgefab-core`, as REDcode uses edgemat-core. One reading of the rules. But the package is not on npm yet (EDGEfab has no release), it brings EDGEfab's own code and edgemat-core with it, and its Add to Project takes props only, so REDcode would still write its own add.
 
-   Proposed: (a). (Earlier in chat I leaned to (b); reading the package changed that: REDcode would use only its readers, and it waits on EDGEfab's first release.)
+   Agreed: (a). (In chat REDcode first leaned to (b); reading the package changed that: REDcode would use only its readers, and it waits on EDGEfab's first release.)
 2. **A file the project already has that did not come from this item.**
    - **(a) Ask once:** "3 files in the project would be replaced: Replace, or Cancel", listing them. A project's files are usually the modder's own edits.
    - **(b) Overwrite**, as EDGEfab does.
 
-   Proposed: (a).
-3. **Rename and delete in the view.** Proposed: not at first, as in EDGEfab; File Explorer does them, and REDcode's Refresh shows the result.
+   Agreed: (a).
+3. **Rename and delete in the view.** Agreed: not at first, as in EDGEfab; File Explorer does them, and REDcode's Refresh shows the result.
 
 ## Not in this design
 

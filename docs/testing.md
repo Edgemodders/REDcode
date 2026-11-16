@@ -33,6 +33,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Open contract (#22)](#open-contract-22) | By hand | Requests | 2026-11-06 | Pass |
 | [Animations A1 (#21)](#animations-a1) | By hand | Requests | 2026-11-06 | Pass |
 | [Animations A2 (#21)](#animations-a2) | By hand | Requests | 2026-11-15 | Pass, three fixes |
+| [Library view (#23)](#library-view-23) | By hand | Requests | | Not run yet |
 | [No Red Hot Tools](#no-red-hot-tools) | By hand | C4 | 2026-11-10 | Pass, one fix |
 | importFile's texture (#25) | By hand, through EDGEhack | Requests | 2026-11-10 | Pass: EDGEhack 0.0.19's H3b.2 Upload test (EDGEhack's `docs/testing.md`), all 10 steps, run by the owner with REDcode main e9b5e7b; the icons showed in the game. Reported by the EDGEhack session |
 | [Resizable table columns (#26)](#resizable-table-columns-26) | By hand | Requests | 2026-11-10 | Pass, one fix |
@@ -626,6 +627,27 @@ Built 2026-11-06 for REDcode issue #21 ([design](design/animation.html)). F5 wit
 Tell me if anything looks wrong about the figure itself: its proportions, or a limb bending the wrong way.
 
 **Result (2026-11-06, the owner, on the laptop):** steps 1 to 14 pass, with no fixes. In step 14 the project's copy showed "Exporting the animations..." on its first open, as expected: it is a separate file with its own export.
+
+## Library view (#23)
+
+Built 2026-11-15 ([design](design/library-view.html)). F5 with **Run REDcode with Opens Test (no other extensions)**. No game needs to run, but REDbridge must be running for Add to Library. Checked before: type check, build, `npm test` (48, six of them for the view's logic: the listing, the note keeping other tools' entries, the clashes, the files an item drops, nothing removed outside the project's `source` folder, Refresh's newer, same and missing). The view's VS Code side has not run yet.
+
+| # | Do | Expected |
+|---|---|---|
+| 1 | Rename `%APPDATA%\EDGE\library.json` to `library.json.bak`. Open the REDcode sidebar | A **Library** view under Game Assets: "The EDGE Library is one folder of assets that every EDGE tool shares..." and **Set Up the Library...**. Rename the file back and press the view's **Refresh**: your Library shows |
+| 2 | Look through the Library view | Your folders, then items by name, then loose `.glb` and other model files. A REDcode mesh says `mesh`; an EDGEfab prop says `prop · EDGEfab`; a Library bake says `bake`. Hover an item: name, kind, version, the tool, the main game path, its folder. Expand it: a line in words with the main path, and its version |
+| 3 | Game Assets: **Add to Library...** on a small mesh (a chair or a crate), into a folder `REDcode test` | The Library view shows `REDcode test` with the new item, without pressing Refresh |
+| 4 | Open a test project. Click the new item | Its main file opens in REDcode's editor, the mesh on its 3D view |
+| 5 | The item's **+** (Add to Project) | "added <name> in <project>: N files", with **Pack and Play**. The Project view shows the files with the mesh selected. `source/library.json` has an entry with `"by": "redcode"`; any other tool's entries in it are still there |
+| 6 | **+** on the same item again | No question: the files are its own. The message says "updated" |
+| 7 | Game Assets: **Add to Project** on another small mesh. Then **Add to Library...** on that same game file, and **+** on its new Library item | A warning: adding it "would replace N files the project already has, which did not come from it", listing them. **Cancel**: nothing changes. **+** again and **Replace**: they are replaced |
+| 8 | The view's title bar: **Refresh Project from Library** (the sync icon) | "everything <project> took from the Library is up to date" |
+| 9 | Game Assets: **Add to Library...** on the step 3 mesh again, into the same folder, and choose **Replace**. Then **Refresh Project from Library** | A list with that item ticked, "version 1 → 2". Accept: "refreshed 1 item" |
+| 10 | Right-click an EDGEfab prop, then a Library bake, then a folder | Only **Reveal in File Explorer**, and no **+** on the prop or the bake. Reveal opens File Explorer at it |
+| 11 | **File > Close Folder**, then **+** on a REDcode item | "open a REDcode project to add Library items to it", with **Open Folder** |
+| 12 | Optional, with EDGEfab installed: open the test project in a window with EDGEfab, and its **Refresh Project from Library** | It works as before: REDcode's entries in `source/library.json` do not trouble it |
+
+Afterwards: delete the `REDcode test` folder from the Library in File Explorer, and press Refresh.
 
 ## Animations A2
 
