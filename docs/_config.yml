@@ -38,6 +38,8 @@ nav:
     url: /design/animation.html
   - title: Item search
     url: /design/item-search.html
+  - title: Library view
+    url: /design/library-view.html
   - title: MCP
     url: /mcp.html
   - title: Extension API
