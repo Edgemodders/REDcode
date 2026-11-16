@@ -190,8 +190,10 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
   // With root motion the grid stays where it is and spans more, so the rig's travel shows against it.
   const sizeGrid = () => grid.scale.setScalar(rootMotion ? Math.max(span, 50) : span);
 
-  // With root motion on, the camera keeps to the rig's Root: it moves by as much as Root moved.
-  const rootBone = bones.find((b) => b.name === "Root");
+  // With root motion on, the camera keeps to the body: it moves by as much as Hips moved. Root would not
+  // do: it stays on the ground while a body drops from the AV (3.1 m below the hips at the start), so the
+  // drop would leave the view. A rig with no Hips (a vehicle's) follows its Root.
+  const rootBone = bones.find((b) => b.name === "Hips") ?? bones.find((b) => b.name === "Root");
   let followed: THREE.Vector3 | undefined;
   const follow = () => {
     if (!rootBone || !rootMotion) {
