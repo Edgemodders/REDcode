@@ -119,6 +119,17 @@ function pickFolder(context: vscode.ExtensionContext, root: string, main: string
   });
 }
 
+/** Closes every editor tab on a file under a folder; false when one was not closed (its unsaved changes kept). */
+async function closeEditorsUnder(folder: string): Promise<boolean> {
+  const tabs = vscode.window.tabGroups.all.flatMap((g) => g.tabs).filter((t) => {
+    const input = t.input;
+    const uri = input instanceof vscode.TabInputText || input instanceof vscode.TabInputCustom ? input.uri : undefined;
+    return uri?.scheme === "file" && isInside(uri.fsPath, folder);
+  });
+  if (!tabs.length) return true;
+  return vscode.window.tabGroups.close(tabs);
+}
+
 /** Fires when Add to Library has written an item, so the Library view shows it. */
 export const libraryChanged = new vscode.EventEmitter<void>();
 
@@ -144,6 +155,9 @@ export async function addToLibrary(b: BridgeClient, source: AssetSource, context
     );
     if (!answer) return;
     ifExists = answer === replace ? "replace" : "another";
+    // An editor on one of the item's files keeps it open, and Windows will not move a folder with an
+    // open file in it: close them first (one with unsaved changes asks).
+    if (ifExists === "replace" && !(await closeEditorsUnder(place))) return;
   }
 
   const result = await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: `Adding ${name} to the Library` }, async (progress) => {
