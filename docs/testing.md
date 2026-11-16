@@ -32,7 +32,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Add to Library (#19)](#add-to-library-19) | By hand | Requests | 2026-11-06 | Pass, one fix |
 | [Open contract (#22)](#open-contract-22) | By hand | Requests | 2026-11-06 | Pass |
 | [Animations A1 (#21)](#animations-a1) | By hand | Requests | 2026-11-06 | Pass |
-| [Animations A2 (#21)](#animations-a2) | By hand | Requests | | Not run yet |
+| [Animations A2 (#21)](#animations-a2) | By hand | Requests | 2026-11-15 | Pass, three fixes |
 | [No Red Hot Tools](#no-red-hot-tools) | By hand | C4 | 2026-11-10 | Pass, one fix |
 | importFile's texture (#25) | By hand, through EDGEhack | Requests | 2026-11-10 | Pass: EDGEhack 0.0.19's H3b.2 Upload test (EDGEhack's `docs/testing.md`), all 10 steps, run by the owner with REDcode main e9b5e7b; the icons showed in the game. Reported by the EDGEhack session |
 | [Resizable table columns (#26)](#resizable-table-columns-26) | By hand | Requests | 2026-11-10 | Pass, one fix |
@@ -654,6 +654,8 @@ Run 1 (2026-11-15, scripted by the EDGEweb session at the owner's request: an ED
 Rerun on 9b1f4b8 (2026-11-15, the same setup): steps 2, 5, 9 and 11 pass. The landing, the paramedic and the climb stay in view at every moment checked. Step 6 passes at 3.95 s and 7.74 s, and playing from 3.6 s to 6.4 s keeps the body centred while the grid passes. At 0.16 s, though, the body was still small. The cause: at the landing's start, `Root` (and `Trajectory` under it) stays on the ground 3.1 m below the hips while the body starts up in the AV. Fixed: Frame leaves `Root` out too. Checked in Chrome with the harness: at 0.16 s with Root motion on, the body fills the view; the AV's bones still frame as before. Step 6 waits for a rerun.
 
 Step 6 rerun on 5469a6c (2026-11-15, the same setup): Frame fills the view at 0.16 s, 3.95 s and 7.74 s. But after Frame at 0.16 s, Play lost the body at 1.72 s and 3.37 s: the view followed `Root`, which stays on the ground while the body drops 3 m to it. Fixed: with Root motion on, the view follows `Hips` (a rig with none, such as the AV's, follows `Root`). Checked in Chrome with the harness: Frame at 0.16 s, then on to 1.72 s and 3.37 s, and the body stays in view. Step 6 waits for a rerun.
+
+Step 6 rerun on 75cb474 (2026-11-15, the same setup): pass. With Root motion on, Frame at 0.16 s fills the view, and playing on, the whole body stays in view at 1.72 s, 3.41 s, 5.52 s and 7.42 s, a little right of centre at 3.4 s and 5.5 s. Frame at 3.95 s and 7.74 s centres it. The AV with Root motion on (it follows `Root`): its bones stay in the middle of the view at every moment, with the grid shifting under them. **Animations A2 passes.**
 
 ## No Red Hot Tools
 
