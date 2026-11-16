@@ -141,9 +141,10 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
   const grid = new THREE.GridHelper(1, 10, 0x2a3346, 0x1a2030);
   scene.add(grid);
 
-  // Helper joints the fit leaves out: reference_joint can sit metres from the body (3.9 m in the
-  // Trauma Team soldiers' landing; a synced set's shared point, unverified), Trajectory too.
-  const HelperJoints = new Set(["reference_joint", "trajectory"]);
+  // Joints the fit leaves out: reference_joint can sit metres from the body (3.9 to 14.6 m in the
+  // Trauma Team soldiers' landing; a synced set's shared point, unverified), and Root and Trajectory
+  // stay on the ground while the body starts up in the AV (3.1 m at the landing's start).
+  const HelperJoints = new Set(["reference_joint", "trajectory", "root"]);
   const framed = bones.filter((b) => !HelperJoints.has(b.name.toLowerCase()));
   const poseBox = () => {
     animated.updateMatrixWorld(true);
