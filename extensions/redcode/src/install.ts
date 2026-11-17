@@ -147,6 +147,18 @@ export function launchTarget(gamePath: string, how: "auto" | "steam" | "exe", mo
   return { kind: "exe", exe, args: modded ? ["-modded"] : [] };
 }
 
+/**
+ * The environment the game starts with when REDcode runs its exe: REDcode's own, without
+ * ELECTRON_RUN_AS_NODE. VS Code's extension host sets it, the game passes it on to every program it
+ * starts, and an Electron app started with it runs as plain Node: REDnode's overlay host exits at once
+ * (REDcode issue #24). REDcode's own Node children keep it.
+ */
+export function gameEnv(env: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
+  const out = { ...env };
+  for (const k of Object.keys(out)) if (k.toUpperCase() === "ELECTRON_RUN_AS_NODE") delete out[k];
+  return out;
+}
+
 function samePath(a: string, b: string): boolean {
   return path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase();
 }

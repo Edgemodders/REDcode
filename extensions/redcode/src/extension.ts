@@ -29,7 +29,7 @@ import {
 import { Cr2wEditorProvider, Cr2wPropertiesView, Cr2wViewType, cr2wViewTypeFor, opensInCr2wEditor } from "./cr2wEditor";
 import { GameFileSystem, gameUri } from "./gameFs";
 import { compareJson, formatDifference, type JsonComparison } from "./jsonDiff";
-import { installDirect, launchTarget, planInstall, readRecord, uninstallDirect, uninstallHot } from "./install";
+import { gameEnv, installDirect, launchTarget, planInstall, readRecord, uninstallDirect, uninstallHot } from "./install";
 import { callArchivesReload, installedNote, looseNote, looseNotInGame, readRednodeMcp, summarize, type ReloadResult } from "./hotSwap";
 import { isSoundWav, sourceFolderOf, targetsUnder } from "./modkit";
 import { compileFilter } from "./treeFilter";
@@ -890,7 +890,7 @@ async function runGameCommand(): Promise<void> {
     return;
   }
   log.appendLine(`Run game: ${target.exe} ${target.args.join(" ")}`);
-  const child = spawn(target.exe, target.args, { cwd: path.dirname(target.exe), detached: true, stdio: "ignore" });
+  const child = spawn(target.exe, target.args, { cwd: path.dirname(target.exe), detached: true, stdio: "ignore", env: gameEnv() });
   child.on("error", (e) => {
     log.appendLine(`Could not start the game: ${e.message}`);
     void vscode.window.showErrorMessage(`REDcode: could not start the game. ${e.message}`);

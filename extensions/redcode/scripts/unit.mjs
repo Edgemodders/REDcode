@@ -592,6 +592,17 @@ await check("animations: a clip holds only its own keys, from a shared buffer vi
   assert.throws(() => anims.animsClip(glb, 2), /No animation 2/);
 });
 
+await check("run game: the exe starts without ELECTRON_RUN_AS_NODE, everything else kept (#24)", () => {
+  const inst = require("../dist/install.js");
+  const env = inst.gameEnv({ ELECTRON_RUN_AS_NODE: "1", Electron_Run_As_Node: "1", PATH: "C:\\Windows", APPDATA: "x" });
+  assert.deepEqual(env, { PATH: "C:\\Windows", APPDATA: "x" });
+  const mine = { ELECTRON_RUN_AS_NODE: "1" };
+  inst.gameEnv(mine);
+  assert.equal(mine.ELECTRON_RUN_AS_NODE, "1", "REDcode's own environment is left as it is");
+  const exe = inst.launchTarget("D:\\GOG Games\\Cyberpunk 2077", "auto", false);
+  assert.equal(exe.kind, "exe", "a GOG install takes the exe route");
+});
+
 fs.rmSync(tmp, { recursive: true, force: true });
 console.log(`${passed} passed${failures.length ? `, ${failures.length} failed` : ""}`);
 process.exit(failures.length ? 1 : 0);

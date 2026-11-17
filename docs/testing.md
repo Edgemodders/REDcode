@@ -34,6 +34,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Animations A1 (#21)](#animations-a1) | By hand | Requests | 2026-11-06 | Pass |
 | [Animations A2 (#21)](#animations-a2) | By hand | Requests | 2026-11-15 | Pass, three fixes |
 | [Library view (#23)](#library-view-23) | By hand | Requests | 2026-11-15 | Pass, two fixes |
+| [Run Game without ELECTRON_RUN_AS_NODE (#24)](#run-game-without-electron_run_as_node-24) | By hand, in the game | Requests | | Given to the owner 2026-11-17 |
 | [No Red Hot Tools](#no-red-hot-tools) | By hand | C4 | 2026-11-10 | Pass, one fix |
 | importFile's texture (#25) | By hand, through EDGEhack | Requests | 2026-11-10 | Pass: EDGEhack 0.0.19's H3b.2 Upload test (EDGEhack's `docs/testing.md`), all 10 steps, run by the owner with REDcode main e9b5e7b; the icons showed in the game. Reported by the EDGEhack session |
 | [Resizable table columns (#26)](#resizable-table-columns-26) | By hand | Requests | 2026-11-10 | Pass, one fix |
@@ -777,6 +778,19 @@ Owner's check on a5a34a6 (2026-11-15, VS Code, **Run REDcode**, the owner's real
 | 9 | Search a path, such as `legs\l1_012`: pick a file; then on a file row the **Open as JSON** button | The file opens as a click in Game Assets does (a texture in the texture viewer); Open as JSON opens its JSON. No message comes up after a pick |
 | 10 | Close the project folder (**File > Close Folder**), search again and hover a file | Two buttons only: Copy path and Open as JSON |
 | 11 | **Developer: Reload Window**, search `comfy rocker` | Items come up at once, with no loading row: the cache from step 2. Delete `items.json.bak` |
+
+## Run Game without ELECTRON_RUN_AS_NODE (#24)
+
+Built 2026-11-17 for [REDcode issue #24](https://github.com/Edgemodders/REDcode/issues/24), from REDnode. When Run Game starts the exe (a GOG or Epic install, or `redcode.launch` set to `exe`), the game used to inherit VS Code's `ELECTRON_RUN_AS_NODE`, pass it on, and so stop REDnode's overlay host on REDnode 0.58.0 or older. REDcode now starts the game without it (`gameEnv` in `src/install.ts`); its own Node children keep it. Checked before: `npm test` (49, one new: the variable goes, everything else stays, REDcode's own environment is untouched), and a child process started from a Node with the variable set, through `gameEnv`, does not see it. The Steam route is not affected and is not part of this test.
+
+REDnode 0.59.1 and later start their host without the variable anyway, so on a current REDnode this test shows only that nothing broke. The bug itself shows only with REDnode 0.58.0 or older.
+
+| # | Do | Expected |
+|---|---|---|
+| 1 | F5 with **Run REDcode**. Settings: **REDcode: Launch** to `exe` (Always bin\x64\Cyberpunk2077.exe directly) | |
+| 2 | **REDcode: Run Game** | The game starts; the REDcode log says `Run game: ...\bin\x64\Cyberpunk2077.exe` |
+| 3 | In the game, with a save loaded, press F10 | REDnode's launcher and apps show, not only its cursor |
+| 4 | Quit the game. Set **REDcode: Launch** back to `auto` | |
 
 ## Never run
 

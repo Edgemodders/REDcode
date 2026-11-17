@@ -4,6 +4,10 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 ## Unreleased
 
+**Fixed**
+
+- **Run Game** no longer stops REDnode's overlay when it starts the game's exe directly (a GOG or Epic install, or REDcode: Launch set to exe). On REDnode 0.58.0 or older, F10 showed only the cursor (https://github.com/Edgemodders/REDcode/issues/24).
+
 ## 0.10.13 (2026-11-16)
 
 A Library view: browse the EDGE Library in REDcode and add its items to your project. Needs REDbridge 0.13.0, as before.
