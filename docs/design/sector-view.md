@@ -4,7 +4,7 @@ title: Sector view
 
 # Sector view: a streaming sector in 3D
 
-Draft 0.1, 2026-11-19, for the owner and EDGEbuilder. The owner asked on 2026-11-19 whether EDGEbuilder could open a 3D sector view of REDcode's instead of hosting one of its own. Nothing is built. It comes after Animations A3 and New File, unless the owner moves it, and its drawing code waits for EDGEbuilder's E0 answer (below).
+Draft 0.2, 2026-11-19, agreed with the owner (decisions below); the package's API is still to agree with EDGEbuilder. The owner asked on 2026-11-19 whether EDGEbuilder could open a 3D sector view of REDcode's instead of hosting one of its own. Nothing is built. It comes after Animations A3 and New File, unless the owner moves it, and its drawing code waits for EDGEbuilder's E0 answer (below).
 
 ## What there is today
 
@@ -40,7 +40,10 @@ One VS Code extension cannot put another extension's webview inside its own. EDG
 2. The package and REDcode's sector mode, agreed with EDGEbuilder's session first. The package's API is the contract between the two, so it is agreed before either builds on it.
 3. EDGEbuilder's E2 on the package.
 
-## Decisions for the owner
+## Decisions
+
+Agreed with the owner on 2026-11-19: each of the three as proposed. The owner expects EDGEbuilder to reach its E0 probe soon, after its Doors phase.
+
 
 1. **The three layers**, rather than REDcode alone hosting the view or EDGEbuilder alone writing its own. Proposal: the three layers.
 2. **Where the package lives:** in this repo, since the mesh viewer is here and its code moves into it. The other way is a repo of its own. Proposal: this repo.
