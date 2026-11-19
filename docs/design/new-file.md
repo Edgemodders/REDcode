@@ -4,7 +4,7 @@ title: New File
 
 # New File: make a game file from nothing
 
-Draft 0.1, 2026-11-19, for the owner. The owner asked for it on 2026-11-19, after right-clicking a project folder under Archive and finding no **New...** entry. It comes after Animations A3 (the owner, the same day). Nothing is built yet.
+Draft 0.2, 2026-11-19, agreed with the owner (decisions below). The owner asked for it on 2026-11-19, after right-clicking a project folder under Archive and finding no **New...** entry. It comes after Animations A3 (the owner, the same day). Nothing is built yet.
 
 Today REDcode makes new files only from something else:
 
@@ -66,7 +66,9 @@ New File in base\gameplay\gui\mymod
 
 One step with one hand test: each type made in a project folder, opened in its editor, packed, and the atlas and the material instance read back by the game (an atlas drawn by a widget, a material on a mesh), which needs a small test mod.
 
-## Decisions for the owner
+## Decisions
+
+Agreed with the owner on 2026-11-19: each of the three as proposed.
 
 1. **Which types at first.**
    - **(a) A short list of REDcode's own**, as above: the six game file types modders make most, each with a sensible start, plus Start from a Game File for everything else.
