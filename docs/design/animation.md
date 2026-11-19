@@ -4,7 +4,7 @@ title: Animations (C5)
 
 # Animations: a game animation played on its rig
 
-Draft 0.4, 2026-11-15, agreed with the owner (decisions below). A1 is built and passed its hand test on 2026-11-06 ([testing](../testing.html#animations-a1)). A2 is built on REDbridge 0.13.0 and passed its hand test on 2026-11-15, with three fixes to the framing ([testing](../testing.html#animations-a2)). Asked for in [REDcode issue #21](https://github.com/Edgemodders/REDcode/issues/21) by EDGEquest, whose Animation picker needs a preview without a 3D viewer of its own. It is the "Animations" step that [View (C5)](view.html) deferred. Not urgent: EDGEquest needs it when its happenings around V (Q8 H4) are planned.
+Draft 0.5, 2026-11-19, agreed with the owner up to A2 (decisions below); the A3 plan is a draft for the owner. A1 is built and passed its hand test on 2026-11-06 ([testing](../testing.html#animations-a1)). A2 is built on REDbridge 0.13.0 and passed its hand test on 2026-11-15, with three fixes to the framing ([testing](../testing.html#animations-a2)). Asked for in [REDcode issue #21](https://github.com/Edgemodders/REDcode/issues/21) by EDGEquest, whose Animation picker needs a preview without a 3D viewer of its own. It is the "Animations" step that [View (C5)](view.html) deferred. Not urgent: EDGEquest needs it when its happenings around V (Q8 H4) are planned.
 
 ## What the game gives
 
@@ -25,7 +25,7 @@ Checked on game 2.5 with REDbridge 0.11.0, on the issue's prologue Trauma Team f
 |---|---|---|
 | **A1 The animation view** | An `.anims` opens in a new CR2W editor mode, **Animations**, with **Tree** one click away as for meshes. On the left, the file's animations with name, length and frame rate, and the rig. On the right, the skeleton in the 3D view, as bones and joints, playing the one picked: play and pause, a scrub bar with the time, loop, speed. `REDcodeApi.openAnimation(path, animationName?)` opens it at one animation, for EDGEquest's Preview button. | None: `project.export` as it is, through the export cache |
 | **A2 A body on the rig** | The skeleton wears a body: the meshes of a character or vehicle entity the caller passes (`openAnimation(path, name, { entity })`), or the base body of the rig's kind when none is passed (`man_base` and `woman_base` to the base male and female bodies; a vehicle rig to nothing, so the skeleton stays). A **Root motion** switch moves the whole rig through the scene, as the AV's landing needs. | A REDbridge export option for meshes with their rig, and one for root motion in animations: a minor release |
-| **A3 Synced sets** | The files of a synced set (`synced__q001_00c__trauma_*.anims`: the AV, the pack and the crew) play together on one clock, each on its own rig, at the reference point they share. | Probably none |
+| **A3 Synced sets** | The files of a synced set (`synced__q001_00c__trauma_*.anims`: the AV, the pack and the crew) play together on one clock, each on its own rig, placed where they are relative to each other. | Not "probably none" after all: `syncTrajectory` keys and a root motion fix, a minor release (see the A3 plan) |
 
 Each step is a commit or two with a hand test on the owner's machine, as before.
 
@@ -57,6 +57,27 @@ Built 2026-11-15 on REDbridge 0.13.0, which took A2's part of [REDbridge #14](ht
 Found on the way:
 - The base bodies have no heads: a character's head is a mesh of its own. An entity has its head.
 - With root motion, the soldiers' landing carries the rig about 14 m. The drop from the AV is in the body's own bones (Root's height stays 0), so it shows with root motion on or off.
+
+## A3: what the game gives
+
+Probed on 2026-11-19 on game 2.5 with REDbridge 0.15.0, on the prologue's Trauma Team set in `base\animations\quest\main_quests\prologue\q001\q001_00c_rescuing_girl\anim\synced\` (scratchpad `a3origin.mjs`, `a3frame.mjs`, `a3sync.mjs` with a probe method in a scratch bridge build that was not committed, and `a3check.mjs`):
+
+- **How a set is named.** A synced clip is named `synced__<moment>__<role>`, and the members of one moment are the clips with the same `<moment>` across the `.anims` files of one folder. `synced__q001_00c_trauma_arrives_soldiers__land_v1` has three: `__av` in `synced__q001_00c__trauma_av.anims`, and `__soldier_01` and `__soldier_02`, both in `synced__q001_00c__male_average.anims`. So one file can hold several members. The role is only a label, and the game misspells some (`__slodier_01`).
+- **Each member starts at its own origin.** Every member's Root is at 0 at the start, so playing them on top of each other is wrong: in the landing, the soldiers start 14 m from where they end, up in the AV.
+- **Where the others are: `syncTrajectory`.** Each clip's buffer holds one extra joint per partner, past its rig's own joints: `syncTrajectory`, `syncTrajectory1` and on. Each one is a partner's Root as seen from this member's own Root at the same moment. Checked: soldier_02 placed from soldier_01's track stays at one place through both clips of the landing and the take-off, to the centimetre. The AV placed the same way stays at one place through the 15 s take-off. In the landing, the AV holds one place only from about 2 s on, since its touch-down is partly in its own `base` bone. The tracks are not named by partner; a pair's tracks are each other's inverse, which is how they are matched. A human rig's `reference_joint` is also a fixed point of the set, but vehicle and prop rigs have none.
+- **REDbridge does not give them today.** WolvenKit decodes every joint of a buffer, but its glTF export writes only the rig's joints, so the extras are dropped.
+- **A WolvenKit bug in root motion.** For `animSplineCompressedMotionExtraction` (the AV's), WolvenKit writes each key at its fraction of the clip (0 to 1) rather than in seconds (`AnimRootMotion.cs` keys by `TimePercent` and never uses the duration it reads). So with **Root motion** on, the AV's whole flight plays in the first second of a 7.9 s clip; this is in A2 already. `animPlaneUncompressedMotionExtraction` (the humans') is right.
+
+## A3 plan
+
+Draft, for the owner (2026-11-19):
+
+| Part | What | Where |
+|---|---|---|
+| REDbridge | `anims.sync(path, clips?)`: for each clip, its extra joints' names and their position and rotation keys, in seconds and glTF axes. And `project.export` with `rootMotion` puts spline root motion keys in seconds. A minor release | A `request` issue on REDbridge, as A2's part was [#14](https://github.com/Edgemodders/REDbridge/issues/14) |
+| REDcode | A synced clip shows its set under the list: each member's role and file, from the folder's `anims.info`. **Play the Set** adds each member to the scene on its own rig, placed from the sync tracks, on one clock with one scrub bar. Each member gets the body A2 gives its rig (the base body for `man_base` and `woman_base`, bones for vehicles and props), and a check box to hide it. Root motion is on while the set plays. The opened clip's member stays at the origin. `openAnimation(path, name, { set: true, entities: { <role>: { entity, appearance } } })` gives members bodies of their own | `src/animsGlb.ts`, `webview/animViewer.ts` |
+
+A member that shares no track with the opened clip is placed through another member that does. One hand test: the Trauma Team landing and take-off, the AV and the two soldiers together, and the medics' set with the trauma pack.
 
 ## Decisions
 
