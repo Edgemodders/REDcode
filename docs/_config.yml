@@ -40,6 +40,8 @@ nav:
     url: /design/item-search.html
   - title: Library view
     url: /design/library-view.html
+  - title: New File
+    url: /design/new-file.html
   - title: MCP
     url: /mcp.html
   - title: Extension API
