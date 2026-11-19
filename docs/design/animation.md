@@ -4,7 +4,7 @@ title: Animations (C5)
 
 # Animations: a game animation played on its rig
 
-Draft 0.5, 2026-11-19, agreed with the owner up to A2 (decisions below); the A3 plan is a draft for the owner. A1 is built and passed its hand test on 2026-11-06 ([testing](../testing.html#animations-a1)). A2 is built on REDbridge 0.13.0 and passed its hand test on 2026-11-15, with three fixes to the framing ([testing](../testing.html#animations-a2)). Asked for in [REDcode issue #21](https://github.com/Edgemodders/REDcode/issues/21) by EDGEquest, whose Animation picker needs a preview without a 3D viewer of its own. It is the "Animations" step that [View (C5)](view.html) deferred. Not urgent: EDGEquest needs it when its happenings around V (Q8 H4) are planned.
+Draft 0.5, 2026-11-19, agreed with the owner (decisions below), the A3 plan included. A1 is built and passed its hand test on 2026-11-06 ([testing](../testing.html#animations-a1)). A2 is built on REDbridge 0.13.0 and passed its hand test on 2026-11-15, with three fixes to the framing ([testing](../testing.html#animations-a2)). Asked for in [REDcode issue #21](https://github.com/Edgemodders/REDcode/issues/21) by EDGEquest, whose Animation picker needs a preview without a 3D viewer of its own. It is the "Animations" step that [View (C5)](view.html) deferred. Not urgent: EDGEquest needs it when its happenings around V (Q8 H4) are planned.
 
 ## What the game gives
 
@@ -70,11 +70,11 @@ Probed on 2026-11-19 on game 2.5 with REDbridge 0.15.0, on the prologue's Trauma
 
 ## A3 plan
 
-Draft, for the owner (2026-11-19):
+Agreed with the owner on 2026-11-19. Its REDbridge part is [REDbridge #19](https://github.com/Edgemodders/REDbridge/issues/19); the root motion bug is reported to WolvenKit as [WolvenKit #3304](https://github.com/WolvenKit/WolvenKit/issues/3304).
 
 | Part | What | Where |
 |---|---|---|
-| REDbridge | `anims.sync(path, clips?)`: for each clip, its extra joints' names and their position and rotation keys, in seconds and glTF axes. And `project.export` with `rootMotion` puts spline root motion keys in seconds. A minor release | A `request` issue on REDbridge, as A2's part was [#14](https://github.com/Edgemodders/REDbridge/issues/14) |
+| REDbridge | `anims.sync(path, clips?)`: for each clip, its extra joints' names and their position and rotation keys, in seconds and glTF axes. And `project.export` with `rootMotion` puts spline root motion keys in seconds. A minor release | [REDbridge #19](https://github.com/Edgemodders/REDbridge/issues/19), a `request` issue as A2's part was [#14](https://github.com/Edgemodders/REDbridge/issues/14) |
 | REDcode | A synced clip shows its set under the list: each member's role and file, from the folder's `anims.info`. **Play the Set** adds each member to the scene on its own rig, placed from the sync tracks, on one clock with one scrub bar. Each member gets the body A2 gives its rig (the base body for `man_base` and `woman_base`, bones for vehicles and props), and a check box to hide it. Root motion is on while the set plays. The opened clip's member stays at the origin. `openAnimation(path, name, { set: true, entities: { <role>: { entity, appearance } } })` gives members bodies of their own | `src/animsGlb.ts`, `webview/animViewer.ts` |
 
 A member that shares no track with the opened clip is placed through another member that does. One hand test: the Trauma Team landing and take-off, the AV and the two soldiers together, and the medics' set with the trauma pack.
