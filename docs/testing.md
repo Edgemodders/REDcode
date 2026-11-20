@@ -33,7 +33,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Open contract (#22)](#open-contract-22) | By hand | Requests | 2026-11-06 | Pass |
 | [Animations A1 (#21)](#animations-a1) | By hand | Requests | 2026-11-06 | Pass |
 | [Animations A2 (#21)](#animations-a2) | By hand | Requests | 2026-11-15 | Pass, three fixes |
-| [Animations A3 (#21)](#animations-a3) | By hand | Requests | | Given to the owner 2026-11-20; needs REDbridge 0.17.0 |
+| [Animations A3 (#21)](#animations-a3) | By hand | Requests | | Given to the owner 2026-11-20; REDbridge 0.17.0 is out |
 | [Edit in Blender: skinned meshes](#edit-in-blender-skinned-meshes) | By hand | | | Given to the owner 2026-11-20 |
 | [Replace with a WAV, titled models (#29), every window's project (#32)](#replace-with-a-wav-titled-models-29-and-every-windows-project-32) | By hand, in the game | Requests | | Given to the owner 2026-11-20 |
 | [Sector view](#sector-view) | By hand | C5 | | Given to the owner 2026-11-20 |
@@ -716,7 +716,7 @@ Built 2026-11-20 ([design](design/animation.html#a3-as-built), REDcode issue #21
 
 | # | Do | Expected |
 |---|---|---|
-| 1 | With REDbridge 0.17.0 (**REDcode: Update REDbridge**), F5 with **Run REDcode with Opens Test (no other extensions)**. **REDcode: Search game files**, `synced__q001_00c__male_average.anims`, open it. In the list, pick `synced__q001_00c_trauma_arrives_soldiers__land_v1__soldier_01` | Under the list, **Synced set**: soldier_01 (this file), av and soldier_02, each with a colour and a tick, and **Play the Set** |
+| 1 | **REDcode: Update REDbridge** to 0.17.0 (released 2026-11-20; REDcode's minimum since then), then F5 with **Run REDcode with Opens Test (no other extensions)**. **REDcode: Search game files**, `synced__q001_00c__male_average.anims`, open it. In the list, pick `synced__q001_00c_trauma_arrives_soldiers__land_v1__soldier_01` | Under the list, **Synced set**: soldier_01 (this file), av and soldier_02, each with a colour and a tick, and **Play the Set** |
 | 2 | **Play the Set** | **Root motion** turns on; the button says Placing, then Loading. Then the AV (bones only: a vehicle rig) and soldier_02 (a body) join soldier_01, and both rows say **placed**. Hovering a row says which track placed it |
 | 3 | Drag the time to the start, then to the end | At the start both soldiers stand up inside the AV's bones; at the end both are on the ground well out from it, about 4 m apart. Play, Pause, the frame steps, **Loop** and the speed move all three together |
 | 4 | **Bones**, **Body** and **Frame** | They act on every member; Frame fits the whole set over the clip |
@@ -724,8 +724,8 @@ Built 2026-11-20 ([design](design/animation.html#a3-as-built), REDcode issue #21
 | 6 | Turn **Root motion** off | The set stops; soldier_01 plays alone, in place |
 | 7 | Pick a clip that is not synced, such as `q001_00c_trauma_av_idle__02` in `synced__q001_00c__trauma_av.anims` | No **Synced set** section |
 | 8 | In `synced__q001_00c__trauma_av.anims`, pick `synced__q001_00c_trauma_leaves_soldiers__av`, **Play the Set** | The soldiers walk to the AV and leave with it; the AV's flight spreads over the whole 15 s, not its first second |
-| 9 | Open `synced__q001_00c__syringe.anims`, pick `synced__q001_00c_injector__syringe` | The set lists fpp twice (player_female, player_male, both marked **SIMD**, one ticked), jackie and sandra. Ticking one fpp unticks the other |
-| 10 | **Play the Set** | Sandra kneels; Jackie (bones only: `man_big.rig`) stands by her. The player may show as a collapsed skeleton: the known SIMD export fault, not A3's |
+| 9 | Open `synced__q001_00c__syringe.anims`, pick `synced__q001_00c_injector__syringe` | The set lists fpp twice (player_female and player_male, one ticked), jackie and sandra. Ticking one fpp unticks the other |
+| 10 | **Play the Set** | Sandra kneels; Jackie (bones only: `man_big.rig`) stands by her; the player (bones only: the player rig has no base body) is a whole skeleton beside them, not collapsed to one point: REDbridge 0.17.0 fixed that SIMD export (REDbridge #20) |
 | 11 | **Opens Test: Play an Animation's Synced Set** | The landing opens with its set playing, soldier_02 on the Trauma Team paramedic's meshes |
 
 ## Replace with a WAV, titled models (#29) and every window's project (#32)

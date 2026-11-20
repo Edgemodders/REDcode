@@ -643,11 +643,6 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
         row.append(box);
       }
       row.append(swatch, name, file);
-      if (m.buffer === "simd") {
-        const simd = el("span", "dim", "SIMD");
-        simd.title = "A SIMD clip. WolvenKit's export of some of these is wrong (every bone at one point, or squashed), so this member may not show as it plays in the game";
-        row.append(simd);
-      }
       const p = placing.get(i);
       if (p && !m.self) {
         const state = el("span", "dim why", p.matrix ? (p.ambiguous ? "placed, unsure" : "placed") : "not placed");

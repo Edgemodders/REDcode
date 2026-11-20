@@ -24,7 +24,7 @@
     "vscode": "^1.70.0"
   },
   "redcode": {
-    "minBridgeVersion": "0.13.0"
+    "minBridgeVersion": "0.17.0"
   },
   "categories": [
     "Other",

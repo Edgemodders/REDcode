@@ -26,6 +26,7 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 **Fixed**
 
+- Some animations, such as the player's in the Trauma Team's injector scene, showed every bone at one point. Their export is fixed in REDbridge 0.17.0 (https://github.com/Edgemodders/REDbridge/issues/20), and REDcode exports such files again rather than reuse a broken copy.
 - With **Root motion** on, the AV's flight in the Trauma Team animations took the whole clip again, instead of its first second (WolvenKit issue https://github.com/WolvenKit/WolvenKit/issues/3304, worked round in REDbridge 0.17.0).
 - **Edit in Blender** opens skinned meshes, such as a body or a garment on its rig. Blender's glTF importer failed on them ("'Context' object has no attribute 'object'") and nothing opened: the script now runs the import, and the export on each save, with a window and a 3D view in their context. Reported, with the fix, by a modder; checked in Blender 5.3 on the base male body (187 bones, 11 skinned meshes, opened, saved and exported again).
 

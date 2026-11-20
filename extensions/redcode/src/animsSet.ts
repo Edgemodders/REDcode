@@ -140,9 +140,8 @@ export interface SetMember {
   /** The opened clip. */
   self: boolean;
   /**
-   * Its animation buffer, as anims.info says: "compressed" or "simd". A SIMD clip's export can be wrong
-   * (found 2026-11-20: the player's synced__q001_00c_injector__fpp exports with every translation zero
-   * and a 0.19 scale), so the view marks it.
+   * Its animation buffer, as anims.info says: "compressed" or "simd". REDbridge before 0.17.0 exported some
+   * SIMD clips wrongly (REDbridge #20: WolvenKit's decoder, WolvenKit issue 3306); 0.17.0 exports them right.
    */
   buffer: string;
 }
@@ -394,7 +393,9 @@ export async function placeSet(
         id: i,
         duration: m.duration,
         root: track(inSeconds(root.translation, m.duration), inSeconds(root.rotation, m.duration)),
-        tracks: (sync?.tracks ?? []).map((t) => ({ name: t.name, at: track(t.translation, t.rotation) })),
+        // A SIMD buffer may hold only rotations for its sync joints (REDbridge 0.17.0 says so in the clip's
+        // note): such a track cannot place a member, so the partner's track places it instead.
+        tracks: (sync?.tracks ?? []).filter((t) => (t.translation?.times?.length ?? 0) > 0).map((t) => ({ name: t.name, at: track(t.translation, t.rotation) })),
       });
     } catch (e) {
       if (e instanceof Error && e.message === NeedsBridge) throw e;

@@ -84,7 +84,9 @@ export async function animsGlbFor(bridge: BridgeClient, cacheRoot: string, sourc
     ? // "rootmotion-s": REDbridge 0.17.0 writes spline root motion in seconds; older exports kept fractions of
       // the clip (WolvenKit issue 3304), so they are not reused.
       await cachedExport(bridge, cacheRoot, source, ".anims.glb", { rootMotion: true }, "glTF", "rootmotion-s")
-    : await cachedExport(bridge, cacheRoot, source, ".anims.glb", {}, "glTF");
+    : // "b17": REDbridge 0.17.0 exports SIMD clips with sync joints right (REDbridge #20); older exports of
+      // them collapsed the skeleton, so they are not reused.
+      await cachedExport(bridge, cacheRoot, source, ".anims.glb", {}, "glTF", "b17");
   return { glb: r.file, cached: r.cached };
 }
 
