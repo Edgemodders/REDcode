@@ -34,7 +34,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Animations A1 (#21)](#animations-a1) | By hand | Requests | 2026-11-06 | Pass |
 | [Animations A2 (#21)](#animations-a2) | By hand | Requests | 2026-11-15 | Pass, three fixes |
 | [Library view (#23)](#library-view-23) | By hand | Requests | 2026-11-15 | Pass, two fixes |
-| [Run Game without ELECTRON_RUN_AS_NODE (#24)](#run-game-without-electron_run_as_node-24) | By hand, in the game | Requests | | Given to the owner 2026-11-17 |
+| [Run Game without ELECTRON_RUN_AS_NODE (#24)](#run-game-without-electron_run_as_node-24) | By hand, in the game | Requests | 2026-11-20 | Pass |
 | [No Red Hot Tools](#no-red-hot-tools) | By hand | C4 | 2026-11-10 | Pass, one fix |
 | importFile's texture (#25) | By hand, through EDGEhack | Requests | 2026-11-10 | Pass: EDGEhack 0.0.19's H3b.2 Upload test (EDGEhack's `docs/testing.md`), all 10 steps, run by the owner with REDcode main e9b5e7b; the icons showed in the game. Reported by the EDGEhack session |
 | [Resizable table columns (#26)](#resizable-table-columns-26) | By hand | Requests | 2026-11-10 | Pass, one fix |
@@ -791,6 +791,8 @@ REDnode 0.59.1 and later start their host without the variable anyway, so on a c
 | 2 | **REDcode: Run Game** | The game starts; the REDcode log says `Run game: ...\bin\x64\Cyberpunk2077.exe` |
 | 3 | In the game, with a save loaded, press F10 | REDnode's launcher and apps show, not only its cursor |
 | 4 | Quit the game. Set **REDcode: Launch** back to `auto` | |
+
+Result (owner, 2026-11-20, F5 on main): **pass**, all four steps. On a current REDnode (0.59.1 or later) this shows only that nothing broke, as said above.
 
 ## Never run
 
