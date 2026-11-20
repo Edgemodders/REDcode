@@ -36,7 +36,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Library view (#23)](#library-view-23) | By hand | Requests | 2026-11-15 | Pass, two fixes |
 | [Run Game without ELECTRON_RUN_AS_NODE (#24)](#run-game-without-electron_run_as_node-24) | By hand, in the game | Requests | 2026-11-20 | Pass |
 | [New File](#new-file) | By hand | Requests | 2026-11-20 | Pass, steps 1 to 13, four fixes |
-| [New File hover button](#new-file-hover-button) | By hand | Requests | | Given to the owner 2026-11-20 |
+| [New File hover button](#new-file-hover-button) | By hand | Requests | 2026-11-20 | Pass |
 | [No Red Hot Tools](#no-red-hot-tools) | By hand | C4 | 2026-11-10 | Pass, one fix |
 | importFile's texture (#25) | By hand, through EDGEhack | Requests | 2026-11-10 | Pass: EDGEhack 0.0.19's H3b.2 Upload test (EDGEhack's `docs/testing.md`), all 10 steps, run by the owner with REDcode main e9b5e7b; the icons showed in the game. Reported by the EDGEhack session |
 | [Resizable table columns (#26)](#resizable-table-columns-26) | By hand | Requests | 2026-11-10 | Pass, one fix |
@@ -813,6 +813,8 @@ Asked for by the owner on 2026-11-20, after 0.10.14: New File as a hover button 
 | 1 | F5 with **Run REDcode** on a project. Hover the project's top node, a root (**Archive**, **Raw**, **Resources**) and a folder | Each shows a **New File...** icon first, before Copy Path |
 | 2 | Hover a file | No New File icon; a texture under Archive still shows Export there |
 | 3 | Click the icon on a folder under **Archive** | The same type list as the right-click menu, titled with that folder's game path |
+
+Result (owner, 2026-11-20): **pass**, all three steps.
 
 Use a test project. Have a small PNG ready, an icon for example.
 
