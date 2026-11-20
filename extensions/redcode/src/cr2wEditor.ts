@@ -12,6 +12,8 @@ import { gameUri, gamePathOfUri } from "./gameFs";
 import { meshGlbFor, meshPayload } from "./meshExport";
 import { animsClip, animsGlbFor, animsList, animsSkeleton, baseBodyFor, baseBodyGlb, entityBodyGlb, readAnimsGlb, type AnimsGlb, type BodyGlb } from "./animsGlb";
 import { listSet, memberGlb, newSetSession, placeSet, toMatrix, type SetMember } from "./animsSet";
+import { createSectorLoader, sectorsOver, type SectorLoader, type SectorRef } from "../../../packages/world-view/src/host";
+import { gameCacheReady } from "./exportCache";
 import { findEdgemat, mapsForWebview, openInEdgemat } from "./edgemat";
 import { ProjectFolders } from "./project";
 import type { TextureViewer } from "./textureViewer";
@@ -71,6 +73,12 @@ function projectDirOf(file: string): string | undefined {
   const marker = `${path.sep}${ProjectFolders.archive.toLowerCase()}${path.sep}`;
   const at = file.toLowerCase().indexOf(marker);
   return at >= 0 ? file.slice(0, at) : undefined;
+}
+
+/** The source/archive folder of the project a file belongs to, or undefined. */
+function archiveRootOf(file: string): string | undefined {
+  const dir = projectDirOf(file);
+  return dir === undefined ? undefined : path.join(dir, ProjectFolders.archive);
 }
 
 /** The game path of a file under a project's source/archive (base\...), or undefined. */
@@ -216,6 +224,8 @@ interface Request {
   clip?: string;
   /** animsSetPlace: the set's members to place, by their place in animsSet's list. */
   include?: number[];
+  /** sectorLoad: the coarser sectors over the opened one too. */
+  coarser?: boolean;
   offset?: number;
   limit?: number;
   name?: string;
@@ -268,6 +278,8 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
   private readonly setBodies = new Map<string, Record<string, AnimationBody>>();
   /** A set to play once the editor page of the document is ready, by URI. */
   private readonly pendingSets = new Set<string>();
+  /** A sector's node data entry to select once the editor page is ready, by URI (REDcodeApi.openSector). */
+  private readonly pendingSectorEntries = new Map<string, number>();
   private readonly saved = new vscode.EventEmitter<Cr2wDocument>();
   /** Fired after a document is saved, for views that read the file (the LocKeys view). */
   readonly onDidSave = this.saved.event;
@@ -318,6 +330,21 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
       return;
     }
     for (const w of pages) void w.postMessage({ type: "showAnimation", name, rebody, playSet: !!set });
+  }
+
+  /**
+   * Opens a .streamingsector's 3D view at a node data entry: the open pages of the document go to it, or the
+   * editor page does when it opens. For REDcodeApi.openSector.
+   */
+  showSectorEntry(uri: vscode.Uri, entry: number): void {
+    const key = uri.toString();
+    const document = this.documents.get(key);
+    const pages = document ? [...(this.pages.get(document) ?? [])] : [];
+    if (pages.length === 0) {
+      this.pendingSectorEntries.set(key, entry);
+      return;
+    }
+    for (const w of pages) void w.postMessage({ type: "showSectorEntry", entry });
   }
 
   /** The open document for an editor tab's URI, for the Properties view. */
@@ -492,6 +519,8 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
     let setSession = newSetSession();
     // The opened clip plays from the document's own file (a project's copy); the others from the game's.
     const setSource = (x: SetMember) => (x.self ? animsSource() : { gamePath: x.file });
+    /** The sector view's loader (docs/design/sector-view.md), made when its 3D mode first loads. */
+    let sectorLoader: SectorLoader | undefined;
     let materialWatch: vscode.Disposable | undefined;
     const messages = webview.onDidReceiveMessage(async (m: Request) => {
       try {
@@ -519,6 +548,11 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
             if (node !== undefined) {
               this.pendingNodes.delete(key);
               post({ type: "reveal", path: node });
+            }
+            const sectorEntry = this.pendingSectorEntries.get(key);
+            if (sectorEntry !== undefined) {
+              this.pendingSectorEntries.delete(key);
+              post({ type: "showSectorEntry", entry: sectorEntry });
             }
             const animation = this.pendingAnimations.get(key);
             if (animation !== undefined) {
@@ -604,6 +638,43 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
               animsMoving = readAnimsGlb(r.glb);
             }
             return reply(m.id, animsClip(moving ? animsMoving! : anims, m.index ?? -1).toString("base64"));
+          }
+          case "sectorPayload": {
+            // A new 3D view (the first, or after a save or revert): a new loader, so the saved file is read again.
+            sectorLoader?.dispose();
+            sectorLoader = undefined;
+            const sector = meshGamePath();
+            if (!sector) throw new Error("A sector is read by its game path: open the game's file, or a copy under the project's Archive folder");
+            return reply(m.id, { sector, dirty: document.log.length > 0 });
+          }
+          case "sectorLoad": {
+            // The opened sector, from the project's loose files when it is a project's copy; the coarser
+            // sectors over it from the game. Meshes, markers and progress go to the page as they come.
+            const bridge = this.requireBridge();
+            const sector = meshGamePath();
+            if (!sector) throw new Error("No game path for this sector");
+            const stamp = (await gameCacheReady(bridge, path.join(this.textures.root.fsPath, "mesh"))) ?? "nogame";
+            if (!sectorLoader) {
+              sectorLoader = createSectorLoader(bridge, {
+                cacheDir: path.join(this.textures.root.fsPath, "mesh", "world", stamp),
+                onMesh: (b) => post({ type: "sectorMesh", mesh: b.mesh, data: fs.readFileSync(b.glb).toString("base64"), placements: b.placements }),
+                onMarkers: (s, markers) => post({ type: "sectorMarkers", sector: s, markers }),
+                onUnload: (s) => post({ type: "sectorUnload", sector: s }),
+                onProgress: (p) => post({ type: "sectorProgress", ...p }),
+              });
+            }
+            const own: SectorRef = document.gamePath ? { path: sector } : { path: sector, root: archiveRootOf(document.uri.fsPath) ?? undefined };
+            const sectors: (SectorRef | string)[] = [own];
+            if (m.coarser) {
+              const over = await sectorsOver(bridge, sector).catch(() => [sector]);
+              sectors.push(...over.filter((x) => x.toLowerCase() !== sector.toLowerCase()));
+            }
+            // Answers at once; the meshes follow as messages, and sectorDone at the end.
+            void sectorLoader.set(sectors).then(
+              (r) => post({ type: "sectorDone", skipped: r.skipped, sectors: sectors.map((x) => (typeof x === "string" ? x : x.path)) }),
+              (e) => post({ type: "sectorDone", skipped: [{ id: sector, why: e instanceof Error ? e.message : String(e) }], sectors: [] }),
+            );
+            return reply(m.id, null);
           }
           case "animsSet": {
             // The opened clip's synced set: its members across the .anims files of its game folder.
@@ -705,6 +776,7 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
       reload.dispose();
       messages.dispose();
       materialWatch?.dispose();
+      sectorLoader?.dispose();
       this.pages.get(document)?.delete(webview);
     });
   }

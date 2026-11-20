@@ -1,0 +1,56 @@
+{
+  "name": "@edgemodders/world-view",
+  "version": "0.1.0",
+  "description": "Cyberpunk 2077's streaming sectors in three.js: a host half that turns REDbridge's sector.nodes into meshes and placements, exporting each mesh once, and a page half that draws them instanced, with picking, highlight, hiding and a flying camera. For REDcode, EDGEbuilder and REDnode pages.",
+  "license": "MIT",
+  "author": "Edgemodders",
+  "homepage": "https://edgemodders.github.io/REDcode/design/sector-view.html",
+  "bugs": {
+    "url": "https://github.com/Edgemodders/REDcode/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Edgemodders/REDcode.git",
+    "directory": "packages/world-view"
+  },
+  "keywords": [
+    "cyberpunk",
+    "cyberpunk2077",
+    "modding",
+    "three",
+    "streamingsector",
+    "redbridge"
+  ],
+  "exports": {
+    "./host": {
+      "types": "./dist/host.d.ts",
+      "import": "./dist/host.mjs",
+      "require": "./dist/host.cjs"
+    },
+    "./page": {
+      "types": "./dist/page.d.ts",
+      "import": "./dist/page.mjs"
+    },
+    "./stage": {
+      "types": "./dist/stage.d.ts",
+      "import": "./dist/stage.mjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "node esbuild.mjs && tsc -p tsconfig.json --emitDeclarationOnly --declaration --noEmit false --outDir dist",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "peerDependencies": {
+    "three": ">=0.170.0"
+  },
+  "devDependencies": {
+    "@types/three": "0.170.0",
+    "three": "0.170.0"
+  }
+}

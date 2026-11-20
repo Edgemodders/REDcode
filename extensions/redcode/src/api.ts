@@ -145,6 +145,12 @@ export interface REDcodeApi {
    * they have no file URI to find them by. Answers how many closed. Since 0.10.15.
    */
   closeModel(fileOrFolder: string): number;
+  /**
+   * Opens a .streamingsector in REDcode's 3D sector view, read-only, with the tree one click away. path is
+   * what openFile takes. With options.select, a node data entry (the <entry> in "<sector>#<entry>") is picked
+   * and framed. Since 0.10.15 (docs/design/sector-view.md): check that the member is there before calling it.
+   */
+  openSector(path: string, options?: { select?: number }): Promise<void>;
 }
 
 /** What importFile answers. */
@@ -174,6 +180,7 @@ export interface ApiHost {
   revealInProject(file: string): Promise<boolean>;
   openModel(file: string, options?: { title?: string }): Promise<void>;
   closeModel(fileOrFolder: string): number;
+  openSector(path: string, options?: { select?: number }): Promise<void>;
 }
 
 /** What REDcodeApi.openAnimation plays an animation on (since 0.10.12). */
@@ -290,5 +297,6 @@ export function createApi(host: ApiHost): REDcodeApi {
     revealInProject: host.revealInProject,
     openModel: host.openModel,
     closeModel: host.closeModel,
+    openSector: host.openSector,
   };
 }

@@ -771,6 +771,99 @@ await check("redcode service: every window's project, the last focused first; a 
   }
 });
 
+// ---- The world view's host half (packages/world-view, docs/design/sector-view.md) ----
+
+const wv = require("../dist/worldViewHost.js");
+const closeTo = (a, b, eps = 1e-4) => Math.abs(a - b) < eps;
+
+await check("world view: a game transform becomes the glTF-axes matrix three.js would make", async () => {
+  const THREE = await import("three");
+  // The game is Z up; glTF Y up: (x, y, z) to (x, z, -y), as WolvenKit exports meshes.
+  const C = new THREE.Matrix4().set(1, 0, 0, 0, 0, 0, 1, 0, 0, -1, 0, 0, 0, 0, 0, 1);
+  const cases = [
+    { p: [-1364.18, 448.63, 8.97], q: [0.3767, 0.5837, -0.6044, -0.39], s: [1, 1, 1] },
+    { p: [10, 20, 30], q: [0, 0, 0.7071068, 0.7071068], s: [2.13, 0.86, 0.07] },
+    { p: [0, 0, 0], q: [0, 0, 0, 1], s: [0.52, 0.52, 0.52] },
+  ];
+  for (const c of cases) {
+    const q = new THREE.Quaternion(...c.q).normalize();
+    const game = new THREE.Matrix4().compose(new THREE.Vector3(...c.p), q, new THREE.Vector3(...c.s));
+    const expected = C.clone().multiply(game).multiply(C.clone().invert()).toArray();
+    const got = wv.transformToGltf(c.p, c.q, c.s);
+    got.forEach((v, i) => assert.ok(closeTo(v, expected[i]), `element ${i}: ${v} against ${expected[i]}`));
+  }
+  assert.deepEqual(wv.toGltf([1, 2, 3]), [1, 3, -2]);
+  assert.deepEqual(wv.toGame(wv.toGltf([1, 2, 3])), [1, 2, 3]);
+  assert.deepEqual(wv.boxToGltf({ min: [0, 1, 2], max: [3, 4, 5] }), { min: [0, 2, -4], max: [3, 5, -1] });
+});
+
+await check("world view: a sector's items become one batch per mesh, a placement per copy, and markers", () => {
+  const S = "base\\worlds\\x.streamingsector";
+  const t = (x) => ({ position: [x, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] });
+  const items = [
+    { index: 3, node: 1, kind: "worldCookedStaticMeshNode", resource: "base\\a\\Vent.mesh", transform: t(1), streaming: { primary: 22 } },
+    { index: 4, node: 2, kind: "worldInstancedMeshNode", resource: "base\\a\\vent.mesh", transform: t(0), instances: [t(5), t(6)], streaming: { primary: 30 } },
+    { index: 5, node: 3, kind: "worldEntityNode", resource: "base\\gameplay\\junk.ent", transform: t(7), bounds: null },
+    { index: 6, node: 4, kind: "worldCookedCollisionNode", resource: null, transform: t(8), bounds: { min: [0, 0, 0], max: [1, 2, 3] } },
+    { index: 7, node: 5, kind: "worldCookedStaticDecalNode", resource: "base\\d\\dirt.mi", transform: t(9) },
+  ];
+  const { meshes, markers } = wv.itemsToBatches(S, items);
+  assert.equal(meshes.size, 1, "the same mesh in two spellings is one batch");
+  const batch = meshes.get("base\\a\\vent.mesh");
+  assert.equal(batch.mesh, "base\\a\\Vent.mesh", "the first spelling is kept");
+  assert.deepEqual(batch.placements.map((p) => p.id), [`${S}#3`, `${S}#4.0`, `${S}#4.1`]);
+  assert.deepEqual(batch.placements.map((p) => p.range), [22, 30, 30]);
+  assert.deepEqual(batch.placements[1].matrix.slice(12, 15), [5, 0, -0], "a copy's own place, in glTF axes");
+  assert.deepEqual(markers.map((m) => [m.id.split("#")[1], m.kind]), [["5", "entity"], ["6", "collision"], ["7", "decal"]]);
+  assert.deepEqual(markers[1].box, { min: [0, 0, -2], max: [1, 3, -0] });
+  assert.equal(wv.itemsToBatches(S, items, ["worldEntityNode"]).meshes.size, 0, "kinds filter the classes");
+});
+
+await check("world view: the loader exports each mesh once, cached first, and unloads what leaves the list", async () => {
+  const cache = path.join(tmp, "wvcache");
+  const calls = [];
+  const sectors = {
+    "s\\one.streamingsector": [
+      { index: 0, node: 0, kind: "worldCookedStaticMeshNode", resource: "m\\shared.mesh", transform: { position: [0, 0, 0], rotation: [0, 0, 0, 1] } },
+      { index: 1, node: 1, kind: "worldCookedStaticMeshNode", resource: "m\\cached.mesh", transform: { position: [1, 0, 0], rotation: [0, 0, 0, 1] } },
+    ],
+    "s\\two.streamingsector": [{ index: 0, node: 0, kind: "worldCookedStaticMeshNode", resource: "m\\shared.mesh", transform: { position: [2, 0, 0], rotation: [0, 0, 0, 1] } }],
+  };
+  // One mesh is in the cache already.
+  const cached = wv.meshGlbPath(cache, "m\\cached.mesh");
+  fs.mkdirSync(path.dirname(cached), { recursive: true });
+  fs.writeFileSync(cached, "glb");
+  const bridge = {
+    async request(method, params) {
+      calls.push(method);
+      if (method === "sector.nodes") return { items: sectors[params.path] };
+      if (method === "archive.extract") {
+        fs.mkdirSync(path.dirname(params.outFile), { recursive: true });
+        fs.writeFileSync(params.outFile, "mesh");
+        return {};
+      }
+      if (method === "project.export") {
+        const out = path.join(params.rawDir, path.relative(params.archiveDir, params.file)).replace(/\.mesh$/i, ".glb");
+        fs.mkdirSync(path.dirname(out), { recursive: true });
+        fs.writeFileSync(out, "glb");
+        return { ok: true };
+      }
+      throw new Error(`unexpected ${method}`);
+    },
+  };
+  const got = [];
+  const unloaded = [];
+  const loader = wv.createSectorLoader(bridge, { cacheDir: cache, onMesh: (m) => got.push(`${m.sector}|${m.mesh}`), onMarkers: () => undefined, onUnload: (s) => unloaded.push(s) });
+  const r = await loader.set(["s\\one.streamingsector", "s\\two.streamingsector"]);
+  assert.deepEqual(r.skipped, []);
+  assert.equal(got[0], "s\\one.streamingsector|m\\cached.mesh", "the cached mesh is handed over first");
+  assert.equal(got.length, 3, "each sector gets its own placements of the shared mesh");
+  assert.equal(calls.filter((c) => c === "project.export").length, 1, "the shared mesh is exported once");
+  await loader.set(["s\\two.streamingsector"]);
+  assert.deepEqual(unloaded, ["s\\one.streamingsector"]);
+  assert.equal(calls.filter((c) => c === "sector.nodes").length, 2, "a sector still in the list is not read again");
+});
+
 // ---- Animations A3: synced sets (docs/design/animation.md) ----
 
 const as = require("../dist/animsSet.js");

@@ -106,6 +106,31 @@ view.dispose()
 - **The gizmo is the caller's.** EDGEbuilder brings its own, with the in-game viewport's keys (G, R, S, axis locks, typed numbers), over `scene`, `camera`, `onPointer` and the two projection helpers. The package has no gizmo, since REDcode's sector mode is read-only.
 - **A removal hides its proxies too.** A scene format 3 removal lists an entity's proxy meshes beside it (`proxies`, each `<sector>#<entry>`), so it is `setHidden([entry, ...proxies], "ghost")`. EDGEbuilder's D1a test showed why: after a save loads, a hidden entity does not come in, and the game shows its proxy in its place.
 
+## As built, part 1
+
+Built 2026-11-20 on REDbridge 0.12.0's `sector.find` and `sector.nodes`; hand test pending ([testing](../testing.html#sector-view)).
+
+- **The package**, `packages/world-view`: `src/host.ts`, `src/page.ts` and `src/stage.ts`, with its own `package.json` (`@edgemodders/world-view` 0.1.0, unpublished), README and CHANGELOG. It builds to `dist/` (ES modules and CommonJS for the host half, ES modules with `three` as a peer for the page half, and type declarations). REDcode bundles it from its source, as `redcode-mcp` bundles the bridge client. The API is as agreed above, with these settled while building:
+  - **`sector.nodes`** answers one item per node data entry (`index`, `node`, `kind`, `resource`, `transform` with `position`, the `rotation` quaternion x, y, z, w and `scale`, `instances`, `streaming`, `bounds`). The host turns each placement into a glTF-axes matrix, the conjugate of the game transform by (x, y, z) to (x, z, −y). A unit check holds it against three.js's own matrices.
+  - **Meshes** export with `meshMaterials: false` and `meshLodFilter: true`: the most detailed level of detail, no materials. They go into a folder per game version (`mesh\world\<game stamp>` in REDcode's cache).
+  - **`markers`** is an option of the page half (on at first), beside `colourBy` and `culling`.
+  - **`camera`** is the three.js camera itself, with `pose` and `setPose` added, so a gizmo can use it directly.
+- **REDcode's sector mode** (`webview/sectorViewer.ts`, `sectorPayload` and `sectorLoad` in `src/cr2wEditor.ts`). A `worldStreamingSector` opens on **3D**. The host makes a loader per page and streams meshes, markers and progress to it.
+  - **A project's copy** is read from the project's loose files (`root`), and the coarser sectors come from the game.
+  - **Picking:** a pick posts the entry's tree path (`nodeData.Data.<entry>`), so the Properties view follows, and **Show in Tree** goes there.
+  - **Defaults:** culling is off at first, since a file viewer shows the whole file. **Streamed** turns it on. Markers show for the opened sector only: the coarser sectors over a busy one hold more than 20,000.
+- **`REDcodeApi.openSector(path, { select })`.**
+
+Checked before the hand test:
+- **Unit checks:** 66 pass, three of them for the host half: the matrices against three.js, items to batches and markers, and the loader against a stand-in bridge (one export per mesh, the cached first, unloading).
+- **REDcode's page in Chrome** over the real bridge (scratchpad `svharness.mjs`), on E0's busiest sector `exterior_-22_7_0_0`:
+  - **The load:** 105 meshes drawn 8,986 times and 202 markers, nothing skipped; read in 3.3 s the first time with the meshes cached by E0, 0.5 s again.
+  - **The picture:** buildings stand upright on their ground.
+  - **A pick:** a click on a building picked `#780.8`, and its path `nodeData.Data.780` was sent on.
+  - **Coarser levels:** loaded their markers at once, while their meshes exported.
+
+Not yet: #31's light in the mesh and animation views (part 2), and the stage's colours judged on materials.
+
 ## Order
 
 1. **EDGEbuilder's E0** (done 2026-11-19, above) runs with REDcode's mesh viewer code as it is, from a script, and answers the timing question. The package's shape follows from its answer: how many meshes a downtown sector has, how long their exports take, and whether instancing and culling are enough.

@@ -10,6 +10,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { mountAnimations } from "./animViewer";
+import { mountSector } from "./sectorViewer";
 import { cssColour, el } from "./viewerKit";
 
 export interface MeshSource {
@@ -369,4 +370,4 @@ export async function mount(container: HTMLElement, source: MeshSource, title = 
 }
 
 // Exposed for the plain scripts that host the viewer (the CR2W editor page and the glTF viewer page).
-(window as unknown as { REDcodeMesh: { mount: typeof mount; mountAnimations: typeof mountAnimations } }).REDcodeMesh = { mount, mountAnimations };
+(window as unknown as { REDcodeMesh: { mount: typeof mount; mountAnimations: typeof mountAnimations; mountSector: typeof mountSector } }).REDcodeMesh = { mount, mountAnimations, mountSector };

@@ -303,6 +303,7 @@ export function activate(context: vscode.ExtensionContext): REDcodeApi | undefin
     revealInProject,
     openModel: (file: string, options?: { title?: string }) => openModelInView(file, options),
     closeModel: (fileOrFolder: string) => (typeof fileOrFolder === "string" && fileOrFolder ? meshViewer.closeModel(fileOrFolder) : 0),
+    openSector: (target: string, options?: { select?: number }) => openSectorInEditor(target, options),
   });
 }
 
@@ -901,6 +902,16 @@ async function openModelInView(file: string, options?: { title?: string }): Prom
     return;
   }
   throw new Error(`openModel takes a .glb, .gltf or .mesh, not ${path.basename(full)}`);
+}
+
+/** REDcodeApi.openSector: a .streamingsector in the 3D sector view, at a node data entry when given. */
+async function openSectorInEditor(target: string, options?: { select?: number }): Promise<void> {
+  const uri = /^[a-z][\w+.-]+:/i.test(target) ? vscode.Uri.parse(target) : path.isAbsolute(target) ? vscode.Uri.file(target) : gameUri(target);
+  if (!/\.streamingsector$/i.test(uri.path)) throw new Error(`openSector takes a .streamingsector, not ${target}`);
+  const select = options?.select;
+  if (select !== undefined && (!Number.isInteger(select) || select < 0)) throw new Error(`openSector's select takes a node data entry (0 or more), not ${select}`);
+  if (select !== undefined) cr2wEditor.showSectorEntry(uri, select);
+  await vscode.commands.executeCommand("vscode.openWith", uri, cr2wViewTypeFor(uri.path));
 }
 
 /** REDcodeApi.openAnimation: an .anims file on its animations, at one animation when given, on an entity when given. */

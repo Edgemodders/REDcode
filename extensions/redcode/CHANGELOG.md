@@ -6,6 +6,12 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 **New**
 
+- **Streaming sectors in 3D** (https://edgemodders.github.io/REDcode/design/sector-view.html). A `.streamingsector` from the game or your project opens on a 3D view, read-only, with the tree one click away.
+  - **Drawing:** every mesh is drawn where the sector places it, copies included, with markers for entities, decals, lights and the rest. Each mesh is exported once and kept, so a sector opens fast the second time.
+  - **Picking:** click a thing to see its node data entry in the Properties view, and **Show in Tree** goes to it.
+  - **View:** **Coarser levels** adds the sectors that hold what is far, **Streamed** shows only what the game would draw from the camera, and you can colour by mesh or by material. W, A, S, D, Q and E fly the camera.
+  - **For other extensions:** `openSector(path, { select })` opens a sector at a node data entry.
+
 - **Synced sets in the animation view** (https://github.com/Edgemodders/REDcode/issues/21). A synced clip, such as the Trauma Team's landing, lists its set under the animations: the clips of the same moment in the other `.anims` files of its folder, the AV and both soldiers here. **Play the Set** plays them together on one clock, each on its own rig and placed where the game's sync tracks put it, with root motion on. Members can be ticked on and off, and the player's male and female files are alternatives. For other extensions, `openAnimation` takes `set: true` and `entities` by role. Needs REDbridge 0.17.0.
 
 - **Replace…** in the game sound list: pick a WAV and it replaces that sound effect in your project in one step, named by the sound's hash in Raw and imported at once, with Pack and Play offered to hear it in the game. No other tool needed.

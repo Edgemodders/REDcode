@@ -49,6 +49,8 @@ const newFile = { ...client, entryPoints: ["src/newFile.ts"], outfile: "dist/new
 const animsSet = { ...client, entryPoints: ["src/animsSet.ts"], outfile: "dist/animsSet.js" };
 // The state files the redcode REDnode package reads (issues #18 and #32), for scripts/unit.mjs.
 const rednodeService = { ...client, entryPoints: ["src/rednodeService.ts"], outfile: "dist/rednodeService.js" };
+// The world view's host half (packages/world-view), for scripts/unit.mjs and harnesses.
+const worldViewHost = { ...client, entryPoints: ["../../packages/world-view/src/host.ts"], outfile: "dist/worldViewHost.js" };
 
 // The 3D mesh viewer for the webviews, three.js included, as one browser script.
 const meshViewer = {
@@ -68,7 +70,7 @@ fs.mkdirSync("media/mesh", { recursive: true });
 // three's exports hide its package.json; its main entry sits in <package>/build/.
 fs.copyFileSync(path.join(path.dirname(require.resolve("three")), "..", "LICENSE"), "media/mesh/three.LICENSE.txt");
 
-const builds = [extension, client, hotSwap, exportCache, library, opens, animsGlb, install, newFile, animsSet, rednodeService, meshViewer];
+const builds = [extension, client, hotSwap, exportCache, library, opens, animsGlb, install, newFile, animsSet, rednodeService, worldViewHost, meshViewer];
 if (watch) {
   const contexts = await Promise.all(builds.map((b) => esbuild.context(b)));
   await Promise.all(contexts.map((c) => c.watch()));

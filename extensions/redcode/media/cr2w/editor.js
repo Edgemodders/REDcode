@@ -77,6 +77,14 @@
       if (sidebar) return;
       pendingRow = m.index;
       if (table && mode === "table") void showPendingRow();
+    } else if (m.type && m.type.startsWith("sector") && m.type !== "sectorPayload") {
+      // The sector view's meshes, markers and progress, streamed by the host while it loads.
+      if (mode === "sector" && meshView?.receive) meshView.receive(m);
+    } else if (m.type === "showSectorEntry") {
+      // REDcodeApi.openSector's select: the node data entry, picked and framed; before the view is up, it waits.
+      if (sidebar) return;
+      if (mode === "sector" && meshView?.selectEntry) meshView.selectEntry(m.entry);
+      else pendingSectorEntry = m.entry;
     } else if (m.type === "showAnimation") {
       // The host asks for an animation (REDcodeApi.openAnimation); before the view is up, it waits for it.
       if (sidebar) return;
@@ -121,10 +129,10 @@
   let table = null;             // { path, type, entryType, keys } when the file is a localization table
   let atlas = null;             // { slots, slot, parts, image } when the file is an inkTextureAtlas (see the atlas section)
   // "table" and "atlas" replace the tree; "texture" is the tree with the image above the grid.
-  const isSpecial = () => mode === "table" || mode === "atlas" || mode === "mesh" || mode === "anims";
+  const isSpecial = () => mode === "table" || mode === "atlas" || mode === "mesh" || mode === "anims" || mode === "sector";
   // The file's own view, which the header button switches to and from the tree: table, atlas, mesh (3D) or anims.
   let home = null;
-  const HomeLabels = { table: "Table", atlas: "Atlas", mesh: "3D", anims: "Animations" };
+  const HomeLabels = { table: "Table", atlas: "Atlas", mesh: "3D", anims: "Animations", sector: "3D" };
 
   const status = (text, kind = "") => { const s = $("status"); s.textContent = text; s.className = kind; };
   const join = (a, b) => (a ? `${a}.${b}` : b);
@@ -172,6 +180,10 @@
     } else if (info.type === "CMesh" && window.REDcodeMesh) {
       // A mesh opens on the 3D view; the tree is one click away.
       mode = home = "mesh";
+      $("view").hidden = false;
+    } else if (info.type === "worldStreamingSector" && window.REDcodeMesh?.mountSector) {
+      // A streaming sector opens in 3D, read-only; the tree, which edits it, is one click away.
+      mode = home = "sector";
       $("view").hidden = false;
     } else if (info.type === "animAnimSet" && window.REDcodeMesh) {
       // An .anims opens on its animations, played on the rig; the tree is one click away.
@@ -226,9 +238,9 @@
   async function render(force = false) {
     document.body.classList.toggle("table-mode", mode === "table");
     document.body.classList.toggle("atlas-mode", mode === "atlas");
-    document.body.classList.toggle("mesh-mode", mode === "mesh" || mode === "anims");
+    document.body.classList.toggle("mesh-mode", mode === "mesh" || mode === "anims" || mode === "sector");
     $("view").textContent = isSpecial() ? "Tree" : HomeLabels[home] ?? "Tree";
-    if (mode !== "mesh" && mode !== "anims") disposeMesh();
+    if (mode !== "mesh" && mode !== "anims" && mode !== "sector") disposeMesh();
     if (mode === "table") {
       if (pendingRow !== null) await showPendingRow();
       else await renderTable();
@@ -238,6 +250,8 @@
       await renderMesh();
     } else if (mode === "anims") {
       await renderAnims();
+    } else if (mode === "sector") {
+      await renderSector();
     } else {
       // The Properties view draws the selection the host gave it; sending it back would make the editor draw the grid.
       await select(selected, force, sidebar);
@@ -248,7 +262,7 @@
   async function rerender() {
     if (mode === "table") await renderTable();
     else if (mode === "atlas") await renderAtlas();
-    else if (mode === "mesh" || mode === "anims") return; // these show the saved file; they reload after a save
+    else if (mode === "mesh" || mode === "anims" || mode === "sector") return; // these show the saved file; they reload after a save
     else await renderGrid();
   }
 
@@ -286,6 +300,42 @@
       status(payload.cached ? "" : `Exported to ${payload.path}`);
     } catch (e) {
       grid.replaceChildren(el("div", "error", `Could not show the mesh: ${e.message}`));
+    }
+  }
+
+  // ---- sector (worldStreamingSector) ------------------------------------------------------------
+  // The sector in 3D, read-only (docs/design/sector-view.md): the host reads it with REDbridge's sector.nodes,
+  // exports each mesh once and streams them over; a click on a thing selects its node data entry.
+  let pendingSectorEntry = null;
+
+  async function renderSector() {
+    if (meshShown) return;
+    const grid = $("grid");
+    disposeMesh();
+    $("propsLabel").textContent = `${info.type}  ·  3D`;
+    grid.replaceChildren(el("div", "note", "Reading the sector…"));
+    try {
+      const payload = await request("sectorPayload");
+      const select = pendingSectorEntry ?? undefined;
+      pendingSectorEntry = null;
+      meshView = await window.REDcodeMesh.mountSector(grid, {
+        sector: payload.sector,
+        load: (coarser) => request("sectorLoad", { coarser }),
+        // The Properties view follows what is picked; the tree stays where it was until Show in Tree.
+        picked: (path) => { if (path) vscode.postMessage({ type: "selected", path }); },
+        showInTree: (path) => {
+          selected = path;
+          expandTo(path);
+          mode = "tree";
+          void render(true);
+        },
+        select,
+        say: (message) => status(message, "error"),
+      });
+      meshShown = true;
+      if (payload.dirty) status("Shows the saved file; save to see your edits");
+    } catch (e) {
+      grid.replaceChildren(el("div", "error", `Could not show the sector: ${e.message}`));
     }
   }
 

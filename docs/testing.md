@@ -35,6 +35,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Animations A2 (#21)](#animations-a2) | By hand | Requests | 2026-11-15 | Pass, three fixes |
 | [Animations A3 (#21)](#animations-a3) | By hand | Requests | | Given to the owner 2026-11-20; needs REDbridge 0.17.0 |
 | [Replace with a WAV, titled models (#29), every window's project (#32)](#replace-with-a-wav-titled-models-29-and-every-windows-project-32) | By hand, in the game | Requests | | Given to the owner 2026-11-20 |
+| [Sector view](#sector-view) | By hand | C5 | | Given to the owner 2026-11-20 |
 | [Library view (#23)](#library-view-23) | By hand | Requests | 2026-11-15 | Pass, two fixes |
 | [Run Game without ELECTRON_RUN_AS_NODE (#24)](#run-game-without-electron_run_as_node-24) | By hand, in the game | Requests | 2026-11-20 | Pass |
 | [New File](#new-file) | By hand | Requests | 2026-11-20 | Pass, steps 1 to 13, four fixes |
@@ -734,6 +735,29 @@ Built 2026-11-20 after 0.10.14, three small items. Checked before:
 | 10 | **REDcode: New Project** in a folder VS Code has not seen | Before it opens, a message says to trust the folder if VS Code asks. **Open Project** opens it; **Open, and Don't Say This Again** stops the message |
 | 11 | Two VS Code windows, each with a REDcode project; start the game with REDnode, MCP server on. Ask Claude to call `redcode__projects` | Both projects, the window focused last first, each with `focusedAt`. `redcode__project` answers the one focused last |
 | 12 | Focus the other window, call `redcode__projects` again; then close one window and call it within 5 seconds | The order follows the focus; the closed window's project drops out |
+
+## Sector view
+
+Built 2026-11-20 ([design](design/sector-view.html#as-built-part-1)). A `.streamingsector` in 3D, read-only, on the `@edgemodders/world-view` package. Needs REDbridge 0.12.0 or later. Checked before:
+- **Unit checks:** 66 pass, three for the package's host half: the matrices against three.js, items to batches and markers, and the loader against a stand-in bridge.
+- **The page in Chrome over the real bridge** (scratchpad `svharness.mjs`), on `exterior_-22_7_0_0`:
+  - 105 meshes drawn 8,986 times and 202 markers, nothing skipped;
+  - buildings upright on their ground;
+  - a pick sending `nodeData.Data.780`;
+  - Coarser levels loading.
+
+| # | Do | Expected |
+|---|---|---|
+| 1 | F5 with **Run REDcode with Opens Test (no other extensions)**. **REDcode: Search game files**, `exterior_-22_7_0_0.streamingsector`, open it | The editor opens on **3D**: the sector's buildings and street, with a progress line while meshes export the first time (E0 measured 2 to 11 s for a busy sector), then a count such as "105 meshes, 8,986 of 8,986 copies shown, 202 markers" |
+| 2 | Drag to turn, right-drag to pan, the wheel to zoom; click the view, then W, A, S, D, Q, E, and Shift with them | The camera turns, pans and flies; Shift is faster |
+| 3 | Click a building | It is outlined in the accent colour; the line below says its id (`...#<entry>` or `...#<entry>.<copy>`); the Properties view shows `nodeData.Data.<entry>` |
+| 4 | **Show in Tree** | The tree opens at that node data entry |
+| 5 | **3D** again, **Streamed** | Only what is within each thing's streaming distance of the camera shows; fly closer and more appears |
+| 6 | **Markers** off and on; **By material**; the light from 0.5× to 2.5×; **Fixed light**, then turn the view | Markers go and come back; the colours change; the scene gets darker and brighter; with Fixed light the shading stays put on the buildings while the view turns |
+| 7 | **Coarser levels** | The coarser sectors over this one load (their meshes export the first time, which can take minutes for a busy area), and the progress line counts them |
+| 8 | Close the tab and open the sector again | It draws at once from the cache |
+| 9 | **Add to Project** on the sector, open the project's copy, change a node data entry's `position` in the tree, save | The 3D view draws the saved copy, the moved thing in its new place |
+| 10 | In the Debug Console of the F5 window: `await vscode.extensions.getExtension("edgemodders.redcode-cyberpunk").exports.openSector("base\\worlds\\03_night_city\\_compiled\\default\\exterior_-22_7_0_0.streamingsector", { select: 780 })` | The sector opens with entry 780 picked and framed |
 
 ## No Red Hot Tools
 
