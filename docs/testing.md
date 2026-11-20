@@ -740,7 +740,7 @@ Built 2026-11-20 after 0.10.14, three small items. Checked before:
 
 | # | Do | Expected |
 |---|---|---|
-| 1 | F5 with **Run REDcode with Opens Test (no other extensions)** on a test project. **REDcode: Browse Game Sounds**, pick a sound | **Replace…** beside Copy Hash, enabled once a sound is picked |
+| 1 | F5 with **Run REDcode with Opens Test (no other extensions)**. First with no project open: **REDcode: Browse Game Sounds**, pick a sound, **Replace…**. Then open a test project (a folder with a `.cpmodproj`; the Project view shows it) and browse again | **Replace…** beside Copy Hash, enabled once a sound is picked. Without a project, it says a project is needed and offers **New Project** and **Open Folder** |
 | 2 | **Replace…**, pick any WAV | The project gets `source\raw\sounds\<hash>.wav`, and the Project view selects the new `sfx_container_*.opuspak` under Archive. A message offers **Pack and Play** |
 | 3 | **Replace…** on the same sound with another WAV | It asks before putting it in place of the first one |
 | 4 | **Pack and Play** with the game running under REDnode (MCP server on), and make the sound happen in the game | Your WAV plays instead of the game's sound |

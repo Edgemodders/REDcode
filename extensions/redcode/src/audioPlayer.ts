@@ -141,7 +141,17 @@ export class AudioPlayer implements vscode.CustomReadonlyEditorProvider {
           case "replace": {
             if (!index || m.index === undefined) return;
             const replace = this.replaceSound?.();
-            if (!replace) throw new Error("Open a project first: the replacement goes into it");
+            if (!replace) {
+              // The button shows without a project too, so the way to replace a sound is plain to see.
+              const pick = await vscode.window.showInformationMessage(
+                "Replacing a sound needs a REDcode project open: the WAV goes into its Raw folder and is packed with it.",
+                "New Project",
+                "Open Folder",
+              );
+              if (pick === "New Project") await vscode.commands.executeCommand("redcode.newProject");
+              else if (pick === "Open Folder") await vscode.commands.executeCommand("workbench.action.files.openFolder");
+              return;
+            }
             await replace(index.hashes[m.index]);
             return;
           }

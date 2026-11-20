@@ -283,9 +283,12 @@
     $("save").disabled = true;
     $("copy").hidden = false;
     $("copy").disabled = true;
-    // Only with a project open: the replacement goes into it.
-    $("replace").hidden = !m.replace;
+    // Shown with or without a project; without one, a click says to open one (the replacement goes into it).
+    $("replace").hidden = false;
     $("replace").disabled = true;
+    $("replace").title = m.replace
+      ? "Replace this sound in the game with a WAV of yours: it goes into the project's Raw folder under the sound's hash and is imported at once"
+      : "Replace this sound in the game with a WAV of yours. Needs a REDcode project open: the WAV goes into its Raw folder";
     if (m.note) {
       $("note").textContent = m.note;
       $("note").hidden = false;
