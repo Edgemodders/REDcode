@@ -815,7 +815,7 @@ Use a test project. Have a small PNG ready, an icon for example.
 | 5 | **New File...**, **Ink Atlas**. In the texture list, skip **Texture from an Image...** and pick the `.xbm` from step 3 under **Textures in the project**; keep the name | A second `.inkatlas` opens in the atlas view on the step 3 texture, with its one part, `whole`, already around it. Nothing more to do: **Add Part** is not part of this test |
 | 6 | **New File...**, **Material Instance**, **multilayered.mt** | A `.mi` opens in the CR2W editor with `baseMaterial` set to `engine\materials\multilayered.mt` |
 | 7 | **New File...**, **Material Instance**, **Another material...**, type `base\materials\Glass.mesh`, then `base\materials\glass_onesided.mt` | The first is refused (an `.mt`, `.remt` or `.mi`, and lowercase); the second makes a `.mi` on it |
-| 8 | **Entity**, **Appearance** and **Multilayer Setup**, one each | Each opens in the CR2W editor, empty |
+| 8 | Three runs of **New File...**: one picking **Entity**, one **Appearance** and one **Multilayer Setup**, each from the first list, then a name | Each opens in the CR2W editor, empty |
 | 9 | **New File...**, **Start from a Game File...**, search `achievement_icons.inkatlas`, pick it, name it `my_icons` | `my_icons.inkatlas` in the folder, open in the atlas view with the game's icons and parts. The search box has no row buttons here |
 | 10 | In any name box, type `My Icon`, then `my icon`, then the name of a file already there | Each is refused with why: lowercase, no spaces, already in the project |
 | 11 | **New File...** on the project itself (the top node) | The name box offers `<mod name>\<name>`; the file goes to `source\archive\<mod name>\` |
