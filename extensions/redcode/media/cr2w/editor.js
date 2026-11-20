@@ -290,6 +290,8 @@
       const source = payload.json ? { json: payload.json } : { data: base64ToBuffer(payload.data) };
       meshView = await window.REDcodeMesh.mount(grid, source, payload.dirty ? "Shows the saved file; save to see your edits" : "", {
         appearances: payload.appearances,
+        light: payload.light,
+        onLight: (settings) => vscode.postMessage({ type: "light", settings }),
         materials: payload.materialProvider ? (appearance, materials) => request("renderMaterials", { appearance, materials }) : undefined,
         actions: [
           ...(payload.findItems ? [{ label: "Find Items", title: "The TweakDB item records whose look shows this mesh, the appearance shown first", run: (appearance) => request("findItems", { appearance }) }] : []),
@@ -330,6 +332,8 @@
           void render(true);
         },
         select,
+        light: payload.light,
+        onLight: (settings) => vscode.postMessage({ type: "light", settings }),
         say: (message) => status(message, "error"),
       });
       meshShown = true;
@@ -366,6 +370,8 @@
         body: payload.body ? { data: base64ToBuffer(payload.body.data), label: payload.body.label, notes: payload.body.notes ?? [] } : undefined,
         bodyNote: payload.bodyNote,
         rootMotion: !!payload.rootMotion,
+        light: payload.light,
+        onLight: (settings) => vscode.postMessage({ type: "light", settings }),
         initial,
         note: payload.dirty ? "Shows the saved file; save to see your edits" : "",
         say: (message) => status(message, "error"),

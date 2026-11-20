@@ -44,8 +44,8 @@ export function createStage(renderer: THREE.WebGLRenderer, scene: THREE.Scene, i
   key.position.set(2, 4, 3);
   scene.add(fill, key, key.target);
   const settings: LightSettings = { ...DefaultLight, ...initial };
-  /** Where a fixed light stays, relative to the scene: where the camera light was when it was fixed. */
-  let fixedFrom = new THREE.Vector3(2, 4, 3);
+  /** A directional light needs only a direction: where it comes from, as a unit vector. A fixed light keeps the one it had. */
+  const from = new THREE.Vector3(2, 4, 3).normalize();
   const apply = () => {
     const b = Math.min(4, Math.max(0.25, settings.brightness));
     renderer.toneMappingExposure = 0.8 * b;
@@ -54,26 +54,21 @@ export function createStage(renderer: THREE.WebGLRenderer, scene: THREE.Scene, i
     key.intensity = 1.4;
   };
   apply();
-  const offset = new THREE.Vector3();
+  /** Over the viewer's shoulder, in the camera's frame: up, a little right, a little behind. */
+  const shoulder = new THREE.Vector3(0.45, 0.8, 0.4).normalize();
   return {
     get settings() {
       return { ...settings };
     },
     set(next) {
-      if (next.mode === "fixed" && settings.mode !== "fixed") fixedFrom = key.position.clone();
       Object.assign(settings, next);
       apply();
     },
     update(camera) {
-      if (settings.mode === "camera") {
-        // Over the viewer's shoulder: up and to the right of the camera, towards what it looks at.
-        offset.set(0.6, 0.8, 0.2).applyQuaternion(camera.quaternion);
-        key.position.copy(camera.position).add(offset.multiplyScalar(Math.max(1, camera.position.length() * 0.05)));
-        key.target.position.copy(camera.position).add(new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).multiplyScalar(10));
-      } else {
-        key.position.copy(fixedFrom);
-        key.target.position.set(0, 0, 0);
-      }
+      // A camera light turns with the view; a fixed one keeps the direction it last had.
+      if (settings.mode === "camera") from.copy(shoulder).applyQuaternion(camera.quaternion);
+      key.target.position.set(0, 0, 0);
+      key.position.copy(from).multiplyScalar(100);
       key.target.updateMatrixWorld();
     },
     dispose() {

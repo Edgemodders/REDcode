@@ -226,6 +226,8 @@ interface Request {
   include?: number[];
   /** sectorLoad: the coarser sectors over the opened one too. */
   coarser?: boolean;
+  /** light: the 3D views' light settings to keep for the window. */
+  settings?: unknown;
   offset?: number;
   limit?: number;
   name?: string;
@@ -247,6 +249,8 @@ interface Request {
 
 /** Where the localization table's column widths are kept, for every file. */
 const TableColumnsKey = "cr2w.tableColumns";
+/** The 3D views' light (REDcode issue #31), kept per window: brightness and mode. */
+export const LightKey = "redcode.light";
 /** Whether the animation view plays root motion, for every file. Off at first: clips play in place. */
 const RootMotionKey = "cr2w.animsRootMotion";
 
@@ -599,7 +603,7 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
                 if (!e.mesh || e.mesh.toLowerCase() === meshRef().toLowerCase()) post({ type: "materialsChanged", materials: e.materials });
               });
             }
-            return reply(m.id, { ...meshPayload(r.glb), path: r.glb, cached: r.cached, dirty: document.log.length > 0, appearances, materialProvider: !!edgemat, findItems: !!meshGamePath() });
+            return reply(m.id, { ...meshPayload(r.glb), path: r.glb, cached: r.cached, dirty: document.log.length > 0, appearances, materialProvider: !!edgemat, findItems: !!meshGamePath(), light: this.context.workspaceState.get(LightKey) });
           }
           case "animsPayload": {
             // The open .anims, exported to a cached .glb (the saved file: unsaved edits show after a save).
@@ -623,6 +627,7 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
               cached: r.cached,
               dirty: document.log.length > 0,
               rootMotion: this.context.globalState.get(RootMotionKey, false),
+              light: this.context.workspaceState.get(LightKey),
               ...(body ? { body: { data: fs.readFileSync(body.glb).toString("base64"), label: body.label, notes: body.notes } } : {}),
               ...(bodyNote ? { bodyNote } : {}),
             });
@@ -639,13 +644,16 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
             }
             return reply(m.id, animsClip(moving ? animsMoving! : anims, m.index ?? -1).toString("base64"));
           }
+          case "light":
+            await this.context.workspaceState.update(LightKey, m.settings);
+            return;
           case "sectorPayload": {
             // A new 3D view (the first, or after a save or revert): a new loader, so the saved file is read again.
             sectorLoader?.dispose();
             sectorLoader = undefined;
             const sector = meshGamePath();
             if (!sector) throw new Error("A sector is read by its game path: open the game's file, or a copy under the project's Archive folder");
-            return reply(m.id, { sector, dirty: document.log.length > 0 });
+            return reply(m.id, { sector, dirty: document.log.length > 0, light: this.context.workspaceState.get(LightKey) });
           }
           case "sectorLoad": {
             // The opened sector, from the project's loose files when it is a project's copy; the coarser

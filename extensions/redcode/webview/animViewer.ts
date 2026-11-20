@@ -7,7 +7,8 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { cssColour, el } from "./viewerKit";
+import { cssColour, el, lightControls, type LightSettings } from "./viewerKit";
+import { createStage } from "../../../packages/world-view/src/stage";
 
 export interface AnimClipInfo {
   name: string;
@@ -42,6 +43,9 @@ export interface AnimsSource {
   set?: SetApi;
   /** Plays the set of the animation opened at first (REDcodeApi.openAnimation's set). */
   playSet?: boolean;
+  /** The light kept for the window (REDcode issue #31), and where a change goes to be kept. */
+  light?: Partial<LightSettings>;
+  onLight?: (settings: LightSettings) => void;
 }
 
 /** A member of a synced moment, as the host lists it. */
@@ -174,10 +178,8 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
   };
   note.remove();
   stage.appendChild(renderer.domElement);
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x404040, 1.6));
-  const sun = new THREE.DirectionalLight(0xffffff, 1.4);
-  sun.position.set(2, 4, 3);
-  scene.add(sun);
+  // An environment for reflections, tone mapping and the modder's light (REDcode issue #31).
+  const lighting = createStage(renderer, scene, source.light);
   scene.add(animated);
   animated.updateMatrixWorld(true);
 
@@ -388,7 +390,7 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
     }
   };
   const rootMotionButton = toggle("Root motion", "Move the whole rig as the animation moves it through the scene; off, it plays in place", rootMotion, (on) => void applyRootMotion(on));
-  bar.append(rootMotionButton, rigName);
+  bar.append(rootMotionButton, ...lightControls(lighting, source.onLight), rigName);
   if (bodyRoot && source.body) {
     const bodyName = el("span", "dim animrig", `On ${source.body.label}`);
     bodyName.title = [source.body.label, ...source.body.notes].join("\n");
@@ -826,6 +828,7 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
       showTime();
     }
     controls.update();
+    lighting.update(camera);
     renderer.render(scene, camera);
     requestAnimationFrame(tick);
   };
@@ -844,6 +847,7 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
       observer.disconnect();
       controls.dispose();
       mixer.stopAllAction();
+      lighting.dispose();
       renderer.dispose();
       dotGeometry.dispose();
       dotMaterial.dispose();

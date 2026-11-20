@@ -4,8 +4,7 @@
 // entry, which the Properties view follows, and Show in Tree goes to it.
 
 import { createWorldView, type PageMarker, type PagePlacement, type WorldView } from "../../../packages/world-view/src/page";
-import { BrightnessSteps } from "../../../packages/world-view/src/stage";
-import { cssColour, el } from "./viewerKit";
+import { cssColour, el, lightControls, type LightSettings } from "./viewerKit";
 
 /** What the host sends while a sector loads. */
 export type SectorMessage =
@@ -26,6 +25,9 @@ export interface SectorSource {
   showInTree(path: string): void;
   /** The entry to select at first (REDcodeApi.openSector's select). */
   select?: number;
+  /** The light kept for the window (REDcode issue #31), and where a change goes to be kept. */
+  light?: Partial<LightSettings>;
+  onLight?: (settings: LightSettings) => void;
   say?(message: string): void;
 }
 
@@ -64,6 +66,7 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
     accent: cssColour("--vscode-textLink-foreground", "#19f3ff"),
     // A file viewer shows the whole file at first; Streamed shows what the game would draw from the camera.
     culling: "none",
+    light: source.light,
   });
 
   // ---- the toolbar ----
@@ -82,18 +85,9 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
     o.value = v;
     colour.appendChild(o);
   }
-  const light = el("select");
-  light.title = "How bright the light is (REDcode issue #31)";
-  for (const s of BrightnessSteps) {
-    const o = el("option", "", `Light ${s}×`);
-    o.value = String(s);
-    if (s === 1) o.selected = true;
-    light.appendChild(o);
-  }
   const markerButton = button("Markers", "Show the opened sector's things that have no mesh: entities, decals, lights, collision, sound and AI spots", true);
-  const fixed = button("Fixed light", "Keep the light where it is while you turn the view, to see how shine moves; off, it comes from over your shoulder");
   const stats = el("span", "dim mono", "");
-  bar.append(fit, coarser, culling, markerButton, colour, light, fixed, stats);
+  bar.append(fit, coarser, culling, markerButton, colour, ...lightControls(view.lighting, source.onLight), stats);
   const progress = el("span", "dim", "Reading the sector…");
   const pickedLine = el("span", "mono", "");
   const toTree = button("Show in Tree", "Go to this node data entry in the tree");
@@ -157,12 +151,6 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
     view.setOptions({ markers: on });
   });
   colour.addEventListener("change", () => view.setOptions({ colourBy: colour.value as "mesh" | "material" }));
-  light.addEventListener("change", () => view.lighting.set({ brightness: Number(light.value) }));
-  fixed.addEventListener("click", () => {
-    const on = !fixed.classList.contains("on");
-    fixed.classList.toggle("on", on);
-    view.lighting.set({ mode: on ? "fixed" : "camera" });
-  });
 
   const pendingSelect = source.select;
   const selectEntry = (entry: number) => {

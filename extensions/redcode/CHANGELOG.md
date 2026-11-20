@@ -20,6 +20,7 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 **Changed**
 
+- **The 3D views light like the game more** (https://github.com/Edgemodders/REDcode/issues/31, for EDGEmat). There is an environment for metals and gloss to reflect, and tone mapping so highlights do not clip. A **Light** control sets the brightness, and **Fixed light** keeps the light still while you turn the model, to see how shine moves. This is in the mesh view, the animation view and the sector view, and the setting is kept for the window.
 - **New Project** says, before it opens the new folder, to trust it if VS Code asks: in Restricted Mode REDcode stays off and the game's tools cannot see the project. It can be told not to say it again.
 - **New File...** has a hover button on the Project view's folders, roots and the project itself, beside Copy Path, so it is one click instead of a right-click.
 

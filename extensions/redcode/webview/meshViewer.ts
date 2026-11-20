@@ -11,7 +11,8 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { mountAnimations } from "./animViewer";
 import { mountSector } from "./sectorViewer";
-import { cssColour, el } from "./viewerKit";
+import { cssColour, el, lightControls, type LightSettings } from "./viewerKit";
+import { createStage } from "../../../packages/world-view/src/stage";
 
 export interface MeshSource {
   /** The bytes of a .glb. */
@@ -50,6 +51,9 @@ export interface MountOptions {
   materials?: (appearance: string | undefined, names: string[]) => Promise<Record<string, RenderedMaps>>;
   /** Toolbar buttons after Frame; each gets the appearance shown. Find Items is one. */
   actions?: { label: string; title: string; run: (appearance: string | undefined) => Promise<unknown> }[];
+  /** The light kept for the window (REDcode issue #31), and where a change goes to be kept. */
+  light?: Partial<LightSettings>;
+  onLight?: (settings: LightSettings) => void;
 }
 
 export interface MeshView {
@@ -87,9 +91,8 @@ export async function mount(container: HTMLElement, source: MeshSource, title = 
   const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 10000);
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x404040, 1.6));
-  const sun = new THREE.DirectionalLight(0xffffff, 1.4);
-  scene.add(sun);
+  // An environment for reflections, tone mapping and the modder's light (REDcode issue #31).
+  const lighting = createStage(renderer, scene, options.light);
 
   const loader = new GLTFLoader();
   let gltf;
@@ -99,7 +102,13 @@ export async function mount(container: HTMLElement, source: MeshSource, title = 
     gltf = await loader.parseAsync(input, "");
   } catch (e) {
     note.textContent = `Could not read the mesh: ${e instanceof Error ? e.message : String(e)}`;
-    return { dispose: () => renderer.dispose(), refreshMaterials: () => undefined };
+    return {
+      dispose: () => {
+        lighting.dispose();
+        renderer.dispose();
+      },
+      refreshMaterials: () => undefined,
+    };
   }
   note.remove();
   stage.appendChild(renderer.domElement);
@@ -221,7 +230,6 @@ export async function mount(container: HTMLElement, source: MeshSource, title = 
     camera.position.copy(centre).add(new THREE.Vector3(1, 0.6, 1).normalize().multiplyScalar(distance));
     camera.updateProjectionMatrix();
     controls.target.copy(centre);
-    sun.position.copy(camera.position);
     const floor = Math.pow(10, Math.ceil(Math.log10(radius * 4)));
     grid.scale.setScalar(floor);
     grid.position.set(centre.x, box.min.y, centre.z);
@@ -305,7 +313,7 @@ export async function mount(container: HTMLElement, source: MeshSource, title = 
     });
     bar.appendChild(b);
   }
-  bar.append(stats, note2);
+  bar.append(...lightControls(lighting, options.onLight), stats, note2);
 
   // Side list: the submeshes of the current LOD, with their material and counts.
   const renderSide = () => {
@@ -345,7 +353,7 @@ export async function mount(container: HTMLElement, source: MeshSource, title = 
   const tick = () => {
     if (!running) return;
     controls.update();
-    sun.position.copy(camera.position);
+    lighting.update(camera);
     renderer.render(scene, camera);
     requestAnimationFrame(tick);
   };
@@ -355,6 +363,7 @@ export async function mount(container: HTMLElement, source: MeshSource, title = 
       running = false;
       observer.disconnect();
       controls.dispose();
+      lighting.dispose();
       renderer.dispose();
       for (const m of [...flat.values(), ...rendered.values()]) m.dispose();
       for (const t of textures) t.dispose();

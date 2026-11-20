@@ -757,6 +757,7 @@ Built 2026-11-20 ([design](design/sector-view.html#as-built-part-1)). A `.stream
 | 7 | **Coarser levels** | The coarser sectors over this one load (their meshes export the first time, which can take minutes for a busy area), and the progress line counts them |
 | 8 | Close the tab and open the sector again | It draws at once from the cache |
 | 9 | **Add to Project** on the sector, open the project's copy, change a node data entry's `position` in the tree, save | The 3D view draws the saved copy, the moved thing in its new place |
+| 10b | Open any `.mesh` (3D), then an `.anims` (Animations) | Both have **Light** and **Fixed light** in their toolbars. A dark material is easier to read at 1.5× or 2.5×; metals are not black. The light chosen in one view is the one the next view opens with, in this window (REDcode issue #31) |
 | 10 | In the Debug Console of the F5 window: `await vscode.extensions.getExtension("edgemodders.redcode-cyberpunk").exports.openSector("base\\worlds\\03_night_city\\_compiled\\default\\exterior_-22_7_0_0.streamingsector", { select: 780 })` | The sector opens with entry 780 picked and framed |
 
 ## No Red Hot Tools

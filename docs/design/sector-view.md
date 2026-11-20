@@ -129,7 +129,13 @@ Checked before the hand test:
   - **A pick:** a click on a building picked `#780.8`, and its path `nodeData.Data.780` was sent on.
   - **Coarser levels:** loaded their markers at once, while their meshes exported.
 
-Not yet: #31's light in the mesh and animation views (part 2), and the stage's colours judged on materials.
+### Part 2: #31's light everywhere
+
+Built the same day. The mesh view (`webview/meshViewer.ts`) and the animation view (`webview/animViewer.ts`) light through the package's stage, as the sector view does, in place of their own hemisphere and camera light. **Light** (0.5×, 1×, 1.5× and 2.5×) and **Fixed light** are one shared control (`lightControls` in `webview/viewerKit.ts`). The setting is kept in the workspace's state under `redcode.light`, so per window as #31 asks, and passed in by both the CR2W editor's host and the glTF viewer's host.
+
+A directional light needs only a direction, so the stage keeps one. In camera mode it comes from over the viewer's shoulder, and Fixed light freezes the direction it had. That works the same for a mesh at the origin and for a sector 1,400 m from it.
+
+Checked in Chrome: the mesh view with a game mesh exported with its materials showed the control and readable shading. The first tone and environment values washed the sector's colours almost to white, so they were turned down: exposure 0.8, environment 0.45. Not judged yet: EDGEmat's rendered metals and roughness, which #31 is for. EDGEmat sends those next. Glass and glow, #31's later rows, wait for EDGEmat's new fields.
 
 ## Order
 
