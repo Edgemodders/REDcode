@@ -11,6 +11,7 @@ const root = fileURLToPath(new URL("../", import.meta.url));
 const pages = [
   { from: "extensions/redcode/CHANGELOG.md", to: "docs/changelog.md", title: "REDcode changelog", also: "The MCP server has its own: [redcode-mcp changelog](mcp-changelog.html)." },
   { from: "packages/redcode-mcp/CHANGELOG.md", to: "docs/mcp-changelog.md", title: "redcode-mcp changelog", also: "REDcode's own: [REDcode changelog](changelog.html)." },
+  { from: "packages/world-view/CHANGELOG.md", to: "docs/world-view-changelog.md", title: "world-view changelog", also: "The sector drawing package's; REDcode's own: [REDcode changelog](changelog.html)." },
 ];
 
 for (const p of pages) {

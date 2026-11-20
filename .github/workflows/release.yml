@@ -1,24 +1,27 @@
-# Builds one of this repo's three packages and, when asked, releases it. The same workflow as REDnode's
+# Builds one of this repo's four packages and, when asked, releases it. The same workflow as REDnode's
 # release.yml, so every Edgemodders tool releases the same way.
 #
 #   What                 Folder                        Built                                  Tag
 #   REDcode              extensions/redcode            .vsix (Windows x64) and the Nexus zip  v<version>
 #   REDnode HUD theme    extensions/rednode-hud-theme  .vsix (every platform)                 theme-v<version>
 #   redcode-mcp          packages/redcode-mcp          the npm package (.tgz)                 mcp-v<version>
+#   world-view           packages/world-view           the npm package (.tgz)                 world-view-v<version>
 #
 #   Run workflow (Actions tab)                  builds it and keeps the files as the run's artifact, to
 #                                               install and test before a release; publishes nothing
 #   Run workflow, "Make a release" ticked       also publishes it (an extension to the VS Code
 #                                               Marketplace, VSCE_PAT, and Open VSX, OVSX_PAT;
-#                                               redcode-mcp to npm with provenance, NPM_TOKEN) and makes
+#                                               redcode-mcp and world-view to npm with provenance,
+#                                               NPM_TOKEN) and makes
 #                                               the GitHub release, which tags the commit. Stops first if
 #                                               that tag exists (raise the version), if it is not run on
 #                                               main, or if the folder's CHANGELOG.md has no section for
 #                                               the version (tools/release-notes.mjs), or, for REDcode,
 #                                               if README.md's status line and badge do not say the
 #                                               version (tools/release/readme-check.mjs; the README's
-#                                               status is REDcode's, so the theme and redcode-mcp skip it)
-#   npm run release / release:theme / release:mcp   the same as ticking the box, from a terminal
+#                                               status is REDcode's, so the theme and the npm packages skip it)
+#   npm run release / release:theme / release:mcp / release:world-view
+#                                               the same as ticking the box, from a terminal
 #   ... and "Update Nexus Mods" ticked          REDcode only (npm run release:nexus): also, after the
 #   (REDcode only)                              GitHub release, uploads the Nexus zip to the page
 #                                               (nexus/nexus.json, 35421) as the main file's new
@@ -48,7 +51,7 @@ on:
       what:
         description: What to build
         type: choice
-        options: [REDcode, REDnode HUD theme, redcode-mcp]
+        options: [REDcode, REDnode HUD theme, redcode-mcp, world-view]
         default: REDcode
       release:
         description: Make a release (publishes it and tags this commit). Only after every test has passed
@@ -95,6 +98,7 @@ jobs:
             REDcode)             dir=extensions/redcode;           prefix=v;       kind=extension; target="--target win32-x64" ;;
             "REDnode HUD theme") dir=extensions/rednode-hud-theme; prefix=theme-v; kind=extension; target="" ;;
             redcode-mcp)         dir=packages/redcode-mcp;         prefix=mcp-v;   kind=npm;       target="" ;;
+            world-view)          dir=packages/world-view;          prefix=world-view-v; kind=npm;  target="" ;;
             *) echo "::error::Unknown package ${WHAT}"; exit 1 ;;
           esac
           name=$(node -p "require('./${dir}/package.json').name")
@@ -171,7 +175,7 @@ jobs:
       - name: Build the npm package
         if: env.KIND == 'npm'
         run: |
-          npm run mcp:build
+          npm run build --workspace "${DIR}"
           mkdir -p dist
           npm pack --workspace "${DIR}" --pack-destination dist
 
@@ -227,6 +231,7 @@ jobs:
           case "${WHAT}" in
             REDcode)             files=("${VSIX}" "dist/REDcode-${VERSION}-nexus.zip"); latest="" ;;
             "REDnode HUD theme") files=("${VSIX}"); title="REDnode HUD" ;;
+            world-view)          title="@edgemodders/world-view" ;;
           esac
           gh release create "${TAG}" "${files[@]}" --target "${GITHUB_SHA}" --title "${title:-${WHAT}} ${VERSION}" --notes-file "${RUNNER_TEMP}/notes.md" ${latest}
 

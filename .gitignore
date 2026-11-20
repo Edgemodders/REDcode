@@ -20,3 +20,4 @@ packages/world-view/LICENSE
 # Written by tools/docs-changelogs.mjs in the Pages workflow
 docs/changelog.md
 docs/mcp-changelog.md
+docs/world-view-changelog.md
