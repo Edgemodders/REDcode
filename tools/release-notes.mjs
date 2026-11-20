@@ -6,7 +6,8 @@
 //   node tools/release-notes.mjs <folder> [version] [--nexus] [--out <file>]
 //     <folder>   extensions/redcode, extensions/rednode-hud-theme or packages/redcode-mcp
 //     version    defaults to the folder's package.json version
-//     --nexus    plain lines for Nexus's changelog field (the Nexus tool's release --notes, EDGErepo's tools/nexus/nexus.mjs)
+//     --nexus    the section's short Nexus summary (below), for Nexus's changelog field (the Nexus
+//                tool's release --notes, EDGErepo's tools/nexus/nexus.mjs); stops when there is none
 //     --out      writes the notes to a file (UTF-8)
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -24,7 +25,8 @@ if (!folder) {
   process.exit(2);
 }
 const version = given ?? JSON.parse(readFileSync(join(root, folder, "package.json"), "utf8")).version;
-const file = `${folder.replace(/\\/g, "/").replace(/\/$/, "")}/CHANGELOG.md`;
+const dir = folder.replace(/\\/g, "/").replace(/\/$/, "");
+const file = `${dir}/CHANGELOG.md`;
 const lines = readFileSync(join(root, file), "utf8").split(/\r?\n/);
 
 // "## 0.10.3" or "## 0.10.3 (2026-10-21)"
@@ -36,31 +38,66 @@ if (start < 0) {
 }
 let end = lines.findIndex((line, i) => i > start && line.startsWith("## "));
 if (end < 0) end = lines.length;
-const section = lines.slice(start + 1, end).join("\n").trim();
-if (!section) {
+const section = lines.slice(start + 1, end);
+
+// The section for GitHub and the stores: without its Nexus summary.
+const github = [];
+for (let i = 0, inBlock = false; i < section.length; i++) {
+  if (!inBlock && section[i].trim() === "<!-- nexus") inBlock = true;
+  else if (inBlock && section[i].trim() === "-->") inBlock = false;
+  else if (!inBlock) github.push(section[i]);
+}
+// The block's place leaves two blank lines; one is enough.
+const text = github.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+if (!text) {
   console.error(`${file}: the section for ${version} is empty`);
   process.exit(1);
 }
 
-// Nexus's changelog takes one plain line per change: no markdown, links as "text (url)".
-const plain = (text) =>
-  text
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1 ($2)")
-    .replace(/\*\*([^*]+)\*\*/g, "$1")
-    .replace(/`([^`]+)`/g, "$1");
-// A change under a group line (**New**, **Changed**, **Fixed**, **Other**) gets the group in front.
-function nexusLines() {
-  const result = [];
-  let group = "";
-  for (const line of section.split("\n")) {
-    const groupHeading = line.match(/^\*\*(.+)\*\*$/);
-    if (groupHeading) group = groupHeading[1];
-    else if (line.startsWith("- ")) result.push((group ? `${group}: ` : "") + plain(line.slice(2)));
-    else if (line.trim()) result.push(plain(line.trim()));
+let notes = text;
+if (nexus) {
+  // Nexus shows each line of a version's changelog as one entry, as plain text in a small field, and
+  // its API cannot change a changelog once posted (REDcode issue #30). So its lines are a short
+  // summary written by hand under the section's heading, not the section itself:
+  //
+  //   <!-- nexus
+  //   New: New File in the Project view: textures, ink atlases, material instances and more
+  //   Fixed: Run Game's exe route no longer stops REDnode's overlay
+  //   -->
+  //
+  // An HTML comment, so GitHub, the stores and the docs site show none of it. The rules are
+  // EDGErepo's ("Nexus changelogs" in its README): each line starts with New:, Changed:, Fixed:,
+  // Removed:, Other: or Needs:, has no markdown and at most NEXUS_LINE characters; at most NEXUS_LINES
+  // lines, and a "Full changelog" line with the link is added at the end.
+  const NEXUS_LINE = 120;
+  const NEXUS_LINES = 12;
+  const open = section.findIndex((line) => line.trim() === "<!-- nexus");
+  const close = open < 0 ? -1 : section.findIndex((line, i) => i > open && line.trim() === "-->");
+  if (open < 0 || close < 0) {
+    console.error(`${file}: the section for ${version} has no Nexus summary. Add one under its heading:
+
+<!-- nexus
+New: one short line per change, at most ${NEXUS_LINE} characters
+-->`);
+    process.exit(1);
   }
-  return result.join("\n");
+  const summary = section.slice(open + 1, close).map((line) => line.trim()).filter(Boolean);
+  const wrong = [];
+  if (!summary.length) wrong.push("it is empty");
+  if (summary.length > NEXUS_LINES) wrong.push(`${summary.length} lines, at most ${NEXUS_LINES}`);
+  for (const line of summary) {
+    if (!/^(New|Changed|Fixed|Removed|Other|Needs): \S/.test(line)) wrong.push(`"${line}" does not start with New:, Changed:, Fixed:, Removed:, Other: or Needs:`);
+    if (line.length > NEXUS_LINE) wrong.push(`"${line.slice(0, 50)}..." is ${line.length} characters, at most ${NEXUS_LINE}`);
+    if (/`|\*\*|\]\(|^#|^- /.test(line)) wrong.push(`"${line.slice(0, 50)}..." has markdown`);
+  }
+  if (wrong.length) {
+    console.error(`${file}: the Nexus summary for ${version}:\n- ${wrong.join("\n- ")}`);
+    process.exit(1);
+  }
+  const page = { "extensions/redcode": "changelog.html", "packages/redcode-mcp": "mcp-changelog.html" }[dir];
+  const full = page ? `https://edgemodders.github.io/REDcode/${page}` : `https://github.com/Edgemodders/REDcode/blob/main/${file}`;
+  notes = [...summary, `Full changelog: ${full}`].join("\n");
 }
-const notes = nexus ? nexusLines() : section;
 
 if (out) writeFileSync(out, notes + "\n", "utf8");
 else console.log(notes);

@@ -129,7 +129,10 @@ jobs:
         if: inputs.release
         run: |
           node tools/release-notes.mjs "${DIR}" "${VERSION}" --out "${RUNNER_TEMP}/notes.md"
-          node tools/release-notes.mjs "${DIR}" "${VERSION}" --nexus --out "${RUNNER_TEMP}/nexus-notes.txt"
+          # Nexus's notes are the section's hand-written summary (REDcode issue #30), needed only for Nexus.
+          if [ "${{ inputs.nexus }}" = "true" ]; then
+            node tools/release-notes.mjs "${DIR}" "${VERSION}" --nexus --out "${RUNNER_TEMP}/nexus-notes.txt"
+          fi
 
       # The Nexus tool, shared by the Edgemodders repos at this tag (REDnode's docs/edgerepo.md). Outside
       # the workspace, so nothing packs it.
@@ -141,7 +144,7 @@ jobs:
         if: inputs.release && inputs.nexus
         env:
           NEXUS_KEY: ${{ secrets.NEXUS_KEY }}
-        run: node "$RUNNER_TEMP/EDGErepo/tools/nexus/nexus.mjs" check --version "${VERSION}"
+        run: node "$RUNNER_TEMP/EDGErepo/tools/nexus/nexus.mjs" check --version "${VERSION}" --notes "${RUNNER_TEMP}/nexus-notes.txt"
 
       - run: npm ci
 
