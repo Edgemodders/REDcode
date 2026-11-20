@@ -44,6 +44,8 @@ nav:
     url: /design/new-file.html
   - title: Sector view
     url: /design/sector-view.html
+  - title: Keys
+    url: /design/keys.html
   - title: MCP
     url: /mcp.html
   - title: Extension API
