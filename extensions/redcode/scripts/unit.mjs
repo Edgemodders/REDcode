@@ -11,6 +11,7 @@ import * as http from "node:http";
 import { createRequire } from "node:module";
 import * as os from "node:os";
 import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const require = createRequire(import.meta.url);
 const hs = require("../dist/hotSwap.js");
@@ -728,6 +729,46 @@ await check("new file: Resize offers each odd side one pixel shorter, and scales
   assert.equal(resized.width, 64);
   assert.equal(resized.height, 32);
   assert.equal(resized.data[0], 200);
+});
+
+// ---- The redcode REDnode package: every window's project (issue #32) ----
+
+await check("redcode service: every window's project, the last focused first; a closed window drops out; project() stays", async () => {
+  const local = path.join(tmp, "localappdata");
+  const before = process.env.LOCALAPPDATA;
+  process.env.LOCALAPPDATA = local;
+  try {
+    const rs = require("../dist/rednodeService.js");
+    const ref = (name) => ({ name, modName: name, file: `C:\\p\\${name}\\${name}.cpmodproj`, dir: `C:\\p\\${name}`, archive: "a", raw: "r", resources: "s", packed: "k" });
+    // This process is one window; a second window is another live process, and a third is gone.
+    rs.publishProject(ref("MineFirst"), true);
+    const other = path.join(local, "REDcode", "projects", `${process.ppid}.json`);
+    fs.writeFileSync(other, JSON.stringify({ pid: process.ppid, updated: "2030-01-01T00:00:00Z", focusedAt: "2030-01-01T00:00:00Z", project: ref("FocusedLater") }));
+    const dead = path.join(local, "REDcode", "projects", "999999.json");
+    fs.writeFileSync(dead, JSON.stringify({ pid: 999999, updated: "2031-01-01T00:00:00Z", focusedAt: "2031-01-01T00:00:00Z", project: ref("Closed") }));
+    // The package's own service.mjs, with a stand-in for REDnode's rednode module.
+    const pkg = path.join(tmp, "rnpkg");
+    fs.mkdirSync(path.join(pkg, "node_modules", "rednode"), { recursive: true });
+    fs.writeFileSync(path.join(pkg, "node_modules", "rednode", "package.json"), JSON.stringify({ name: "rednode", type: "module", main: "index.js" }));
+    fs.writeFileSync(path.join(pkg, "node_modules", "rednode", "index.js"), "export const service = { emit: (...a) => (globalThis.__emits ??= []).push(a) };");
+    fs.writeFileSync(path.join(pkg, "package.json"), JSON.stringify({ type: "module" }));
+    fs.copyFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "rednode", "redcode", "service.mjs"), path.join(pkg, "service.mjs"));
+    const svc = await import(new URL(`file:///${path.join(pkg, "service.mjs").split(path.sep).join("/")}`).href);
+    const all = svc.projects();
+    assert.deepEqual(all.map((p) => p.name), ["FocusedLater", "MineFirst"], "live windows only, the last focused first");
+    assert.ok(all.every((p) => typeof p.focusedAt === "string" && p.dir && p.archive));
+    assert.equal(fs.existsSync(dead), false, "a closed window's file is cleared");
+    assert.equal(svc.project().name, "MineFirst", "project() still answers project.json, the window that published last");
+    rs.withdrawProject();
+    assert.equal(fs.existsSync(rs.windowStateFile()), false, "withdrawing removes this window's file");
+    assert.deepEqual(svc.projects().map((p) => p.name), ["FocusedLater"]);
+    assert.equal(svc.project(), null);
+    const manifest = JSON.parse(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "rednode", "redcode", "rednode-app.json"), "utf8"));
+    assert.notEqual(manifest.version, "0.1.0", "service.mjs changed, so the package's version is raised and installed copies update");
+  } finally {
+    if (before === undefined) delete process.env.LOCALAPPDATA;
+    else process.env.LOCALAPPDATA = before;
+  }
 });
 
 // ---- Animations A3: synced sets (docs/design/animation.md) ----

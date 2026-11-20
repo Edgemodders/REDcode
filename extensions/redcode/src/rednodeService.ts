@@ -28,13 +28,52 @@ function writeState(state: ProjectState): void {
   fs.renameSync(tmp, file);
 }
 
-/** Writes this window's project to the state file: on a change, and when the window gains focus with a project open. */
-export function publishProject(project: ProjectRef): void {
+/**
+ * Every window's own state file (REDcode issue #32): %LOCALAPPDATA%\REDcode\projects\<extension host
+ * pid>.json, read by the package's projects(). project.json above stays the last-focused window's, for
+ * project().
+ */
+export function windowStateFile(pid = process.pid): string {
+  return path.join(path.dirname(projectStateFile()), "projects", `${pid}.json`);
+}
+
+interface WindowState {
+  pid: number;
+  updated: string;
+  /** When this window last had the focus with its project open; the window last focused comes first in projects(). */
+  focusedAt: string;
+  project: ProjectRef;
+}
+
+/** When this window last had the focus with a project open. */
+let focusedAt = new Date(0).toISOString();
+
+function writeWindowState(project: ProjectRef): void {
+  const file = windowStateFile();
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const state: WindowState = { pid: process.pid, updated: new Date().toISOString(), focusedAt, project };
+  const tmp = `${file}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(state, null, 2));
+  fs.renameSync(tmp, file);
+}
+
+/**
+ * Writes this window's project: to its own state file, always, and to project.json, which says the
+ * last window that published. focused: the window has the focus now, which puts it first in projects().
+ */
+export function publishProject(project: ProjectRef, focused = true): void {
+  if (focused) focusedAt = new Date().toISOString();
+  writeWindowState(project);
   writeState({ pid: process.pid, updated: new Date().toISOString(), project });
 }
 
-/** Says this window has no project, unless another window wrote the file since. */
+/** Says this window has no project: its own state file goes, and project.json says null unless another window wrote it since. */
 export function withdrawProject(): void {
+  try {
+    fs.rmSync(windowStateFile(), { force: true });
+  } catch {
+    // A closed window is also spotted by its process id.
+  }
   try {
     const state = JSON.parse(fs.readFileSync(projectStateFile(), "utf8")) as Partial<ProjectState>;
     if (state.pid !== process.pid || state.project === null) return;

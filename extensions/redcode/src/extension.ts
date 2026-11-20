@@ -69,6 +69,8 @@ let status: vscode.StatusBarItem;
 let log: vscode.OutputChannel;
 /** Clothing items by in-game name, for Search game files (issue #28). */
 const itemIndex = new ItemIndex();
+/** The 3D view for .glb and .gltf files, and REDcodeApi.openModel's titled tabs (REDcode issue #29). */
+let meshViewer: MeshViewer;
 let storage: vscode.Uri;
 let restartTimer: NodeJS.Timeout | undefined;
 let assets: AssetBrowser;
@@ -101,6 +103,10 @@ let offeredDotnet = false;
 let deactivated = false;
 /** The extension's folder, which holds the REDnode package (rednode/redcode). */
 let extensionDir: string;
+/** The extension's global state, for prompts a player can turn off. */
+let globalStore: vscode.Memento | undefined;
+/** New Project's hint about Workspace Trust is off (REDcode issue #32). */
+const TrustHintKey = "redcode.newProjectTrustHintOff";
 
 /** REDcode's API for other extensions (src/api.ts, docs/api.md); undefined when REDcode did not start. */
 export function activate(context: vscode.ExtensionContext): REDcodeApi | undefined {
@@ -128,6 +134,7 @@ export function activate(context: vscode.ExtensionContext): REDcodeApi | undefin
   status.show();
   storage = context.globalStorageUri;
   extensionDir = context.extensionPath;
+  globalStore = context.globalState;
 
   assets = new AssetBrowser(() => bridge);
   tweakDb = new TweakDb(() => bridge);
@@ -171,8 +178,8 @@ export function activate(context: vscode.ExtensionContext): REDcodeApi | undefin
     textures.register(),
     cr2w.register(),
     new Cr2wPropertiesView(cr2w).register(),
-    new MeshViewer(context.extensionUri, log).register(),
-    new AudioPlayer(context.extensionUri, path.join(storage.fsPath, "cache", "audio"), () => bridge, log).register(),
+    (meshViewer = new MeshViewer(context.extensionUri, log)).register(),
+    new AudioPlayer(context.extensionUri, path.join(storage.fsPath, "cache", "audio"), () => bridge, log, () => (project ? replaceSoundWithWav : undefined)).register(),
     (tweakView = tweakTree.view = vscode.window.createTreeView("redcode.tweakdb", { treeDataProvider: tweakTree, showCollapseAll: true })),
     vscode.languages.registerHoverProvider([{ language: "yaml" }, { language: "tweak" }], new TweakHover(tweakDb)),
     vscode.commands.registerCommand("redcode.openTweakRecord", (arg?: string | TweakNode) => openTweakRecord(arg)),
@@ -294,6 +301,8 @@ export function activate(context: vscode.ExtensionContext): REDcodeApi | undefin
     openFile: (target: string, node?: string) => openFileInEditor(target, node),
     openAnimation: (target: string, animationName?: string, options?: AnimationOptions) => openAnimationInEditor(target, animationName, options),
     revealInProject,
+    openModel: (file: string, options?: { title?: string }) => openModelInView(file, options),
+    closeModel: (fileOrFolder: string) => (typeof fileOrFolder === "string" && fileOrFolder ? meshViewer.closeModel(fileOrFolder) : 0),
   });
 }
 
@@ -356,6 +365,23 @@ async function newProject(): Promise<void> {
   const author = vscode.workspace.getConfiguration("redcode").get<string>("author", "");
   const created = createProject(dir, name.trim(), author);
   log.appendLine(`Created project ${created.file}`);
+  // A folder VS Code has not seen opens in Restricted Mode, where REDcode stays off and the game hears
+  // of no project until it is trusted (REDcode issue #32). An extension cannot trust a folder, so say it.
+  if (!globalStore?.get<boolean>(TrustHintKey, false)) {
+    const open = "Open Project";
+    const quiet = "Open, and Don't Say This Again";
+    const pick = await vscode.window.showInformationMessage(
+      `${name.trim()} is ready. VS Code may ask whether you trust the authors of its folder.`,
+      { modal: true, detail: "Choose Yes, I trust the authors. In Restricted Mode REDcode stays off, so the Project view, Pack and the game's REDnode tools do not see the project until the folder is trusted. A folder inside one you already trust is trusted too." },
+      open,
+      quiet,
+    );
+    if (!pick) {
+      log.appendLine(`New project not opened: ${dir}`);
+      return;
+    }
+    if (pick === quiet) await globalStore?.update(TrustHintKey, true);
+  }
   await vscode.commands.executeCommand("vscode.openFolder", vscode.Uri.file(dir), { forceNewWindow: false });
 }
 
@@ -812,6 +838,71 @@ async function openFileInEditor(target: string, node?: string): Promise<void> {
   await vscode.commands.executeCommand("vscode.openWith", uri, cr2wViewTypeFor(uri.path));
 }
 
+/**
+ * Replace with a WAV (the owner, 2026-11-20): a game sound effect replaced by a WAV of the player's in
+ * one step. The WAV goes into the project's source/raw/sounds as <hash>.wav, which is the name Import
+ * from Raw needs, and is imported at once through REDbridge's sound.importWavs (0.9.0).
+ */
+async function replaceSoundWithWav(hash: number): Promise<void> {
+  const p = requireProject();
+  if (!bridge?.running) throw new Error('REDbridge is not running. Run "REDcode: Restart REDbridge".');
+  const b = bridge;
+  const picked = await vscode.window.showOpenDialog({ canSelectMany: false, openLabel: "Replace", title: `Replace sound ${hash} with a WAV`, filters: { "WAV audio": ["wav"] } });
+  const wav = picked?.[0]?.fsPath;
+  if (!wav) return;
+  const target = path.join(p.dir, ProjectFolders.raw, "sounds", `${hash}.wav`);
+  const same = path.resolve(wav).toLowerCase() === target.toLowerCase();
+  if (!same && fs.existsSync(target)) {
+    const pick = await vscode.window.showWarningMessage(`The project already has a replacement for sound ${hash}.`, { modal: true, detail: `${path.relative(p.dir, target)} is there. Put ${path.basename(wav)} in its place?` }, "Replace It");
+    if (pick !== "Replace It") return;
+  }
+  const backup = !same && fs.existsSync(target) ? fs.readFileSync(target) : undefined;
+  if (!same) {
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.copyFileSync(wav, target);
+  }
+  const archiveDir = path.join(p.dir, ProjectFolders.archive);
+  let r;
+  try {
+    r = await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: `Replacing sound ${hash}` }, () => b.importWavs([target], archiveDir));
+  } catch (e) {
+    r = undefined;
+    log.appendLine(`Replace sound ${hash}: ${e instanceof Error ? e.message : String(e)}`);
+  }
+  if (!r?.ok) {
+    // Nothing half done: the copy goes, or the earlier replacement comes back.
+    if (!same) {
+      if (backup) fs.writeFileSync(target, backup);
+      else fs.rmSync(target, { force: true });
+    }
+    const why = r?.skipped.map((x) => x.reason).join("; ") || "see the REDcode log";
+    throw new Error(`Sound ${hash} was not replaced: ${why}`);
+  }
+  const written = r.written.map((w) => path.join(archiveDir, w));
+  log.appendLine(`Replaced sound ${hash} with ${wav}: ${path.relative(p.dir, target)}, ${r.written.join(", ")}`);
+  explorer.refresh();
+  await revealWritten(written[0] && mainWritten(written));
+  const play = "Pack and Play";
+  const pick = await vscode.window.showInformationMessage(`Sound ${hash} is replaced in ${p.name}. Pack and Play to hear it in the game.`, play);
+  if (pick === play) await vscode.commands.executeCommand("redcode.packAndPlay");
+}
+
+/** REDcodeApi.openModel (REDcode issue #29): a .glb or .gltf in a titled 3D tab; a .mesh in the CR2W editor's 3D view. */
+async function openModelInView(file: string, options?: { title?: string }): Promise<void> {
+  if (typeof file !== "string" || !file) throw new Error("openModel takes a file on disk");
+  const full = path.resolve(file);
+  if (!fs.existsSync(full)) throw new Error(`openModel: ${full} does not exist`);
+  if (/\.(glb|gltf)$/i.test(full)) {
+    meshViewer.openModel(full, typeof options?.title === "string" ? options.title : undefined);
+    return;
+  }
+  if (/\.mesh$/i.test(full)) {
+    await vscode.commands.executeCommand("vscode.openWith", vscode.Uri.file(full), cr2wViewTypeFor(full));
+    return;
+  }
+  throw new Error(`openModel takes a .glb, .gltf or .mesh, not ${path.basename(full)}`);
+}
+
 /** REDcodeApi.openAnimation: an .anims file on its animations, at one animation when given, on an entity when given. */
 async function openAnimationInEditor(target: string, animationName?: string, options?: AnimationOptions): Promise<void> {
   const uri = /^[a-z][\w+.-]+:/i.test(target) ? vscode.Uri.parse(target) : path.isAbsolute(target) ? vscode.Uri.file(target) : gameUri(target);
@@ -913,10 +1004,10 @@ async function runGameCommand(): Promise<void> {
   child.unref();
 }
 
-/** Tells REDcode's REDnode package which project this window has open (REDcode issue #18). */
+/** Tells REDcode's REDnode package which project this window has open (REDcode issues #18 and #32). */
 function shareProject(): void {
   try {
-    if (project) publishProject(projectRef(project)!);
+    if (project) publishProject(projectRef(project)!, vscode.window.state.focused);
     else withdrawProject();
   } catch (e) {
     log.appendLine(`Could not write the project for REDnode: ${(e as Error).message}`);

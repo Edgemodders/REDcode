@@ -46,6 +46,29 @@ exports.activate = (context) => {
         entities: { soldier_02: { entity: TraumaTeam, appearance: "corpo__traumateam_ma_paramedic__lvl1_01" } },
       });
     }),
+    vscode.commands.registerCommand("openstest.openModel", async () => {
+      // REDcode issue #29 (0.10.15): a .glb in a titled 3D tab, as EDGEfab opens each prop's view.glb.
+      const api = await redcode();
+      if (typeof api?.openModel !== "function") {
+        void vscode.window.showWarningMessage("This REDcode has no openModel.");
+        return;
+      }
+      const picked = await vscode.window.showOpenDialog({ canSelectMany: false, filters: { Models: ["glb", "gltf", "mesh"] }, title: "A model to open with a title" });
+      if (!picked?.[0]) return;
+      const title = await vscode.window.showInputBox({ prompt: "The tab's title", value: "a battered vending machine" });
+      if (title === undefined) return;
+      await api.openModel(picked[0].fsPath, { title });
+    }),
+    vscode.commands.registerCommand("openstest.closeModel", async () => {
+      const api = await redcode();
+      if (typeof api?.closeModel !== "function") {
+        void vscode.window.showWarningMessage("This REDcode has no closeModel.");
+        return;
+      }
+      const picked = await vscode.window.showOpenDialog({ canSelectFiles: false, canSelectFolders: true, title: "Close the titled 3D tabs of files under this folder" });
+      if (!picked?.[0]) return;
+      void vscode.window.showInformationMessage(`closeModel closed ${api.closeModel(picked[0].fsPath)} tab(s).`);
+    }),
     vscode.commands.registerCommand("openstest.openAnimationNotAnims", async () => {
       const api = await redcode();
       try {

@@ -8,8 +8,13 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 - **Synced sets in the animation view** (https://github.com/Edgemodders/REDcode/issues/21). A synced clip, such as the Trauma Team's landing, lists its set under the animations: the clips of the same moment in the other `.anims` files of its folder, the AV and both soldiers here. **Play the Set** plays them together on one clock, each on its own rig and placed where the game's sync tracks put it, with root motion on. Members can be ticked on and off, and the player's male and female files are alternatives. For other extensions, `openAnimation` takes `set: true` and `entities` by role. Needs REDbridge 0.17.0.
 
+- **Replace…** in the game sound list: pick a WAV and it replaces that sound effect in your project in one step, named by the sound's hash in Raw and imported at once, with Pack and Play offered to hear it in the game. No other tool needed.
+- **Every window's project for REDnode** (https://github.com/Edgemodders/REDcode/issues/32): with several VS Code windows open, REDcode's REDnode service answers `projects()`, every window's project, the last focused first, so EDGEbuilder can offer them all. `project()` is unchanged.
+- **For other extensions:** `openModel(file, { title })` opens a model in the 3D view in a tab with a title of their own, and `closeModel` closes it again (https://github.com/Edgemodders/REDcode/issues/29, for EDGEfab's props).
+
 **Changed**
 
+- **New Project** says, before it opens the new folder, to trust it if VS Code asks: in Restricted Mode REDcode stays off and the game's tools cannot see the project. It can be told not to say it again.
 - **New File...** has a hover button on the Project view's folders, roots and the project itself, beside Copy Path, so it is one click instead of a right-click.
 
 **Fixed**

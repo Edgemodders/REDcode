@@ -132,6 +132,19 @@ export interface REDcodeApi {
    * member is there before calling it.
    */
   revealInProject(file: string): Promise<boolean>;
+  /**
+   * Opens a .glb or .gltf on disk in REDcode's 3D view, in a tab titled options.title (the file's name
+   * without one): for files that share one name, such as EDGEfab's props, each a view.glb. The same file
+   * again shows its open tab, with the new title. The view redraws when the file changes. A .mesh opens in
+   * the CR2W editor's 3D view instead, whose tab VS Code names after the file. Since 0.10.15 (REDcode issue
+   * #29): check that the member is there before calling it.
+   */
+  openModel(file: string, options?: { title?: string }): Promise<void>;
+  /**
+   * Closes the tabs openModel opened for a file, or for every file under a folder (before the folder moves):
+   * they have no file URI to find them by. Answers how many closed. Since 0.10.15.
+   */
+  closeModel(fileOrFolder: string): number;
 }
 
 /** What importFile answers. */
@@ -159,6 +172,8 @@ export interface ApiHost {
   openFile(target: string, node?: string): Promise<void>;
   openAnimation(path: string, animationName?: string, options?: AnimationOptions): Promise<void>;
   revealInProject(file: string): Promise<boolean>;
+  openModel(file: string, options?: { title?: string }): Promise<void>;
+  closeModel(fileOrFolder: string): number;
 }
 
 /** What REDcodeApi.openAnimation plays an animation on (since 0.10.12). */
@@ -273,5 +288,7 @@ export function createApi(host: ApiHost): REDcodeApi {
     openFile: host.openFile,
     openAnimation: host.openAnimation,
     revealInProject: host.revealInProject,
+    openModel: host.openModel,
+    closeModel: host.closeModel,
   };
 }

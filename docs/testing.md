@@ -34,6 +34,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Animations A1 (#21)](#animations-a1) | By hand | Requests | 2026-11-06 | Pass |
 | [Animations A2 (#21)](#animations-a2) | By hand | Requests | 2026-11-15 | Pass, three fixes |
 | [Animations A3 (#21)](#animations-a3) | By hand | Requests | | Given to the owner 2026-11-20; needs REDbridge 0.17.0 |
+| [Replace with a WAV, titled models (#29), every window's project (#32)](#replace-with-a-wav-titled-models-29-and-every-windows-project-32) | By hand, in the game | Requests | | Given to the owner 2026-11-20 |
 | [Library view (#23)](#library-view-23) | By hand | Requests | 2026-11-15 | Pass, two fixes |
 | [Run Game without ELECTRON_RUN_AS_NODE (#24)](#run-game-without-electron_run_as_node-24) | By hand, in the game | Requests | 2026-11-20 | Pass |
 | [New File](#new-file) | By hand | Requests | 2026-11-20 | Pass, steps 1 to 13, four fixes |
@@ -711,6 +712,28 @@ Built 2026-11-20 ([design](design/animation.html#a3-as-built), REDcode issue #21
 | 9 | Open `synced__q001_00c__syringe.anims`, pick `synced__q001_00c_injector__syringe` | The set lists fpp twice (player_female, player_male, both marked **SIMD**, one ticked), jackie and sandra. Ticking one fpp unticks the other |
 | 10 | **Play the Set** | Sandra kneels; Jackie (bones only: `man_big.rig`) stands by her. The player may show as a collapsed skeleton: the known SIMD export fault, not A3's |
 | 11 | **Opens Test: Play an Animation's Synced Set** | The landing opens with its set playing, soldier_02 on the Trauma Team paramedic's meshes |
+
+## Replace with a WAV, titled models (#29) and every window's project (#32)
+
+Built 2026-11-20 after 0.10.14, three small items. Checked before:
+- **Unit checks:** 63 pass, one new for #32. The extension's state files for two live windows and a closed one, read by the package's own `service.mjs` with a stand-in `rednode` module: `projects()` lists the live ones, the last focused first; the closed one's file is cleared; `project()` is unchanged; withdrawing removes the window's file; the package's version is raised.
+- **A WAV against REDbridge:** a WAV named by a game sound's hash (832549876) imports through `sound.importWavs`, and an unknown hash is refused with the reason the button shows.
+- **Not run:** anything in VS Code, and `projects()` in the game.
+
+| # | Do | Expected |
+|---|---|---|
+| 1 | F5 with **Run REDcode with Opens Test (no other extensions)** on a test project. **REDcode: Browse Game Sounds**, pick a sound | **Replace…** beside Copy Hash, enabled once a sound is picked |
+| 2 | **Replace…**, pick any WAV | The project gets `source\raw\sounds\<hash>.wav`, and the Project view selects the new `sfx_container_*.opuspak` under Archive. A message offers **Pack and Play** |
+| 3 | **Replace…** on the same sound with another WAV | It asks before putting it in place of the first one |
+| 4 | **Pack and Play** with the game running under REDnode (MCP server on), and make the sound happen in the game | Your WAV plays instead of the game's sound |
+| 5 | Close the project's folder, open Browse Game Sounds again | No **Replace…**: it needs a project |
+| 6 | **Opens Test: Open a Model with a Title**, pick a `.glb`, title `a battered vending machine` | A 3D tab titled **a battered vending machine**, with the model |
+| 7 | The same command, same file, title `vending machine, renamed` | The same tab comes forward with the new title; no second tab |
+| 8 | Change the `.glb` on disk (export it again, or copy another over it) | The tab redraws |
+| 9 | **Opens Test: Close the Models in a Folder**, pick the `.glb`'s folder | The tab closes; the message says 1 tab closed |
+| 10 | **REDcode: New Project** in a folder VS Code has not seen | Before it opens, a message says to trust the folder if VS Code asks. **Open Project** opens it; **Open, and Don't Say This Again** stops the message |
+| 11 | Two VS Code windows, each with a REDcode project; start the game with REDnode, MCP server on. Ask Claude to call `redcode__projects` | Both projects, the window focused last first, each with `focusedAt`. `redcode__project` answers the one focused last |
+| 12 | Focus the other window, call `redcode__projects` again; then close one window and call it within 5 seconds | The order follows the focus; the closed window's project drops out |
 
 ## No Red Hot Tools
 

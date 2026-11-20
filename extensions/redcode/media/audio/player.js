@@ -247,6 +247,8 @@
   });
   $("save").addEventListener("click", () => vscode.postMessage({ type: "save", index: current?.index }));
   $("copy").addEventListener("click", () => current?.hash !== undefined && vscode.postMessage({ type: "copy", text: String(current.hash) }));
+  // Replace with a WAV (the owner, 2026-11-20): the host picks the WAV, names it by the hash and imports it.
+  $("replace").addEventListener("click", () => current?.hash !== undefined && vscode.postMessage({ type: "replace", index: current.index }));
   $("edgewave").addEventListener("click", () => vscode.postMessage({ type: "edgewave", index: current?.index, eventHash: current?.eventHash }));
 
   // Click or drag on the waveform to seek.
@@ -281,6 +283,9 @@
     $("save").disabled = true;
     $("copy").hidden = false;
     $("copy").disabled = true;
+    // Only with a project open: the replacement goes into it.
+    $("replace").hidden = !m.replace;
+    $("replace").disabled = true;
     if (m.note) {
       $("note").textContent = m.note;
       $("note").hidden = false;
@@ -372,6 +377,7 @@
       if (current !== what) return;
       $("playing").textContent = `${what.title}  ·  sound ${hashes[i]}${r.s.length > 1 ? `  ·  ${r.s.indexOf(i) + 1} of ${r.s.length}` : ""}`;
       $("copy").disabled = false;
+      $("replace").disabled = false;
       await load(m, what);
     } catch (e) {
       if (current === what) showError(e.message || String(e));

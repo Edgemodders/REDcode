@@ -36,6 +36,8 @@ export class AudioPlayer implements vscode.CustomReadonlyEditorProvider {
     private readonly cacheRoot: string,
     private readonly getBridge: () => BridgeClient | undefined,
     private readonly log: vscode.OutputChannel,
+    /** Replace with a WAV: a game sound effect by hash, replaced in the open project; undefined without one. */
+    private readonly replaceSound?: () => ((hash: number) => Promise<void>) | undefined,
   ) {}
 
   register(): vscode.Disposable {
@@ -106,7 +108,7 @@ export class AudioPlayer implements vscode.CustomReadonlyEditorProvider {
       const note = events
         ? `${index.count.toLocaleString()} sounds under ${rows.length.toLocaleString()} events, ${named.toLocaleString()} of them named from WolvenKit's event list. Filter by name, tag or hash; a number plays one variation. Space plays and pauses, arrow keys step through the list.`
         : `${index.count.toLocaleString()} sounds under ${rows.length.toLocaleString()} events, by hash only: event names need REDbridge 0.7.2 (REDcode: Update REDbridge).`;
-      void webview.postMessage({ type: "sounds", title: name, subtitle, rows, hashes: Array.from(index.hashes), note });
+      void webview.postMessage({ type: "sounds", title: name, subtitle, rows, hashes: Array.from(index.hashes), note, replace: !!this.replaceSound?.() });
     };
 
     const send = () =>
@@ -136,6 +138,13 @@ export class AudioPlayer implements vscode.CustomReadonlyEditorProvider {
           case "save":
             await this.save(playing, uri);
             return;
+          case "replace": {
+            if (!index || m.index === undefined) return;
+            const replace = this.replaceSound?.();
+            if (!replace) throw new Error("Open a project first: the replacement goes into it");
+            await replace(index.hashes[m.index]);
+            return;
+          }
           case "edgewave":
             // A sound effect by hash from the sound list; else this file, by game path or URI.
             if (isIndex) {
@@ -173,7 +182,7 @@ export class AudioPlayer implements vscode.CustomReadonlyEditorProvider {
 <title>${name}</title>
 </head>
 <body>
-<header><span class="name" id="title">${name}</span><span class="meta" id="meta"></span><span class="spacer"></span><button id="copy" hidden title="Copy the hash of the sound now playing">Copy Hash</button><button id="save" disabled title="Save the sound now playing to a file">Save…</button><button id="edgewave" disabled title="Edit, mix or re-voice this sound in EDGEwave, the EDGE sound studio">Open in EDGEwave</button></header>
+<header><span class="name" id="title">${name}</span><span class="meta" id="meta"></span><span class="spacer"></span><button id="copy" hidden title="Copy the hash of the sound now playing">Copy Hash</button><button id="replace" hidden title="Replace this sound in the game with a WAV of yours: it goes into the project's Raw folder under the sound's hash and is imported at once">Replace…</button><button id="save" disabled title="Save the sound now playing to a file">Save…</button><button id="edgewave" disabled title="Edit, mix or re-voice this sound in EDGEwave, the EDGE sound studio">Open in EDGEwave</button></header>
 <section class="player">
   <div class="wave"><canvas id="wave"></canvas><div class="note" id="waveNote">Loading…</div></div>
   <div class="toolbar"><button id="play">▶ Play</button><button id="loop" title="Play again from the start at the end">Loop</button><span id="time" class="dim">0:00.0 / 0:00.0</span><span id="playing"></span><span class="spacer"></span><span id="info" class="dim"></span></div>
