@@ -4,6 +4,19 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 ## Unreleased
 
+## 0.10.14 (2026-11-20)
+
+New File: make textures, ink atlases, material instances and other game files from nothing in the Project view. Needs REDbridge 0.13.0, as before.
+
+<!-- nexus
+New: New File in the Project view: a texture from an image, an ink atlas, a material instance and more
+New: Start a new file from any game file, or a blank TweakXL, ArchiveXL or Redscript file
+Changed: Pack ends with a message saying what it packed
+Fixed: Run Game on the exe route (GOG, Epic) no longer stops REDnode's overlay
+Fixed: The ink atlas view's parts filter follows the editor theme
+Needs: REDbridge 0.13.0 or later, as before
+-->
+
 **New**
 
 - **New File...** on a Project view folder, a root or the project, and in the view's menu. It makes a texture from an image (as color, normal map, mask or UI), an ink atlas on its texture with one part covering it, a material instance on a base material you pick, an empty entity, appearance or multilayer setup, a copy of any game file under a new name, or a blank TweakXL, ArchiveXL or Redscript file in its usual folder. Names are checked as game paths: lowercase, no spaces. An image with an odd width or height is caught before the import, since WolvenKit compresses only even sides: REDcode offers to resize a copy (each odd side one pixel shorter, the size shown first) or to import it uncompressed (https://edgemodders.github.io/REDcode/design/new-file.html).
