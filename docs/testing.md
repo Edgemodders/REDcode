@@ -33,7 +33,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Open contract (#22)](#open-contract-22) | By hand | Requests | 2026-11-06 | Pass |
 | [Animations A1 (#21)](#animations-a1) | By hand | Requests | 2026-11-06 | Pass |
 | [Animations A2 (#21)](#animations-a2) | By hand | Requests | 2026-11-15 | Pass, three fixes |
-| [Animations A3 (#21)](#animations-a3) | By hand | Requests | | Given to the owner 2026-11-20; REDbridge 0.17.0 is out |
+| [Animations A3 (#21)](#animations-a3) | By hand | Requests | 2026-11-20 | Pass (owner, REDbridge 0.17.0), with three fixes |
 | [Edit in Blender: skinned meshes](#edit-in-blender-skinned-meshes) | By hand | | | Given to the owner 2026-11-20 |
 | [Replace with a WAV, titled models (#29), every window's project (#32)](#replace-with-a-wav-titled-models-29-and-every-windows-project-32) | By hand, in the game | Requests | | Given to the owner 2026-11-20 |
 | [Sector view](#sector-view) | By hand | C5 | | Given to the owner 2026-11-20 |
@@ -728,6 +728,8 @@ Built 2026-11-20 ([design](design/animation.html#a3-as-built), REDcode issue #21
 | 9 | Open `synced__q001_00c__syringe.anims`, pick `synced__q001_00c_injector__syringe` | The set lists fpp twice (player_female and player_male, one ticked), jackie and sandra. Ticking one fpp unticks the other |
 | 10 | **Play the Set** | Sandra kneels; Jackie (bones only: `man_big.rig`) stands by her; the player (bones only: the player rig has no base body) is a whole skeleton beside them, not collapsed to one point: REDbridge 0.17.0 fixed that SIMD export (REDbridge #20) |
 | 11 | In the Command Palette (Ctrl+Shift+P), run **Opens Test: Play an Animation's Synced Set** (from the Opens Test extension, which this launch config loads; it calls `REDcodeApi.openAnimation` with `set: true`) | The landing opens with its set playing, soldier_02 on the Trauma Team paramedic's meshes |
+
+Result 2026-11-20, reported by the owner: steps 1 to 11 pass on REDbridge 0.17.0. Fixes it raised, each in before the steps were finished: a splitter to widen the list (step 1a; the names did not fit), each animation's length from the file rather than its last key (the first clip, a still pose, looped 0.017 s and its time bar seemed to run backwards), and checkboxes in the theme's colours. Step 11 now says it is a Command Palette command.
 
 ## Replace with a WAV, titled models (#29) and every window's project (#32)
 
