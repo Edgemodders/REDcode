@@ -23,7 +23,7 @@ export interface NewFileType {
 
 export const NewFileTypes: readonly NewFileType[] = [
   { id: "texture", label: "Texture from an Image...", ext: ".xbm", kind: "texture", detail: "Picks a PNG, TGA or DDS and imports it as a new texture" },
-  { id: "atlas", label: "Ink Atlas", ext: ".inkatlas", kind: "atlas", root: "inkTextureAtlas", detail: "Asks for its texture; starts with one part, whole, covering it" },
+  { id: "atlas", label: "Ink Atlas", ext: ".inkatlas", kind: "atlas", root: "inkTextureAtlas", detail: "Icons cut from one texture, an icon sheet; starts with one part, whole, covering it" },
   { id: "material", label: "Material Instance", ext: ".mi", kind: "material", root: "CMaterialInstance", detail: "Asks for its base material" },
   { id: "entity", label: "Entity", ext: ".ent", kind: "empty", root: "entEntityTemplate", detail: "Empty, as in WolvenKit" },
   { id: "appearance", label: "Appearance", ext: ".app", kind: "empty", root: "appearanceAppearanceResource", detail: "Empty, as in WolvenKit" },

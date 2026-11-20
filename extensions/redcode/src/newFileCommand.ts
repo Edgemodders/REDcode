@@ -135,7 +135,7 @@ async function pickAtlasTexture(deps: NewFileDeps, folder: string): Promise<stri
   const textures = walk(archive).filter((f) => f.toLowerCase().endsWith(".xbm"));
   type Row = vscode.QuickPickItem & { gamePath?: string; fromImage?: boolean };
   const rows: Row[] = [
-    { label: "$(file-media) Texture from an Image...", detail: "Imports an image as a UI texture first", fromImage: true },
+    { label: "$(file-media) Texture from an Image...", detail: "Imports the icon sheet the parts are cut from: usually a PNG with a transparent background", fromImage: true },
     ...(textures.length ? [{ label: "Textures in the project", kind: vscode.QuickPickItemKind.Separator } as Row] : []),
     ...textures.map((f): Row => {
       const gamePath = gamePathOf(deps.project, f)!;

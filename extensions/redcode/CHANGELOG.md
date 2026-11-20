@@ -10,6 +10,7 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 **Fixed**
 
+- The parts filter in the ink atlas view has the editor theme's colours and border, like the other search boxes, instead of the plain browser style.
 - **Run Game** no longer stops REDnode's overlay when it starts the game's exe directly (a GOG or Epic install, or REDcode: Launch set to exe). On REDnode 0.58.0 or older, F10 showed only the cursor (https://github.com/Edgemodders/REDcode/issues/24).
 
 ## 0.10.13 (2026-11-16)

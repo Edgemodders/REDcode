@@ -70,8 +70,8 @@ li.more { color: var(--cyan); cursor: pointer; }
 #status.error { color: var(--red); }
 
 /* footer search */
-#search, #filter { background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border, var(--line)); padding: 2px 8px; font: inherit; font-family: var(--mono); font-size: 12px; min-width: 220px; }
-#search:focus, #filter:focus { outline: 1px solid var(--accent); border-color: var(--accent); }
+#search, #filter, #partsFilter { background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border, var(--line)); padding: 2px 8px; font: inherit; font-family: var(--mono); font-size: 12px; min-width: 220px; }
+#search:focus, #filter:focus, #partsFilter:focus { outline: 1px solid var(--accent); border-color: var(--accent); }
 /* Each hit is two lines: the path with its type at the right, then the preview. Both wrap, so nothing is cut off. */
 .results { display: flex; flex-direction: column; min-width: 0; }
 .result { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; padding: 4px 0; border-bottom: 1px solid var(--line); cursor: pointer; font-family: var(--mono); font-size: 12px; min-width: 0; }
