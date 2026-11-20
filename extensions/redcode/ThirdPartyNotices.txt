@@ -339,7 +339,7 @@ SOFTWARE.
 
 ------------------------------------------------------------------------------
 
-pngjs 7.0.0 (bundled into dist/extension.js with @edgemodders/edgemat-core)
+pngjs 7.0.0 (bundled into dist/extension.js; used by New File and by @edgemodders/edgemat-core)
 
 pngjs original work Copyright (c) 2015 Luke Page & Original Contributors
 pngjs derived work Copyright (c) 2012 Kuba Niegowski
