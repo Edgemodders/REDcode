@@ -85,6 +85,65 @@ export function imageSize(bytes: Uint8Array, ext: string): { width: number; heig
 /** Whether WolvenKit would refuse to compress an image of this size. */
 export const hasOddSide = (size: { width: number; height: number }) => size.width % 2 === 1 || size.height % 2 === 1;
 
+/** The size Resize offers: each odd side one pixel shorter, so the picture is scaled as little as it can be (a 1-pixel side becomes 2). */
+export function evenSize(size: { width: number; height: number }): { width: number; height: number } {
+  const even = (n: number) => (n % 2 === 0 ? n : n === 1 ? 2 : n - 1);
+  return { width: even(size.width), height: even(size.height) };
+}
+
+export interface Rgba {
+  width: number;
+  height: number;
+  /** Four bytes a pixel, rows top to bottom. */
+  data: Uint8Array;
+}
+
+/** Scales RGBA pixels to a new size, bilinear, sampling at pixel centres, every channel alpha included. */
+export function resizeRgba(src: Rgba, width: number, height: number): Rgba {
+  const out = new Uint8Array(width * height * 4);
+  const sx = src.width / width;
+  const sy = src.height / height;
+  for (let y = 0; y < height; y++) {
+    const fy = Math.min(Math.max((y + 0.5) * sy - 0.5, 0), src.height - 1);
+    const y0 = Math.floor(fy);
+    const y1 = Math.min(y0 + 1, src.height - 1);
+    const ty = fy - y0;
+    for (let x = 0; x < width; x++) {
+      const fx = Math.min(Math.max((x + 0.5) * sx - 0.5, 0), src.width - 1);
+      const x0 = Math.floor(fx);
+      const x1 = Math.min(x0 + 1, src.width - 1);
+      const tx = fx - x0;
+      const a = (y0 * src.width + x0) * 4;
+      const b = (y0 * src.width + x1) * 4;
+      const c = (y1 * src.width + x0) * 4;
+      const d = (y1 * src.width + x1) * 4;
+      const o = (y * width + x) * 4;
+      for (let k = 0; k < 4; k++) {
+        const top = src.data[a + k] + (src.data[b + k] - src.data[a + k]) * tx;
+        const bottom = src.data[c + k] + (src.data[d + k] - src.data[c + k]) * tx;
+        out[o + k] = Math.round(top + (bottom - top) * ty);
+      }
+    }
+  }
+  return { width, height, data: out };
+}
+
+interface PngModule {
+  PNG: { sync: { read(bytes: Buffer): Rgba; write(png: Rgba): Buffer }; new (options: { width: number; height: number }): Rgba };
+}
+// pngjs has no types of its own; this is the part New File uses.
+const pngjs = (): PngModule => require("pngjs") as PngModule;
+
+/** A PNG file's bytes scaled to a new size, as PNG bytes. */
+export function resizePng(bytes: Buffer, width: number, height: number): Buffer {
+  const { PNG } = pngjs();
+  const src = PNG.sync.read(bytes);
+  const scaled = resizeRgba(src, width, height);
+  const png = new PNG({ width, height });
+  png.data.set(scaled.data);
+  return PNG.sync.write(png);
+}
+
 /** Base materials, the ones game .mi files name most (a sample of 250 on game 2.5, 2026-11-20). */
 export const BaseMaterials: readonly { path: string; detail: string }[] = [
   { path: "engine\\materials\\multilayered.mt", detail: "Layers from an .mlsetup and an .mlmask: most clothing, weapons and vehicles" },

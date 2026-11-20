@@ -704,6 +704,32 @@ await check("new file: an image's size comes from its header, and an odd side is
   assert.equal(nf.hasOddSide({ width: 512, height: 255 }), true);
 });
 
+await check("new file: Resize offers each odd side one pixel shorter, and scales the pixels to it", () => {
+  assert.deepEqual(nf.evenSize({ width: 1195, height: 64 }), { width: 1194, height: 64 });
+  assert.deepEqual(nf.evenSize({ width: 513, height: 255 }), { width: 512, height: 254 });
+  assert.deepEqual(nf.evenSize({ width: 1, height: 3 }), { width: 2, height: 2 }, "a 1-pixel side grows to 2");
+  assert.deepEqual(nf.evenSize({ width: 64, height: 32 }), { width: 64, height: 32 });
+  // A 3 x 1 image, red, green, blue: scaled to 2 x 2, the left keeps red's side and the right blue's.
+  const src = { width: 3, height: 1, data: new Uint8Array([255, 0, 0, 255, 0, 255, 0, 128, 0, 0, 255, 0]) };
+  const out = nf.resizeRgba(src, 2, 2);
+  assert.equal(out.data.length, 16);
+  assert.ok(out.data[0] > out.data[2] && out.data[6] > out.data[4], "left is redder than blue, right is bluer than red");
+  assert.deepEqual([...out.data.slice(0, 8)], [...out.data.slice(8, 16)], "both rows alike, from one source row");
+  assert.ok(out.data[3] > 128 && out.data[7] < 128, "alpha is scaled too");
+  // A flat colour stays exactly that colour.
+  const flat = { width: 5, height: 3, data: new Uint8Array(5 * 3 * 4).map((_, i) => [10, 20, 30, 255][i % 4]) };
+  const f = nf.resizeRgba(flat, 4, 2);
+  assert.ok(f.data.every((v, i) => v === [10, 20, 30, 255][i % 4]));
+  // Through PNG bytes, with pngjs as REDcode ships it.
+  const { PNG } = require("pngjs");
+  const png = new PNG({ width: 65, height: 33 });
+  png.data.fill(200);
+  const resized = PNG.sync.read(nf.resizePng(PNG.sync.write(png), 64, 32));
+  assert.equal(resized.width, 64);
+  assert.equal(resized.height, 32);
+  assert.equal(resized.data[0], 200);
+});
+
 await check("new file: every type has what its kind needs, and the presets are complete", () => {
   for (const t of nf.NewFileTypes) {
     if (["atlas", "material", "empty"].includes(t.kind)) assert.ok(t.root, `${t.id} has a root class`);

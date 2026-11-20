@@ -2,6 +2,7 @@
 // and opened. What each type is and starts as is in newFile.ts.
 
 import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
 import * as vscode from "vscode";
 import type { BridgeClient } from "./bridgeClient";
@@ -17,9 +18,11 @@ import {
   defaultTextName,
   gameFolderOf,
   gamePathFor,
+  evenSize,
   hasOddSide,
   imageSize,
   materialRoot,
+  resizePng,
   nameFrom,
   textFileContent,
   textFileTarget,
@@ -163,36 +166,69 @@ async function textureFromImage(deps: NewFileDeps, folder: string, preset: strin
   const image = picked?.[0]?.fsPath;
   if (!image) return undefined;
   const imageExt = path.extname(image).toLowerCase();
-  // WolvenKit will not compress an image with an odd side: say so before the import, with its way round.
+  // WolvenKit will not compress an image with an odd side: say so before the import, and offer a resized
+  // copy or WolvenKit's own way round.
   let uncompressed = false;
+  let resizeTo: { width: number; height: number } | undefined;
   const size = imageSize(fs.readFileSync(image), imageExt);
   if (size && hasOddSide(size)) {
+    const to = evenSize(size);
+    const change = [to.width !== size.width ? "narrower" : "", to.height !== size.height ? "shorter" : ""].filter(Boolean).join(" and ");
+    const grows = to.width > size.width || to.height > size.height;
+    const resize = `Resize to ${to.width} × ${to.height}`;
     const choice = await vscode.window.showWarningMessage(
       `${path.basename(image)} is ${size.width} × ${size.height} pixels. WolvenKit compresses a texture only when both sides are even numbers.`,
       {
         modal: true,
-        detail: "Resize the image so both sides are even, and best of all powers of two such as 1024 or 2048, then try again. Or import it uncompressed (TCM_None): the texture is several times larger, and WolvenKit calls this at your own risk.",
+        detail: [
+          `${resize}: REDcode scales a copy to ${to.width} × ${to.height} pixels (${grows ? "a 1-pixel side becomes 2" : `one pixel ${change}`}) and imports that copy, saved in Raw as a PNG. Your image is not changed.`,
+          "Import Uncompressed: the texture keeps its size, with compression TCM_None. It is several times larger, and WolvenKit calls this at your own risk.",
+          "Or cancel and resize the image yourself: powers of two such as 1024 or 2048 suit the game best.",
+        ].join("\n\n"),
       },
+      resize,
       "Import Uncompressed",
     );
-    if (choice !== "Import Uncompressed") return undefined;
-    uncompressed = true;
+    if (choice === resize) resizeTo = to;
+    else if (choice === "Import Uncompressed") uncompressed = true;
+    else return undefined;
   }
   type Row = vscode.QuickPickItem & { setup: (typeof TexturePresets)[number]["setup"] };
   const rows = TexturePresets.map((p): Row => ({ label: p.label, detail: p.detail, setup: p.setup, picked: p.id === preset }));
   const ordered = [...rows.filter((r) => r.picked), ...rows.filter((r) => !r.picked)].map((r) => ({ ...r, picked: undefined }));
-  const setupRow = await vscode.window.showQuickPick(ordered, { title: `Texture from ${path.basename(image)}${uncompressed ? ", uncompressed" : ""}`, placeHolder: "What the texture is for" });
+  const how = resizeTo ? `, resized to ${resizeTo.width} × ${resizeTo.height}` : uncompressed ? ", uncompressed" : "";
+  const setupRow = await vscode.window.showQuickPick(ordered, { title: `Texture from ${path.basename(image)}${how}`, placeHolder: "What the texture is for" });
   if (!setupRow) return undefined;
   const setup = uncompressed ? { ...setupRow.setup, compression: "TCM_None" } : setupRow.setup;
-  const rawOf = (gamePath: string) => path.join(project.dir, ProjectFolders.raw, ...gamePath.replace(/\.xbm$/, imageExt).split("\\"));
+  // A resized copy is always a PNG, whatever the image was.
+  const rawExt = resizeTo ? ".png" : imageExt;
+  const rawOf = (gamePath: string) => path.join(project.dir, ProjectFolders.raw, ...gamePath.replace(/\.xbm$/, rawExt).split("\\"));
   const gamePath = await askGameName(deps, `Texture from ${path.basename(image)}`, folder, ".xbm", nameFrom(image), (g) => {
     const raw = rawOf(g);
-    return fs.existsSync(raw) && path.resolve(raw).toLowerCase() !== path.resolve(image).toLowerCase() ? `Raw has ${path.basename(raw)} there already` : undefined;
+    // A resized copy never overwrites the image itself, even when the image is in Raw at that path.
+    const isImage = path.resolve(raw).toLowerCase() === path.resolve(image).toLowerCase();
+    return fs.existsSync(raw) && (resizeTo || !isImage) ? `Raw has ${path.basename(raw)} there already` : undefined;
   });
   if (!gamePath) return undefined;
   const raw = rawOf(gamePath);
   const copied = path.resolve(raw).toLowerCase() !== path.resolve(image).toLowerCase();
-  if (copied) {
+  if (resizeTo) {
+    // Another kind of image comes to PNG through REDbridge (WolvenKit reads it), then is scaled here.
+    let pngBytes: Buffer;
+    if (imageExt === ".png") {
+      pngBytes = fs.readFileSync(image);
+    } else {
+      const tmp = path.join(os.tmpdir(), `redcode-newfile-${process.pid}-${Date.now()}.png`);
+      try {
+        await bridge.imageToPng(image, tmp);
+        pngBytes = fs.readFileSync(tmp);
+      } finally {
+        fs.rmSync(tmp, { force: true });
+      }
+    }
+    fs.mkdirSync(path.dirname(raw), { recursive: true });
+    fs.writeFileSync(raw, resizePng(pngBytes, resizeTo.width, resizeTo.height));
+  } else if (copied) {
     fs.mkdirSync(path.dirname(raw), { recursive: true });
     fs.copyFileSync(image, raw);
   }
@@ -208,7 +244,7 @@ async function textureFromImage(deps: NewFileDeps, folder: string, preset: strin
     if (!fs.existsSync(xbm) && copied) fs.rmSync(raw, { force: true });
   }
   if (!fs.existsSync(xbm)) throw new Error(`WolvenKit's import wrote no texture at ${gamePath}${r?.written.length ? ` (it wrote ${r.written.join(", ")})` : ""}. Its reason is in the REDcode log.`);
-  deps.log(`New File: imported ${path.relative(project.dir, raw)} as ${gamePath} (${setupRow.label}${uncompressed ? ", uncompressed" : ""})`);
+  deps.log(`New File: imported ${path.relative(project.dir, raw)} as ${gamePath} (${setupRow.label}${how})`);
   return xbm;
 }
 
