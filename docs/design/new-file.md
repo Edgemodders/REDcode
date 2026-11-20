@@ -80,7 +80,7 @@ Agreed with the owner on 2026-11-19: each of the three as proposed.
 
 ## As built
 
-Built 2026-11-20; hand test pending ([testing](../testing.html#new-file)).
+Built 2026-11-20 and hand-tested by the owner the same day, on the laptop: steps 1 to 13 pass, with four fixes ([testing](../testing.html#new-file)). Whether the game takes the new files is not yet tried.
 
 - **`src/newFile.ts`** (no VS Code imports): the type table, the name checks, the folder from where it was clicked, the text files' places and comment lines, and the roots. **`src/newFileCommand.ts`**: the pickers and the writes. The command is `redcode.newFile`, on the project, the roots and folders, in the Project view's **...** menu, and in the palette while a project is open.
 - **The folder:** a folder under Archive gives its game path, and one under Raw gives the same game path, since Raw mirrors Archive. Anywhere else (the project, a root, Resources) gives no folder, so the name box offers `<mod name>\<name>` and takes folders with `\` or `/`.

@@ -35,7 +35,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Animations A2 (#21)](#animations-a2) | By hand | Requests | 2026-11-15 | Pass, three fixes |
 | [Library view (#23)](#library-view-23) | By hand | Requests | 2026-11-15 | Pass, two fixes |
 | [Run Game without ELECTRON_RUN_AS_NODE (#24)](#run-game-without-electron_run_as_node-24) | By hand, in the game | Requests | 2026-11-20 | Pass |
-| [New File](#new-file) | By hand | Requests | | Given to the owner 2026-11-20 |
+| [New File](#new-file) | By hand | Requests | 2026-11-20 | Pass, steps 1 to 13, four fixes |
 | [No Red Hot Tools](#no-red-hot-tools) | By hand | C4 | 2026-11-10 | Pass, one fix |
 | importFile's texture (#25) | By hand, through EDGEhack | Requests | 2026-11-10 | Pass: EDGEhack 0.0.19's H3b.2 Upload test (EDGEhack's `docs/testing.md`), all 10 steps, run by the owner with REDcode main e9b5e7b; the icons showed in the game. Reported by the EDGEhack session |
 | [Resizable table columns (#26)](#resizable-table-columns-26) | By hand | Requests | 2026-11-10 | Pass, one fix |
@@ -801,6 +801,8 @@ Built 2026-11-20 from [the design](design/new-file.html) (`src/newFile.ts`, `src
 
 First run (owner, 2026-11-20, on the laptop): step 3 failed on an image with an odd side. WolvenKit refuses to compress one ("Image dimension (width and/or height) is an odd number. To import regardless, set Compression to TCM_None at own risk"), and the copy left in Raw then blocked the same name. Fixed the same day: New File reads the image's size first (PNG, JPEG, TGA, DDS, BMP) and asks, offering **Import Uncompressed** (`TCM_None`, checked against the bridge: an odd PNG fails compressed and imports uncompressed). A failed import now removes its Raw copy. Step 3b was added for it. The owner then asked for a Resize button in that warning, naming the size it gives: built the same day (each odd side one pixel shorter; checked against the bridge: an odd PNG, and an odd TGA through `texture.imageToPng`, both 65 × 33 to 64 × 32 with their colour, then imported compressed). Steps 3c and 3d were added. At step 6 the owner noted two things. The atlas made from a photo showed the photo as its "background": not a fault, since an atlas's texture is the icon sheet its parts are cut from, but the picker now says so ("the icon sheet the parts are cut from: usually a PNG with a transparent background"). And the atlas view's parts filter had the browser's own style, not the theme's, which dates from E4: fixed in `media/cr2w/editor.css`. At step 13 the owner noted that Pack said what it did only in the status bar, so it was not clear it had run: a plain Pack now ends with a message and Show log, as the other commands do. Pack and Install and Pack and Play keep the status bar line, since the install's own message follows.
 
+**Result (owner, 2026-11-20, on the laptop, F5 on main):** steps 1 to 13 pass, with the four fixes above (the odd-sided image with Resize and Import Uncompressed, the atlas picker's wording, the parts filter's style, Pack's message), plus wording in steps 5 and 8. The old step 14, the game reading the new files, was optional and not run; it is under Never run.
+
 Use a test project. Have a small PNG ready, an icon for example.
 
 | # | Do | Expected |
@@ -821,12 +823,12 @@ Use a test project. Have a small PNG ready, an icon for example.
 | 11 | **New File...** on the project itself (the top node) | The name box offers `<mod name>\<name>`; the file goes to `source\archive\<mod name>\` |
 | 12 | **New File...**, **TweakXL**, **ArchiveXL** and **Redscript**, from any folder | `source\resources\r6\tweaks\<mod>\<mod>.yaml`, `source\resources\<mod>.archive.xl` and `source\resources\r6\scripts\<mod>\<mod>.reds`, each with one comment line, open in the text editor |
 | 13 | **REDcode: Pack** | A message says what was packed (files into the archive, ArchiveXL files, resource files), with **Show log**. The archive holds the new game files; `<mod>.archive.xl` is beside it in `archive\pc\mod`; the `.yaml` and `.reds` are under `r6` in `packed` |
-| 14 | Optional, in the game: use the atlas from step 4 in an ink widget, or the `.mi` from step 6 on a mesh | Unverified until run: whether the game takes REDcode's new files. It needs a small test mod |
 
 ## Never run
 
 | Test | Why |
 |---|---|
+| New File's files read by the game | An atlas from New File drawn by an ink widget, or its material instance on a mesh, in the game. Needs a small test mod; it was step 14 of the New File test, optional, and not run |
 | The EDGEmat material hook in the mesh viewer | Waits on EDGEmat shipping `renderMaterials`; checked only with a stand-in |
 | The .NET runtime prompt | Needs a machine without .NET 10 |
 | Open in EDGEwave with EDGEwave from a store | Run only with EDGEwave from source (F5, 2026-10-16), where it works |
