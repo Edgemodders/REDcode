@@ -799,6 +799,8 @@ Result (owner, 2026-11-20, F5 on main): **pass**, all four steps. On a current R
 
 Built 2026-11-20 from [the design](design/new-file.html) (`src/newFile.ts`, `src/newFileCommand.ts`). Checked before: `npm run typecheck`, `npm test` (54, five new: the name check, the folder from where it was clicked, the text files' folders and comment line, the atlas and material roots, the type table and the presets), and a script outside the repo against the game with REDbridge 0.15.0 (scratchpad `nf-e2e.mjs`). In that script, a PNG imports in each of the four presets with exactly that setup; the atlas, material instance, entity, appearance and multilayer setup each read back as their class, written for the PC; the atlas's slot 0 names its new texture with one part, `whole`, over all of it; and a game atlas copied under a new name keeps its parts. Not checked by the script: anything in VS Code, and the game reading the new files.
 
+First run (owner, 2026-11-20, on the laptop): step 3 failed on an image with an odd side. WolvenKit refuses to compress one ("Image dimension (width and/or height) is an odd number. To import regardless, set Compression to TCM_None at own risk"), and the copy left in Raw then blocked the same name. Fixed the same day: New File reads the image's size first (PNG, JPEG, TGA, DDS, BMP) and asks, offering **Import Uncompressed** (`TCM_None`, checked against the bridge: an odd PNG fails compressed and imports uncompressed). A failed import now removes its Raw copy. Step 3b was added for it.
+
 Use a test project. Have a small PNG ready, an icon for example.
 
 | # | Do | Expected |
@@ -806,6 +808,7 @@ Use a test project. Have a small PNG ready, an icon for example.
 | 1 | F5 with **Run REDcode** on the test project. In the Project view, right-click a folder under **Archive** | **New File...** is first in the menu. It is also on the project, on each root and in the view's **...** menu, but not on files |
 | 2 | **New File...** | A list headed **New File in** the folder's game path, with **Game files** (Texture from an Image, Ink Atlas, Material Instance, Entity, Appearance, Multilayer Setup, Start from a Game File) and **Text files** (TweakXL, ArchiveXL, Redscript) |
 | 3 | **Texture from an Image...**, pick the PNG, **Color**, keep the name | A `.xbm` of that name in the folder, selected in the Project view and open in the texture viewer. The PNG is in **Raw** at the same path |
+| 3b | **Texture from an Image...** with an image that has an odd width or height | Before anything is written, a warning gives the size and says WolvenKit compresses only even sides. **Cancel** leaves nothing. **Import Uncompressed** makes the `.xbm` with compression `TCM_None` |
 | 4 | **New File...**, **Ink Atlas**, **Texture from an Image...**, the PNG again, keep **UI** (first in the list), name it `icon_ui`, then keep the atlas's name | `icon_ui.xbm` and `icon_ui.inkatlas` in the folder. The atlas opens in the atlas view with the image and one part, `whole`, around all of it |
 | 5 | **New File...**, **Ink Atlas**, pick the texture from step 3 under **Textures in the project** | A second atlas on that texture, the same way |
 | 6 | **New File...**, **Material Instance**, **multilayered.mt** | A `.mi` opens in the CR2W editor with `baseMaterial` set to `engine\materials\multilayered.mt` |

@@ -17,6 +17,8 @@ import {
   defaultTextName,
   gameFolderOf,
   gamePathFor,
+  hasOddSide,
+  imageSize,
   materialRoot,
   nameFrom,
   textFileContent,
@@ -160,12 +162,28 @@ async function textureFromImage(deps: NewFileDeps, folder: string, preset: strin
   const picked = await vscode.window.showOpenDialog({ canSelectMany: false, openLabel: "Import", title: "Texture from an Image", filters: { Images: ImageExtensions } });
   const image = picked?.[0]?.fsPath;
   if (!image) return undefined;
+  const imageExt = path.extname(image).toLowerCase();
+  // WolvenKit will not compress an image with an odd side: say so before the import, with its way round.
+  let uncompressed = false;
+  const size = imageSize(fs.readFileSync(image), imageExt);
+  if (size && hasOddSide(size)) {
+    const choice = await vscode.window.showWarningMessage(
+      `${path.basename(image)} is ${size.width} × ${size.height} pixels. WolvenKit compresses a texture only when both sides are even numbers.`,
+      {
+        modal: true,
+        detail: "Resize the image so both sides are even, and best of all powers of two such as 1024 or 2048, then try again. Or import it uncompressed (TCM_None): the texture is several times larger, and WolvenKit calls this at your own risk.",
+      },
+      "Import Uncompressed",
+    );
+    if (choice !== "Import Uncompressed") return undefined;
+    uncompressed = true;
+  }
   type Row = vscode.QuickPickItem & { setup: (typeof TexturePresets)[number]["setup"] };
   const rows = TexturePresets.map((p): Row => ({ label: p.label, detail: p.detail, setup: p.setup, picked: p.id === preset }));
   const ordered = [...rows.filter((r) => r.picked), ...rows.filter((r) => !r.picked)].map((r) => ({ ...r, picked: undefined }));
-  const setupRow = await vscode.window.showQuickPick(ordered, { title: `Texture from ${path.basename(image)}`, placeHolder: "What the texture is for" });
+  const setupRow = await vscode.window.showQuickPick(ordered, { title: `Texture from ${path.basename(image)}${uncompressed ? ", uncompressed" : ""}`, placeHolder: "What the texture is for" });
   if (!setupRow) return undefined;
-  const imageExt = path.extname(image).toLowerCase();
+  const setup = uncompressed ? { ...setupRow.setup, compression: "TCM_None" } : setupRow.setup;
   const rawOf = (gamePath: string) => path.join(project.dir, ProjectFolders.raw, ...gamePath.replace(/\.xbm$/, imageExt).split("\\"));
   const gamePath = await askGameName(deps, `Texture from ${path.basename(image)}`, folder, ".xbm", nameFrom(image), (g) => {
     const raw = rawOf(g);
@@ -173,17 +191,24 @@ async function textureFromImage(deps: NewFileDeps, folder: string, preset: strin
   });
   if (!gamePath) return undefined;
   const raw = rawOf(gamePath);
-  if (path.resolve(raw).toLowerCase() !== path.resolve(image).toLowerCase()) {
+  const copied = path.resolve(raw).toLowerCase() !== path.resolve(image).toLowerCase();
+  if (copied) {
     fs.mkdirSync(path.dirname(raw), { recursive: true });
     fs.copyFileSync(image, raw);
   }
   const archiveDir = path.join(project.dir, ProjectFolders.archive);
-  const r = await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: `Importing ${path.basename(image)}` }, () =>
-    bridge.importFile(raw, path.join(project.dir, ProjectFolders.raw), archiveDir, false, undefined, setupRow.setup),
-  );
   const xbm = projectPathFor(project, gamePath);
-  if (!fs.existsSync(xbm)) throw new Error(`The import wrote no texture at ${gamePath}${r.written.length ? ` (it wrote ${r.written.join(", ")})` : ""}. The image stays in Raw.`);
-  deps.log(`New File: imported ${path.relative(project.dir, raw)} as ${gamePath} (${setupRow.label})`);
+  let r: Awaited<ReturnType<BridgeClient["importFile"]>> | undefined;
+  try {
+    r = await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: `Importing ${path.basename(image)}` }, () =>
+      bridge.importFile(raw, path.join(project.dir, ProjectFolders.raw), archiveDir, false, undefined, setup),
+    );
+  } finally {
+    // A failed import leaves nothing behind, so the same name can be tried again.
+    if (!fs.existsSync(xbm) && copied) fs.rmSync(raw, { force: true });
+  }
+  if (!fs.existsSync(xbm)) throw new Error(`WolvenKit's import wrote no texture at ${gamePath}${r?.written.length ? ` (it wrote ${r.written.join(", ")})` : ""}. Its reason is in the REDcode log.`);
+  deps.log(`New File: imported ${path.relative(project.dir, raw)} as ${gamePath} (${setupRow.label}${uncompressed ? ", uncompressed" : ""})`);
   return xbm;
 }
 

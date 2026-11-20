@@ -44,6 +44,47 @@ export const TexturePresets: readonly { id: string; label: string; detail: strin
   { id: "ui", label: "UI", detail: "Icons and ink atlas textures: no mips, not streamed (TEXG_Generic_UI)", setup: { group: "TEXG_Generic_UI", compression: "TCM_QualityColor", rawFormat: "TRF_TrueColor", isGamma: true, hasMipchain: false, isStreamable: false } },
 ];
 
+/**
+ * An image's size from its header, for PNG, JPEG, TGA, DDS and BMP; undefined for other kinds or a header it
+ * cannot read. WolvenKit refuses to compress an image with an odd side, so New File asks before the import.
+ */
+export function imageSize(bytes: Uint8Array, ext: string): { width: number; height: number } | undefined {
+  const b = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const e = ext.toLowerCase().replace(/^\./, "");
+  try {
+    if (e === "png" && b.length >= 24 && b.readUInt32BE(0) === 0x89504e47 && b.toString("latin1", 12, 16) === "IHDR") return { width: b.readUInt32BE(16), height: b.readUInt32BE(20) };
+    if (e === "dds" && b.length >= 20 && b.toString("latin1", 0, 4) === "DDS ") return { width: b.readUInt32LE(16), height: b.readUInt32LE(12) };
+    if (e === "bmp" && b.length >= 26 && b.toString("latin1", 0, 2) === "BM") return { width: Math.abs(b.readInt32LE(18)), height: Math.abs(b.readInt32LE(22)) };
+    if (e === "tga" && b.length >= 18) return { width: b.readUInt16LE(12), height: b.readUInt16LE(14) };
+    if ((e === "jpg" || e === "jpeg") && b.length >= 4 && b[0] === 0xff && b[1] === 0xd8) {
+      // Walk the segments to the frame header (SOF0 to SOF15, but DHT C4, JPG C8 and DAC CC): height, then width.
+      let i = 2;
+      while (i + 9 < b.length) {
+        if (b[i] !== 0xff) return undefined;
+        const marker = b[i + 1];
+        if (marker === 0xff) {
+          i++;
+          continue;
+        }
+        if (marker === 0xd8 || marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) {
+          i += 2;
+          continue;
+        }
+        if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) return { width: b.readUInt16BE(i + 7), height: b.readUInt16BE(i + 5) };
+        if (marker === 0xd9 || marker === 0xda) return undefined;
+        i += 2 + b.readUInt16BE(i + 2);
+      }
+      return undefined;
+    }
+  } catch {
+    return undefined;
+  }
+  return undefined;
+}
+
+/** Whether WolvenKit would refuse to compress an image of this size. */
+export const hasOddSide = (size: { width: number; height: number }) => size.width % 2 === 1 || size.height % 2 === 1;
+
 /** Base materials, the ones game .mi files name most (a sample of 250 on game 2.5, 2026-11-20). */
 export const BaseMaterials: readonly { path: string; detail: string }[] = [
   { path: "engine\\materials\\multilayered.mt", detail: "Layers from an .mlsetup and an .mlmask: most clothing, weapons and vehicles" },

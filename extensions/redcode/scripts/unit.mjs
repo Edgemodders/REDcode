@@ -676,6 +676,34 @@ await check("new file: an atlas starts with its texture and one part covering it
   assert.equal(json.Header.DataType, "CR2W");
 });
 
+await check("new file: an image's size comes from its header, and an odd side is caught before the import", () => {
+  const { PNG } = require("pngjs");
+  const png = new PNG({ width: 1195, height: 64 });
+  assert.deepEqual(nf.imageSize(PNG.sync.write(png), ".png"), { width: 1195, height: 64 });
+  // A JPEG with an APP0 segment before its frame header, as cameras and stock sites write them.
+  const jpg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, ...Buffer.from("JFIF\0"), 1, 1, 0, 0, 1, 0, 1, 0, 0, 0xff, 0xc2, 0x00, 0x11, 8, 0x17, 0xdc, 0x04, 0xaa, 3, 1, 0x22, 0, 2, 0x11, 1, 3, 0x11, 1]);
+  assert.deepEqual(nf.imageSize(jpg, "jpg"), { width: 1194, height: 6108 });
+  const tga = Buffer.alloc(18);
+  tga.writeUInt16LE(512, 12);
+  tga.writeUInt16LE(255, 14);
+  assert.deepEqual(nf.imageSize(tga, ".TGA"), { width: 512, height: 255 });
+  const dds = Buffer.alloc(128);
+  dds.write("DDS ", 0, "latin1");
+  dds.writeUInt32LE(256, 12);
+  dds.writeUInt32LE(1024, 16);
+  assert.deepEqual(nf.imageSize(dds, ".dds"), { width: 1024, height: 256 });
+  const bmp = Buffer.alloc(54);
+  bmp.write("BM", 0, "latin1");
+  bmp.writeInt32LE(300, 18);
+  bmp.writeInt32LE(-200, 22);
+  assert.deepEqual(nf.imageSize(bmp, ".bmp"), { width: 300, height: 200 }, "a top-down BMP has a negative height");
+  assert.equal(nf.imageSize(Buffer.from("not an image"), ".png"), undefined);
+  assert.equal(nf.imageSize(Buffer.alloc(64), ".tiff"), undefined, "TIFF is left to WolvenKit");
+  assert.equal(nf.hasOddSide({ width: 1195, height: 64 }), true);
+  assert.equal(nf.hasOddSide({ width: 1194, height: 6108 }), false);
+  assert.equal(nf.hasOddSide({ width: 512, height: 255 }), true);
+});
+
 await check("new file: every type has what its kind needs, and the presets are complete", () => {
   for (const t of nf.NewFileTypes) {
     if (["atlas", "material", "empty"].includes(t.kind)) assert.ok(t.root, `${t.id} has a root class`);
