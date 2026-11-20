@@ -4,6 +4,10 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 ## Unreleased
 
+**Changed**
+
+- **New File...** has a hover button on the Project view's folders, roots and the project itself, beside Copy Path, so it is one click instead of a right-click.
+
 ## 0.10.14 (2026-11-20)
 
 New File: make textures, ink atlases, material instances and other game files from nothing in the Project view. Needs REDbridge 0.13.0, as before.

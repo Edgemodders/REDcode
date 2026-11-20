@@ -36,6 +36,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Library view (#23)](#library-view-23) | By hand | Requests | 2026-11-15 | Pass, two fixes |
 | [Run Game without ELECTRON_RUN_AS_NODE (#24)](#run-game-without-electron_run_as_node-24) | By hand, in the game | Requests | 2026-11-20 | Pass |
 | [New File](#new-file) | By hand | Requests | 2026-11-20 | Pass, steps 1 to 13, four fixes |
+| [New File hover button](#new-file-hover-button) | By hand | Requests | | Given to the owner 2026-11-20 |
 | [No Red Hot Tools](#no-red-hot-tools) | By hand | C4 | 2026-11-10 | Pass, one fix |
 | importFile's texture (#25) | By hand, through EDGEhack | Requests | 2026-11-10 | Pass: EDGEhack 0.0.19's H3b.2 Upload test (EDGEhack's `docs/testing.md`), all 10 steps, run by the owner with REDcode main e9b5e7b; the icons showed in the game. Reported by the EDGEhack session |
 | [Resizable table columns (#26)](#resizable-table-columns-26) | By hand | Requests | 2026-11-10 | Pass, one fix |
@@ -802,6 +803,16 @@ Built 2026-11-20 from [the design](design/new-file.html) (`src/newFile.ts`, `src
 First run (owner, 2026-11-20, on the laptop): step 3 failed on an image with an odd side. WolvenKit refuses to compress one ("Image dimension (width and/or height) is an odd number. To import regardless, set Compression to TCM_None at own risk"), and the copy left in Raw then blocked the same name. Fixed the same day: New File reads the image's size first (PNG, JPEG, TGA, DDS, BMP) and asks, offering **Import Uncompressed** (`TCM_None`, checked against the bridge: an odd PNG fails compressed and imports uncompressed). A failed import now removes its Raw copy. Step 3b was added for it. The owner then asked for a Resize button in that warning, naming the size it gives: built the same day (each odd side one pixel shorter; checked against the bridge: an odd PNG, and an odd TGA through `texture.imageToPng`, both 65 × 33 to 64 × 32 with their colour, then imported compressed). Steps 3c and 3d were added. At step 6 the owner noted two things. The atlas made from a photo showed the photo as its "background": not a fault, since an atlas's texture is the icon sheet its parts are cut from, but the picker now says so ("the icon sheet the parts are cut from: usually a PNG with a transparent background"). And the atlas view's parts filter had the browser's own style, not the theme's, which dates from E4: fixed in `media/cr2w/editor.css`. At step 13 the owner noted that Pack said what it did only in the status bar, so it was not clear it had run: a plain Pack now ends with a message and Show log, as the other commands do. Pack and Install and Pack and Play keep the status bar line, since the install's own message follows.
 
 **Result (owner, 2026-11-20, on the laptop, F5 on main):** steps 1 to 13 pass, with the four fixes above (the odd-sided image with Resize and Import Uncompressed, the atlas picker's wording, the parts filter's style, Pack's message), plus wording in steps 5 and 8. The old step 14, the game reading the new files, was optional and not run; it is under Never run.
+
+### New File hover button
+
+Asked for by the owner on 2026-11-20, after 0.10.14: New File as a hover button wherever its menu entry shows (`inline@0`, the same `when` as the menu). Checked before: the `when` rule matches `project`, `projectRoot...` and `projectFolder...` items and no `projectFile` item; files keep Export or Import in that place.
+
+| # | Do | Expected |
+|---|---|---|
+| 1 | F5 with **Run REDcode** on a project. Hover the project's top node, a root (**Archive**, **Raw**, **Resources**) and a folder | Each shows a **New File...** icon first, before Copy Path |
+| 2 | Hover a file | No New File icon; a texture under Archive still shows Export there |
+| 3 | Click the icon on a folder under **Archive** | The same type list as the right-click menu, titled with that folder's game path |
 
 Use a test project. Have a small PNG ready, an icon for example.
 

@@ -985,6 +985,11 @@
           "group": "0_new@0"
         },
         {
+          "command": "redcode.newFile",
+          "when": "view == redcode.project && viewItem =~ /^project(Root|Folder)?(\\.|$)/",
+          "group": "inline@0"
+        },
+        {
           "command": "redcode.openProjectFileAsJson",
           "when": "view == redcode.project && viewItem =~ /^projectFile/",
           "group": "2_open@1"
