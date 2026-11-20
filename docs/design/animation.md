@@ -4,7 +4,7 @@ title: Animations (C5)
 
 # Animations: a game animation played on its rig
 
-Draft 0.5, 2026-11-19, agreed with the owner (decisions below), the A3 plan included. A1 is built and passed its hand test on 2026-11-06 ([testing](../testing.html#animations-a1)). A2 is built on REDbridge 0.13.0 and passed its hand test on 2026-11-15, with three fixes to the framing ([testing](../testing.html#animations-a2)). Asked for in [REDcode issue #21](https://github.com/Edgemodders/REDcode/issues/21) by EDGEquest, whose Animation picker needs a preview without a 3D viewer of its own. It is the "Animations" step that [View (C5)](view.html) deferred. Not urgent: EDGEquest needs it when its happenings around V (Q8 H4) are planned.
+Draft 0.6, 2026-11-20, agreed with the owner (decisions below), the A3 plan included. A3 is built, hand test pending ([A3 as built](#a3-as-built)). A1 is built and passed its hand test on 2026-11-06 ([testing](../testing.html#animations-a1)). A2 is built on REDbridge 0.13.0 and passed its hand test on 2026-11-15, with three fixes to the framing ([testing](../testing.html#animations-a2)). Asked for in [REDcode issue #21](https://github.com/Edgemodders/REDcode/issues/21) by EDGEquest, whose Animation picker needs a preview without a 3D viewer of its own. It is the "Animations" step that [View (C5)](view.html) deferred. Not urgent: EDGEquest needs it when its happenings around V (Q8 H4) are planned.
 
 ## What the game gives
 
@@ -78,6 +78,37 @@ Agreed with the owner on 2026-11-19. Its REDbridge part is [REDbridge #19](https
 | REDcode | A synced clip shows its set under the list: each member's role and file, from the folder's `anims.info`. **Play the Set** adds each member to the scene on its own rig, placed from the sync tracks, on one clock with one scrub bar. Each member gets the body A2 gives its rig (the base body for `man_base` and `woman_base`, bones for vehicles and props), and a check box to hide it. Root motion is on while the set plays. The opened clip's member stays at the origin. `openAnimation(path, name, { set: true, entities: { <role>: { entity, appearance } } })` gives members bodies of their own | `src/animsGlb.ts`, `webview/animViewer.ts` |
 
 A member that shares no track with the opened clip is placed through another member that does. One hand test: the Trauma Team landing and take-off, the AV and the two soldiers together, and the medics' set with the trauma pack.
+
+## A3 as built
+
+Built 2026-11-20 against a scratch build of REDbridge's main (e1591e4, #19, to be released as 0.17.0), hand test pending ([testing](../testing.html#animations-a3)). Checked before the hand test: 62 unit checks (6 for A3), the solve on the whole Trauma Team folder (scratchpad `a3pairs.mjs`, `a3solve.mjs`), and the view in Chrome over the real bridge (`a3harness.mjs`).
+
+- **`src/animsSet.ts`** (no VS Code imports). It holds:
+  - the set: `syncedName`, `setMembers`, `listSet`;
+  - the placing: `solvePlacements` and `placeSet`;
+  - each member's file exported with root motion, and its sync tracks: `memberGlb` and `anims.sync`;
+  - its own small rigid-transform math, so the unit checks run without three.js.
+- **The members:** found by name across the `.anims` files directly in the opened file's game folder (REDbridge's archive search, then `anims.info`, which reads clips without decoding them). A role in two files, the player's male and female files, is a pair of alternatives: one shows at a time.
+- **Placing is by fit, not by pairing.** The probe of all 11 moments in the folder showed that pairing tracks as each other's inverse is not enough:
+  - Some members have no tracks at all (the player in `injector`), so no track points back from them.
+  - Some tracks match more than one member at 0.000 m.
+
+  So a track's partner is the member that, placed from it, stays in one place through the clip. Each placement is the medoid of 9 samples, and its spread is the median distance from it, which tolerates the AV's touchdown (its first 2 s are partly in its own `base` bone). Fits are tried both ways: the placed member's track to the new one, and the new one's own track back, reversed.
+
+  Two members that move in step, such as soldiers boarding side by side, both stay put when placed from a track meant for one of them. So a fit that a track from the other side confirms wins, and a fit with nothing to confirm it and a close rival is marked **unsure**.
+
+  The checks: in the landing, the AV comes out at (1.20, 0, −2.91), yaw −39.8°, and soldier_02 at (0.12, 0, −0.23), yaw −17.5°, the same as placed by hand on 2026-11-19. The take-off matches too, from either the AV or a soldier as the opened clip.
+- **The cache:** root motion exports now go to the variant `rootmotion-s`, so an export from before REDbridge 0.17.0, with the AV's root keys in fractions of the clip, is not reused (the A2 view benefits too). `inSeconds` also stretches such keys if one is met.
+- **The view** (`webview/animViewer.ts`):
+  - The list: a **Synced set** section under the animation list shows the picked clip's members, each with a colour, its file and a check box. Hovering a member says what placed it.
+  - **Play the Set** turns root motion on and places the checked members. Each loads on its own rig, with a base body where its rig has one, inside a group placed by its matrix.
+  - One clock: every member takes the main clip's time, or its own end when it is shorter. Seek, play, loop and speed drive all of them.
+  - The switches: **Bones** and **Body** cover the members, and **Frame** fits the whole set over the clip. The view stops following one body while a set plays, and turning **Root motion** off stops the set.
+- **The API:** `REDcodeApi.openAnimation(path, name, { set: true, entities: { <role>: { entity, appearance } } })` plays the set, with members on entities by role (since 0.10.15). The Opens Test extension's **Play an Animation's Synced Set** calls it.
+
+Found on the way:
+- **A SIMD clip can export wrongly.** The player's `synced__q001_00c_injector__fpp` (SIMD) exports with every translation zero and a scale of about 0.19 on every bone, with root motion on or off. Its file's compressed clips export correctly. That gives a collapsed skeleton, in A1 and A2 too for any such clip. The set marks SIMD members. Whether the fault is in WolvenKit's SIMD decoder or REDbridge's copy of the exporter is unverified.
+- **The player has no base body:** its rig is `player_man_skeleton.rig` or `player_woman_skeleton.rig`, not `man_base.rig`, so it shows as bones. The same goes for Jackie (`man_big.rig`).
 
 ## Decisions
 

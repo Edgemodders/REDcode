@@ -167,6 +167,10 @@ export interface AnimationOptions {
   entity?: string;
   /** The entity's appearance; the first when not given. */
   appearance?: string;
+  /** Since 0.10.15: plays the animation's synced set, every member placed and on one clock, when it is a synced clip. */
+  set?: boolean;
+  /** Since 0.10.15: with set, an entity for members by role (as the clip names it, such as "av" or "soldier_01"), instead of their base body or bones. */
+  entities?: Record<string, { entity: string; appearance?: string }>;
 }
 
 export function projectRef(p: ProjectInfo | undefined): ProjectRef | undefined {

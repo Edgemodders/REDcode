@@ -818,7 +818,11 @@ async function openAnimationInEditor(target: string, animationName?: string, opt
   if (!/\.anims$/i.test(uri.path)) throw new Error(`openAnimation takes an .anims file, not ${target}`);
   if (options?.entity !== undefined && (typeof options.entity !== "string" || !/\.ent$/i.test(options.entity))) throw new Error(`openAnimation's entity takes a .ent file, not ${options.entity}`);
   const body = options?.entity ? { entity: options.entity, ...(options.appearance ? { appearance: options.appearance } : {}) } : undefined;
-  if (animationName || body) cr2wEditor.showAnimation(uri, animationName, body);
+  for (const [role, e] of Object.entries(options?.entities ?? {})) {
+    if (typeof e?.entity !== "string" || !/\.ent$/i.test(e.entity)) throw new Error(`openAnimation's entities.${role} takes a .ent file, not ${e?.entity}`);
+  }
+  const set = options?.set ? { ...(options.entities ? { entities: options.entities } : {}) } : undefined;
+  if (animationName || body || set) cr2wEditor.showAnimation(uri, animationName, body, set);
   await vscode.commands.executeCommand("vscode.openWith", uri, cr2wViewTypeFor(uri.path));
 }
 

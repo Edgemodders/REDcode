@@ -180,3 +180,13 @@ body.mesh-mode #grid { flex: 1; min-height: 0; padding: 0 12px 8px; display: fle
 /* the .glb/.gltf viewer page */
 body.meshfile { display: flex; flex-direction: column; height: 100vh; margin: 0; }
 .meshfile-main { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 8px 12px; }
+/* animations A3: the synced set under the list */
+.animset { border-top: 1px solid var(--line); padding: 6px 8px 8px; max-height: 45%; overflow: auto; flex: none; }
+.animset[hidden] { display: none; }
+.animset .label { margin: 0 0 4px; }
+.animset .setrow { display: flex; gap: 6px; align-items: baseline; padding: 1px 0; white-space: nowrap; }
+.animset .setrow .swatch { width: 8px; height: 8px; border-radius: 2px; flex: none; align-self: center; }
+.animset .setrow .why { overflow: hidden; text-overflow: ellipsis; }
+.animset .setrow.self { opacity: 0.85; }
+.animset button { margin-top: 6px; }
+.animset .setnote { margin-top: 4px; white-space: normal; }

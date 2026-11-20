@@ -81,7 +81,9 @@ const BinChunk = 0x004e4942;
  */
 export async function animsGlbFor(bridge: BridgeClient, cacheRoot: string, source: ExportSource, rootMotion = false): Promise<{ glb: string; cached: boolean }> {
   const r = rootMotion
-    ? await cachedExport(bridge, cacheRoot, source, ".anims.glb", { rootMotion: true }, "glTF", "rootmotion")
+    ? // "rootmotion-s": REDbridge 0.17.0 writes spline root motion in seconds; older exports kept fractions of
+      // the clip (WolvenKit issue 3304), so they are not reused.
+      await cachedExport(bridge, cacheRoot, source, ".anims.glb", { rootMotion: true }, "glTF", "rootmotion-s")
     : await cachedExport(bridge, cacheRoot, source, ".anims.glb", {}, "glTF");
   return { glb: r.file, cached: r.cached };
 }

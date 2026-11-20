@@ -38,16 +38,76 @@ export interface AnimsSource {
   note?: string;
   /** Says something to the person: a name that is not in the file. */
   say?: (message: string) => void;
+  /** A3: a synced clip's set, from the host. Without it, no set is offered. */
+  set?: SetApi;
+  /** Plays the set of the animation opened at first (REDcodeApi.openAnimation's set). */
+  playSet?: boolean;
+}
+
+/** A member of a synced moment, as the host lists it. */
+export interface SetMemberInfo {
+  role: string;
+  file: string;
+  /** The file's name, for the list. */
+  name: string;
+  clip: string;
+  rig: string;
+  duration: number;
+  /** How many other files have the same role (the player's male and female files). */
+  alternatives: number;
+  /** Shown at first. */
+  active: boolean;
+  /** The clip this view has open. */
+  self: boolean;
+  /** Its animation buffer: "compressed" or "simd". */
+  buffer?: string;
+}
+
+/** Where a member stands relative to the opened clip's member, or why it could not be placed. */
+export interface SetPlace {
+  index: number;
+  /** Column-major 4x4, as Matrix4.fromArray takes it. */
+  matrix: number[] | null;
+  /** The track that placed it, in words. */
+  from: string;
+  spread: number | null;
+  ambiguous: boolean;
+  problem: string | null;
+}
+
+export interface SetApi {
+  /** The members of the clip's moment, the clip's own first; empty when it is not synced. why says what is missing. */
+  list(clip: string): Promise<{ members: SetMemberInfo[]; why?: string }>;
+  place(clip: string, include: number[]): Promise<SetPlace[]>;
+  /** A member's skeleton, its clip with root motion, and its body when its rig has one. */
+  member(index: number): Promise<{ skeleton: ArrayBuffer; clip: ArrayBuffer; body?: { data: ArrayBuffer; label: string; notes: string[] }; bodyNote?: string }>;
 }
 
 export interface AnimsView {
   dispose(): void;
   refreshMaterials(): void;
-  /** Goes to an animation by name, and plays it. */
-  showAnimation(name: string): void;
+  /** Goes to an animation by name, and plays it; with playSet, plays its synced set too. */
+  showAnimation(name: string, options?: { playSet?: boolean }): void;
 }
 
+/** Each member's colour in the view and the list, after the opened one's. */
+const MemberColours = [0xffb347, 0x7cfc9a, 0xff6ad5, 0x9ab8ff, 0xffe066, 0x66e0ff, 0xc39bff, 0xff8a65];
+
 const Speeds = [0.1, 0.25, 0.5, 1, 2];
+
+interface PlayingMember {
+  index: number;
+  group: THREE.Group;
+  mixer: THREE.AnimationMixer;
+  action: THREE.AnimationAction;
+  duration: number;
+  /** Its joints but for its helper joints, for Frame. */
+  framed: THREE.Bone[];
+  lines: THREE.SkeletonHelper;
+  meshes: THREE.Object3D[];
+  material: THREE.Material;
+  root: THREE.Object3D;
+}
 
 const seconds = (t: number) => `${t.toFixed(2)} s`;
 const fpsOf = (a: AnimClipInfo) => (a.duration > 0 && a.frames > 1 ? Math.round((a.frames - 1) / a.duration) : 0);
@@ -102,6 +162,16 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
     }
   }
   const animated = bodyRoot ?? root;
+  /** A3: the other members of a synced set while it plays, each on its own rig, placed, on the main clip's clock. */
+  let playingSet: PlayingMember[] = [];
+  /** Puts every member at the main clip's moment (or its own end, when it is shorter). */
+  const syncSet = () => {
+    const t = action?.time ?? 0;
+    for (const m of playingSet) {
+      m.action.time = Math.min(t, m.duration);
+      m.mixer.update(0);
+    }
+  };
   note.remove();
   stage.appendChild(renderer.domElement);
   scene.add(new THREE.HemisphereLight(0xffffff, 0x404040, 1.6));
@@ -150,6 +220,11 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
     animated.updateMatrixWorld(true);
     const box = new THREE.Box3();
     for (const b of framed.length ? framed : bones) box.expandByPoint(b.getWorldPosition(at));
+    // A playing set is framed whole: every member's joints, but for their helper joints.
+    for (const m of playingSet) {
+      m.group.updateMatrixWorld(true);
+      for (const b of m.framed) box.expandByPoint(b.getWorldPosition(at));
+    }
     return box;
   };
   /**
@@ -159,15 +234,18 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
   const frame = () => {
     let box = poseBox();
     const a = info();
-    if (action && a && !rootMotion && a.duration > 0) {
+    // In place, or with a set playing (which stays where it is), the whole animation is framed.
+    if (action && a && (!rootMotion || playingSet.length > 0) && a.duration > 0) {
       const keep = action.time;
       for (let k = 0; k <= 8; k++) {
         action.time = (a.duration * k) / 8;
         mixer.update(0);
+        syncSet();
         box = box.union(poseBox());
       }
       action.time = keep;
       mixer.update(0);
+      syncSet();
       moveDots();
     }
     if (box.isEmpty()) return;
@@ -188,7 +266,7 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
   };
   let span = 1;
   // With root motion the grid stays where it is and spans more, so the rig's travel shows against it.
-  const sizeGrid = () => grid.scale.setScalar(rootMotion ? Math.max(span, 50) : span);
+  const sizeGrid = () => grid.scale.setScalar(rootMotion && playingSet.length === 0 ? Math.max(span, 50) : span);
 
   // With root motion on, the camera keeps to the body: it moves by as much as Hips moved. Root would not
   // do: it stays on the ground while a body drops from the AV (3.1 m below the hips at the start), so the
@@ -196,7 +274,8 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
   const rootBone = bones.find((b) => b.name === "Hips") ?? bones.find((b) => b.name === "Root");
   let followed: THREE.Vector3 | undefined;
   const follow = () => {
-    if (!rootBone || !rootMotion) {
+    // A set stays where it is: the view frames all of it instead of following one member.
+    if (!rootBone || !rootMotion || playingSet.length > 0) {
       followed = undefined;
       return;
     }
@@ -264,10 +343,15 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
     });
     return b;
   };
-  // With a body the bones are off at first; without one they are all there is to see.
+  // With a body the bones are off at first; without one they are all there is to see. A set's members
+  // follow the same two switches.
+  let bonesShown = !bodyRoot;
+  let bodyShown = true;
   const showBones = (on: boolean) => {
+    bonesShown = on;
     lines.visible = on;
     dots.visible = on;
+    for (const m of playingSet) m.lines.visible = on || m.meshes.length === 0;
   };
   const bonesButton = toggle("Bones", "Show the bones and joints", !bodyRoot, showBones);
   bar.append(fit);
@@ -276,23 +360,35 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
     bodyRoot.traverse((o) => {
       if ((o as THREE.Mesh).isMesh) meshes.push(o);
     });
-    bar.append(toggle("Body", "Show the body", true, (on) => meshes.forEach((m) => (m.visible = on))), bonesButton);
+    bar.append(
+      toggle("Body", "Show the body", true, (on) => {
+        bodyShown = on;
+        meshes.forEach((m) => (m.visible = on));
+        for (const p of playingSet) p.meshes.forEach((m) => (m.visible = on));
+      }),
+      bonesButton,
+    );
   }
-  bar.append(
-    toggle("Root motion", "Move the whole rig as the animation moves it through the scene; off, it plays in place", rootMotion, (on) => {
-      rootMotion = on;
-      // The keys come again from the other export; the same animation goes on at the same moment.
-      const at = action?.time ?? 0;
-      action?.stop();
-      action = null;
-      for (const c of clips.values()) mixer.uncacheClip(c);
-      clips.clear();
-      sizeGrid();
-      // The rig jumps to where the other keys put it: the view goes with it.
-      if (current >= 0) void pick(current, at).then(frame);
-    }),
-    rigName,
-  );
+  /** Root motion on or off: the keys come again from the other export, and the same animation goes on at the same moment. */
+  const applyRootMotion = async (on: boolean) => {
+    rootMotion = on;
+    rootMotionButton.classList.toggle("on", on);
+    // A set is placed by its members' root motion: without it, it stops.
+    if (!on && playingSet.length > 0) stopSet();
+    const at = action?.time ?? 0;
+    action?.stop();
+    action = null;
+    for (const c of clips.values()) mixer.uncacheClip(c);
+    clips.clear();
+    sizeGrid();
+    // The rig jumps to where the other keys put it: the view goes with it.
+    if (current >= 0) {
+      await pick(current, at, true);
+      frame();
+    }
+  };
+  const rootMotionButton = toggle("Root motion", "Move the whole rig as the animation moves it through the scene; off, it plays in place", rootMotion, (on) => void applyRootMotion(on));
+  bar.append(rootMotionButton, rigName);
   if (bodyRoot && source.body) {
     const bodyName = el("span", "dim animrig", `On ${source.body.label}`);
     bodyName.title = [source.body.label, ...source.body.notes].join("\n");
@@ -333,6 +429,7 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
     action.paused = !playing;
     action.enabled = true;
     mixer.update(0);
+    syncSet();
     moveDots();
     follow();
     showTime();
@@ -384,7 +481,10 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
   filter.placeholder = `Filter ${source.animations.length.toLocaleString()} animations`;
   filter.spellcheck = false;
   const list = el("div", "animlist");
-  side.append(el("div", "label", "Animations"), filter, list);
+  // A3: the picked clip's synced set, when it has one.
+  const setBox = el("div", "animset");
+  setBox.hidden = true;
+  side.append(el("div", "label", "Animations"), filter, list, setBox);
   const rows: HTMLElement[] = source.animations.map((a, i) => {
     const row = el("div", "part animrow");
     const fps = fpsOf(a);
@@ -402,11 +502,18 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
     });
   });
 
-  /** Goes to an animation: asks the host for its keys unless they are here, then plays it, from at when given. */
-  async function pick(index: number, at?: number): Promise<void> {
+  /**
+   * Goes to an animation: asks the host for its keys unless they are here, then plays it, from at when
+   * given. sameClip: the same animation again (root motion switched), so a playing set goes on.
+   */
+  async function pick(index: number, at?: number, sameClip = false): Promise<void> {
     const a = source.animations[index];
     if (!a) return;
     const mine = ++asking;
+    if (!sameClip) {
+      stopSet();
+      void refreshSet(a.name);
+    }
     rows.forEach((r, i) => r.classList.toggle("selected", i === index));
     rows[index].scrollIntoView({ block: "nearest" });
     current = index;
@@ -444,6 +551,7 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
     setPlaying(wasPlaying);
     if (at !== undefined) action.time = Math.min(at, a.duration);
     mixer.update(0);
+    syncSet();
     moveDots();
     follow();
     showTime();
@@ -455,7 +563,224 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
   }
   let fitted = false;
 
-  const showAnimation = (name: string) => {
+  // ---- the synced set (A3) ---------------------------------------------------------------------
+  /** The picked clip's set as the host listed it, which members are checked, and each one's last placing. */
+  let setMembers: SetMemberInfo[] = [];
+  let setClip = "";
+  let setWhy = "";
+  const chosen = new Set<number>();
+  const placing = new Map<number, SetPlace>();
+  let setBusy = "";
+  let setAsking = 0;
+  /** Play the set once the picked clip's set is listed (REDcodeApi.openAnimation's set). */
+  let wantSet = !!source.playSet;
+
+  const colourOf = (i: number) => MemberColours[(setMembers.slice(0, i).filter((m) => !m.self).length) % MemberColours.length];
+  const hex = (c: number) => `#${c.toString(16).padStart(6, "0")}`;
+
+  async function refreshSet(clip: string): Promise<void> {
+    const mine = ++setAsking;
+    setMembers = [];
+    setClip = clip;
+    setWhy = "";
+    chosen.clear();
+    placing.clear();
+    renderSetBox();
+    if (!source.set || !clip.toLowerCase().startsWith("synced__")) return;
+    try {
+      const r = await source.set.list(clip);
+      if (mine !== setAsking) return;
+      setMembers = r.members;
+      setWhy = r.why ?? "";
+      setMembers.forEach((m, i) => {
+        if (!m.self && m.active) chosen.add(i);
+      });
+    } catch (e) {
+      if (mine !== setAsking) return;
+      setWhy = e instanceof Error ? e.message : String(e);
+    }
+    renderSetBox();
+    if (wantSet) {
+      wantSet = false;
+      if (setMembers.some((m) => !m.self)) void playSet();
+    }
+  }
+
+  function renderSetBox(): void {
+    const others = setMembers.filter((m) => !m.self);
+    setBox.hidden = others.length === 0 && !setWhy;
+    if (setBox.hidden) return;
+    const moment = setClip.split("__").slice(1, -1).join("__");
+    const head = el("div", "label", "Synced set");
+    head.title = moment;
+    const rowsOut: HTMLElement[] = [];
+    setMembers.forEach((m, i) => {
+      const row = el("div", `setrow${m.self ? " self" : ""}`);
+      const swatch = el("span", "swatch");
+      swatch.style.background = m.self ? cssColourHex("--vscode-textLink-foreground", "#19f3ff") : hex(colourOf(i));
+      const name = el("span", "name", m.role);
+      const file = el("span", "dim", m.self ? "this file" : m.name.replace(/\.anims$/i, ""));
+      row.title = `${m.clip}\n${m.file}\n${m.rig ? `Rig ${m.rig}` : "No rig named"}${m.alternatives ? `\nOne of ${m.alternatives + 1} files for ${m.role}: one shows at a time` : ""}`;
+      if (!m.self) {
+        const box = el("input");
+        box.type = "checkbox";
+        box.checked = chosen.has(i);
+        box.disabled = !!setBusy;
+        box.title = m.alternatives ? `Show this ${m.role} (the others for ${m.role} go)` : `Show ${m.role}`;
+        box.addEventListener("change", () => {
+          if (box.checked) {
+            // One file per role: the player's male and female files are alternatives.
+            setMembers.forEach((o, j) => {
+              if (j !== i && !o.self && o.role.toLowerCase() === m.role.toLowerCase()) chosen.delete(j);
+            });
+            chosen.add(i);
+          } else chosen.delete(i);
+          if (playingSet.length > 0) void playSet();
+          else renderSetBox();
+        });
+        row.append(box);
+      }
+      row.append(swatch, name, file);
+      if (m.buffer === "simd") {
+        const simd = el("span", "dim", "SIMD");
+        simd.title = "A SIMD clip. WolvenKit's export of some of these is wrong (every bone at one point, or squashed), so this member may not show as it plays in the game";
+        row.append(simd);
+      }
+      const p = placing.get(i);
+      if (p && !m.self) {
+        const state = el("span", "dim why", p.matrix ? (p.ambiguous ? "placed, unsure" : "placed") : "not placed");
+        state.title = p.matrix ? `From ${p.from}${p.spread !== null ? `; it stays within ${p.spread.toFixed(3)} m over the clip` : ""}${p.ambiguous ? ". Another member fits that track as well, so the two may be swapped" : ""}` : (p.problem ?? "");
+        row.append(state);
+      }
+      rowsOut.push(row);
+    });
+    const button = el("button", playingSet.length > 0 ? "on" : "", setBusy || (playingSet.length > 0 ? "Stop the Set" : "Play the Set"));
+    button.title = playingSet.length > 0 ? "Show this animation alone again" : "Play every checked member on one clock, each where the sync tracks put it, with root motion on";
+    button.disabled = !!setBusy || (playingSet.length === 0 && chosen.size === 0);
+    button.addEventListener("click", () => {
+      if (playingSet.length > 0) {
+        stopSet();
+        frame();
+      } else void playSet();
+    });
+    const out: HTMLElement[] = [head, ...rowsOut];
+    if (others.length > 0) out.push(button);
+    if (setWhy) out.push(el("div", "dim setnote", setWhy));
+    setBox.replaceChildren(...out);
+  }
+
+  function cssColourHex(name: string, fallback: string): string {
+    return `#${cssColour(name, fallback).getHexString()}`;
+  }
+
+  /** Places the checked members and plays them with this clip, replacing a set already playing. */
+  async function playSet(): Promise<void> {
+    if (!source.set || setBusy) return;
+    const clip = setClip;
+    const include = [...chosen];
+    setBusy = "Placing…";
+    renderSetBox();
+    try {
+      if (!rootMotion) await applyRootMotion(true);
+      const places = await source.set.place(clip, include);
+      if (clip !== setClip) return;
+      placing.clear();
+      for (const p of places) placing.set(p.index, p);
+      const loaded: PlayingMember[] = [];
+      for (const p of places) {
+        const m = setMembers[p.index];
+        if (!m || m.self || !p.matrix) continue;
+        setBusy = `Loading ${m.role}…`;
+        renderSetBox();
+        loaded.push(await loadMember(p.index, p.matrix));
+        if (clip !== setClip) {
+          loaded.forEach(disposeMember);
+          return;
+        }
+      }
+      stopSet();
+      playingSet = loaded;
+      showBones(bonesShown);
+      syncSet();
+      frame();
+      const missing = places.filter((p) => !p.matrix && !setMembers[p.index]?.self).map((p) => setMembers[p.index]?.role);
+      if (missing.length) source.say?.(`Not placed: ${missing.join(", ")}. Hover them in the set for why.`);
+    } catch (e) {
+      setWhy = e instanceof Error ? e.message : String(e);
+      source.say?.(setWhy);
+    } finally {
+      setBusy = "";
+      renderSetBox();
+    }
+  }
+
+  async function loadMember(index: number, matrix: number[]): Promise<PlayingMember> {
+    const data = await source.set!.member(index);
+    const colour = colourOf(index);
+    const material = new THREE.MeshStandardMaterial({ color: new THREE.Color(colour).lerp(new THREE.Color(0x9aa3b5), 0.55), roughness: 0.75, metalness: 0 });
+    const skeleton = (await loader.parseAsync(data.skeleton, "")).scene;
+    let memberBody: THREE.Object3D | undefined;
+    if (data.body) {
+      try {
+        memberBody = (await loader.parseAsync(data.body.data, "")).scene;
+      } catch {
+        memberBody = undefined;
+      }
+    }
+    const meshes: THREE.Object3D[] = [];
+    memberBody?.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      mesh.material = material;
+      mesh.frustumCulled = false;
+      mesh.visible = bodyShown;
+      meshes.push(mesh);
+    });
+    const memberRoot = memberBody ?? skeleton;
+    const group = new THREE.Group();
+    group.matrixAutoUpdate = false;
+    group.matrix.fromArray(matrix);
+    group.add(memberRoot);
+    scene.add(group);
+    group.updateMatrixWorld(true);
+    const memberBones: THREE.Bone[] = [];
+    memberRoot.traverse((o) => {
+      if ((o as THREE.Bone).isBone) memberBones.push(o as THREE.Bone);
+    });
+    const memberLines = new THREE.SkeletonHelper(memberRoot);
+    (memberLines.material as THREE.LineBasicMaterial).vertexColors = false;
+    (memberLines.material as THREE.LineBasicMaterial).color = new THREE.Color(colour);
+    memberLines.visible = bonesShown || meshes.length === 0;
+    scene.add(memberLines);
+    const clip = (await loader.parseAsync(data.clip, "")).animations[0];
+    if (!clip) throw new Error(`${setMembers[index]?.role}: the export holds no keys for it`);
+    const memberMixer = new THREE.AnimationMixer(memberRoot);
+    const memberAction = memberMixer.clipAction(clip);
+    memberAction.setLoop(THREE.LoopOnce, 1);
+    memberAction.clampWhenFinished = true;
+    memberAction.play();
+    const framedBones = memberBones.filter((b) => !HelperJoints.has(b.name.toLowerCase()));
+    return { index, group, mixer: memberMixer, action: memberAction, duration: setMembers[index]?.duration ?? clip.duration, framed: framedBones.length ? framedBones : memberBones, lines: memberLines, meshes, material, root: memberRoot };
+  }
+
+  function disposeMember(m: PlayingMember): void {
+    m.mixer.stopAllAction();
+    scene.remove(m.group);
+    scene.remove(m.lines);
+    m.lines.dispose();
+    m.material.dispose();
+    m.root.traverse((o) => (o as THREE.Mesh).geometry?.dispose());
+  }
+
+  function stopSet(): void {
+    if (playingSet.length === 0) return;
+    playingSet.forEach(disposeMember);
+    playingSet = [];
+    sizeGrid();
+    renderSetBox();
+  }
+
+  const showAnimation = (name: string, options?: { playSet?: boolean }) => {
     const index = source.animations.findIndex((a) => a.name.toLowerCase() === name.toLowerCase());
     if (index < 0) {
       source.say?.(`This file has no animation named ${name}`);
@@ -463,6 +788,13 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
     }
     filter.value = "";
     rows.forEach((r) => (r.hidden = false));
+    if (options?.playSet) {
+      if (index === current && setMembers.length > 0) {
+        void playSet();
+        return;
+      }
+      wantSet = true;
+    }
     void pick(index);
   };
 
@@ -488,6 +820,7 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
     const delta = Math.min(clock.getDelta(), 0.1);
     if (playing && action) {
       mixer.update(delta * speed);
+      syncSet();
       moveDots();
       follow();
       showTime();
@@ -507,6 +840,7 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
   return {
     dispose: () => {
       running = false;
+      stopSet();
       observer.disconnect();
       controls.dispose();
       mixer.stopAllAction();

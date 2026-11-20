@@ -730,6 +730,139 @@ await check("new file: Resize offers each odd side one pixel shorter, and scales
   assert.equal(resized.data[0], 200);
 });
 
+// ---- Animations A3: synced sets (docs/design/animation.md) ----
+
+const as = require("../dist/animsSet.js");
+const yawQ = (deg) => [0, Math.sin((deg * Math.PI) / 360), 0, Math.cos((deg * Math.PI) / 360)];
+const near = (a, b, eps = 1e-4) => Math.abs(a - b) < eps;
+
+await check("synced sets: names, members, alternatives and the opened clip first", () => {
+  assert.deepEqual(as.syncedName("synced__q001_00c_trauma_arrives_soldiers__land_v1__av"), { moment: "q001_00c_trauma_arrives_soldiers__land_v1", role: "av" });
+  assert.equal(as.syncedName("q001_00c_trauma_av_idle__02"), undefined, "not synced");
+  assert.equal(as.syncedName("synced__only"), undefined, "no role");
+  const files = [
+    { path: "d\\syringe.anims", rig: "syringe.rig", clips: [{ name: "synced__inj__syringe", duration: 16, buffer: "compressed" }, { name: "synced__other__syringe", duration: 2 }] },
+    { path: "d\\player_male.anims", rig: "man.rig", clips: [{ name: "synced__inj__fpp", duration: 17, buffer: "simd" }] },
+    { path: "d\\player_female.anims", rig: "woman.rig", clips: [{ name: "synced__inj__fpp", duration: 17, buffer: "simd" }] },
+    { path: "d\\big.anims", rig: "big.rig", clips: [{ name: "synced__inj__jackie", duration: 6.7 }, { name: "idle", duration: 1 }] },
+  ];
+  const ms = as.setMembers(files, { file: "D\\SYRINGE.anims", clip: "synced__inj__syringe" });
+  assert.deepEqual(ms.map((m) => m.role), ["syringe", "fpp", "fpp", "jackie"], "the opened clip first, then by role");
+  assert.equal(ms[0].self, true);
+  assert.deepEqual(ms.filter((m) => m.role === "fpp").map((m) => [m.file, m.alternatives, m.active]), [["d\\player_female.anims", 1, false], ["d\\player_male.anims", 1, true]], "the first file of a role shows, the other is its alternative");
+  assert.equal(ms.find((m) => m.role === "jackie").buffer, "");
+  assert.equal(ms[1].buffer, "simd");
+  assert.deepEqual(as.setMembers(files, { file: "d\\syringe.anims", clip: "idle" }), [], "not a synced clip");
+  assert.deepEqual(as.setMembers(files, { file: "d\\elsewhere.anims", clip: "synced__inj__syringe" }), [], "the opened clip must be among the files");
+});
+
+await check("synced sets: rigid transforms compose, invert and become a column-major matrix", () => {
+  const a = { p: [1, 2, 3], q: yawQ(90) };
+  const b = { p: [0, 0, 1], q: yawQ(30) };
+  const ab = as.mul(a, b);
+  // A 90 degree turn about +Y takes +Z to +X.
+  assert.ok(near(ab.p[0], 2) && near(ab.p[1], 2) && near(ab.p[2], 3), JSON.stringify(ab.p));
+  assert.ok(near(as.angleBetween(ab.q, yawQ(120)), 0, 1e-6));
+  const back = as.mul(ab, as.inv(b));
+  assert.ok(back.p.every((v, i) => near(v, a.p[i])) && near(as.angleBetween(back.q, a.q), 0, 1e-6));
+  const m = as.toMatrix({ p: [5, 6, 7], q: yawQ(90) });
+  assert.deepEqual(m.slice(12), [5, 6, 7, 1]);
+  assert.ok(near(m[8], 1) && near(m[2], -1), "the third column is where +Z goes: +X");
+});
+
+await check("synced sets: a track places its partner, from either side, at the same spot all through", () => {
+  // Member 0 walks along +Z, member 1 stands still. Their true placements: 0 at the origin, 1 at (4, 0, -2) turned 45 degrees.
+  const W1 = { p: [4, 0, -2], q: yawQ(45) };
+  const root0 = (t) => ({ p: [0, 0, t], q: yawQ(10 * t) });
+  const root1 = () => ({ p: [0, 0, 0], q: [0, 0, 0, 1] });
+  // A track is the partner's Root seen from this member's Root: T_01 = root0^-1 . W1 . root1, and T_10 its inverse.
+  const t01 = (t) => as.mul(as.mul(as.inv(root0(t)), W1), root1(t));
+  const t10 = (t) => as.inv(t01(t));
+  for (const [label, members] of [
+    ["the placed member's track", [{ id: 0, duration: 4, root: root0, tracks: [{ name: "syncTrajectory", at: t01 }] }, { id: 1, duration: 4, root: root1, tracks: [] }]],
+    ["the other's track, reversed", [{ id: 0, duration: 4, root: root0, tracks: [] }, { id: 1, duration: 4, root: root1, tracks: [{ name: "syncTrajectory", at: t10 }] }]],
+  ]) {
+    const placed = as.solvePlacements(members, 0);
+    const p = placed.get(1);
+    assert.ok(p, `${label}: placed`);
+    assert.ok(p.placement.p.every((v, i) => near(v, W1.p[i], 1e-3)) && near(as.angleBetween(p.placement.q, W1.q), 0, 1e-3), `${label}: ${JSON.stringify(p.placement)}`);
+    assert.ok(p.spread < 1e-3, label);
+  }
+});
+
+await check("synced sets: members moving in step are told apart by the track from the other side", () => {
+  // Members 1 and 2 walk side by side, 1 m apart, 5 m in front of member 0, who stands still. Each has a track to
+  // the anchor; the anchor has one track to each, in the order 2, 1.
+  const walk = (t) => ({ p: [0, 0, t], q: [0, 0, 0, 1] });
+  const still = () => ({ p: [0, 0, 0], q: [0, 0, 0, 1] });
+  const W = [{ p: [0, 0, 0], q: [0, 0, 0, 1] }, { p: [0, 0, 5], q: [0, 0, 0, 1] }, { p: [1, 0, 5], q: [0, 0, 0, 1] }];
+  const roots = [still, walk, walk];
+  const rel = (from, to) => (t) => as.mul(as.mul(as.inv(as.mul(W[from], roots[from](t))), W[to]), roots[to](t));
+  const members = [
+    { id: 0, duration: 3, root: still, tracks: [{ name: "syncTrajectory", at: rel(0, 2) }, { name: "syncTrajectory1", at: rel(0, 1) }] },
+    { id: 1, duration: 3, root: walk, tracks: [{ name: "syncTrajectory", at: rel(1, 0) }, { name: "syncTrajectory1", at: rel(1, 2) }] },
+    { id: 2, duration: 3, root: walk, tracks: [{ name: "syncTrajectory", at: rel(2, 0) }, { name: "syncTrajectory1", at: rel(2, 1) }] },
+  ];
+  const placed = as.solvePlacements(members, 0);
+  for (const id of [1, 2]) {
+    const p = placed.get(id);
+    assert.ok(p && p.placement.p.every((v, i) => near(v, W[id].p[i], 1e-3)), `member ${id} at ${JSON.stringify(p?.placement.p)}, not swapped`);
+    assert.equal(p.ambiguous, false, `member ${id} is not ambiguous: a track from its side confirms it`);
+  }
+});
+
+await check("synced sets: a member no track places stays out, and spline root keys in fractions are stretched to seconds", () => {
+  const still = () => ({ p: [0, 0, 0], q: [0, 0, 0, 1] });
+  const placed = as.solvePlacements([{ id: 0, duration: 2, root: still, tracks: [] }, { id: 1, duration: 2, root: still, tracks: [] }], 0);
+  assert.deepEqual([...placed.keys()], [0]);
+  assert.equal(as.solvePlacements([{ id: 1, duration: 2, root: still, tracks: [] }], 0).size, 0, "no anchor, no placements");
+  const keys = { times: [0, 0.5, 1], values: [[0], [1], [2]] };
+  assert.deepEqual(as.inSeconds(keys, 7.3).times, [0, 3.65, 7.3], "an older export's fractions of a 7.3 s clip");
+  assert.equal(as.inSeconds({ times: [0, 3.6, 7.3], values: [[0], [1], [2]] }, 7.3).times[2], 7.3, "seconds stay seconds");
+  assert.equal(as.inSeconds({ times: [0, 0.5, 1], values: [[0], [1], [2]] }, 1).times[2], 1, "a one-second clip is left alone");
+  const tr = as.track({ times: [0, 2], values: [[0, 0, 0], [2, 0, 0]] }, { times: [0, 2], values: [[0, 0, 0, 1], yawQ(90)] });
+  assert.ok(near(tr(1).p[0], 1) && near(as.angleBetween(tr(1).q, yawQ(45)), 0, 1e-6), "keys are interpolated, rotations along the shorter arc");
+  assert.ok(near(tr(5).p[0], 2), "past the last key it holds");
+});
+
+await check("synced sets: the Root's keys are read from an exported .anims", () => {
+  // A tiny GLB: nodes Armature > Root, one animation with Root's translation and rotation, 2 keys each.
+  const floats = [0, 1, 0, 0, 0, 3, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1];
+  const bin = Buffer.alloc(floats.length * 4);
+  floats.forEach((f, i) => bin.writeFloatLE(f, i * 4));
+  const json = {
+    asset: { version: "2.0" },
+    nodes: [{ name: "Armature", children: [1] }, { name: "Root" }],
+    accessors: [
+      { bufferView: 0, componentType: 5126, count: 2, type: "SCALAR", max: [1] },
+      { bufferView: 1, componentType: 5126, count: 2, type: "VEC3" },
+      { bufferView: 2, componentType: 5126, count: 2, type: "VEC4" },
+    ],
+    bufferViews: [{ buffer: 0, byteOffset: 0, byteLength: 8 }, { buffer: 0, byteOffset: 8, byteLength: 24 }, { buffer: 0, byteOffset: 32, byteLength: 32 }],
+    buffers: [{ byteLength: bin.length }],
+    animations: [{ name: "synced__m__a", samplers: [{ input: 0, output: 1 }, { input: 0, output: 2 }], channels: [{ sampler: 0, target: { node: 1, path: "translation" } }, { sampler: 1, target: { node: 1, path: "rotation" } }] }],
+  };
+  let text = Buffer.from(JSON.stringify(json));
+  text = Buffer.concat([text, Buffer.alloc((4 - (text.length % 4)) % 4, 0x20)]);
+  const head = Buffer.alloc(12);
+  head.write("glTF", 0, "latin1");
+  head.writeUInt32LE(2, 4);
+  head.writeUInt32LE(12 + 8 + text.length + 8 + bin.length, 8);
+  const jh = Buffer.alloc(8);
+  jh.writeUInt32LE(text.length, 0);
+  jh.writeUInt32LE(0x4e4f534a, 4);
+  const bh = Buffer.alloc(8);
+  bh.writeUInt32LE(bin.length, 0);
+  bh.writeUInt32LE(0x004e4942, 4);
+  const file = write("a3/root.glb", Buffer.concat([head, jh, text, bh, bin]));
+  const glb = require("../dist/animsGlb.js").readAnimsGlb(file);
+  const k = as.rootKeys(glb, "synced__m__a");
+  assert.deepEqual(k.translation.times, [0, 1]);
+  assert.deepEqual(k.translation.values, [[0, 0, 0], [3, 0, 0]]);
+  assert.deepEqual(k.rotation.values, [[0, 0, 0, 1], [0, 0, 0, 1]]);
+  assert.deepEqual(as.rootKeys(glb, "no such clip"), {});
+});
+
 await check("new file: every type has what its kind needs, and the presets are complete", () => {
   for (const t of nf.NewFileTypes) {
     if (["atlas", "material", "empty"].includes(t.kind)) assert.ok(t.root, `${t.id} has a root class`);

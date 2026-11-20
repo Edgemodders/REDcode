@@ -34,6 +34,18 @@ exports.activate = (context) => {
       }
       await api.openAnimation(TraumaSoldiers, "synced__q001_00c_trauma_arrives_soldiers__land_v1__soldier_01", { entity: TraumaTeam, appearance: "corpo__traumateam_ma_paramedic__lvl1_01" });
     }),
+    vscode.commands.registerCommand("openstest.openAnimationSet", async () => {
+      // A3 (REDcode 0.10.15): the soldiers' landing as a synced set, the AV and soldier_02 with it, soldier_02 on the paramedic.
+      const api = await redcode();
+      if (typeof api?.openAnimation !== "function") {
+        void vscode.window.showWarningMessage("This REDcode has no openAnimation.");
+        return;
+      }
+      await api.openAnimation(TraumaSoldiers, "synced__q001_00c_trauma_arrives_soldiers__land_v1__soldier_01", {
+        set: true,
+        entities: { soldier_02: { entity: TraumaTeam, appearance: "corpo__traumateam_ma_paramedic__lvl1_01" } },
+      });
+    }),
     vscode.commands.registerCommand("openstest.openAnimationNotAnims", async () => {
       const api = await redcode();
       try {

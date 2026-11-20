@@ -13,6 +13,7 @@
       { "command": "openstest.open", "title": "Opens Test: Open" },
       { "command": "openstest.openAnimation", "title": "Opens Test: Open an Animation" },
       { "command": "openstest.openAnimationOnEntity", "title": "Opens Test: Open an Animation on the Paramedic" },
+      { "command": "openstest.openAnimationSet", "title": "Opens Test: Play an Animation's Synced Set" },
       { "command": "openstest.openAnimationNotAnims", "title": "Opens Test: Open an Animation from a File That Is Not One" },
       { "command": "openstest.revealInProject", "title": "Opens Test: Reveal in Project" }
     ]

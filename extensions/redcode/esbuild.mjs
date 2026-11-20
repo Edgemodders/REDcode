@@ -45,6 +45,8 @@ const animsGlb = { ...client, entryPoints: ["src/animsGlb.ts"], outfile: "dist/a
 const install = { ...client, entryPoints: ["src/install.ts"], outfile: "dist/install.js" };
 // New File's types, names and roots, for scripts/unit.mjs.
 const newFile = { ...client, entryPoints: ["src/newFile.ts"], outfile: "dist/newFile.js" };
+// Synced sets: the members of a moment and where each stands, for scripts/unit.mjs.
+const animsSet = { ...client, entryPoints: ["src/animsSet.ts"], outfile: "dist/animsSet.js" };
 
 // The 3D mesh viewer for the webviews, three.js included, as one browser script.
 const meshViewer = {
@@ -64,7 +66,7 @@ fs.mkdirSync("media/mesh", { recursive: true });
 // three's exports hide its package.json; its main entry sits in <package>/build/.
 fs.copyFileSync(path.join(path.dirname(require.resolve("three")), "..", "LICENSE"), "media/mesh/three.LICENSE.txt");
 
-const builds = [extension, client, hotSwap, exportCache, library, opens, animsGlb, install, newFile, meshViewer];
+const builds = [extension, client, hotSwap, exportCache, library, opens, animsGlb, install, newFile, animsSet, meshViewer];
 if (watch) {
   const contexts = await Promise.all(builds.map((b) => esbuild.context(b)));
   await Promise.all(contexts.map((c) => c.watch()));

@@ -83,12 +83,14 @@
       if (m.rebody && mode === "anims") {
         // Another entity to play on: the view is built again on it, at the animation asked for.
         pendingAnimation = m.name ?? null;
+        pendingPlaySet = !!m.playSet;
         disposeMesh();
         void render(true);
       } else if (meshView?.showAnimation && mode === "anims") {
-        if (m.name) meshView.showAnimation(m.name);
+        if (m.name) meshView.showAnimation(m.name, { playSet: !!m.playSet });
       } else {
         pendingAnimation = m.name ?? null;
+        pendingPlaySet = !!m.playSet;
         if (!opening && home === "anims" && mode !== "anims") { mode = "anims"; void render(true); }
       }
     } else if (m.type === "flush") {
@@ -291,6 +293,8 @@
   // The extension exports the saved file to a .glb in its cache and sends the skeleton and the list.
   // Each animation's keys come when it is picked, since the export can be hundreds of MB.
   let pendingAnimation = null;
+  /** With pendingAnimation: play its synced set too (REDcodeApi.openAnimation's set). */
+  let pendingPlaySet = false;
 
   async function renderAnims() {
     if (meshShown) return;
@@ -301,7 +305,9 @@
     try {
       const payload = await request("animsPayload");
       const initial = pendingAnimation ?? undefined;
+      const playSet = pendingPlaySet;
       pendingAnimation = null;
+      pendingPlaySet = false;
       meshView = await window.REDcodeMesh.mountAnimations(grid, {
         skeleton: base64ToBuffer(payload.skeleton),
         rig: payload.rig,
@@ -313,6 +319,21 @@
         initial,
         note: payload.dirty ? "Shows the saved file; save to see your edits" : "",
         say: (message) => status(message, "error"),
+        // A3: the synced set of the picked clip, listed, placed and loaded by the host.
+        set: {
+          list: (clip) => request("animsSet", { clip }),
+          place: (clip, include) => request("animsSetPlace", { clip, include }),
+          member: async (index) => {
+            const r = await request("animsMember", { index });
+            return {
+              skeleton: base64ToBuffer(r.skeleton),
+              clip: base64ToBuffer(r.clip),
+              body: r.body ? { data: base64ToBuffer(r.body.data), label: r.body.label, notes: r.body.notes ?? [] } : undefined,
+              bodyNote: r.bodyNote,
+            };
+          },
+        },
+        playSet,
       });
       meshShown = true;
       status(payload.cached ? "" : `Exported to ${payload.path}`);

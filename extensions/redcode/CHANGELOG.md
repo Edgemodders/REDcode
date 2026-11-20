@@ -4,9 +4,17 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 ## Unreleased
 
+**New**
+
+- **Synced sets in the animation view** (https://github.com/Edgemodders/REDcode/issues/21). A synced clip, such as the Trauma Team's landing, lists its set under the animations: the clips of the same moment in the other `.anims` files of its folder, the AV and both soldiers here. **Play the Set** plays them together on one clock, each on its own rig and placed where the game's sync tracks put it, with root motion on. Members can be ticked on and off, and the player's male and female files are alternatives. For other extensions, `openAnimation` takes `set: true` and `entities` by role. Needs REDbridge 0.17.0.
+
 **Changed**
 
 - **New File...** has a hover button on the Project view's folders, roots and the project itself, beside Copy Path, so it is one click instead of a right-click.
+
+**Fixed**
+
+- With **Root motion** on, the AV's flight in the Trauma Team animations took the whole clip again, instead of its first second (WolvenKit issue https://github.com/WolvenKit/WolvenKit/issues/3304, worked round in REDbridge 0.17.0).
 
 ## 0.10.14 (2026-11-20)
 

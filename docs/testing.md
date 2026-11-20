@@ -33,6 +33,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Open contract (#22)](#open-contract-22) | By hand | Requests | 2026-11-06 | Pass |
 | [Animations A1 (#21)](#animations-a1) | By hand | Requests | 2026-11-06 | Pass |
 | [Animations A2 (#21)](#animations-a2) | By hand | Requests | 2026-11-15 | Pass, three fixes |
+| [Animations A3 (#21)](#animations-a3) | By hand | Requests | | Given to the owner 2026-11-20; needs REDbridge 0.17.0 |
 | [Library view (#23)](#library-view-23) | By hand | Requests | 2026-11-15 | Pass, two fixes |
 | [Run Game without ELECTRON_RUN_AS_NODE (#24)](#run-game-without-electron_run_as_node-24) | By hand, in the game | Requests | 2026-11-20 | Pass |
 | [New File](#new-file) | By hand | Requests | 2026-11-20 | Pass, steps 1 to 13, four fixes |
@@ -687,6 +688,29 @@ Rerun on 9b1f4b8 (2026-11-15, the same setup): steps 2, 5, 9 and 11 pass. The la
 Step 6 rerun on 5469a6c (2026-11-15, the same setup): Frame fills the view at 0.16 s, 3.95 s and 7.74 s. But after Frame at 0.16 s, Play lost the body at 1.72 s and 3.37 s: the view followed `Root`, which stays on the ground while the body drops 3 m to it. Fixed: with Root motion on, the view follows `Hips` (a rig with none, such as the AV's, follows `Root`). Checked in Chrome with the harness: Frame at 0.16 s, then on to 1.72 s and 3.37 s, and the body stays in view. Step 6 waits for a rerun.
 
 Step 6 rerun on 75cb474 (2026-11-15, the same setup): pass. With Root motion on, Frame at 0.16 s fills the view, and playing on, the whole body stays in view at 1.72 s, 3.41 s, 5.52 s and 7.42 s, a little right of centre at 3.4 s and 5.5 s. Frame at 3.95 s and 7.74 s centres it. The AV with Root motion on (it follows `Root`): its bones stay in the middle of the view at every moment, with the grid shifting under them. **Animations A2 passes.**
+
+## Animations A3
+
+Built 2026-11-20 ([design](design/animation.html#a3-as-built), REDcode issue #21). Synced sets: a synced clip's members across the `.anims` files of its folder, placed by the sync tracks and played on one clock. **Needs REDbridge 0.17.0** (`anims.sync` and root motion in seconds, REDbridge #19), which REDcode's minimum is raised to at the release; until it is out, a REDbridge built from its main. Checked before:
+- **Unit checks:** 62, six for A3: names, members and alternatives; the rigid math; a placement from either side; members in step told apart; a member nothing places; seconds against fractions; Root keys from a GLB.
+- **The solve on the Trauma Team folder:** the landing and the take-off match the placements worked out by hand on 2026-11-19, from either the AV or a soldier as the opened clip.
+- **The view in Chrome over the real bridge** (scratchpad `a3harness.mjs`):
+  - The landing played as a set, with no errors. At the start both soldiers stand inside the AV's bones; at the end they are on the ground out from the AV, about 4 m apart.
+  - The `injector` set placed the player, Jackie and Sandra, and marked the player's files SIMD.
+
+| # | Do | Expected |
+|---|---|---|
+| 1 | With REDbridge 0.17.0 (**REDcode: Update REDbridge**), F5 with **Run REDcode with Opens Test (no other extensions)**. **REDcode: Search game files**, `synced__q001_00c__male_average.anims`, open it. In the list, pick `synced__q001_00c_trauma_arrives_soldiers__land_v1__soldier_01` | Under the list, **Synced set**: soldier_01 (this file), av and soldier_02, each with a colour and a tick, and **Play the Set** |
+| 2 | **Play the Set** | **Root motion** turns on; the button says Placing, then Loading. Then the AV (bones only: a vehicle rig) and soldier_02 (a body) join soldier_01, and both rows say **placed**. Hovering a row says which track placed it |
+| 3 | Drag the time to the start, then to the end | At the start both soldiers stand up inside the AV's bones; at the end both are on the ground well out from it, about 4 m apart. Play, Pause, the frame steps, **Loop** and the speed move all three together |
+| 4 | **Bones**, **Body** and **Frame** | They act on every member; Frame fits the whole set over the clip |
+| 5 | Untick soldier_02; then tick it again | soldier_02 goes, then comes back where it was |
+| 6 | Turn **Root motion** off | The set stops; soldier_01 plays alone, in place |
+| 7 | Pick a clip that is not synced, such as `q001_00c_trauma_av_idle__02` in `synced__q001_00c__trauma_av.anims` | No **Synced set** section |
+| 8 | In `synced__q001_00c__trauma_av.anims`, pick `synced__q001_00c_trauma_leaves_soldiers__av`, **Play the Set** | The soldiers walk to the AV and leave with it; the AV's flight spreads over the whole 15 s, not its first second |
+| 9 | Open `synced__q001_00c__syringe.anims`, pick `synced__q001_00c_injector__syringe` | The set lists fpp twice (player_female, player_male, both marked **SIMD**, one ticked), jackie and sandra. Ticking one fpp unticks the other |
+| 10 | **Play the Set** | Sandra kneels; Jackie (bones only: `man_big.rig`) stands by her. The player may show as a collapsed skeleton: the known SIMD export fault, not A3's |
+| 11 | **Opens Test: Play an Animation's Synced Set** | The landing opens with its set playing, soldier_02 on the Trauma Team paramedic's meshes |
 
 ## No Red Hot Tools
 
