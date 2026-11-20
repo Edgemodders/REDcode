@@ -34,6 +34,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Animations A1 (#21)](#animations-a1) | By hand | Requests | 2026-11-06 | Pass |
 | [Animations A2 (#21)](#animations-a2) | By hand | Requests | 2026-11-15 | Pass, three fixes |
 | [Animations A3 (#21)](#animations-a3) | By hand | Requests | | Given to the owner 2026-11-20; needs REDbridge 0.17.0 |
+| [Edit in Blender: skinned meshes](#edit-in-blender-skinned-meshes) | By hand | | | Given to the owner 2026-11-20 |
 | [Replace with a WAV, titled models (#29), every window's project (#32)](#replace-with-a-wav-titled-models-29-and-every-windows-project-32) | By hand, in the game | Requests | | Given to the owner 2026-11-20 |
 | [Sector view](#sector-view) | By hand | C5 | | Given to the owner 2026-11-20 |
 | [Library view (#23)](#library-view-23) | By hand | Requests | 2026-11-15 | Pass, two fixes |
@@ -690,6 +691,19 @@ Rerun on 9b1f4b8 (2026-11-15, the same setup): steps 2, 5, 9 and 11 pass. The la
 Step 6 rerun on 5469a6c (2026-11-15, the same setup): Frame fills the view at 0.16 s, 3.95 s and 7.74 s. But after Frame at 0.16 s, Play lost the body at 1.72 s and 3.37 s: the view followed `Root`, which stays on the ground while the body drops 3 m to it. Fixed: with Root motion on, the view follows `Hips` (a rig with none, such as the AV's, follows `Root`). Checked in Chrome with the harness: Frame at 0.16 s, then on to 1.72 s and 3.37 s, and the body stays in view. Step 6 waits for a rerun.
 
 Step 6 rerun on 75cb474 (2026-11-15, the same setup): pass. With Root motion on, Frame at 0.16 s fills the view, and playing on, the whole body stays in view at 1.72 s, 3.41 s, 5.52 s and 7.42 s, a little right of centre at 3.4 s and 5.5 s. Frame at 3.95 s and 7.74 s centres it. The AV with Root motion on (it follows `Root`): its bones stay in the middle of the view at every moment, with the grid shifting under them. **Animations A2 passes.**
+
+## Edit in Blender: skinned meshes
+
+A modder found that **Edit in Blender** opened nothing for a skinned mesh: Blender's glTF importer failed with "'Context' object has no attribute 'object'", since the script's context had no window after `read_factory_settings`. Fixed on 2026-11-20 (8624c65, from the REDnode session, with the modder's fix): the import, and the export on each save, run with a window and a 3D view in their context.
+
+- **Checked outside VS Code:** Blender 5.3 (Steam), the base male body exported on its deformations rig (`t0_000_ma_base__full.mesh` with `man_base_deformations.rig`): the old script saved no `.blend`; the new one opened it (1 armature, 187 bones, 11 skinned meshes) and exported it again on save (1 skin, 187 joints, tangents on all 11 meshes). A stand-in `bpy` covered no window, Blender before 3.2 and an exporter without the normals and tangents keywords.
+
+| Step | Do | Expect |
+|---|---|---|
+| 1 | F5 (REDcode main). In a project, Export to Raw a skinned mesh on its rig, such as `t0_000_ma_base__full.mesh` with `man_base_deformations.rig`, or any garment | A `.glb` in Raw |
+| 2 | Right-click the `.glb`, **Edit in Blender** | Blender opens with the body and its armature, no error in Blender's console |
+| 3 | Move a vertex, Ctrl+S | REDcode imports the mesh back; the mesh view shows the change |
+| 4 | A plain mesh (a prop), **Edit in Blender**, change it, Ctrl+S | As before the fix |
 
 ## Animations A3
 
