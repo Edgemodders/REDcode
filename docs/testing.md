@@ -727,7 +727,7 @@ Built 2026-11-20 ([design](design/animation.html#a3-as-built), REDcode issue #21
 | 8 | In `synced__q001_00c__trauma_av.anims`, pick `synced__q001_00c_trauma_leaves_soldiers__av`, **Play the Set** | The soldiers walk to the AV and leave with it; the AV's flight spreads over the whole 15 s, not its first second |
 | 9 | Open `synced__q001_00c__syringe.anims`, pick `synced__q001_00c_injector__syringe` | The set lists fpp twice (player_female and player_male, one ticked), jackie and sandra. Ticking one fpp unticks the other |
 | 10 | **Play the Set** | Sandra kneels; Jackie (bones only: `man_big.rig`) stands by her; the player (bones only: the player rig has no base body) is a whole skeleton beside them, not collapsed to one point: REDbridge 0.17.0 fixed that SIMD export (REDbridge #20) |
-| 11 | **Opens Test: Play an Animation's Synced Set** | The landing opens with its set playing, soldier_02 on the Trauma Team paramedic's meshes |
+| 11 | In the Command Palette (Ctrl+Shift+P), run **Opens Test: Play an Animation's Synced Set** (from the Opens Test extension, which this launch config loads; it calls `REDcodeApi.openAnimation` with `set: true`) | The landing opens with its set playing, soldier_02 on the Trauma Team paramedic's meshes |
 
 ## Replace with a WAV, titled models (#29) and every window's project (#32)
 

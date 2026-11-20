@@ -27,6 +27,7 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 **Fixed**
 
+- Checkboxes in the CR2W editor and the 3D views (the synced set, the submesh list, true or false values) use the theme's colours, not the browser's blue and white.
 - Some animations played as a flicker, with the time bar running backwards over and over: a still pose's length was taken from its last key (0.017 s) rather than the file (0.4 s). The animation view now takes each animation's length from the file, and one of a frame or two opens paused.
 - Some animations, such as the player's in the Trauma Team's injector scene, showed every bone at one point. Their export is fixed in REDbridge 0.17.0 (https://github.com/Edgemodders/REDbridge/issues/20), and REDcode exports such files again rather than reuse a broken copy.
 - With **Root motion** on, the AV's flight in the Trauma Team animations took the whole clip again, instead of its first second (WolvenKit issue https://github.com/WolvenKit/WolvenKit/issues/3304, worked round in REDbridge 0.17.0).
