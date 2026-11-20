@@ -21,7 +21,8 @@ Then Marketplace support said keywords trigger the rejection. EDGEhack 0.1.1, wh
 | Part | What it does |
 |---|---|
 | **The store** | The shared files, unchanged: `%APPDATA%\Edgemodders\keys\<service>.txt`, Windows DPAPI for the current user, `used-by.json` beside them. A key set in the game or in VS Code is there for both |
-| **Who decrypts** | REDbridge, in .NET (`ProtectedData`, no PowerShell). No VS Code package carries decryption code. The `.txt` files are PowerShell's `ConvertFrom-SecureString` hex, which is DPAPI with no extra entropy, so .NET reads them as they are (unverified: K4a checks it against keys REDnode wrote) |
+| **Who decrypts** | REDbridge, in .NET (`ProtectedData`, no PowerShell). No VS Code package carries decryption code. The `.txt` files are PowerShell's `ConvertFrom-SecureString` hex, which is DPAPI with no extra entropy, so .NET reads them as they are (checked in K4a, both ways) |
+| **Who may ask REDbridge** | Only a client that started it with `--keys`: REDcode, and MCP servers that read keys. REDnode's host starts its REDbridge without it, because it lends that REDbridge to packages and in-game servers |
 | **The keeper** | REDcode is the only VS Code extension that reads or writes the store, through REDbridge. Other extensions hold no key code |
 | **The interface** | REDcode's extension API (`REDcodeApi`, beside `revealInProject`): `keys.get(service, caller)`, `keys.ask(service, caller)` (asks the modder and saves the key for every tool), `keys.onDidChange`. Another extension calls it through `vscode.extensions.getExtension("edgemodders.redcode-cyberpunk").exports` |
 | **Keys view** | One place in REDcode to see, set, replace and clear every key, with the tools that read each one (`used-by.json`), as REDnode's in-game Keys view does |
@@ -41,7 +42,7 @@ Then Marketplace support said keywords trigger the rejection. EDGEhack 0.1.1, wh
 
 | Phase | Where | What |
 |---|---|---|
-| K4a | REDbridge | `keys.get`, `keys.set`, `keys.list`, `keys.delete` on the store, with `used-by.json` kept as REDnode's library keeps it. Checked against keys REDnode's Keys view wrote |
+| K4a | REDbridge | **Built on REDbridge's main, 2026-11-20:** `keys.get`, `keys.set`, `keys.delete`, `keys.info`, `keys.list` on the store, with `used-by.json` kept as REDnode's library keeps it. Off unless REDbridge is started with `--keys`. Checked both ways against REDnode's `keys.mjs` and against the dev PC's own keys |
 | K4b | REDcode | The Keys view, `REDcodeApi.keys`, the consent prompt |
 | K4c | EDGEwave first | The pilot: its extension asks REDcode, its MCP server reads through REDbridge, its saved ElevenLabs key moves over, and **Connect an Assistant** stops writing the key |
 | K4d | Every other key-using tool | EDGEhack, EDGEmat, EDGEfab (and REDnode's host, through REDbridge in place of PowerShell, if the owner wants it). A request issue each |
