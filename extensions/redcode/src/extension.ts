@@ -7,6 +7,7 @@ import * as vscode from "vscode";
 import { AssetBrowser, type AssetNode } from "./assetBrowser";
 import { searchGameFiles as showGameSearch } from "./gameSearch";
 import { ItemIndex } from "./itemSearch";
+import { newFile } from "./newFileCommand";
 import { addToLibrary, libraryChanged, libraryRoot } from "./libraryCommand";
 import { registerLibraryView, type LibraryTree } from "./libraryView";
 import { BridgeClient } from "./bridgeClient";
@@ -221,6 +222,7 @@ export function activate(context: vscode.ExtensionContext): REDcodeApi | undefin
     vscode.commands.registerCommand("redcode.revealInExplorer", (node: ProjectNode) => revealInExplorer(node)),
     vscode.commands.registerCommand("redcode.deleteProjectFile", (node: ProjectNode) => deleteProjectFile(node)),
     vscode.commands.registerCommand("redcode.saveJsonToProject", () => withBridge(saveJsonToProject)),
+    vscode.commands.registerCommand("redcode.newFile", (node?: ProjectNode) => withBridge((b) => newFileCommand(b, node))),
     vscode.commands.registerCommand("redcode.newProject", () => newProject()),
     vscode.commands.registerCommand("redcode.closeProject", () => closeProject()),
     vscode.commands.registerCommand("redcode.pack", () => packCommand()),
@@ -2004,6 +2006,35 @@ async function searchGameFiles(b: BridgeClient): Promise<void> {
     openAsJson: (file) => openJsonOf(b, file.name),
     log: (line) => log.appendLine(line),
   });
+}
+
+/** New File... (docs/design/new-file.md) on a Project view folder, a root, the project, or from the palette. */
+async function newFileCommand(b: BridgeClient, node?: ProjectNode): Promise<void> {
+  const p = requireProject();
+  const dir = node && node.kind !== "file" ? node.dir : undefined;
+  await newFile(
+    {
+      project: p,
+      bridge: b,
+      pickGameFile: () =>
+        new Promise<GameFileInfo | undefined>((resolve) => {
+          showGameSearch(b, itemIndex, { open: async (file) => resolve(file), openAsJson: async () => undefined, log: (line) => log.appendLine(line) }, {
+            pickOnly: true,
+            placeholder: "Search the game for the file to start from",
+            onHide: (picked) => {
+              if (!picked) resolve(undefined);
+            },
+          });
+        }),
+      done: async (file) => {
+        explorer.refresh();
+        await revealWritten(file);
+        await openProjectFile({ kind: "file", file });
+      },
+      log: (line) => log.appendLine(line),
+    },
+    dir,
+  );
 }
 
 /** The files a node stands for: one file, or everything under a folder. */

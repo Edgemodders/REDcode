@@ -4,6 +4,10 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 ## Unreleased
 
+**New**
+
+- **New File...** on a Project view folder, a root or the project, and in the view's menu. It makes a texture from an image (as color, normal map, mask or UI), an ink atlas on its texture with one part covering it, a material instance on a base material you pick, an empty entity, appearance or multilayer setup, a copy of any game file under a new name, or a blank TweakXL, ArchiveXL or Redscript file in its usual folder. Names are checked as game paths: lowercase, no spaces (https://edgemodders.github.io/REDcode/design/new-file.html).
+
 **Fixed**
 
 - **Run Game** no longer stops REDnode's overlay when it starts the game's exe directly (a GOG or Epic install, or REDcode: Launch set to exe). On REDnode 0.58.0 or older, F10 showed only the cursor (https://github.com/Edgemodders/REDcode/issues/24).

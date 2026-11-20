@@ -35,6 +35,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Animations A2 (#21)](#animations-a2) | By hand | Requests | 2026-11-15 | Pass, three fixes |
 | [Library view (#23)](#library-view-23) | By hand | Requests | 2026-11-15 | Pass, two fixes |
 | [Run Game without ELECTRON_RUN_AS_NODE (#24)](#run-game-without-electron_run_as_node-24) | By hand, in the game | Requests | 2026-11-20 | Pass |
+| [New File](#new-file) | By hand | Requests | | Given to the owner 2026-11-20 |
 | [No Red Hot Tools](#no-red-hot-tools) | By hand | C4 | 2026-11-10 | Pass, one fix |
 | importFile's texture (#25) | By hand, through EDGEhack | Requests | 2026-11-10 | Pass: EDGEhack 0.0.19's H3b.2 Upload test (EDGEhack's `docs/testing.md`), all 10 steps, run by the owner with REDcode main e9b5e7b; the icons showed in the game. Reported by the EDGEhack session |
 | [Resizable table columns (#26)](#resizable-table-columns-26) | By hand | Requests | 2026-11-10 | Pass, one fix |
@@ -793,6 +794,29 @@ REDnode 0.59.1 and later start their host without the variable anyway, so on a c
 | 4 | Quit the game. Set **REDcode: Launch** back to `auto` | |
 
 Result (owner, 2026-11-20, F5 on main): **pass**, all four steps. On a current REDnode (0.59.1 or later) this shows only that nothing broke, as said above.
+
+## New File
+
+Built 2026-11-20 from [the design](design/new-file.html) (`src/newFile.ts`, `src/newFileCommand.ts`). Checked before: `npm run typecheck`, `npm test` (54, five new: the name check, the folder from where it was clicked, the text files' folders and comment line, the atlas and material roots, the type table and the presets), and a script outside the repo against the game with REDbridge 0.15.0 (scratchpad `nf-e2e.mjs`). In that script, a PNG imports in each of the four presets with exactly that setup; the atlas, material instance, entity, appearance and multilayer setup each read back as their class, written for the PC; the atlas's slot 0 names its new texture with one part, `whole`, over all of it; and a game atlas copied under a new name keeps its parts. Not checked by the script: anything in VS Code, and the game reading the new files.
+
+Use a test project. Have a small PNG ready, an icon for example.
+
+| # | Do | Expected |
+|---|---|---|
+| 1 | F5 with **Run REDcode** on the test project. In the Project view, right-click a folder under **Archive** | **New File...** is first in the menu. It is also on the project, on each root and in the view's **...** menu, but not on files |
+| 2 | **New File...** | A list headed **New File in** the folder's game path, with **Game files** (Texture from an Image, Ink Atlas, Material Instance, Entity, Appearance, Multilayer Setup, Start from a Game File) and **Text files** (TweakXL, ArchiveXL, Redscript) |
+| 3 | **Texture from an Image...**, pick the PNG, **Color**, keep the name | A `.xbm` of that name in the folder, selected in the Project view and open in the texture viewer. The PNG is in **Raw** at the same path |
+| 4 | **New File...**, **Ink Atlas**, **Texture from an Image...**, the PNG again, keep **UI** (first in the list), name it `icon_ui`, then keep the atlas's name | `icon_ui.xbm` and `icon_ui.inkatlas` in the folder. The atlas opens in the atlas view with the image and one part, `whole`, around all of it |
+| 5 | **New File...**, **Ink Atlas**, pick the texture from step 3 under **Textures in the project** | A second atlas on that texture, the same way |
+| 6 | **New File...**, **Material Instance**, **multilayered.mt** | A `.mi` opens in the CR2W editor with `baseMaterial` set to `engine\materials\multilayered.mt` |
+| 7 | **New File...**, **Material Instance**, **Another material...**, type `base\materials\Glass.mesh`, then `base\materials\glass_onesided.mt` | The first is refused (an `.mt`, `.remt` or `.mi`, and lowercase); the second makes a `.mi` on it |
+| 8 | **Entity**, **Appearance** and **Multilayer Setup**, one each | Each opens in the CR2W editor, empty |
+| 9 | **New File...**, **Start from a Game File...**, search `achievement_icons.inkatlas`, pick it, name it `my_icons` | `my_icons.inkatlas` in the folder, open in the atlas view with the game's icons and parts. The search box has no row buttons here |
+| 10 | In any name box, type `My Icon`, then `my icon`, then the name of a file already there | Each is refused with why: lowercase, no spaces, already in the project |
+| 11 | **New File...** on the project itself (the top node) | The name box offers `<mod name>\<name>`; the file goes to `source\archive\<mod name>\` |
+| 12 | **New File...**, **TweakXL**, **ArchiveXL** and **Redscript**, from any folder | `source\resources\r6\tweaks\<mod>\<mod>.yaml`, `source\resources\<mod>.archive.xl` and `source\resources\r6\scripts\<mod>\<mod>.reds`, each with one comment line, open in the text editor |
+| 13 | **REDcode: Pack** | The archive holds the new game files; `<mod>.archive.xl` is beside it in `archive\pc\mod`; the `.yaml` and `.reds` are under `r6` in `packed` |
+| 14 | Optional, in the game: use the atlas from step 4 in an ink widget, or the `.mi` from step 6 on a mesh | Unverified until run: whether the game takes REDcode's new files. It needs a small test mod |
 
 ## Never run
 

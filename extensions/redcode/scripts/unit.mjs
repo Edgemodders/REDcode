@@ -603,6 +603,89 @@ await check("run game: the exe starts without ELECTRON_RUN_AS_NODE, everything e
   assert.equal(exe.kind, "exe", "a GOG install takes the exe route");
 });
 
+// ---- New File (docs/design/new-file.md) ----
+
+const nf = require("../dist/newFile.js");
+const nfProject = { file: path.join(tmp, "nf", "My Mod.cpmodproj"), dir: path.join(tmp, "nf"), name: "My Mod", modName: "MyMod", author: "", email: "", description: "", version: "1.0.0" };
+
+await check("new file: a name is checked as a game path", () => {
+  assert.equal(nf.checkGameName("mymod\\icons\\atlas"), undefined);
+  assert.equal(nf.checkGameName("mymod/icons/atlas_01.v2"), undefined, "/ and dots inside a name are fine");
+  assert.match(nf.checkGameName("My Atlas"), /No spaces/);
+  assert.match(nf.checkGameName("MyAtlas"), /Lowercase/);
+  assert.match(nf.checkGameName("mymod\\\\atlas"), /empty/);
+  assert.match(nf.checkGameName("mymod\\..\\atlas"), /\.\./);
+  assert.match(nf.checkGameName("atlas#1"), /a to z/);
+  assert.match(nf.checkGameName(".atlas"), /dot/);
+  assert.match(nf.checkGameName("  "), /Type a name/);
+  assert.equal(nf.checkTextName("MyMod"), undefined, "text files may have capitals");
+  assert.match(nf.checkTextName("my\\mod"), /letters/);
+});
+
+await check("new file: the name gets its extension once, and the folder comes from where it was clicked", () => {
+  assert.equal(nf.withExtension("mymod/atlas", ".inkatlas"), "mymod\\atlas.inkatlas");
+  assert.equal(nf.withExtension("atlas.inkatlas", ".inkatlas"), "atlas.inkatlas");
+  assert.equal(nf.withExtension("MyMod", ".archive.xl"), "MyMod.archive.xl");
+  const archive = path.join(nfProject.dir, "source", "archive");
+  assert.equal(nf.gameFolderOf(nfProject, path.join(archive, "base", "gameplay", "gui", "mymod")), "base\\gameplay\\gui\\mymod");
+  assert.equal(nf.gameFolderOf(nfProject, path.join(nfProject.dir, "source", "raw", "mymod", "icons")), "mymod\\icons", "Raw mirrors Archive");
+  assert.equal(nf.gameFolderOf(nfProject, archive), "");
+  assert.equal(nf.gameFolderOf(nfProject, path.join(nfProject.dir, "source", "resources", "r6")), "");
+  assert.equal(nf.gameFolderOf(nfProject, undefined), "");
+  assert.equal(nf.gamePathFor("mymod\\icons", "Atlas.inkatlas"), "mymod\\icons\\atlas.inkatlas");
+  assert.equal(nf.gamePathFor("", "mymod\\atlas.inkatlas"), "mymod\\atlas.inkatlas");
+  assert.equal(nf.nameFrom("C:\\pictures\\My Icon (2).PNG"), "my_icon_2");
+  assert.equal(nf.nameFrom("base\\gameplay\\gui\\common\\icons\\atlas_tabs_1080p.xbm"), "atlas_tabs_1080p");
+});
+
+await check("new file: text files go to their usual folders with one comment line", () => {
+  const res = path.join(nfProject.dir, "source", "resources");
+  assert.equal(nf.textFileTarget(nfProject, nf.newFileType("tweakxl"), "MyMod.yaml"), path.join(res, "r6", "tweaks", "MyMod", "MyMod.yaml"));
+  assert.equal(nf.textFileTarget(nfProject, nf.newFileType("archivexl"), "MyMod.archive.xl"), path.join(res, "MyMod.archive.xl"), "packed beside the archive");
+  assert.equal(nf.textFileTarget(nfProject, nf.newFileType("redscript"), "MyMod.reds"), path.join(res, "r6", "scripts", "MyMod", "MyMod.reds"));
+  for (const id of ["tweakxl", "archivexl", "redscript"]) {
+    const text = nf.textFileContent(nf.newFileType(id), nfProject);
+    assert.equal(text.split("\n").filter(Boolean).length, 1, id);
+    assert.match(text, /MyMod/);
+  }
+  assert.match(nf.textFileContent(nf.newFileType("redscript"), nfProject), /^\/\//);
+  assert.match(nf.textFileContent(nf.newFileType("tweakxl"), nfProject), /^#/);
+  assert.equal(nf.defaultTextName({ ...nfProject, modName: "My Mod!" }), "My_Mod_");
+});
+
+await check("new file: an atlas starts with its texture and one part covering it; a material on its base", () => {
+  // REDbridge 0.15.0's cr2w.createInstance("inkTextureAtlas"), shortened: three empty slots.
+  const slot = { $type: "inkTextureSlot", parts: [], slices: [], texture: { DepotPath: { $type: "ResourcePath", $storage: "uint64", $value: "0" }, Flags: "Soft" } };
+  const defaults = { $type: "inkTextureAtlas", activeTexture: "StaticTexture", isSingleTextureMode: 1, slots: { Elements: [slot, { ...slot }, { ...slot }] }, textureResolution: "UltraHD_3840_2160" };
+  const root = nf.atlasRoot(defaults, "mymod\\icons\\atlas.xbm");
+  assert.equal(root.slots.Elements.length, 3, "the other two slots stay");
+  const first = root.slots.Elements[0];
+  assert.equal(first.texture.DepotPath.$value, "mymod\\icons\\atlas.xbm");
+  assert.equal(first.texture.DepotPath.$storage, "string");
+  assert.equal(first.parts.length, 1);
+  assert.deepEqual(first.parts[0].partName, { $type: "CName", $storage: "string", $value: "whole" }, "a CName in its full form, as cr2w.fromJson needs");
+  assert.deepEqual(first.parts[0].clippingRectInUVCoords, { $type: "RectF", Bottom: 1, Left: 0, Right: 1, Top: 0 });
+  assert.equal(defaults.slots.Elements[0].parts.length, 0, "the defaults are not changed");
+  const mi = nf.materialRoot({ $type: "CMaterialInstance", values: [] }, "engine\\materials\\multilayered.mt");
+  assert.equal(mi.baseMaterial.DepotPath.$value, "engine\\materials\\multilayered.mt");
+  assert.equal(nf.checkBaseMaterial("base\\materials\\glass_onesided.mt"), undefined);
+  assert.match(nf.checkBaseMaterial("base\\materials\\glass.mesh"), /\.mt/);
+  const json = JSON.parse(nf.cr2wJson(root));
+  assert.equal(json.Data.RootChunk.cookingPlatform, "PLATFORM_PC", "written for the PC, as the game's own files");
+  assert.equal(json.Data.Version, 195);
+  assert.equal(json.Header.DataType, "CR2W");
+});
+
+await check("new file: every type has what its kind needs, and the presets are complete", () => {
+  for (const t of nf.NewFileTypes) {
+    if (["atlas", "material", "empty"].includes(t.kind)) assert.ok(t.root, `${t.id} has a root class`);
+    if (t.kind === "text") assert.ok(t.folder !== undefined, `${t.id} has a folder`);
+    if (t.kind !== "copy") assert.match(t.ext, /^\./, `${t.id} has an extension`);
+  }
+  assert.deepEqual(nf.TexturePresets.map((p) => p.id), ["color", "normal", "mask", "ui"]);
+  for (const p of nf.TexturePresets) for (const k of ["group", "compression", "rawFormat", "isGamma", "hasMipchain", "isStreamable"]) assert.ok(k in p.setup, `${p.id} sets ${k}`);
+});
+
 fs.rmSync(tmp, { recursive: true, force: true });
 console.log(`${passed} passed${failures.length ? `, ${failures.length} failed` : ""}`);
 process.exit(failures.length ? 1 : 0);

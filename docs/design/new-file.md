@@ -4,7 +4,7 @@ title: New File
 
 # New File: make a game file from nothing
 
-Draft 0.2, 2026-11-19, agreed with the owner (decisions below). The owner asked for it on 2026-11-19, after right-clicking a project folder under Archive and finding no **New...** entry. It comes after Animations A3 (the owner, the same day). Nothing is built yet.
+Draft 0.2, 2026-11-19, agreed with the owner (decisions below). The owner asked for it on 2026-11-19, after right-clicking a project folder under Archive and finding no **New...** entry. It was to come after Animations A3. On 2026-11-20 the owner moved it ahead, while A3 waits on REDbridge #19. Built the same day (see As built below).
 
 Today REDcode makes new files only from something else:
 
@@ -77,6 +77,18 @@ Agreed with the owner on 2026-11-19: each of the three as proposed.
    Proposal: (a), with (b) later if asked.
 2. **Empty or with a start.** Proposal: the start in the table above for the texture, the atlas and the material instance, where an empty file is of no use until it names its texture or material; empty for the rest.
 3. **Text files in the same menu.** Proposal: yes, as WolvenKit does, since a mod needs them as often. The TweakXL file as `.yaml` (WolvenKit's choice) or as `.tweak` (REDcode's own language support): proposal `.yaml`, with `.tweak` offered by New Tweak from This Record as today.
+
+## As built
+
+Built 2026-11-20; hand test pending ([testing](../testing.html#new-file)).
+
+- **`src/newFile.ts`** (no VS Code imports): the type table, the name checks, the folder from where it was clicked, the text files' places and comment lines, and the roots. **`src/newFileCommand.ts`**: the pickers and the writes. The command is `redcode.newFile`, on the project, the roots and folders, in the Project view's **...** menu, and in the palette while a project is open.
+- **The folder:** a folder under Archive gives its game path, and one under Raw gives the same game path, since Raw mirrors Archive. Anywhere else (the project, a root, Resources) gives no folder, so the name box offers `<mod name>\<name>` and takes folders with `\` or `/`.
+- **Four texture presets, not three.** UI joins color, normal map and mask, since an atlas's texture is a UI texture. Each was read from a game texture on game 2.5 (2026-11-20): a `_d01`, a `_n01`, a `_m01` and `atlas_tabs_1080p.xbm`. The atlas's **Texture from an Image...** offers UI first; the plain one offers Color first. The image is copied into Raw at the new game path and imported with `project.import`'s `texture` setup, so it can be imported again from there.
+- **The base materials** are the ones game `.mi` files name most, from a sample of 250 on game 2.5: `multilayered.mt`, `metal_base.remt`, two world decal materials, `mesh_decal.mt`, `glass_onesided.mt` and `signages.mt`, then **Another material...** for any path.
+- **Text files:** TweakXL as `source\resources\r6\tweaks\<mod>\<name>.yaml`, ArchiveXL as `source\resources\<name>.archive.xl` (Pack copies `.xl` files beside the archive), Redscript as `source\resources\r6\scripts\<mod>\<name>.reds`. The name is the mod's at first, as WolvenKit names its `.archive.xl`.
+- **Start from a Game File** uses Search game files as a picker: no row buttons, its own placeholder.
+- The MCP tool `project_new_file` is not built yet: the same code can serve it when an assistant needs it.
 
 ## Not in this design
 

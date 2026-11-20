@@ -37,19 +37,28 @@ async function fileInfo(b: BridgeClient, gamePath: string): Promise<GameFileInfo
   return r?.items.find((f) => f.name.toLowerCase() === gamePath.toLowerCase()) ?? { name: gamePath, archive: "", size: 0, hash: "" };
 }
 
-export function searchGameFiles(b: BridgeClient, index: ItemIndex, actions: SearchActions): void {
+/** As a picker (New File's Start from a Game File): no row buttons, its own placeholder, and onHide says whether a file was picked. */
+export interface SearchOptions {
+  pickOnly?: boolean;
+  placeholder?: string;
+  onHide?: (picked: boolean) => void;
+}
+
+export function searchGameFiles(b: BridgeClient, index: ItemIndex, actions: SearchActions, options: SearchOptions = {}): void {
   const picker = vscode.window.createQuickPick<Row>();
-  picker.placeholder = Placeholder;
+  const placeholder = options.placeholder ?? Placeholder;
+  picker.placeholder = placeholder;
   picker.matchOnDescription = true;
   // Keep the Items and Files groups in order while typing. Not in the typed API (proposed
   // quickPickSortByLabel), but taken by VS Code 1.146; where it is not, the rows mix by match.
   (picker as unknown as { sortByLabel: boolean }).sortByLabel = false;
-  const buttons = [...(actions.addToProject ? [AddButton] : []), CopyButton, JsonButton];
+  const buttons = options.pickOnly ? [] : [...(actions.addToProject ? [AddButton] : []), CopyButton, JsonButton];
   let page: { item: ItemEntry; query: string } | undefined;
   let timer: NodeJS.Timeout | undefined;
   let latest = 0;
   let closed = false;
   let itemsFailed = false;
+  let picked = false;
 
   const fileRow = (file: GameFileInfo): Row => ({
     label: path.basename(file.name),
@@ -137,7 +146,7 @@ export function searchGameFiles(b: BridgeClient, index: ItemIndex, actions: Sear
     const query = page?.query ?? "";
     page = undefined;
     picker.buttons = [];
-    picker.placeholder = Placeholder;
+    picker.placeholder = placeholder;
     picker.value = query;
     void search(query);
   };
@@ -159,6 +168,7 @@ export function searchGameFiles(b: BridgeClient, index: ItemIndex, actions: Sear
     if (row.item) return void showItem(row.item);
     const file = await fileOf(row);
     if (!file) return;
+    picked = true;
     picker.hide();
     await actions.open(file);
   });
@@ -178,6 +188,7 @@ export function searchGameFiles(b: BridgeClient, index: ItemIndex, actions: Sear
     closed = true;
     clearTimeout(timer);
     picker.dispose();
+    options.onHide?.(picked);
   });
   picker.show();
 
