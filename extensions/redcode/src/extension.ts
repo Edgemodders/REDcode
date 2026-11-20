@@ -468,7 +468,16 @@ async function packCommand(installing = false): Promise<boolean> {
     return true;
   }
   const what = summary.archive ? `${summary.archiveFiles.toLocaleString()} file(s) into ${path.basename(summary.archive)}` : "resources only, no archive";
-  vscode.window.setStatusBarMessage(`$(package) REDcode: packed ${what}`, 6000);
+  if (installing) {
+    // Install's own message follows; a second toast would only stack on it.
+    vscode.window.setStatusBarMessage(`$(package) REDcode: packed ${what}`, 6000);
+  } else {
+    const extra = [
+      summary.archiveXl.length ? `${summary.archiveXl.length} ArchiveXL file${summary.archiveXl.length === 1 ? "" : "s"}` : "",
+      summary.resources.length ? `${summary.resources.length} resource file${summary.resources.length === 1 ? "" : "s"}` : "",
+    ].filter(Boolean);
+    void vscode.window.showInformationMessage(`REDcode: packed ${requireProject().modName}: ${what}${extra.length ? `, with ${extra.join(" and ")}` : ""}.`, "Show log").then((pick) => pick && log.show(true));
+  }
   return true;
 }
 

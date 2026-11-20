@@ -8,6 +8,10 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 - **New File...** on a Project view folder, a root or the project, and in the view's menu. It makes a texture from an image (as color, normal map, mask or UI), an ink atlas on its texture with one part covering it, a material instance on a base material you pick, an empty entity, appearance or multilayer setup, a copy of any game file under a new name, or a blank TweakXL, ArchiveXL or Redscript file in its usual folder. Names are checked as game paths: lowercase, no spaces. An image with an odd width or height is caught before the import, since WolvenKit compresses only even sides: REDcode offers to resize a copy (each odd side one pixel shorter, the size shown first) or to import it uncompressed (https://edgemodders.github.io/REDcode/design/new-file.html).
 
+**Changed**
+
+- **Pack** ends with a message saying what it packed, with Show log, as the other commands do. It said so only in the status bar, which was easy to miss. Pack and Install and Pack and Play still show only the install's own message.
+
 **Fixed**
 
 - The parts filter in the ink atlas view has the editor theme's colours and border, like the other search boxes, instead of the plain browser style.
