@@ -4,7 +4,7 @@ title: Sector view
 
 # Sector view: a streaming sector in 3D
 
-Draft 0.2, 2026-11-19, agreed with the owner (decisions below); the package's API is still to agree with EDGEbuilder. The owner asked on 2026-11-19 whether EDGEbuilder could open a 3D sector view of REDcode's instead of hosting one of its own. Nothing is built. It comes after Animations A3 and New File, unless the owner moves it, and its drawing code waits for EDGEbuilder's E0 answer (below).
+Draft 0.3, 2026-11-20, agreed with the owner (decisions below); the package's API agreed with EDGEbuilder on 2026-11-20. The owner asked on 2026-11-19 whether EDGEbuilder could open a 3D sector view of REDcode's instead of hosting one of its own. Nothing is built. It comes after Animations A3 and New File, unless the owner moves it. EDGEbuilder's E0 has answered its questions (below).
 
 ## What there is today
 
@@ -55,31 +55,34 @@ What follows for the package:
 
 ## The package's API
 
-Draft 0.1 (2026-11-19), to agree with EDGEbuilder in [#8](https://github.com/Edgemodders/EDGEbuilder/issues/8). TypeScript, ES modules. `three` is a peer dependency, so each extension bundles its own copy.
+Agreed with EDGEbuilder in [#8](https://github.com/Edgemodders/EDGEbuilder/issues/8) on 2026-11-20; its answers were agreed with the owner. TypeScript, ES modules. `three` is a peer dependency, so each extension bundles its own copy.
 
-**Names.** Every drawn thing has a string id. A sector's item is `<sector path>#<entry>`, with `entry` the node data index (what ArchiveXL's deletions and REDnode's registry use), and `#<entry>.<copy>` for one copy of an instanced mesh. Any other id belongs to the caller (EDGEbuilder's scene objects), and the page treats both alike for picking, highlighting and hiding.
+**Names.** Every drawn thing has a string id. A sector's item is `<sector path>#<entry>`, with `entry` the node data index: what ArchiveXL's deletions and REDnode's registry use, and what a scene format 3 removal names. `#<entry>.<copy>` is one copy of an instanced mesh. EDGEbuilder does not use it yet (ArchiveXL's sub-element deletions come later), but the form leaves room for it. Any other id belongs to the caller (EDGEbuilder's scene objects), and the page treats both alike for picking, highlighting and hiding.
 
 **Host half** (`@edgemodders/world-view/host`, Node, no VS Code imports):
 
 ```ts
 interface Bridge { request<T>(method: string, params?: object): Promise<T> }   // REDcode's BridgeClient fits
 
-loadSectors(bridge, {
-  sectors: { path: string; archive?: string; root?: string }[],
+const loader = createSectorLoader(bridge, {
   cacheDir: string,
   kinds?: string[],
-  signal?: AbortSignal,
   onMesh(m: { mesh: string; glb: string; placements: { id: string; matrix: number[] }[] }): void,
   onMarkers(ms: { id: string; kind: string; class: string; resource?: string; matrix: number[]; box?: Box }[]): void,
+  onUnload(sector: string): void,                    // every id under "<sector>#" leaves the page
   onProgress(p: { done: number; total: number; etaMs?: number }): void,
-}): Promise<{ skipped: { id: string; why: string }[] }>
+})
+loader.set(sectors: { path: string; archive?: string; root?: string }[]): Promise<{ skipped: { id: string; why: string }[] }>
+    // loads the sectors new to the list and unloads those that left it; a newer set() cancels the exports an older one still has queued
+loader.dispose()
 
-sectorsOver(bridge, path): Promise<string[]>        // a level-0 sector and the coarser sectors over it, through sector.find
-texturedGlb(bridge, mesh, cacheDir): Promise<string>  // the mesh with its materials, for one picked object
+sectorsOver(bridge, path): Promise<string[]>                                       // a level-0 sector and the coarser ones over it
+sectorsNear(bridge, point: number[], distance: number, { levels? }): Promise<string[]>   // for a view that follows its camera
+texturedGlb(bridge, mesh, cacheDir): Promise<string>                               // the mesh with its materials, for one picked object
 entityGlb(bridge, ent, appearance, cacheDir): Promise<string>
 ```
 
-Meshes come as they are exported, cached ones first, so the page fills in while the rest export. `glb` is a file path; each host turns it into a webview URI or bytes.
+`sectorsOver` and `sectorsNear` only return lists, through `sector.find`; loading by point and distance is `loader.set(await sectorsNear(...))`. Meshes come as they are exported, cached ones first, so the page fills in while the rest export. A mesh shared by two sectors is exported once, and its placements are sent per sector. `glb` is a file path; each host turns it into a webview URI or bytes.
 
 **Page half** (`@edgemodders/world-view/page`):
 
@@ -87,27 +90,26 @@ Meshes come as they are exported, cached ones first, so the page fills in while 
 const view = createWorldView(canvas, { colourBy: "mesh" | "material", culling: "streaming" | "none" })
 view.addMesh(mesh, glb: ArrayBuffer, placements)        // one InstancedMesh per GLB primitive
 view.addMarkers(markers)
-view.addObject(id, object3d)                            // the caller's own things, in the same scene
+view.unloadSector(path)                                 // what the host's onUnload asks for
+view.addObject(id, object3d) / view.removeObject(id)    // the caller's own things, in the same scene
 view.replaceMesh(id, glb)                               // a textured or entity GLB for one id
-view.setHidden(ids, "hidden" | "ghost" | "shown")       // a scene's removals, shown as they will bake
+view.setHidden(ids, "hidden" | "ghost" | "shown")       // a removal: its entry and its proxies' entries together
 view.highlight(ids)
-view.onPick((id, point) => ...)                         // the id under the pointer, or null
-view.attachGizmo(id, { mode: "translate" | "rotate" }, onChange)   // three's TransformControls
+view.pick(x, y) -> { id, point } | null / view.onPick(cb)
+view.onPointer(cb)                                      // down, move and up on the canvas, with the id under it
+view.toCanvas(worldPoint) -> [x, y] / view.rayFrom(x, y) -> { origin, direction }   // for a gizmo and box selection
 view.camera.pose / view.camera.setPose(pose) / view.frame(ids)
-view.scene, view.renderer                               // for what the package does not do yet
+view.scene, view.camera, view.renderer
 view.dispose()
 ```
 
-Open questions for EDGEbuilder:
-
-1. **The gizmo:** is `attachGizmo` over three's TransformControls enough, or does EDGEbuilder bring its own, with the same keys as in game? Then the package only hands over `scene`, `camera` and the pointer events.
-2. **Removals:** is `setHidden` with `ghost` the right shape for scene format 3's `worldEdits`, or does a removal name something other than `<sector>#<entry>`?
-3. **Coarser levels:** should `loadSectors` take the sectors already chosen, with `sectorsOver` as a helper, or should one call take a point and a distance?
+- **The gizmo is the caller's.** EDGEbuilder brings its own, with the in-game viewport's keys (G, R, S, axis locks, typed numbers), over `scene`, `camera`, `onPointer` and the two projection helpers. The package has no gizmo, since REDcode's sector mode is read-only.
+- **A removal hides its proxies too.** A scene format 3 removal lists an entity's proxy meshes beside it (`proxies`, each `<sector>#<entry>`), so it is `setHidden([entry, ...proxies], "ghost")`. EDGEbuilder's D1a test showed why: after a save loads, a hidden entity does not come in, and the game shows its proxy in its place.
 
 ## Order
 
 1. **EDGEbuilder's E0** (done 2026-11-19, above) runs with REDcode's mesh viewer code as it is, from a script, and answers the timing question. The package's shape follows from its answer: how many meshes a downtown sector has, how long their exports take, and whether instancing and culling are enough.
-2. The package and REDcode's sector mode, agreed with EDGEbuilder's session first. The package's API is the contract between the two, so it is agreed before either builds on it.
+2. The package and REDcode's sector mode, on the API above (agreed 2026-11-20). The API is the contract between the two, so a change to it is agreed in [EDGEbuilder #8](https://github.com/Edgemodders/EDGEbuilder/issues/8) or a later issue first.
 3. EDGEbuilder's E2 on the package.
 
 ## Decisions
