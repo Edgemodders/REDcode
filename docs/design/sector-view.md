@@ -111,7 +111,7 @@ view.dispose()
 1. **EDGEbuilder's E0** (done 2026-11-19, above) runs with REDcode's mesh viewer code as it is, from a script, and answers the timing question. The package's shape follows from its answer: how many meshes a downtown sector has, how long their exports take, and whether instancing and culling are enough.
 2. The package and REDcode's sector mode, on the API above (agreed 2026-11-20). The API is the contract between the two, so a change to it is agreed in [EDGEbuilder #8](https://github.com/Edgemodders/EDGEbuilder/issues/8) or a later issue first.
 3. EDGEbuilder's E2 on the package.
-4. Right after REDcode's part: [Sector Tools](sector-tools.html) (the owner, 2026-11-20), an optional REDnode app pack from this repo that draws with the same package in the game and links REDcode's sector mode to the game.
+4. Right after REDcode's part: REDcode's half of [Sector Tools](sector-tools.html) (the owner, 2026-11-20). The app is an EDGEbuilder app pack ([EDGEbuilder #9](https://github.com/Edgemodders/EDGEbuilder/issues/9)) that draws with the same package in the game; REDcode links its sector mode to it.
 
 ## Decisions
 
