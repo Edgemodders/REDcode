@@ -228,6 +228,8 @@ interface Request {
   coarser?: boolean;
   /** light: the 3D views' light settings to keep for the window. */
   settings?: unknown;
+  /** sideWidth: the side list's width in pixels, or none for the default. */
+  width?: number;
   offset?: number;
   limit?: number;
   name?: string;
@@ -251,6 +253,8 @@ interface Request {
 const TableColumnsKey = "cr2w.tableColumns";
 /** The 3D views' light (REDcode issue #31), kept per window: brightness and mode. */
 export const LightKey = "redcode.light";
+/** The width of the 3D views' side list (animations, submeshes), kept per window. */
+export const SideWidthKey = "redcode.sideWidth";
 /** Whether the animation view plays root motion, for every file. Off at first: clips play in place. */
 const RootMotionKey = "cr2w.animsRootMotion";
 
@@ -603,7 +607,7 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
                 if (!e.mesh || e.mesh.toLowerCase() === meshRef().toLowerCase()) post({ type: "materialsChanged", materials: e.materials });
               });
             }
-            return reply(m.id, { ...meshPayload(r.glb), path: r.glb, cached: r.cached, dirty: document.log.length > 0, appearances, materialProvider: !!edgemat, findItems: !!meshGamePath(), light: this.context.workspaceState.get(LightKey) });
+            return reply(m.id, { ...meshPayload(r.glb), path: r.glb, cached: r.cached, dirty: document.log.length > 0, appearances, materialProvider: !!edgemat, findItems: !!meshGamePath(), light: this.context.workspaceState.get(LightKey), sideWidth: this.context.workspaceState.get(SideWidthKey) });
           }
           case "animsPayload": {
             // The open .anims, exported to a cached .glb (the saved file: unsaved edits show after a save).
@@ -628,6 +632,7 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
               dirty: document.log.length > 0,
               rootMotion: this.context.globalState.get(RootMotionKey, false),
               light: this.context.workspaceState.get(LightKey),
+              sideWidth: this.context.workspaceState.get(SideWidthKey),
               ...(body ? { body: { data: fs.readFileSync(body.glb).toString("base64"), label: body.label, notes: body.notes } } : {}),
               ...(bodyNote ? { bodyNote } : {}),
             });
@@ -646,6 +651,9 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
           }
           case "light":
             await this.context.workspaceState.update(LightKey, m.settings);
+            return;
+          case "sideWidth":
+            await this.context.workspaceState.update(SideWidthKey, typeof m.width === "number" ? m.width : undefined);
             return;
           case "sectorPayload": {
             // A new 3D view (the first, or after a save or revert): a new loader, so the saved file is read again.

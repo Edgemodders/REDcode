@@ -96,16 +96,17 @@ export class MeshViewer implements vscode.CustomReadonlyEditorProvider {
     const style = panel.webview.asWebviewUri(vscode.Uri.joinPath(media, "cr2w", "editor.css"));
     const send = () => {
       try {
-        void panel.webview.postMessage({ type: "mesh", title: title(), light: this.state?.get("redcode.light"), ...meshPayload(file) });
+        void panel.webview.postMessage({ type: "mesh", title: title(), light: this.state?.get("redcode.light"), sideWidth: this.state?.get("redcode.sideWidth"), ...meshPayload(file) });
       } catch (e) {
         const message = e instanceof Error ? e.message : String(e);
         this.log.appendLine(`mesh viewer: ${message}`);
         void panel.webview.postMessage({ type: "error", error: message });
       }
     };
-    panel.webview.onDidReceiveMessage((m: { type?: string; settings?: unknown }) => {
+    panel.webview.onDidReceiveMessage((m: { type?: string; settings?: unknown; width?: unknown }) => {
       if (m?.type === "ready") send();
       else if (m?.type === "light") void this.state?.update("redcode.light", m.settings);
+      else if (m?.type === "sideWidth") void this.state?.update("redcode.sideWidth", typeof m.width === "number" ? m.width : undefined);
     });
     // Re-read the file when it changes on disk, such as after a new export.
     const watcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(vscode.Uri.file(path.dirname(file)), path.basename(file)));
@@ -135,7 +136,7 @@ window.addEventListener("message", async (e) => {
   let source;
   if (m.json) source = { json: m.json };
   else { const bin = atob(m.data); const bytes = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i); source = { data: bytes.buffer }; }
-  view = await window.REDcodeMesh.mount(host, source, m.title, { light: m.light, onLight: (settings) => vscode.postMessage({ type: "light", settings }) });
+  view = await window.REDcodeMesh.mount(host, source, m.title, { light: m.light, onLight: (settings) => vscode.postMessage({ type: "light", settings }), sideWidth: m.sideWidth, onSideWidth: (width) => vscode.postMessage({ type: "sideWidth", width }) });
 });
 vscode.postMessage({ type: "ready" });
 </script>

@@ -7,7 +7,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { cssColour, el, lightControls, type LightSettings } from "./viewerKit";
+import { cssColour, el, lightControls, sideSplitter, type LightSettings } from "./viewerKit";
 import { createStage } from "../../../packages/world-view/src/stage";
 
 export interface AnimClipInfo {
@@ -46,6 +46,9 @@ export interface AnimsSource {
   /** The light kept for the window (REDcode issue #31), and where a change goes to be kept. */
   light?: Partial<LightSettings>;
   onLight?: (settings: LightSettings) => void;
+  /** The side list's width in pixels, kept for the window; undefined is the default width. */
+  sideWidth?: number;
+  onSideWidth?: (width: number | undefined) => void;
 }
 
 /** A member of a synced moment, as the host lists it. */
@@ -127,6 +130,7 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
   stage.appendChild(note);
   const body = el("div", "meshbody");
   body.append(stage, side);
+  sideSplitter(body, side, source.sideWidth, source.onSideWidth);
   const transport = el("div", "toolbar animtransport");
   container.append(bar, body, transport);
 

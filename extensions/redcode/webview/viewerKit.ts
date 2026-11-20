@@ -51,3 +51,43 @@ export function lightControls(stage: Stage, onChange?: (s: LightSettings) => voi
   });
   return [brightness, fixed];
 }
+
+/**
+ * The splitter between a 3D view and its side list: drag to widen the list (long animation or submesh
+ * names), double-click for the default width. The width goes to onWidth when the drag ends, to be kept.
+ */
+export function sideSplitter(body: HTMLElement, side: HTMLElement, width?: number, onWidth?: (width: number | undefined) => void): HTMLElement {
+  const splitter = el("div", "meshsplitter");
+  splitter.title = "Drag to resize the list; double-click for the default width";
+  side.before(splitter);
+  const set = (w: number | undefined) => (w === undefined ? body.style.removeProperty("--side") : body.style.setProperty("--side", `${Math.round(w)}px`));
+  const clamp = (w: number) => Math.min(Math.max(140, w), Math.max(140, body.clientWidth - 200));
+  if (typeof width === "number" && width > 0) set(width);
+  splitter.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    splitter.setPointerCapture(e.pointerId);
+    splitter.classList.add("active");
+    document.body.classList.add("resizing");
+    let w = side.getBoundingClientRect().width;
+    const move = (ev: PointerEvent) => {
+      w = clamp(body.getBoundingClientRect().right - ev.clientX - splitter.offsetWidth / 2);
+      set(w);
+    };
+    const up = () => {
+      splitter.removeEventListener("pointermove", move);
+      splitter.removeEventListener("pointerup", up);
+      splitter.removeEventListener("pointercancel", up);
+      splitter.classList.remove("active");
+      document.body.classList.remove("resizing");
+      onWidth?.(Math.round(w));
+    };
+    splitter.addEventListener("pointermove", move);
+    splitter.addEventListener("pointerup", up);
+    splitter.addEventListener("pointercancel", up);
+  });
+  splitter.addEventListener("dblclick", () => {
+    set(undefined);
+    onWidth?.(undefined);
+  });
+  return splitter;
+}

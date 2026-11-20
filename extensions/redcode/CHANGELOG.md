@@ -2,6 +2,7 @@
 
 What changed in each REDcode release. The release notes on GitHub, the stores and Nexus Mods come from these sections; changes are grouped as **New**, **Changed**, **Fixed** and **Other**, and older sections keep the form they had.
 
+- The animation and mesh views have a splitter between the 3D view and the list: drag it to widen the list for long names, double-click it for the default width. The width is kept for the window.
 ## Unreleased
 
 **New**

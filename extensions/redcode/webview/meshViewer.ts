@@ -11,7 +11,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { mountAnimations } from "./animViewer";
 import { mountSector } from "./sectorViewer";
-import { cssColour, el, lightControls, type LightSettings } from "./viewerKit";
+import { cssColour, el, lightControls, sideSplitter, type LightSettings } from "./viewerKit";
 import { createStage } from "../../../packages/world-view/src/stage";
 
 export interface MeshSource {
@@ -54,6 +54,9 @@ export interface MountOptions {
   /** The light kept for the window (REDcode issue #31), and where a change goes to be kept. */
   light?: Partial<LightSettings>;
   onLight?: (settings: LightSettings) => void;
+  /** The side list's width in pixels, kept for the window; undefined is the default width. */
+  sideWidth?: number;
+  onSideWidth?: (width: number | undefined) => void;
 }
 
 export interface MeshView {
@@ -82,6 +85,7 @@ export async function mount(container: HTMLElement, source: MeshSource, title = 
   stage.appendChild(note);
   const body = el("div", "meshbody");
   body.append(stage, side);
+  sideSplitter(body, side, options.sideWidth, options.onSideWidth);
   container.append(bar, body);
 
   const renderer = new THREE.WebGLRenderer({ antialias: true });
