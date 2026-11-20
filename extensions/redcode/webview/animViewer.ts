@@ -530,6 +530,8 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
         const parsed = await loader.parseAsync(await source.clip(index, rootMotion), "");
         clip = parsed.animations[0];
         if (!clip) throw new Error("the export holds no keys for it");
+        // The file's length, not the last key's time: a still channel has one key, at any time.
+        if (a.duration > 0) clip.duration = a.duration;
       } catch (e) {
         if (mine === asking) time.textContent = `Could not read it: ${e instanceof Error ? e.message : String(e)}`;
         return;
@@ -553,7 +555,10 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
     action.play();
     scrub.max = String(a.duration || 1);
     scrub.value = "0";
-    const wasPlaying = at === undefined || playing;
+    // A clip of a frame or two is a pose: looped, it would flicker (or seem to run backwards, as each
+    // screen frame lands just short of the last), so it opens paused.
+    const pose = a.duration < 0.1;
+    const wasPlaying = (at === undefined || playing) && !pose;
     setPlaying(wasPlaying);
     if (at !== undefined) action.time = Math.min(at, a.duration);
     mixer.update(0);

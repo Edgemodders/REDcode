@@ -620,8 +620,14 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
             setSession = newSetSession();
             const rig = await this.animsRig(document).catch(() => "");
             const animations = animsList(anims);
-            const frames = await this.animsFrames(document).catch(() => new Map<string, number>());
-            for (const a of animations) a.frames = frames.get(a.name) ?? a.frames;
+            // Frames and length as the file says. The export's last key is not the length: a still channel
+            // has one key, at any time (a 0.4 s idle pose exported its keys at 0 and 0.017 s).
+            const timing = await this.animsTiming(document).catch(() => new Map<string, { frames?: number; duration?: number }>());
+            for (const a of animations) {
+              const t = timing.get(a.name);
+              a.frames = t?.frames ?? a.frames;
+              if (t?.duration && t.duration > 0) a.duration = t.duration;
+            }
             const { body, bodyNote } = await this.animsBody(document, rig);
             return reply(m.id, {
               skeleton: animsSkeleton(anims).toString("base64"),
@@ -936,19 +942,28 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
     return typeof rig === "string" ? rig : "";
   }
 
-  /** Each animation's frames by name, as the file says: the export's key counts are thinned. */
-  private async animsFrames(document: Cr2wDocument): Promise<Map<string, number>> {
+  /**
+   * Each animation's frames and length by name, as the file says: the export's key counts are thinned,
+   * and its last key can come well before the end.
+   */
+  private async animsTiming(document: Cr2wDocument): Promise<Map<string, { frames?: number; duration?: number }>> {
     const bridge = this.requireBridge();
     await document.ensureOpen(bridge);
     const list = await bridge.getNode(document.doc, "animations", 0, 1);
     const count = list.total ?? 0;
-    const paths = Array.from({ length: count }, (_, i) => [`animations.${i}.Data.animation.Data.name`, `animations.${i}.Data.animation.Data.animBuffer.Data.numFrames`]).flat();
+    const paths = Array.from({ length: count }, (_, i) => [
+      `animations.${i}.Data.animation.Data.name`,
+      `animations.${i}.Data.animation.Data.animBuffer.Data.numFrames`,
+      `animations.${i}.Data.animation.Data.duration`,
+    ]).flat();
     const nodes = await bridge.getNodes(document.doc, paths, 1);
-    const out = new Map<string, number>();
+    const out = new Map<string, { frames?: number; duration?: number }>();
     for (let i = 0; i < count; i++) {
-      const name = nodes[i * 2]?.value as { $value?: unknown } | undefined;
-      const frames = nodes[i * 2 + 1]?.value;
-      if (typeof name?.$value === "string" && typeof frames === "number") out.set(name.$value, frames);
+      const name = nodes[i * 3]?.value as { $value?: unknown } | undefined;
+      const frames = nodes[i * 3 + 1]?.value;
+      const duration = nodes[i * 3 + 2]?.value;
+      if (typeof name?.$value !== "string") continue;
+      out.set(name.$value, { frames: typeof frames === "number" ? frames : undefined, duration: typeof duration === "number" ? duration : undefined });
     }
     return out;
   }
