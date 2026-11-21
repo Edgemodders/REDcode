@@ -71,7 +71,7 @@
       selected = m.path ?? "";
       expandTo(selected);
       if (opening) { revealing = true; $("selected").textContent = selected || "(root)"; }
-      else { mode = "tree"; void render(true); }
+      else { mode = "tree"; void render(true).then(() => revealInTree(selected)); }
     } else if (m.type === "showRow") {
       // The host asks for a table row (LocKeys: Add to Project Onscreens); before the table is up, it waits for it.
       if (sidebar) return;
@@ -161,6 +161,8 @@
     $("file").textContent = m.file;
     $("type").textContent = m.info.type;
     $("size").textContent = `${m.info.bytes.toLocaleString()} B` + (m.info.embeddedFiles ? `, ${m.info.embeddedFiles} embedded` : "") + (m.game ? "  ·  game copy, read-only" : "");
+    // A game file is read-only here; Add to Project makes the copy that can be edited (the owner, 2026-11-20).
+    $("addToProject").hidden = sidebar || !m.game;
     document.title = m.file;
     if (sidebar) {
       // The grid only, on whatever the editor has selected. Table and atlas files show their selected node too.
@@ -372,9 +374,8 @@
         picked: (path) => { if (path) vscode.postMessage({ type: "selected", path }); },
         showInTree: (path) => {
           selected = path;
-          expandTo(path);
           mode = "tree";
-          void render(true);
+          void render(true).then(() => revealInTree(path));
         },
         select,
         light: payload.light,
@@ -528,6 +529,30 @@
     let p = "";
     for (const part of parts) { p = join(p, part); expanded.add(p); }
     renderTree();
+  }
+
+  /**
+   * expandTo, but it first loads the pages of long arrays on the way until the row is there, then scrolls
+   * to it (found 2026-11-20: Show in Tree on nodeData.Data.729 stopped at the first 200 entries).
+   */
+  async function revealInTree(path) {
+    const parts = path.split(".");
+    let parent = "";
+    try {
+      for (const part of parts) {
+        let n = nodes.get(parent) ?? (await fetchNode(parent));
+        while (n.total !== null && n.children && !n.children.some((c) => c.name === part) && n.children.length < n.total) {
+          const before = n.children.length;
+          n = await fetchNode(parent, true);
+          if (n.children.length === before) break;
+        }
+        parent = join(parent, part);
+      }
+    } catch (e) {
+      status(e.message, "error");
+    }
+    expandTo(path);
+    document.querySelector(`#treeRoot li[data-path="${CSS.escape(path)}"] > .row`)?.scrollIntoView({ block: "center" });
   }
 
   // ---- selection and the property grid -------------------------------------------------------
@@ -871,7 +896,7 @@
         if (/^LocKey#[\w\-.]+$/.test(h.preview)) {
           request("locText", { query: h.preview }).then((text) => { if (text) row.title = `${h.path}\n${text}`; }).catch(() => {});
         }
-        row.addEventListener("click", () => { if (isSpecial()) { mode = "tree"; void render(); } expandTo(h.path); void select(h.path, true); });
+        row.addEventListener("click", () => { if (isSpecial()) { mode = "tree"; void render(); } void revealInTree(h.path); void select(h.path, true); });
         list.appendChild(row);
       }
       grid.replaceChildren(list);
@@ -1539,6 +1564,9 @@
 
   // ---- wiring ----------------------------------------------------------------------------------
   $("json").addEventListener("click", () => vscode.postMessage({ type: "openAsJson" }));
+  $("addToProject").addEventListener("click", () => {
+    request("addToProject").catch((e) => status(e.message, "error"));
+  });
   $("view").addEventListener("click", () => {
     mode = isSpecial() ? "tree" : home ?? "tree";
     if (mode === "tree" && selected) expandTo(selected);

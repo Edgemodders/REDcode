@@ -804,6 +804,13 @@ Built the same day (checked in Chrome with the editor page over REDbridge 0.17.0
 | R2 | While it loads, or after: turn the camera somewhere, pick a building, **Show in Tree**, then **3D** in the header | The same view: the camera where you left it, the coarser sectors still there (and still loading if they were) |
 | R3 | An `.anims`: play an animation, **Tree**, then **Animations** | The same animation, where it had got to |
 
+Result 2026-11-20, reported by the owner: R1 to R3 pass. Found in it: **Show in Tree** on entry 729 stopped at the tree's first 200 entries. Fixed the same day (the tree loads the pages on the way and scrolls to the row; checked in Chrome on entry 960), with **Add to Project** in the header of a game file, which the owner asked for. To retest:
+
+| # | Do | Expected |
+|---|---|---|
+| R4 | Pick a building far down the list (an entry above 200), **Show in Tree** | The tree opens at `nodeData.Data.<entry>`, selected and scrolled into view |
+| R5 | On the game sector, **Add to Project** in the header | The copy is added and selected in the Project view; the button shows on game files only, not on the project's copy |
+
 ## No Red Hot Tools
 
 Built 2026-11-07, after REDcode 0.10.7: Red Hot Tools has no build for game 2.5, so REDcode drops its hot folder. Pack and Play swaps through REDnode (REDswap) or installs for the next start, and **Install to the Hot Folder** is gone. F5 with **Run REDcode**. Checked before: type check, build, `npm test` (39, one new for the install notice).

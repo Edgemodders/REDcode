@@ -797,6 +797,11 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
             const entry = (await this.requireBridge().locGet([key], language, document.gamePath ? undefined : projectDirOf(document.uri.fsPath)))[key];
             return reply(m.id, entry ? entry.female || entry.male : null);
           }
+          case "addToProject":
+            // The header's Add to Project on a game file: the same as the + in Game Assets and Search game files.
+            if (!document.gamePath) return reply(m.id, null);
+            await vscode.commands.executeCommand("redcode.addToProject", { kind: "file", file: { name: document.gamePath } });
+            return reply(m.id, null);
           case "openAsJson":
             if (document.gamePath) this.openGameAsJson(document.gamePath);
             else this.openAsJson(document.uri.fsPath);
@@ -1066,6 +1071,7 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
   <span class="meta" id="type"></span>
   <span class="meta" id="size"></span>
   <span class="spacer"></span>
+  <button id="addToProject" hidden title="Copy this game file into the open project, at its game path, to edit it there">Add to Project</button>
   <button id="view" hidden title="Switch between this file's own view and the tree">Tree</button>
   <button id="json" title="Open this file as WolvenKit JSON in a text editor">JSON</button>
 </header>

@@ -6,6 +6,7 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 **New**
 
+- **Add to Project** in the CR2W editor's header on a game file, which opens read-only: it copies the file into your project at its game path, as the **+** in Game Assets and Search game files does.
 - **Replace All** in the sound list: many sound events play one of several sounds at random, so replacing one is heard only some of the time. When the sound you replace is one of several, **Replace…** says so and offers to put your WAV in for all of them at once.
 - **Streaming sectors in 3D** (https://edgemodders.github.io/REDcode/design/sector-view.html). A `.streamingsector` from the game or your project opens on a 3D view, read-only, with the tree one click away.
   - **Drawing:** every mesh is drawn where the sector places it, copies included, with markers for entities, decals, lights and the rest. Each mesh is exported once and kept, so a sector opens fast the second time.
@@ -29,6 +30,7 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 **Fixed**
 
+- **Show in Tree**, a search hit or a link to a node far down a long list (past the first 200 entries) now opens the tree at that node and scrolls to it, rather than stopping at the first 200.
 - A sector could open with its markers and no meshes, when the editor started its 3D view twice. It now builds one view at a time, and a mesh that cannot be drawn is counted in the line under the view.
 - **Pack and Install** after **Pack and Play** no longer warns that the project's own archive was put in the game by something else: archives swapped into the running game through REDnode now count as the project's.
 - With two VS Code windows on different REDcode versions, the older one no longer puts its older REDnode package back over the newer one in the game.
