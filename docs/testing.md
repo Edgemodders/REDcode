@@ -36,7 +36,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Animations A3 (#21)](#animations-a3) | By hand | Requests | 2026-11-20 | Pass (owner, REDbridge 0.17.0), with three fixes |
 | [Edit in Blender: skinned meshes](#edit-in-blender-skinned-meshes) | By hand | | | Given to the owner 2026-11-20 |
 | [Replace with a WAV, titled models (#29), every window's project (#32)](#replace-with-a-wav-titled-models-29-and-every-windows-project-32) | By hand, in the game | Requests | 2026-11-20 | Pass (owner), with two fixes |
-| [Replace All](#replace-all) | By hand, in the game | Requests | | Given to the owner 2026-11-20 |
+| [Replace All](#replace-all) | By hand, in the game | Requests | 2026-11-20 | Pass (owner), with one fix |
 | [Sector view](#sector-view) | By hand | C5 | | Given to the owner 2026-11-20 |
 | [Library view (#23)](#library-view-23) | By hand | Requests | 2026-11-15 | Pass, two fixes |
 | [Run Game without ELECTRON_RUN_AS_NODE (#24)](#run-game-without-electron_run_as_node-24) | By hand, in the game | Requests | 2026-11-20 | Pass |
@@ -767,6 +767,8 @@ Built 2026-11-20 from the hand test above, where `cmn_generic_work_inhaler` pick
 | 3 | **Replace Them** | One progress message; then "All 4 sounds of cmn_generic_work_inhaler are replaced" with **Pack and Play**. `source\raw\sounds` has the four `<hash>.wav`, each the picked WAV |
 | 4 | Pick a single-sound event, such as `it_inhaler_heal`, **Replace…** | No question about variations: straight to the file dialog, as before |
 | 5 | **Pack and Play**; in the game, watch an NPC use an inhaler a few times | Your WAV every time |
+
+Result 2026-11-20, reported by the owner: steps 1 to 5 pass. Step 5 ran as Pack and Install with the game closed, which raised a fix: the earlier Pack and Play had swapped the archive in through REDnode, which REDcode did not record, so Pack and Install took the project's own archive for someone else's and asked to back it up. Archives swapped in through REDnode are now recorded as the project's (`recordSwapped` in `src/install.ts`, a unit check).
 
 ## Sector view
 
