@@ -62,9 +62,12 @@ Then Marketplace support said keywords trigger the rejection. EDGEhack 0.1.1, wh
 | Consent | Asked only when there is a key to hand over: `get` for an unset key answers `undefined` without asking. `ask` allows its caller, who just had the modder type the key |
 | Checked | Unit checks (3, 74 in all): ids, folder, consent names, refusals, the view's lines, `request()` refusing `keys.*`, the calls through a stand-in bridge. Against REDbridge built from main on a scratch folder with test keys: the whole life of a key (set, read with `used-by.json` recording the caller, removed), a refused key, the variable winning, REDbridge without `--keys`, and REDbridge 0.17.0 starting with `--keys` and saying 0.18.0 is needed |
 
+**K4c:** built in EDGEwave on 2026-11-21 (EDGEwave main d650a20, 3a4a192, 8f0c586; https://github.com/Edgemodders/EDGEwave/issues/12#issuecomment-7068351109): `keys.get` then `keys.ask` for `elevenlabs`, its own secret storage kept beside a REDcode without keys, Clear ElevenLabs API Key pointing to the Keys view, its MCP server reading `keys.get` through its own REDbridge with `--keys`, and a one-time move by `keys.set`. Checked by EDGEwave against REDbridge 0.18.0 on a scratch store; the owner's hand test is next (EDGEwave's docs/testing.md, Shared keys).
+
 **Release:** the owner's rule stands. REDcode's main now carries the key API, so no REDcode goes to the stores until EDGEwave's pilot (K4c) has run the whole key lifecycle on it, MCP use included.
 
 ## Open
 
 - **Linux:** DPAPI is Windows only. A Linux REDbridge needs another store (libsecret, or a file it encrypts). See REDbridge's docs/linux.md.
+- **A no reads as no key:** `get` answers `undefined` after Don't Allow, the same as for an unset key, so a tool that falls back to `ask` offers the password box again each time. Telling the two apart, by a reason or a separate call, would let a tool stay quiet after a no. Raised by EDGEwave while building K4c (2026-11-21); not needed for the pilot.
 - **REDcode without REDbridge:** a modder who has not installed REDbridge yet. REDcode's Install REDbridge comes first; until then, `keys.get` answers that the key store needs REDbridge.
