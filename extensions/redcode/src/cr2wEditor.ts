@@ -250,8 +250,12 @@ interface Request {
   widths?: Record<string, number>;
   /** sectorMeshInfo, sectorRender, sectorAction: a mesh the sector view draws, by game path. */
   mesh?: string;
-  /** sectorAction: openInEdgemat, openMesh or addMesh. */
+  /** sectorAction: openInEdgemat, openMesh, addMesh, addMeshes or copy. */
   action?: string;
+  /** sectorAction addMeshes: the selection's meshes (docs/design/sector-selection.md). */
+  meshes?: string[];
+  /** sectorAction copy: the text for the clipboard. */
+  text?: string;
 }
 
 /** Where the localization table's column widths are kept, for every file. */
@@ -292,7 +296,7 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
   /** A set to play once the editor page of the document is ready, by URI. */
   private readonly pendingSets = new Set<string>();
   /** A sector's node data entry to select once the editor page is ready, by URI (REDcodeApi.openSector). */
-  private readonly pendingSectorEntries = new Map<string, number>();
+  private readonly pendingSectorEntries = new Map<string, number | number[]>();
   private readonly saved = new vscode.EventEmitter<Cr2wDocument>();
   /** Fired after a document is saved, for views that read the file (the LocKeys view). */
   readonly onDidSave = this.saved.event;
@@ -349,7 +353,7 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
    * Opens a .streamingsector's 3D view at a node data entry: the open pages of the document go to it, or the
    * editor page does when it opens. For REDcodeApi.openSector.
    */
-  showSectorEntry(uri: vscode.Uri, entry: number): void {
+  showSectorEntry(uri: vscode.Uri, entry: number | number[]): void {
     const key = uri.toString();
     const document = this.documents.get(key);
     const pages = document ? [...(this.pages.get(document) ?? [])] : [];
@@ -773,6 +777,24 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
             return reply(m.id, { data: fs.readFileSync(glb).toString("base64"), appearance: look?.name, chunkMaterials: look?.chunkMaterials ?? [], edgemat: !!edgemat, ...(maps ? { maps } : {}), ...(mapsError ? { mapsError } : {}) });
           }
           case "sectorAction": {
+            // The selected list's own actions (docs/design/sector-selection.md), for many things at once.
+            if (m.action === "copy") {
+              await vscode.env.clipboard.writeText(m.text ?? "");
+              void vscode.window.setStatusBarMessage("REDcode: the selection is copied.", 3000);
+              return reply(m.id, null);
+            }
+            if (m.action === "addMeshes") {
+              const meshes = [...new Map((m.meshes ?? []).map((x) => [x.toLowerCase(), x])).values()];
+              if (!meshes.length) return reply(m.id, null);
+              const pick = await vscode.window.showInformationMessage(
+                meshes.length === 1
+                  ? `Add ${meshes[0].split("\\").pop()} to the project? A change to it then shows everywhere the game uses this mesh, not only here.`
+                  : `Add ${meshes.length} meshes to the project? A change to one then shows everywhere the game uses it, not only here.`,
+                "Add Them",
+              );
+              if (pick) await vscode.commands.executeCommand("redcode.addToProject", { kind: "file", file: { name: meshes[0] } }, { files: meshes.map((name) => ({ name })) });
+              return reply(m.id, null);
+            }
             const sector = meshGamePath();
             if (!sector || !m.mesh) throw new Error("No mesh");
             const mesh = m.mesh;

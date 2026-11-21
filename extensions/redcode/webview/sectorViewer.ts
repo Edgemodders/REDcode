@@ -3,11 +3,12 @@
 // exported (sectorMesh), with markers for things with no mesh; a click on a thing selects its node data
 // entry, which the Properties view follows, and Show in Tree goes to it. Materials (docs/design/sector-materials.md):
 // By material colours each copy by the materials its appearance names, and the Materials switch draws the
-// picked thing with its own materials, EDGEmat's when it is installed.
+// picked thing with its own materials, EDGEmat's when it is installed. Selection (docs/design/sector-selection.md):
+// Ctrl+click, Shift+drag and Volume select many, listed on the right, the current one followed by the panel.
 
 import * as THREE from "three";
 import { createWorldView, type CameraMove, type PageAppearance, type PageMarker, type PagePlacement, type WorldView } from "../../../packages/world-view/src/page";
-import { cssColour, el, lightControls, type LightSettings } from "./viewerKit";
+import { cssColour, el, lightControls, sideSplitter, type LightSettings } from "./viewerKit";
 
 /** What the host sends while a sector loads. */
 export type SectorMessage =
@@ -26,14 +27,18 @@ export interface SectorSource {
   picked(path: string | null): void;
   /** Show in Tree: the tree at that path. */
   showInTree(path: string): void;
-  /** The entry to select at first (REDcodeApi.openSector's select). */
-  select?: number;
+  /** The entry or entries to select at first (REDcodeApi.openSector's select). */
+  select?: number | number[];
   /** A drawn mesh's appearances, each with the material it names per submesh. */
   meshInfo?(mesh: string): Promise<PageAppearance[]>;
   /** A mesh with its materials, for the picked thing: the .glb as base64, and EDGEmat's maps by material name when it is there. */
   render?(mesh: string, appearance?: string): Promise<RenderedThing>;
   /** The picked mesh's buttons. */
   action?(action: "openInEdgemat" | "openMesh" | "addMesh", mesh: string, appearance?: string): Promise<unknown>;
+  /** The selected list's Add Meshes to Project: the host asks once for all of them. */
+  addMeshes?(meshes: string[]): Promise<unknown>;
+  /** The selected list's Copy: the text goes to the clipboard. */
+  copy?(text: string): Promise<unknown>;
   /** The light kept for the window (REDcode issue #31), and where a change goes to be kept. */
   light?: Partial<LightSettings>;
   onLight?: (settings: LightSettings) => void;
@@ -42,8 +47,8 @@ export interface SectorSource {
 
 export interface SectorView {
   receive(m: SectorMessage): void;
-  /** Selects a node data entry of this sector, and frames it. */
-  selectEntry(entry: number): void;
+  /** Selects a node data entry of this sector, or several, and frames them. */
+  selectEntry(entry: number | number[]): void;
   dispose(): void;
   /** EDGEmat changed a material: the picked thing is drawn again when it shows that mesh (or when no mesh is named). */
   refreshMaterials(change?: { mesh?: string }): void;
@@ -96,7 +101,12 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
   const camBar = el("div", "toolbar camerabar");
   const camHelp = el("div", "toolbar camerahelp dim");
   camHelp.hidden = true;
-  container.append(bar, camBar, camHelp, stage, info);
+  // The selected list on the right, always there (showing it only when something is selected would move the view under the cursor).
+  const side = el("div", "meshside sectorside");
+  const body = el("div", "meshbody");
+  body.append(stage, side);
+  sideSplitter(body, side);
+  container.append(bar, camBar, camHelp, body, info);
 
   const view: WorldView = createWorldView(canvas, {
     background: cssColour("--vscode-editor-background", "#0d1017"),
@@ -125,12 +135,15 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
   const markerButton = button("Markers", "Show the opened sector's things that have no mesh: entities, decals, lights, collision, sound and AI spots", true);
   const realButton = button("Materials", "Draw the picked thing with its materials, rendered by EDGEmat when it is installed, else by REDcode with EDGEmat's renderer");
   realButton.hidden = !source.render;
+  const volumeButton = button("Volume", "Select with a box in the world: drag on the ground for its base, move the mouse for its height, and click. Its handles resize it, the round one above moves it; again to take it away");
+  const touchingButton = button("Touching", "Boxes also take what only touches them, such as roads and walls whose middle is far off; off, a thing's middle must be inside");
   const stats = el("span", "dim mono", "");
-  bar.append(fit, coarser, culling, markerButton, colour, realButton, ...lightControls(view.lighting, source.onLight), stats);
+  bar.append(fit, coarser, culling, markerButton, colour, realButton, volumeButton, touchingButton, ...lightControls(view.lighting, source.onLight), stats);
   const progress = el("span", "dim", "Reading the sector…");
   const pickedLine = el("span", "mono", "");
   const pickedMeta = el("span", "dim mono", "");
   const realNote = el("span", "dim", "");
+  const hint = el("span", "dim", "");
   const toTree = button("Show in Tree", "Go to this node data entry in the tree");
   toTree.hidden = true;
   const openMesh = button("Open Mesh", "Open the mesh in REDcode's mesh view");
@@ -138,7 +151,7 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
   const addMesh = button("Add Mesh to Project", "Copy the mesh into the project. A change to it shows everywhere the game uses this mesh, not only here");
   const meshButtons = [openMesh, toEdgemat, addMesh];
   for (const b of meshButtons) b.hidden = true;
-  info.append(progress, pickedLine, pickedMeta, toTree, ...meshButtons, realNote);
+  info.append(progress, hint, pickedLine, pickedMeta, toTree, ...meshButtons, realNote);
 
   // ---- the camera's row: each move while its button is held (Shift faster, Ctrl slower), as the keys do ----
   const group = (label: string, ...items: HTMLElement[]) => {
@@ -181,8 +194,9 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
     helpButton.classList.toggle("on", !camHelp.hidden);
   });
   camHelp.textContent =
-    "Left drag: orbit. Right drag: look round, and fly with W A S D, Q down, E up. Middle drag, or Shift or Ctrl with the left: pan. " +
-    "Wheel: closer to the cursor; with the right button held, the fly speed. Shift: faster, Ctrl: slower. F: frame the picked thing. Double-click: fly to a thing.";
+    "Left drag: orbit. Right drag: look round, and fly with W A S D, Q down, E up. Middle drag, or Ctrl with the left: pan. " +
+    "Wheel: closer to the cursor; with the right button held, the fly speed. Shift: faster, Ctrl: slower. F: frame the picked thing. Double-click: fly to a thing. " +
+    "Click: select one. Ctrl+click: add or take out. Shift+drag: select in a box on the screen. Volume: a box in the world. Esc: select nothing. Ctrl+A: select all.";
   camBar.append(
     group("Zoom", moveButton("+", "Closer to what the camera orbits", "zoomIn"), moveButton("−", "Further from what the camera orbits", "zoomOut")),
     group(
@@ -233,9 +247,9 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
     return /^\d+$/.test(entry) ? `nodeData.Data.${entry}` : null;
   };
 
-  const choose = (id: string | null) => {
-    picked = id;
-    view.highlight(id ? [id] : []);
+  /** The panel under the view, Show in Tree, the Properties view and Materials: all on the current thing. */
+  const showCurrent = () => {
+    const id = picked;
     const path = id ? pathOf(id) : null;
     toTree.hidden = !path;
     pickedLine.textContent = id ? `${id.slice(id.lastIndexOf("\\") + 1)}${path ? "" : "  (a coarser sector's)"}` : "";
@@ -267,6 +281,181 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
     void showMaterials();
     source.picked(path);
   };
+
+  // ---- the selection (docs/design/sector-selection.md): many things, one of them current ----
+  let selection: string[] = [];
+  let shownCurrent: string | null | undefined;
+  const select = (ids: string[], current?: string | null) => {
+    selection = [...new Set(ids)];
+    const now = current && selection.includes(current) ? current : (selection[0] ?? null);
+    picked = now;
+    view.highlight(selection, now);
+    // A volume being dragged selects many times a second: the panel and Materials only when the current one changes.
+    if (shownCurrent !== now) {
+      shownCurrent = now;
+      showCurrent();
+    }
+    renderList();
+  };
+  const choose = (id: string | null) => select(id ? [id] : [], id);
+  const setCurrent = (id: string) => {
+    picked = id;
+    view.highlight(selection, id);
+    shownCurrent = id;
+    showCurrent();
+    for (const r of rows.children) (r as HTMLElement).classList.toggle("current", (r as HTMLElement).dataset.id === id);
+  };
+  /** Ctrl+click: in, or out. */
+  const toggle = (id: string) => {
+    if (selection.includes(id)) {
+      const rest = selection.filter((x) => x !== id);
+      select(rest, picked === id ? rest[rest.length - 1] : picked);
+    } else select([...selection, id], id);
+  };
+
+  // ---- the selected list ----
+  const head = el("div", "selhead");
+  const count = el("span", "selcount", "");
+  const frameAll = button("Frame All", "Fly to all of them");
+  const isolate = button("Isolate", "Ghost everything else, to see these alone; again to show it all");
+  const addAll = button("Add Meshes to Project", "Copy each of their meshes into the project once. A change to one shows everywhere the game uses it");
+  const copyAll = button("Copy", "Copy their ids and meshes, one per line, for an issue or an assistant");
+  const clearAll = button("Clear", "Select nothing (Esc)");
+  head.append(count, frameAll, isolate, addAll, copyAll, clearAll);
+  const rows = el("div", "selrows");
+  const empty = el("div", "dim selempty", "Nothing selected. Click a thing to select it, Ctrl+click to add or take out, Shift+drag for a box on the screen, or Volume for a box in the world.");
+  side.append(head, rows, empty);
+  const MaxRows = 500;
+  const fileName = (p: string) => p.slice(p.lastIndexOf("\\") + 1);
+  const labelOf = (id: string) => {
+    const w = drawnAs.get(id);
+    if (w) return { kind: "mesh", name: fileName(w.mesh) };
+    const mk = markerOf.get(id);
+    return { kind: mk?.kind ?? "thing", name: mk?.class ?? "" };
+  };
+  const entryOf = (id: string) => id.slice(id.lastIndexOf("#"));
+  const runAction = (action: "openInEdgemat" | "openMesh" | "addMesh", what: { mesh: string; appearance?: string }) => {
+    source.action?.(action, what.mesh, what.appearance).catch((e) => source.say?.(e instanceof Error ? e.message : String(e)));
+  };
+  const rowFor = (id: string) => {
+    const { kind, name } = labelOf(id);
+    const what = drawnAs.get(id);
+    const row = el("div", `selrow${id === picked ? " current" : ""}`);
+    row.dataset.id = id;
+    row.title = `${id}${what ? `\n${what.mesh}${what.appearance ? ` · ${what.appearance}` : ""}` : ""}\nClick: fly to it. Ctrl+click: take it out`;
+    row.append(el("span", "dim selkind", kind), el("span", "selname", name), el("span", "dim mono selentry", entryOf(id)));
+    const acts = el("span", "selacts");
+    const rowButton = (label: string, title: string, run: () => void) => {
+      const b = button(label, title);
+      b.addEventListener("click", (e) => {
+        e.stopPropagation();
+        run();
+      });
+      acts.appendChild(b);
+    };
+    rowButton("Fly To", "Fly the camera to it", () => {
+      setCurrent(id);
+      view.flyTo([id]);
+    });
+    const path = pathOf(id);
+    if (path)
+      rowButton("Tree", "Show in Tree: its node data entry", () => {
+        setCurrent(id);
+        source.showInTree(path);
+      });
+    if (what && source.action) {
+      rowButton("Mesh", "Open Mesh: the mesh in REDcode's mesh view", () => runAction("openMesh", what));
+      rowButton("EDGEmat", "Open in EDGEmat: the mesh on EDGEmat's Desk at this node's appearance", () => runAction("openInEdgemat", what));
+      rowButton("Add", "Add Mesh to Project: a change to it shows everywhere the game uses this mesh", () => runAction("addMesh", what));
+    }
+    rowButton("×", "Take it out of the selection", () => toggle(id));
+    row.appendChild(acts);
+    row.addEventListener("click", (e) => {
+      if (e.ctrlKey || e.metaKey) return toggle(id);
+      setCurrent(id);
+      view.flyTo([id]);
+    });
+    return row;
+  };
+  const renderList = () => {
+    const any = selection.length > 0;
+    head.hidden = !any;
+    empty.hidden = any;
+    if (!any) {
+      rows.replaceChildren();
+      return;
+    }
+    count.textContent = `${selection.length.toLocaleString()} selected`;
+    const sorted = [...selection].sort((a, b) => labelOf(a).name.localeCompare(labelOf(b).name) || a.localeCompare(b, undefined, { numeric: true }));
+    const more = sorted.length - MaxRows;
+    rows.replaceChildren(...sorted.slice(0, MaxRows).map(rowFor), ...(more > 0 ? [el("div", "dim selmore", `and ${more.toLocaleString()} more`)] : []));
+    addAll.hidden = !source.addMeshes || !selection.some((id) => drawnAs.has(id));
+    copyAll.hidden = !source.copy;
+  };
+  frameAll.addEventListener("click", () => view.flyTo(selection));
+  clearAll.addEventListener("click", () => choose(null));
+  let isolated: string[] | null = null;
+  isolate.addEventListener("click", () => {
+    if (isolated) {
+      view.setHidden(isolated, "shown");
+      isolated = null;
+      isolate.classList.remove("on");
+      return;
+    }
+    const keep = new Set(selection);
+    isolated = view.idsShown().filter((id) => !keep.has(id));
+    view.setHidden(isolated, "ghost");
+    isolate.classList.add("on");
+  });
+  addAll.addEventListener("click", () => {
+    const meshes = selection.map((id) => drawnAs.get(id)?.mesh).filter((x): x is string => !!x);
+    source.addMeshes?.(meshes).catch((e) => source.say?.(e instanceof Error ? e.message : String(e)));
+  });
+  copyAll.addEventListener("click", () => {
+    const text = selection.map((id) => `${id}\t${drawnAs.get(id)?.mesh ?? markerOf.get(id)?.class ?? ""}`).join("\n");
+    source.copy?.(text).catch((e) => source.say?.(e instanceof Error ? e.message : String(e)));
+  });
+
+  renderList();
+
+  // ---- boxes: Shift+drag on the screen, and the volume in the world ----
+  const touching = () => touchingButton.classList.contains("on");
+  view.onBoxSelect((r, e) => {
+    const ids = view.idsInRect(r.x0, r.y0, r.x1, r.y1, { touching: touching() });
+    select(e.ctrlKey || e.metaKey ? [...selection, ...ids] : ids, picked);
+  });
+  let volumeTimer: ReturnType<typeof setTimeout> | undefined;
+  const volumeSelect = () => {
+    const b = view.volume.box;
+    if (b) select(view.idsInBox(b, { touching: touching() }), picked);
+  };
+  view.volume.onChange((b) => {
+    if (!b) {
+      volumeButton.classList.remove("on");
+      hint.textContent = "";
+      return;
+    }
+    if (!view.volume.drawing) hint.textContent = "";
+    // At most ten selections a second while it is dragged.
+    volumeTimer ??= setTimeout(() => {
+      volumeTimer = undefined;
+      volumeSelect();
+    }, 100);
+  });
+  volumeButton.addEventListener("click", () => {
+    if (volumeButton.classList.contains("on")) {
+      view.volume.clear();
+      return;
+    }
+    view.volume.start();
+    volumeButton.classList.add("on");
+    hint.textContent = "Drag on the ground for the volume's base, move the mouse for its height, and click. Esc stops.";
+    canvas.focus();
+  });
+  touchingButton.addEventListener("click", () => {
+    touchingButton.classList.toggle("on");
+    volumeSelect();
+  });
 
   // ---- the picked thing with its materials ----
   /** The placement drawn with its materials now, and what was made for it. */
@@ -356,8 +545,7 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
   });
   const act = (action: "openInEdgemat" | "openMesh" | "addMesh") => {
     const what = picked ? drawnAs.get(picked) : undefined;
-    if (!what || !source.action) return;
-    source.action(action, what.mesh, what.appearance).catch((e) => source.say?.(e instanceof Error ? e.message : String(e)));
+    if (what) runAction(action, what);
   };
   openMesh.addEventListener("click", () => act("openMesh"));
   toEdgemat.addEventListener("click", () => act("openInEdgemat"));
@@ -390,20 +578,36 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
       if (realNote.textContent?.startsWith("Reading material names")) realNote.textContent = "";
     }
   };
-  view.onPick((p) => choose(p?.id ?? null));
+  view.onPick((p, e) => {
+    if (e.ctrlKey || e.metaKey) {
+      if (p) toggle(p.id);
+      return;
+    }
+    choose(p?.id ?? null);
+  });
   toTree.addEventListener("click", () => {
     const path = picked ? pathOf(picked) : null;
     if (path) source.showInTree(path);
   });
   fit.addEventListener("click", () => view.flyTo(picked ? [picked] : undefined));
   canvas.addEventListener("keydown", (e) => {
-    if (e.key.toLowerCase() === "f" && !e.ctrlKey && !e.altKey && !e.metaKey) view.flyTo(picked ? [picked] : undefined);
+    const k = e.key.toLowerCase();
+    if (k === "f" && !e.ctrlKey && !e.altKey && !e.metaKey) view.flyTo(picked ? [picked] : undefined);
+    if (k === "escape") {
+      view.volume.clear();
+      choose(null);
+    }
+    if (k === "a" && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      select(view.idsShown(), picked);
+    }
   });
   // Double-click: pick the thing and fly close to it (the clicks before it picked it already).
   canvas.addEventListener("dblclick", (e) => {
     const p = view.pick(e.clientX, e.clientY);
     if (!p) return;
-    if (picked !== p.id) choose(p.id);
+    if (selection.includes(p.id)) setCurrent(p.id);
+    else choose(p.id);
     view.flyTo([p.id]);
   });
 
@@ -457,12 +661,14 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
   });
 
   const pendingSelect = source.select;
-  const selectEntry = (entry: number) => {
+  const selectEntry = (entry: number | number[]) => {
     // An instanced mesh's node is drawn as its copies: its first copy stands for it.
-    const own = `${source.sector}#${entry}`;
-    const id = !drawnAs.has(own) && drawnAs.has(`${own}.0`) ? `${own}.0` : own;
-    choose(id);
-    view.frame([id]);
+    const ids = (Array.isArray(entry) ? entry : [entry]).map((n) => {
+      const own = `${source.sector}#${n}`;
+      return !drawnAs.has(own) && drawnAs.has(`${own}.0`) ? `${own}.0` : own;
+    });
+    select(ids, ids[0]);
+    view.frame(ids);
   };
 
   void load(false);
@@ -504,6 +710,7 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
           const prefix = `${m.sector.toLowerCase()}#`;
           for (const id of [...drawnAs.keys()]) if (id.toLowerCase().startsWith(prefix)) drawnAs.delete(id);
           for (const id of [...markerOf.keys()]) if (id.toLowerCase().startsWith(prefix)) markerOf.delete(id);
+          if (selection.some((id) => id.toLowerCase().startsWith(prefix))) select(selection.filter((id) => !id.toLowerCase().startsWith(prefix)), picked);
           if (shownReal?.toLowerCase().startsWith(prefix)) {
             shownReal = null;
             for (const x of realMade) x.dispose();
@@ -540,6 +747,7 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
     selectEntry,
     dispose() {
       clearInterval(statsTimer);
+      if (volumeTimer) clearTimeout(volumeTimer);
       renderToken++;
       for (const x of realMade) x.dispose();
       view.dispose();

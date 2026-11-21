@@ -172,6 +172,23 @@ body.mesh-mode #props { display: flex; flex-direction: column; overflow: hidden;
 .meshview .camerabar button.cam:active { border-color: var(--accent); color: var(--accent); }
 .meshview .camerahelp { font-size: 12px; padding: 4px 0; }
 .meshview .camerahelp[hidden] { display: none; }
+.sectorside { display: flex; flex-direction: column; }
+.sectorside .selhead { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; padding: 4px 6px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--vscode-editor-background); }
+.sectorside .selhead .selcount { flex-basis: 100%; font-weight: 500; }
+.sectorside .selhead button[hidden] { display: none; }
+.sectorside .selrows { overflow: auto; flex: 1; min-height: 0; }
+.sectorside .selrow { display: flex; gap: 6px; align-items: center; padding: 2px 6px; cursor: pointer; font-size: 12px; white-space: nowrap; border-left: 2px solid transparent; position: relative; }
+.sectorside .selrow:hover { background: var(--vscode-list-hoverBackground); }
+.sectorside .selrow.current { background: var(--vscode-list-activeSelectionBackground); color: var(--vscode-list-activeSelectionForeground, inherit); border-left-color: var(--accent); }
+.sectorside .selrow .selkind { flex: none; width: 4.5em; overflow: hidden; text-overflow: ellipsis; }
+.sectorside .selrow .selname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-family: var(--mono); }
+.sectorside .selrow .selentry { flex: none; }
+.sectorside .selrow .selacts { display: none; gap: 2px; position: absolute; right: 4px; top: 50%; transform: translateY(-50%); background: var(--vscode-list-hoverBackground); padding-left: 4px; }
+.sectorside .selrow:hover .selacts { display: inline-flex; }
+.sectorside .selrow .selacts button { font-size: 11px; padding: 0 4px; }
+.sectorside .selmore { padding: 4px 8px; font-size: 12px; }
+.sectorside .selhead[hidden], .sectorside .selempty[hidden] { display: none; }
+.sectorside .selempty { padding: 8px; font-size: 12px; white-space: normal; }
 .meshbody { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(120px, 1fr) 8px var(--side, minmax(180px, 24%)); }
 .meshsplitter { cursor: col-resize; position: relative; }
 .meshsplitter::after { content: ""; position: absolute; top: 0; bottom: 0; left: 3px; width: 2px; }

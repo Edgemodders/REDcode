@@ -382,6 +382,9 @@
         meshInfo: (mesh) => request("sectorMeshInfo", { mesh }),
         render: (mesh, appearance) => request("sectorRender", { mesh, appearance }),
         action: (action, mesh, appearance) => request("sectorAction", { action, mesh, appearance }),
+        // The selected list's actions for many things (docs/design/sector-selection.md).
+        addMeshes: (meshes) => request("sectorAction", { action: "addMeshes", meshes }),
+        copy: (text) => request("sectorAction", { action: "copy", text }),
         light: payload.light,
         onLight: (settings) => vscode.postMessage({ type: "light", settings }),
         sideWidth: payload.sideWidth,

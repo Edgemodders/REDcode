@@ -4,7 +4,7 @@ title: Selecting many things in the sector view
 
 # Selecting many things in the sector view
 
-Draft 0.1, 2026-11-21, for the owner. Nothing is built. A modder asked for volume selection: a 3D box, like a rubber band, that selects the things inside it. The sector view picks one thing at a time today, so this adds multi-select with it: a list of what is selected, where a click flies the camera to a thing and hover buttons give each thing's actions.
+Draft 0.2, 2026-11-21, agreed with the owner the same day (all four recommendations below), and built the same day; hand test pending. A modder asked for volume selection: a 3D box, like a rubber band, that selects the things inside it. The sector view picks one thing at a time today, so this adds multi-select with it: a list of what is selected, where a click flies the camera to a thing and hover buttons give each thing's actions.
 
 ## What there is today
 
@@ -70,6 +70,33 @@ Additive, so EDGEbuilder's sector view can use the same selection:
 ## Order
 
 Built in one piece once agreed, with a hand test in [testing](../testing.html). EDGEbuilder hears of the package's additions on [EDGEbuilder #8](https://github.com/Edgemodders/EDGEbuilder/issues/8).
+
+## As built (2026-11-21)
+
+Built the same day. What differs from the design above:
+
+- **The list is always there.** Shown only once something was selected, it narrowed the view, and the scene moved under the cursor: the next click at the same place landed on nothing and cleared the selection. Found in Chrome. Empty, it says how to select.
+- **The volume moves by a round handle** above its top, not by dragging its inside, so a click inside the volume still picks the thing there.
+- **The volume is the view's own** (`view.volume`, `packages/world-view/src/volume.ts`), not a helper the caller makes: it needs the camera's controls, which the view keeps to itself. It takes the pointer only while it is drawn or a handle is dragged.
+- **Ctrl+A** selects everything shown and does not also strafe left (A).
+
+Where it is:
+
+| Part | Where |
+|---|---|
+| The page half | `highlight(ids, current)`, `idsInRect`, `idsInBox`, `idsShown`, `onBoxSelect` and Shift+drag in `src/page.ts`; the volume in `src/volume.ts` |
+| REDcode | The selection, the list and its actions, Volume and Touching in `webview/sectorViewer.ts`; `addMeshes` and `copy` in `sectorAction` (`src/cr2wEditor.ts`); Add to Project takes several files and asks once (`src/extension.ts`); `openSector`'s `select` takes a list |
+
+Checked in Chrome over the real bridge, on `exterior_-22_7_0_0`:
+- **Picks:** a click, the same click again (it stays), Ctrl+click to add two and to take one out.
+- **The screen box:** Shift+drag over the middle took 4,376 things, or 4,404 with Touching. Ctrl+A took all 9,188 (8,986 copies and 202 markers), and Esc cleared them.
+- **The list:** a row click glided the camera 80 m to it. A row's buttons: Fly To, Tree, Mesh, EDGEmat, Add, ×. × took the row out. Isolate ghosted all but the 2 selected, and pressed again it showed all 8,986.
+- **The volume:**
+  - Drawn: 21 × 20 × 27 m, taking 2,919 things from 369 node entries, many of them instanced 96 times.
+  - Its +x face handle widened it by 11 m, and the round handle moved it 9.4 m, level.
+  - Touching took 8 more. Volume off removed the box and kept the selection; Esc while armed turned it off.
+
+Chrome drew 2 frames a second there, so how it feels is the hand test's.
 
 ## Not in this design
 

@@ -217,7 +217,7 @@ export function activate(context: vscode.ExtensionContext): REDcodeApi | undefin
     vscode.commands.registerCommand("redcode.openGameFileAsJson", () => withBridge(openGameFileAsJson)),
     vscode.commands.registerCommand("redcode.searchGameFiles", () => withBridge(searchGameFiles)),
     vscode.commands.registerCommand("redcode.openAssetAsJson", (node: AssetNode) => withBridge((b) => openAssetAsJson(b, node))),
-    vscode.commands.registerCommand("redcode.addToProject", (node: AssetNode, options?: { replace?: boolean }) => withBridge((b) => addToProject(b, node, options))),
+    vscode.commands.registerCommand("redcode.addToProject", (node: AssetNode, options?: { replace?: boolean; files?: GameFileInfo[] }) => withBridge((b) => addToProject(b, node, Array.isArray(options) ? {} : options))),
     vscode.commands.registerCommand("redcode.extractTo", (node: AssetNode) => withBridge((b) => extractTo(b, node))),
     vscode.commands.registerCommand("redcode.addToLibrary", (node: AssetNode | ProjectNode) => withBridge((b) => addNodeToLibrary(b, node, context))),
     libraryChanged,
@@ -308,7 +308,7 @@ export function activate(context: vscode.ExtensionContext): REDcodeApi | undefin
     revealInProject,
     openModel: (file: string, options?: { title?: string }) => openModelInView(file, options),
     closeModel: (fileOrFolder: string) => (typeof fileOrFolder === "string" && fileOrFolder ? meshViewer.closeModel(fileOrFolder) : 0),
-    openSector: (target: string, options?: { select?: number }) => openSectorInEditor(target, options),
+    openSector: (target: string, options?: { select?: number | number[] }) => openSectorInEditor(target, options),
   });
 }
 
@@ -969,11 +969,14 @@ async function openModelInView(file: string, options?: { title?: string }): Prom
 }
 
 /** REDcodeApi.openSector: a .streamingsector in the 3D sector view, at a node data entry when given. */
-async function openSectorInEditor(target: string, options?: { select?: number }): Promise<void> {
+async function openSectorInEditor(target: string, options?: { select?: number | number[] }): Promise<void> {
   const uri = /^[a-z][\w+.-]+:/i.test(target) ? vscode.Uri.parse(target) : path.isAbsolute(target) ? vscode.Uri.file(target) : gameUri(target);
   if (!/\.streamingsector$/i.test(uri.path)) throw new Error(`openSector takes a .streamingsector, not ${target}`);
   const select = options?.select;
-  if (select !== undefined && (!Number.isInteger(select) || select < 0)) throw new Error(`openSector's select takes a node data entry (0 or more), not ${select}`);
+  // One entry, or a list of them (docs/design/sector-selection.md).
+  const entries = select === undefined ? [] : Array.isArray(select) ? select : [select];
+  for (const e of entries) if (!Number.isInteger(e) || e < 0) throw new Error(`openSector's select takes node data entries (0 or more), not ${e}`);
+  if (Array.isArray(select) && !select.length) throw new Error("openSector's select takes at least one node data entry");
   if (select !== undefined) cr2wEditor.showSectorEntry(uri, select);
   await vscode.commands.executeCommand("vscode.openWith", uri, cr2wViewTypeFor(uri.path));
 }
@@ -2257,9 +2260,10 @@ async function filesOf(b: BridgeClient, node: AssetNode, title: string): Promise
   );
 }
 
-async function addToProject(b: BridgeClient, node: AssetNode, options: { replace?: boolean } = {}): Promise<void> {
+async function addToProject(b: BridgeClient, node: AssetNode, options: { replace?: boolean; files?: GameFileInfo[] } = {}): Promise<void> {
   const p = requireProject();
-  const files = await filesOf(b, node, "Add to project");
+  // files: several game files at once (the sector view's Add Meshes to Project), asked about together.
+  const files = options.files?.length ? options.files : await filesOf(b, node, "Add to project");
   if (node.kind === "folder" && files.length > 200) {
     const ok = await vscode.window.showWarningMessage(`Add ${files.length.toLocaleString()} files from ${node.path} to ${p.name}?`, { modal: true }, "Add");
     if (ok !== "Add") {

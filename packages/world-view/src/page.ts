@@ -8,8 +8,10 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { createStage, type LightSettings, type Stage } from "./stage";
+import { createVolume, type Volume } from "./volume";
 
 export type { LightSettings } from "./stage";
+export type { Volume } from "./volume";
 
 /** As the host half sends them. */
 export interface PagePlacement {
@@ -76,7 +78,21 @@ export interface WorldView {
   /** A mesh's appearances, for colouring by material: each placement's parts by the materials its appearance names. */
   setMaterials(mesh: string, appearances: PageAppearance[]): void;
   setHidden(ids: string[], how: "hidden" | "ghost" | "shown"): void;
-  highlight(ids: string[]): void;
+  /** Draws these in the selection colour; with current, that one in it and the rest paler. */
+  highlight(ids: string[], current?: string | null): void;
+  /**
+   * What a box on the screen takes (client coordinates): each shown thing whose middle is inside it, at any
+   * depth, or with touching, whose box reaches into it. Hidden things are left out; ghosted ones are in.
+   */
+  idsInRect(x0: number, y0: number, x1: number, y1: number, options?: { touching?: boolean }): string[];
+  /** What a box in the world takes: each shown thing whose middle is in it, or with touching, whose box touches it. */
+  idsInBox(box: THREE.Box3, options?: { touching?: boolean }): string[];
+  /** Every shown thing, for a Select All. */
+  idsShown(): string[];
+  /** Shift+drag on the canvas draws a box on the screen; this hears it when the button comes up (with the event, for Ctrl). */
+  onBoxSelect(cb: (rect: { x0: number; y0: number; x1: number; y1: number }, event: PointerEvent) => void): () => void;
+  /** The volume tool: a box in the world to select with. */
+  readonly volume: Volume;
   pick(x: number, y: number): Picked | null;
   onPick(cb: (picked: Picked | null, event: PointerEvent) => void): () => void;
   onPointer(cb: (type: "down" | "move" | "up", event: PointerEvent, id: string | null) => void): () => void;
@@ -167,6 +183,8 @@ export function createWorldView(canvas: HTMLCanvasElement, options: WorldViewOpt
   controls.zoomToCursor = true;
   const stage = createStage(renderer, scene, options.light);
   const accent = new THREE.Color(options.accent ?? 0x19f3ff);
+  /** The rest of a selection, beside its current one. */
+  const paleAccent = accent.clone().lerp(new THREE.Color(1, 1, 1), 0.55);
   const white = new THREE.Color(1, 1, 1);
   const loader = new GLTFLoader();
 
@@ -179,6 +197,8 @@ export function createWorldView(canvas: HTMLCanvasElement, options: WorldViewOpt
   const hidden = new Set<string>();
   const ghosted = new Set<string>();
   let highlighted = new Set<string>();
+  let current: string | null = null;
+  const highlightColour = (id: string) => (current === null || id === current ? accent : paleAccent);
   const materials = new Map<string, THREE.MeshStandardMaterial>();
   let markerMeshes: THREE.InstancedMesh[] = [];
   let markerSlots: string[][] = [];
@@ -199,7 +219,7 @@ export function createWorldView(canvas: HTMLCanvasElement, options: WorldViewOpt
   const materialColours = new Map<string, THREE.Color>();
   /** A copy's colour for one part: the selection's, or (by material) its material's, or white over the mesh's colour. */
   const copyColour = (record: MeshRecord, part: MeshRecord["parts"][number], placement: PagePlacement) => {
-    if (highlighted.has(placement.id)) return accent;
+    if (highlighted.has(placement.id)) return highlightColour(placement.id);
     if (!byMaterial(record)) return white;
     const m = record.materials!;
     const names = (placement.appearance && m.byName.get(placement.appearance.toLowerCase())) || m.first;
@@ -276,7 +296,7 @@ export function createWorldView(canvas: HTMLCanvasElement, options: WorldViewOpt
         const size = r.box.getSize(new THREE.Vector3()).max(new THREE.Vector3(0.05, 0.05, 0.05));
         m.compose(r.box.getCenter(new THREE.Vector3()), new THREE.Quaternion(), size);
         im.setMatrixAt(slot, m);
-        im.setColorAt(slot, highlighted.has(r.marker.id) ? accent : white);
+        im.setColorAt(slot, highlighted.has(r.marker.id) ? highlightColour(r.marker.id) : white);
       });
       im.frustumCulled = false;
       world.add(im);
@@ -407,6 +427,82 @@ export function createWorldView(canvas: HTMLCanvasElement, options: WorldViewOpt
   canvas.addEventListener("pointerup", onUp);
   canvas.addEventListener("lostpointercapture", onLost);
 
+  /** Every placement and marker that shows, with its world box: what a selection box can take. */
+  const shownBoxes = (): [string, THREE.Box3][] => {
+    const out: [string, THREE.Box3][] = [];
+    const c = new THREE.Vector3();
+    const inRange = (b: THREE.Box3, range?: number) => opts.culling !== "streaming" || range === undefined || range === null || b.getCenter(c).distanceTo(camera.position) <= range;
+    for (const r of records.values()) {
+      r.placements.forEach((p, i) => {
+        if (!hidden.has(p.id) && inRange(r.boxes[i], p.range)) out.push([p.id, r.boxes[i]]);
+      });
+    }
+    if (opts.markers !== false) for (const [id, m] of markers) if (!hidden.has(id) && inRange(m.box, m.marker.range)) out.push([id, m.box]);
+    return out;
+  };
+
+  // ---- Shift+drag: a box on the screen, as in EDGEbuilder's viewport (it takes Shift's pan from the left button) ----
+  const boxListeners = new Set<(rect: { x0: number; y0: number; x1: number; y1: number }, e: PointerEvent) => void>();
+  let boxing: { pointer: number; x0: number; y0: number; x: number; y: number; el: HTMLDivElement } | null = null;
+  const drawBox = () => {
+    if (!boxing) return;
+    const st = boxing.el.style;
+    st.left = `${Math.min(boxing.x0, boxing.x)}px`;
+    st.top = `${Math.min(boxing.y0, boxing.y)}px`;
+    st.width = `${Math.abs(boxing.x - boxing.x0)}px`;
+    st.height = `${Math.abs(boxing.y - boxing.y0)}px`;
+  };
+  const onBoxDown = (e: PointerEvent) => {
+    if (e.button !== 0 || !e.shiftKey || !boxListeners.size || volume.drawing) return;
+    e.stopImmediatePropagation();
+    e.preventDefault();
+    const div = document.createElement("div");
+    const hex = accent.getHexString();
+    div.style.cssText = `position:fixed;pointer-events:none;z-index:10;border:1px solid #${hex};background:#${hex}22`;
+    document.body.appendChild(div);
+    boxing = { pointer: e.pointerId, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, el: div };
+    drawBox();
+    try {
+      canvas.setPointerCapture(e.pointerId);
+    } catch {
+      // No such pointer (a scripted event).
+    }
+  };
+  const onBoxMove = (e: PointerEvent) => {
+    if (!boxing || e.pointerId !== boxing.pointer) return;
+    boxing.x = e.clientX;
+    boxing.y = e.clientY;
+    drawBox();
+  };
+  const onBoxUp = (e: PointerEvent) => {
+    if (!boxing || e.pointerId !== boxing.pointer) return;
+    e.stopImmediatePropagation();
+    const b = boxing;
+    boxing = null;
+    b.el.remove();
+    const rect = { x0: b.x0, y0: b.y0, x1: e.clientX, y1: e.clientY };
+    if (Math.hypot(rect.x1 - rect.x0, rect.y1 - rect.y0) < 4) {
+      // A Shift+click: a pick, as a click is.
+      const p = pick(e.clientX, e.clientY);
+      for (const l of pickListeners) l(p, e);
+      return;
+    }
+    for (const l of boxListeners) l(rect, e);
+  };
+  canvas.addEventListener("pointerdown", onBoxDown, { capture: true });
+  canvas.addEventListener("pointermove", onBoxMove, { capture: true });
+  canvas.addEventListener("pointerup", onBoxUp, { capture: true });
+
+  const volume = createVolume({
+    canvas,
+    scene,
+    camera,
+    accent,
+    rayFrom,
+    pointAt: (x, y) => pick(x, y)?.point ?? null,
+    target: () => controls.target.clone(),
+  });
+
   /** Turns the camera where it stands: what it orbits moves round it. */
   const look = (dx: number, dy: number) => {
     const offset = controls.target.clone().sub(camera.position);
@@ -422,6 +518,8 @@ export function createWorldView(canvas: HTMLCanvasElement, options: WorldViewOpt
   const onKey = (e: KeyboardEvent) => {
     const k = e.key.toLowerCase();
     if (!(k in KeyMoves) && k !== "shift" && k !== "control") return;
+    // Ctrl+A is a Select All for the caller, not a slow strafe.
+    if (k === "a" && (e.ctrlKey || e.metaKey) && e.type === "keydown") return;
     if (e.type === "keydown") {
       keys.add(k);
       if (k in KeyMoves) glide = null;
@@ -710,10 +808,53 @@ export function createWorldView(canvas: HTMLCanvasElement, options: WorldViewOpt
       redrawAll();
       drawGhosts();
     },
-    highlight(ids) {
+    highlight(ids, now) {
       highlighted = new Set(ids);
+      current = now && highlighted.has(now) && highlighted.size > 1 ? now : null;
       redrawAll();
     },
+    idsInRect(x0, y0, x1, y1, o) {
+      const r = canvas.getBoundingClientRect();
+      const toNdc = (x: number, y: number) => [((x - r.left) / r.width) * 2 - 1, -(((y - r.top) / r.height) * 2 - 1)];
+      const [ax, ay] = toNdc(Math.min(x0, x1), Math.max(y0, y1));
+      const [bx, by] = toNdc(Math.max(x0, x1), Math.min(y0, y1));
+      const v = new THREE.Vector3();
+      const inFront = (q: THREE.Vector3) => q.z > -1 && q.z < 1;
+      const takes = (b: THREE.Box3) => {
+        b.getCenter(v).project(camera);
+        if (inFront(v) && v.x >= ax && v.x <= bx && v.y >= ay && v.y <= by) return true;
+        if (!o?.touching) return false;
+        // The box's corners on the screen: with any of them behind the camera, only the middle counts.
+        let minX = Infinity;
+        let minY = Infinity;
+        let maxX = -Infinity;
+        let maxY = -Infinity;
+        for (let i = 0; i < 8; i++) {
+          v.set(i & 1 ? b.max.x : b.min.x, i & 2 ? b.max.y : b.min.y, i & 4 ? b.max.z : b.min.z).project(camera);
+          if (!inFront(v)) return false;
+          minX = Math.min(minX, v.x);
+          maxX = Math.max(maxX, v.x);
+          minY = Math.min(minY, v.y);
+          maxY = Math.max(maxY, v.y);
+        }
+        return maxX >= ax && minX <= bx && maxY >= ay && minY <= by;
+      };
+      return shownBoxes().filter(([, b]) => takes(b)).map(([id]) => id);
+    },
+    idsInBox(box, o) {
+      const c = new THREE.Vector3();
+      return shownBoxes()
+        .filter(([, b]) => (o?.touching ? box.intersectsBox(b) : box.containsPoint(b.getCenter(c))))
+        .map(([id]) => id);
+    },
+    idsShown() {
+      return shownBoxes().map(([id]) => id);
+    },
+    onBoxSelect(cb) {
+      boxListeners.add(cb);
+      return () => boxListeners.delete(cb);
+    },
+    volume,
     pick,
     onPick(cb) {
       pickListeners.add(cb);
@@ -786,6 +927,11 @@ export function createWorldView(canvas: HTMLCanvasElement, options: WorldViewOpt
       canvas.removeEventListener("keyup", onKey);
       canvas.removeEventListener("blur", onBlur);
       canvas.removeEventListener("wheel", onWheel);
+      canvas.removeEventListener("pointerdown", onBoxDown, { capture: true });
+      canvas.removeEventListener("pointermove", onBoxMove, { capture: true });
+      canvas.removeEventListener("pointerup", onBoxUp, { capture: true });
+      boxing?.el.remove();
+      volume.dispose();
       for (const r of records.values()) {
         for (const d of r.drawn) d.dispose();
         for (const p of r.parts) p.geometry.dispose();

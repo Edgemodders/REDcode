@@ -154,10 +154,11 @@ export interface REDcodeApi {
   closeModel(fileOrFolder: string): number;
   /**
    * Opens a .streamingsector in REDcode's 3D sector view, read-only, with the tree one click away. path is
-   * what openFile takes. With options.select, a node data entry (the <entry> in "<sector>#<entry>") is picked
+   * what openFile takes. With options.select, a node data entry (the <entry> in "<sector>#<entry>"), or a list of
+   * them (unreleased, docs/design/sector-selection.md), is picked
    * and framed. Since 0.10.15 (docs/design/sector-view.md): check that the member is there before calling it.
    */
-  openSector(path: string, options?: { select?: number }): Promise<void>;
+  openSector(path: string, options?: { select?: number | number[] }): Promise<void>;
 }
 
 /** What importFile answers. */
@@ -188,7 +189,7 @@ export interface ApiHost {
   revealInProject(file: string): Promise<boolean>;
   openModel(file: string, options?: { title?: string }): Promise<void>;
   closeModel(fileOrFolder: string): number;
-  openSector(path: string, options?: { select?: number }): Promise<void>;
+  openSector(path: string, options?: { select?: number | number[] }): Promise<void>;
 }
 
 /** What REDcodeApi.openAnimation plays an animation on (since 0.10.12). */

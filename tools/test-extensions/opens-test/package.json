@@ -19,6 +19,7 @@
       { "command": "openstest.openAnimationNotAnims", "title": "Opens Test: Open an Animation from a File That Is Not One" },
       { "command": "openstest.revealInProject", "title": "Opens Test: Reveal in Project" },
       { "command": "openstest.openSector", "title": "Opens Test: Open a Sector at Entry 780" },
+      { "command": "openstest.openSectorMany", "title": "Opens Test: Open a Sector at Entries 780, 692 and 443" },
       { "command": "openstest.readKey", "title": "Opens Test: Read a Key" }
     ]
   },

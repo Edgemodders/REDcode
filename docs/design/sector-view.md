@@ -147,7 +147,7 @@ The owner asked after the M1 hand test: buttons for zooming, panning, strafing a
 |---|---|
 | Left drag | Orbit, as before |
 | Right drag | Look round where the camera stands; **W A S D** fly and **Q E** go down and up while it is held (they work without it too, once the view has the keys) |
-| Middle drag, or Shift or Ctrl with the left | Pan |
+| Middle drag, or Ctrl with the left | Pan (Shift with the left drew a pan too until [selection](sector-selection.html) took Shift+drag for its box, the same day) |
 | Wheel | Closer, towards the cursor (`zoomToCursor`); with the right button held, the fly speed |
 | Shift, Ctrl | Faster (×4), slower (×0.25), with the keys and the buttons |
 | **F** | Frame the picked thing, gliding there |

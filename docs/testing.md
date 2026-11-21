@@ -42,6 +42,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Sector view](#sector-view) | By hand | C5 | 2026-11-20 | Pass (owner), with two fixes and five changes, each retested |
 | [Sector materials (M1)](#sector-materials-m1) | By hand | C5 | 2026-11-21 | Pass (owner), all 10 steps, with one fix (retest pending) |
 | [Sector camera](#sector-camera) | By hand | C5 | 2026-11-21 | Not run (checked in Chrome over the real bridge) |
+| [Sector selection](#sector-selection) | By hand | C5 | 2026-11-21 | Not run (checked in Chrome over the real bridge) |
 | [Library view (#23)](#library-view-23) | By hand | Requests | 2026-11-15 | Pass, two fixes |
 | [Run Game without ELECTRON_RUN_AS_NODE (#24)](#run-game-without-electron_run_as_node-24) | By hand, in the game | Requests | 2026-11-20 | Pass |
 | [New File](#new-file) | By hand | Requests | 2026-11-20 | Pass, steps 1 to 13, four fixes |
@@ -911,13 +912,32 @@ Built 2026-11-21 ([design](design/sector-view.html#part-3-the-camera-2026-11-21)
 | 2 | Hold each button of Zoom, Move, Pan, Height and Orbit, then let go | The camera moves while the button is held and stops when it is let go: Forward and Back along the view, the arrows strafe level, Up and Down straight up and down, Zoom closer and further, Orbit round the middle. With Shift held as you press, faster; with Ctrl, slower |
 | 3 | Speed + twice, then hold Forward | ×1.6, and faster flying |
 | 4 | Right-drag in the view, and press W, A, S, D, Q, E while holding it; turn the wheel while holding it | The view turns where the camera stands, flies with the keys, and Speed follows the wheel |
-| 5 | Middle-drag, and Shift with a left drag | The view pans |
+| 5 | Middle-drag, and Ctrl with a left drag | The view pans |
 | 6 | The wheel over a building at the edge of the view | The camera goes towards that building, not the middle |
 | 7 | Double-click a small thing, such as the cardboard on the street | It is picked and the camera glides close to it |
 | 8 | **F**, then **Top**, then **Reset**; **Frame** | F frames the picked thing; Top looks down on it from above; Reset goes back to the view the sector opened with; Frame glides to the picked thing |
 | 9 | A right click on a thing, without dragging | The pick does not change |
 | 10 | **?** | A line names the mouse and keys; **?** again hides it |
 
+
+## Sector selection
+
+Built 2026-11-21 ([design](design/sector-selection.html#as-built-2026-11-21)): Ctrl+click, Shift+drag, Volume and Touching, Ctrl+A and Esc, the selected list with its rows' buttons, Isolate, Add Meshes to Project, Copy, and `openSector` with a list. Checked in Chrome over the real bridge (the design page has what); the feel, Add Meshes to Project and Copy are this test's.
+
+| # | Do | Expected |
+|---|---|---|
+| 1 | F5 with **Run REDcode with Opens Test (no other extensions)**, a project open. Open `exterior_-22_7_0_0.streamingsector` | A list on the right of the view: "Nothing selected", with how to select |
+| 2 | Click a thing, then Ctrl+click two more, then Ctrl+click one of them again | One row, then three, then two. The last added is the current one, in the accent colour, the others paler; the line under the view and the Properties view follow the current one |
+| 3 | Click a row; hover a row | The camera glides to it and it becomes the current one. The hover shows **Fly To**, **Tree**, **Mesh**, **EDGEmat**, **Add** and **×**; each does what its name says (× takes it out of the selection) |
+| 4 | Shift+drag a box over part of the view | Everything whose middle is in the box is selected and listed, sorted by mesh; with Ctrl held as well, added to what was selected |
+| 5 | **Touching** on, the same box again | A few more: long things whose box reaches in |
+| 6 | **Volume**, then drag on the street, move the mouse up, and click | The hint says what to do; a see-through box grows on the street, then upwards; after the click it keeps a handle on each face and a round one above, and what is inside is selected |
+| 7 | Drag a face handle, then the round handle | The box resizes and moves level, and the selection follows. A click inside the box still picks the thing there |
+| 8 | **Isolate**, then **Isolate** again | Everything else goes ghostly, then comes back |
+| 9 | **Add Meshes to Project** | One question naming how many meshes; **Add Them** adds each mesh once (and asks once if some are already in the project) |
+| 10 | **Copy**, then paste into a text file | One line per thing: its id and its mesh |
+| 11 | Ctrl+A, then Esc; **Volume** and Esc before drawing | All shown things are selected, then none; Volume turns off |
+| 12 | **Opens Test: Open a Sector at Entries 780, 692 and 443** | The sector opens with those three entries selected (780 current) and framed |
 ## No Red Hot Tools
 
 Built 2026-11-07, after REDcode 0.10.7: Red Hot Tools has no build for game 2.5, so REDcode drops its hot folder. Pack and Play swaps through REDnode (REDswap) or installs for the next start, and **Install to the Hot Folder** is gone. F5 with **Run REDcode**. Checked before: type check, build, `npm test` (39, one new for the install notice).

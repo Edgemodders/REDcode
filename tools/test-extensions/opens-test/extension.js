@@ -57,6 +57,19 @@ exports.activate = (context) => {
       }
       await api.openSector("base\\worlds\\03_night_city\\_compiled\\default\\exterior_-22_7_0_0.streamingsector", { select: 780 });
     }),
+    vscode.commands.registerCommand("openstest.openSectorMany", async () => {
+      // Sector selection (docs/design/sector-selection.md): several entries selected at once, the first current.
+      const api = await redcode();
+      if (typeof api?.openSector !== "function") {
+        void vscode.window.showWarningMessage("This REDcode has no openSector.");
+        return;
+      }
+      try {
+        await api.openSector("base\\worlds\\03_night_city\\_compiled\\default\\exterior_-22_7_0_0.streamingsector", { select: [780, 692, 443] });
+      } catch (e) {
+        void vscode.window.showErrorMessage(`Opens Test: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    }),
     vscode.commands.registerCommand("openstest.openAnimationSet", async () => {
       // A3 (REDcode 0.10.15): the soldiers' landing as a synced set, the AV and soldier_02 with it, soldier_02 on the paramedic.
       const api = await redcode();
