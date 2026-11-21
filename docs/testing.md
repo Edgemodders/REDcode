@@ -35,7 +35,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Animations A2 (#21)](#animations-a2) | By hand | Requests | 2026-11-15 | Pass, three fixes |
 | [Animations A3 (#21)](#animations-a3) | By hand | Requests | 2026-11-20 | Pass (owner, REDbridge 0.17.0), with three fixes |
 | [Edit in Blender: skinned meshes](#edit-in-blender-skinned-meshes) | By hand | | | Given to the owner 2026-11-20 |
-| [Replace with a WAV, titled models (#29), every window's project (#32)](#replace-with-a-wav-titled-models-29-and-every-windows-project-32) | By hand, in the game | Requests | | Given to the owner 2026-11-20 |
+| [Replace with a WAV, titled models (#29), every window's project (#32)](#replace-with-a-wav-titled-models-29-and-every-windows-project-32) | By hand, in the game | Requests | 2026-11-20 | Pass (owner), with two fixes |
 | [Sector view](#sector-view) | By hand | C5 | | Given to the owner 2026-11-20 |
 | [Library view (#23)](#library-view-23) | By hand | Requests | 2026-11-15 | Pass, two fixes |
 | [Run Game without ELECTRON_RUN_AS_NODE (#24)](#run-game-without-electron_run_as_node-24) | By hand, in the game | Requests | 2026-11-20 | Pass |
@@ -752,6 +752,8 @@ Built 2026-11-20 after 0.10.14, three small items. Checked before:
 | 10 | **REDcode: New Project** in a folder VS Code has not seen | Before it opens, a message says to trust the folder if VS Code asks. **Open Project** opens it; **Open, and Don't Say This Again** stops the message |
 | 11 | Two windows of the development build, each with a REDcode project: in the F5 window, **File > New Window** (Ctrl+Shift+N) opens a second window that runs the same build; a normal VS Code window runs the store REDcode, whose older REDnode package lacks `projects`. Start the game with REDnode, MCP server on. Ask Claude to call `redcode__projects` | Both projects, the window focused last first, each with `focusedAt`. `redcode__project` answers the one focused last |
 | 12 | Focus the other window, call `redcode__projects` again; then close one window and call it within 5 seconds | The order follows the focus; the closed window's project drops out |
+
+Result 2026-11-20, reported by the owner: steps 1 to 12 pass. Step 4 in the game: `cmn_generic_work_inhaler` picks one of four sounds, so replacing one was heard one time in four; with all four replaced the game played the WAV (Replace All is next, from this). Fixes it raised: **Replace…** shows without a project and offers New Project or Open Folder (steps 1 and 5); and an older REDcode in another window no longer puts its older REDnode package back over a newer one (found in step 11: the store 0.10.14 put 0.1.0 back over 0.2.0; a New Window from the F5 window is a normal window with the store REDcode, so steps 11 and 12 ran with today's build installed from a vsix).
 
 ## Sector view
 
