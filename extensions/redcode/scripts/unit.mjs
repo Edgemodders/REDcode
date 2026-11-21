@@ -604,6 +604,31 @@ await check("run game: the exe starts without ELECTRON_RUN_AS_NODE, everything e
   assert.equal(exe.kind, "exe", "a GOG install takes the exe route");
 });
 
+await check("pack and play: archives REDnode swapped into the game are the project's for the next install", () => {
+  const inst = require("../dist/install.js");
+  const dir = path.join(tmp, "swapproj");
+  const game = path.join(tmp, "swapgame");
+  const project = { file: path.join(dir, "Swap.cpmodproj"), dir, name: "Swap", modName: "Swap" };
+  const packedArchive = path.join(dir, "packed", "archive", "pc", "mod", "Swap.archive");
+  fs.mkdirSync(path.dirname(packedArchive), { recursive: true });
+  fs.writeFileSync(packedArchive, "new");
+  fs.mkdirSync(path.join(dir, "packed", "r6", "tweaks"), { recursive: true });
+  fs.writeFileSync(path.join(dir, "packed", "r6", "tweaks", "swap.yaml"), "x");
+  // REDnode copied the archive into the game; nothing recorded yet, so it looks like someone else's.
+  fs.mkdirSync(path.join(game, "archive", "pc", "mod"), { recursive: true });
+  fs.writeFileSync(path.join(game, "archive", "pc", "mod", "Swap.archive"), "new");
+  assert.deepEqual(inst.planInstall(project, game).foreign, ["archive/pc/mod/Swap.archive"]);
+  // REDnode reports the packed path, with whatever case the drive letter has.
+  const reported = packedArchive.replace(/^[A-Z]:/, (d) => d.toLowerCase());
+  assert.deepEqual(inst.recordSwapped(project, game, [reported, path.join(tmp, "elsewhere.archive")]), ["archive/pc/mod/Swap.archive"]);
+  assert.deepEqual(inst.planInstall(project, game).foreign, []);
+  assert.deepEqual(inst.recordSwapped(project, game, [packedArchive]), [], "a second swap adds nothing");
+  // An install then takes it out and puts the new one in, with nothing backed up.
+  const record = inst.installDirect(project, game, () => undefined);
+  assert.deepEqual(record.backedUp, []);
+  assert.deepEqual(inst.recordSwapped(project, path.join(tmp, "othergame"), [packedArchive]), [], "another game folder's record is left alone");
+});
+
 // ---- New File (docs/design/new-file.md) ----
 
 const nf = require("../dist/newFile.js");

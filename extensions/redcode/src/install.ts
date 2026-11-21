@@ -76,6 +76,35 @@ export function installDirect(project: ProjectInfo, gamePath: string, log: (line
   return record;
 }
 
+/**
+ * After Pack and Play swapped archives into the running game through REDnode (which copies each one from
+ * packed to the same path in the game), records them as REDcode's, so the next Pack and Install or
+ * Uninstall treats them as the project's own rather than as files from something else (found
+ * 2026-11-20: Pack and Install after Pack and Play asked to back up the project's own archive).
+ * swapped: full paths under the project's packed folder, as REDnode reports them. Answers the
+ * game-relative paths added to the record.
+ */
+export function recordSwapped(project: ProjectInfo, gamePath: string, swapped: string[]): string[] {
+  const packed = path.join(project.dir, ProjectFolders.packed);
+  const rels = swapped
+    .map((f) => path.relative(packed, path.resolve(f)))
+    .filter((r) => r && !r.startsWith("..") && !path.isAbsolute(r))
+    .map((r) => r.split(path.sep).join("/"))
+    .filter((r) => fs.existsSync(toGame(gamePath, r)));
+  if (rels.length === 0) return [];
+  const previous = readRecord(project);
+  // A record for another game folder is left alone: those files are not these.
+  if (previous && !samePath(previous.gamePath, gamePath)) return [];
+  const files = previous?.files ?? [];
+  const known = new Set(files.map((f) => f.toLowerCase()));
+  const added = rels.filter((r) => !known.has(r.toLowerCase()));
+  if (added.length === 0) return [];
+  const record: InstallRecord = { version: 1, gamePath, time: new Date().toISOString(), files: [...files, ...added], backedUp: previous?.backedUp ?? [] };
+  fs.mkdirSync(path.dirname(recordFile(project)), { recursive: true });
+  fs.writeFileSync(recordFile(project), JSON.stringify(record, null, 2));
+  return added;
+}
+
 /** Removes what the last install copied and puts backed-up files back. keepBackups: a reinstall is about to reuse them. */
 export function uninstallDirect(project: ProjectInfo, log: (line: string) => void, reinstalling = false): number {
   const record = readRecord(project);

@@ -30,7 +30,7 @@ import {
 import { Cr2wEditorProvider, Cr2wPropertiesView, Cr2wViewType, cr2wViewTypeFor, opensInCr2wEditor } from "./cr2wEditor";
 import { GameFileSystem, gameUri } from "./gameFs";
 import { compareJson, formatDifference, type JsonComparison } from "./jsonDiff";
-import { gameEnv, installDirect, launchTarget, planInstall, readRecord, uninstallDirect, uninstallHot } from "./install";
+import { gameEnv, installDirect, launchTarget, planInstall, readRecord, recordSwapped, uninstallDirect, uninstallHot } from "./install";
 import { callArchivesReload, installedNote, looseNote, looseNotInGame, readRednodeMcp, summarize, type ReloadResult } from "./hotSwap";
 import { isSoundWav, sourceFolderOf, targetsUnder } from "./modkit";
 import { compileFilter } from "./treeFilter";
@@ -765,6 +765,15 @@ async function packAndPlayCommand(): Promise<"rednode" | "installed" | undefined
       const summary = summarize(a);
       // A swap carries archives only: tweaks, scripts and the rest reach the game through an install.
       const gamePath = vscode.workspace.getConfiguration("redcode").get<string>("gamePath", "");
+      // REDnode copied the swapped archives into the game: they are the project's, for the next install.
+      if (a.reloaded.length > 0 && gamePath) {
+        try {
+          const added = recordSwapped(p, gamePath, a.reloaded);
+          if (added.length > 0) log.appendLine(`Pack and Play: recorded ${added.join(", ")} as the project's, for the next install or uninstall`);
+        } catch (e) {
+          log.appendLine(`Pack and Play: could not record the swapped files: ${(e as Error).message}`);
+        }
+      }
       const loose = a.reloaded.length > 0 && gamePath ? looseNotInGame(path.join(p.dir, ProjectFolders.packed), gamePath) : [];
       if (loose.length > 0) {
         log.appendLine(`Pack and Play: not in the game, and not carried by the swap: ${loose.join(", ")}`);
