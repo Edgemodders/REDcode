@@ -271,6 +271,8 @@
   // the bytes; the bundled viewer (media/mesh/viewer.js) draws them. Unsaved edits show after a save.
   let meshView = null;
   let meshShown = false;
+  /** The 3D view being built, so a render while it is under way waits for it rather than starting another. */
+  let meshMounting = null;
 
   function disposeMesh() {
     meshView?.dispose();
@@ -278,8 +280,23 @@
     meshShown = false;
   }
 
+  /**
+   * Runs build once at a time. Found 2026-11-20 in the sector view: two renders close together (the
+   * document sent twice) each mounted a view, the second reused the host's loader of the first, which
+   * then had nothing left to send, so the sector showed its markers and no meshes.
+   */
+  function mountOnce(build) {
+    if (meshShown) return Promise.resolve();
+    if (!meshMounting) meshMounting = build().finally(() => { meshMounting = null; });
+    return meshMounting;
+  }
+
   /** Mounts the 3D view once; an undo or an edit keeps it (and its camera), a save or revert builds it again. */
-  async function renderMesh() {
+  function renderMesh() {
+    return mountOnce(buildMesh);
+  }
+
+  async function buildMesh() {
     if (meshShown) return;
     const grid = $("grid");
     disposeMesh();
@@ -312,7 +329,11 @@
   // exports each mesh once and streams them over; a click on a thing selects its node data entry.
   let pendingSectorEntry = null;
 
-  async function renderSector() {
+  function renderSector() {
+    return mountOnce(buildSector);
+  }
+
+  async function buildSector() {
     if (meshShown) return;
     const grid = $("grid");
     disposeMesh();
@@ -354,7 +375,11 @@
   /** With pendingAnimation: play its synced set too (REDcodeApi.openAnimation's set). */
   let pendingPlaySet = false;
 
-  async function renderAnims() {
+  function renderAnims() {
+    return mountOnce(buildAnims);
+  }
+
+  async function buildAnims() {
     if (meshShown) return;
     const grid = $("grid");
     disposeMesh();

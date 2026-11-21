@@ -234,6 +234,8 @@ async function exportMesh(bridge: Bridge, cacheDir: string, mesh: string, from?:
 export function createSectorLoader(bridge: Bridge, options: LoaderOptions): SectorLoader {
   /** The sectors handed to the page, by path in lower case. */
   const loaded = new Map<string, SectorRef>();
+  /** Of those, the ones whose every mesh was sent: a set cut short by a newer one leaves its sectors out. */
+  const complete = new Set<string>();
   /** Each mesh's export, shared by every sector that draws it. */
   const exports = new Map<string, Promise<string>>();
   let generation = 0;
@@ -263,13 +265,19 @@ export function createSectorLoader(bridge: Bridge, options: LoaderOptions): Sect
         if (!wanted.has(key)) {
           options.onUnload(loaded.get(key)!.path);
           loaded.delete(key);
+          complete.delete(key);
         }
       }
       const skipped: { id: string; why: string }[] = [];
       // Every new sector's items first, so the page shows its cached meshes and markers at once.
       const queue: { sector: SectorRef; mesh: string; placements: Placement[] }[] = [];
       for (const [key, ref] of wanted) {
-        if (loaded.has(key)) continue;
+        if (loaded.has(key) && complete.has(key)) continue;
+        // Read but not finished: taken out and read again, so the page gets all of it.
+        if (loaded.has(key)) {
+          options.onUnload(ref.path);
+          loaded.delete(key);
+        }
         let items: SectorItem[];
         try {
           const r = await bridge.request<{ items: SectorItem[] }>("sector.nodes", { path: ref.path, bounds: true, ...(ref.archive ? { archive: ref.archive } : {}), ...(ref.root ? { root: ref.root } : {}) });
@@ -313,7 +321,10 @@ export function createSectorLoader(bridge: Bridge, options: LoaderOptions): Sect
         }
         done++;
       }
-      if (mine === generation) options.onProgress?.({ done, total });
+      if (mine === generation) {
+        for (const key of wanted.keys()) if (loaded.has(key)) complete.add(key);
+        options.onProgress?.({ done, total });
+      }
       return { skipped };
     },
     dispose() {

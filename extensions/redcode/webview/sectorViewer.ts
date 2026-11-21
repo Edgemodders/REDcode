@@ -127,6 +127,8 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
 
   let loaded = false;
   let framed = false;
+  /** Meshes the page could not draw (the host exported them, three.js could not read them). */
+  const failed: { id: string; why: string }[] = [];
   const load = async (withCoarser: boolean) => {
     progress.textContent = withCoarser ? "Reading the coarser sectors over this one…" : "Reading the sector…";
     try {
@@ -165,13 +167,16 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
     receive(m) {
       switch (m.type) {
         case "sectorMesh":
-          void view.addMesh(m.mesh, b64(m.data), m.placements).then(() => {
-            // The first meshes frame the view once, so it does not jump while the rest arrive.
-            if (!framed) {
-              framed = true;
-              view.frame();
-            }
-          });
+          view.addMesh(m.mesh, b64(m.data), m.placements).then(
+            () => {
+              // The first meshes frame the view once, so it does not jump while the rest arrive.
+              if (!framed) {
+                framed = true;
+                view.frame();
+              }
+            },
+            (e) => failed.push({ id: m.mesh, why: e instanceof Error ? e.message : String(e) }),
+          );
           return;
         case "sectorMarkers":
           // The opened sector's only: the coarser ones hold tens of thousands, far apart.
@@ -190,8 +195,11 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
           progress.title = m.current ?? "";
           return;
         case "sectorDone":
-          progress.textContent = m.skipped.length ? `${m.skipped.length.toLocaleString()} thing(s) could not be drawn` : "";
-          progress.title = m.skipped.slice(0, 20).map((s) => `${s.id}: ${s.why}`).join("\n");
+          {
+            const all = [...m.skipped, ...failed];
+            progress.textContent = all.length ? `${all.length.toLocaleString()} thing(s) could not be drawn` : "";
+            progress.title = all.slice(0, 20).map((s) => `${s.id}: ${s.why}`).join("\n");
+          }
           if (!loaded) {
             loaded = true;
             if (pendingSelect !== undefined) selectEntry(pendingSelect);

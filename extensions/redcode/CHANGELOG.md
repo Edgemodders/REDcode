@@ -28,6 +28,7 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 **Fixed**
 
+- A sector could open with its markers and no meshes, when the editor started its 3D view twice. It now builds one view at a time, and a mesh that cannot be drawn is counted in the line under the view.
 - **Pack and Install** after **Pack and Play** no longer warns that the project's own archive was put in the game by something else: archives swapped into the running game through REDnode now count as the project's.
 - With two VS Code windows on different REDcode versions, the older one no longer puts its older REDnode package back over the newer one in the game.
 - Checkboxes in the CR2W editor and the 3D views (the synced set, the submesh list, true or false values) use the theme's colours, not the browser's blue and white.

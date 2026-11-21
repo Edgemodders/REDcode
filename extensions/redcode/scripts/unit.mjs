@@ -912,6 +912,43 @@ await check("world view: the loader exports each mesh once, cached first, and un
   assert.equal(calls.filter((c) => c === "sector.nodes").length, 2, "a sector still in the list is not read again");
 });
 
+await check("world view: a load cut short by a second one still sends every mesh (sector view, 2026-11-20)", async () => {
+  // Two views mounted at once both asked the one loader: the second set found the sector loaded and sent nothing.
+  const cache = path.join(tmp, "wvcache2");
+  const sector = "s\\three.streamingsector";
+  const items = [0, 1, 2].map((i) => ({ index: i, node: i, kind: "worldCookedStaticMeshNode", resource: `m\\part${i}.mesh`, transform: { position: [i, 0, 0], rotation: [0, 0, 0, 1] } }));
+  const bridge = {
+    async request(method, params) {
+      if (method === "sector.nodes") return { items };
+      if (method === "archive.extract") {
+        fs.mkdirSync(path.dirname(params.outFile), { recursive: true });
+        fs.writeFileSync(params.outFile, "mesh");
+        return {};
+      }
+      if (method === "project.export") {
+        await new Promise((r) => setTimeout(r, 5));
+        const out = path.join(params.rawDir, path.relative(params.archiveDir, params.file)).replace(/\.mesh$/i, ".glb");
+        fs.mkdirSync(path.dirname(out), { recursive: true });
+        fs.writeFileSync(out, "glb");
+        return { ok: true };
+      }
+      throw new Error(`unexpected ${method}`);
+    },
+  };
+  const got = [];
+  const markers = [];
+  const loader = wv.createSectorLoader(bridge, { cacheDir: cache, onMesh: (m) => got.push(m.mesh), onMarkers: (s) => markers.push(s), onUnload: () => undefined });
+  const first = loader.set([sector]);
+  await new Promise((r) => setTimeout(r, 1));
+  const second = loader.set([sector]);
+  await first;
+  await second;
+  assert.deepEqual([...new Set(got)].sort(), ["m\\part0.mesh", "m\\part1.mesh", "m\\part2.mesh"], "every mesh reaches the page");
+  got.length = 0;
+  await loader.set([sector]);
+  assert.deepEqual(got, [], "once complete, the same list sends nothing again");
+});
+
 // ---- Animations A3: synced sets (docs/design/animation.md) ----
 
 const as = require("../dist/animsSet.js");
