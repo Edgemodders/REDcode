@@ -35,7 +35,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Animations A2 (#21)](#animations-a2) | By hand | Requests | 2026-11-15 | Pass, three fixes |
 | [Animations A3 (#21)](#animations-a3) | By hand | Requests | 2026-11-20 | Pass (owner, REDbridge 0.17.0), with three fixes |
 | [Edit in Blender: skinned meshes](#edit-in-blender-skinned-meshes) | By hand | | 2026-11-20 | Pass (owner) |
-| [Keys (K4b)](#keys-k4b) | By hand | Requests | | Given to the owner 2026-11-20; needs REDbridge 0.18.0 or a build of its main |
+| [Keys (K4b)](#keys-k4b) | By hand | Requests | 2026-11-21 | Pass (owner), steps 1 to 8 on REDbridge 0.18.0; the optional step 9 not run |
 | [Animation Probe A](#animation-probe-a) | By hand, in the game | Research | | Offline half run 2026-11-20; the game half given to the owner |
 | [Replace with a WAV, titled models (#29), every window's project (#32)](#replace-with-a-wav-titled-models-29-and-every-windows-project-32) | By hand, in the game | Requests | 2026-11-20 | Pass (owner), with two fixes |
 | [Replace All](#replace-all) | By hand, in the game | Requests | 2026-11-20 | Pass (owner), with one fix |
@@ -723,6 +723,8 @@ Built 2026-11-20 (REDcode issue #33, [design](design/keys.html#k4b-as-built-2026
 | 7 | The view's `...` menu: **Forget Tool Permissions for Keys**, then **Opens Test: Read a Key**, and **Don't Allow** | The question comes back; Don't Allow gives "no key", and the next read does not ask again |
 | 8 | The trash can on Tripo, **Remove** | The row is back to "not set" |
 | 9 | Optional, only if you keep a REDbridge 0.17.0 somewhere: point `redcode.bridgePath` at it, **Restart REDbridge**, then put it back | The Keys view says the key store needs REDbridge 0.18.0, with Update REDbridge (already checked against 0.17.0 outside VS Code on 2026-11-20) |
+
+Result 2026-11-21, reported by the owner: steps 1 to 8 pass, on REDbridge 0.18.0 through Update REDbridge. Step 9, the optional one, was not run; its message was checked against REDbridge 0.17.0 outside VS Code on 2026-11-20. **Keys (K4b) passes.** What is left for the key API is K4c, the pilot in EDGEwave (EDGEwave #12), MCP use included, before any REDcode release with it.
 
 ## Edit in Blender: skinned meshes
 
