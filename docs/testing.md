@@ -37,7 +37,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Edit in Blender: skinned meshes](#edit-in-blender-skinned-meshes) | By hand | | | Given to the owner 2026-11-20 |
 | [Replace with a WAV, titled models (#29), every window's project (#32)](#replace-with-a-wav-titled-models-29-and-every-windows-project-32) | By hand, in the game | Requests | 2026-11-20 | Pass (owner), with two fixes |
 | [Replace All](#replace-all) | By hand, in the game | Requests | 2026-11-20 | Pass (owner), with one fix |
-| [Sector view](#sector-view) | By hand | C5 | 2026-11-20 | Pass (owner), with two fixes; three changes asked for |
+| [Sector view](#sector-view) | By hand | C5 | 2026-11-20 | Pass (owner), with two fixes and five changes, each retested |
 | [Library view (#23)](#library-view-23) | By hand | Requests | 2026-11-15 | Pass, two fixes |
 | [Run Game without ELECTRON_RUN_AS_NODE (#24)](#run-game-without-electron_run_as_node-24) | By hand, in the game | Requests | 2026-11-20 | Pass |
 | [New File](#new-file) | By hand | Requests | 2026-11-20 | Pass, steps 1 to 13, four fixes |
@@ -810,6 +810,8 @@ Result 2026-11-20, reported by the owner: R1 to R3 pass. Found in it: **Show in 
 |---|---|---|
 | R4 | Pick a building far down the list (an entry above 200), **Show in Tree** | The tree opens at `nodeData.Data.<entry>`, selected and scrolled into view |
 | R5 | On the game sector, **Add to Project** in the header | The copy is added and selected in the Project view; the button shows on game files only, not on the project's copy |
+
+Result 2026-11-20, reported by the owner: R4 and R5 pass. The Sector view test is complete.
 
 ## No Red Hot Tools
 
