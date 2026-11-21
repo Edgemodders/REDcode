@@ -32,6 +32,14 @@ export const mtime = (f: string): number => {
  * What the game files in a cache were extracted from: the game folder and its exe's size and
  * modified time, so a game patch or another game folder shows.
  */
+/**
+ * A folder name for a game stamp: the stamp holds the game's path and ':' and '|', which Windows refuses
+ * in a folder name (found 2026-11-20: the sector view's cache folder could not be made, so no mesh drew).
+ */
+export function stampFolder(stamp: string): string {
+  return crypto.createHash("sha1").update(stamp).digest("hex").slice(0, 12);
+}
+
 export function gameStamp(gameDir: string | null): string {
   if (!gameDir) return "no game";
   try {

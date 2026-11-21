@@ -13,7 +13,7 @@ import { meshGlbFor, meshPayload } from "./meshExport";
 import { animsClip, animsGlbFor, animsList, animsSkeleton, baseBodyFor, baseBodyGlb, entityBodyGlb, readAnimsGlb, type AnimsGlb, type BodyGlb } from "./animsGlb";
 import { listSet, memberGlb, newSetSession, placeSet, toMatrix, type SetMember } from "./animsSet";
 import { createSectorLoader, sectorsOver, type SectorLoader, type SectorRef } from "../../../packages/world-view/src/host";
-import { gameCacheReady } from "./exportCache";
+import { gameCacheReady, stampFolder } from "./exportCache";
 import { findEdgemat, mapsForWebview, openInEdgemat } from "./edgemat";
 import { ProjectFolders } from "./project";
 import type { TextureViewer } from "./textureViewer";
@@ -663,6 +663,7 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
             return;
           case "sectorPayload": {
             // A new 3D view (the first, or after a save or revert): a new loader, so the saved file is read again.
+            if (sectorLoader) this.log.appendLine(`sector view: a new view of ${document.name}; the previous loader stops`);
             sectorLoader?.dispose();
             sectorLoader = undefined;
             const sector = meshGamePath();
@@ -676,15 +677,31 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
             const sector = meshGamePath();
             if (!sector) throw new Error("No game path for this sector");
             const stamp = (await gameCacheReady(bridge, path.join(this.textures.root.fsPath, "mesh"))) ?? "nogame";
+            // One cache per game version, in a folder named by the stamp's hash.
+            const worldCache = path.join(this.textures.root.fsPath, "mesh", "world", stampFolder(stamp));
+            // What the loader sends, counted for the log: a sector that shows markers and no meshes says where it stopped.
+            let sent = 0;
+            let firstProgress = true;
             if (!sectorLoader) {
               sectorLoader = createSectorLoader(bridge, {
-                cacheDir: path.join(this.textures.root.fsPath, "mesh", "world", stamp),
-                onMesh: (b) => post({ type: "sectorMesh", mesh: b.mesh, data: fs.readFileSync(b.glb).toString("base64"), placements: b.placements }),
-                onMarkers: (s, markers) => post({ type: "sectorMarkers", sector: s, markers }),
+                cacheDir: worldCache,
+                onMesh: (b) => {
+                  sent++;
+                  post({ type: "sectorMesh", mesh: b.mesh, data: fs.readFileSync(b.glb).toString("base64"), placements: b.placements });
+                },
+                onMarkers: (s, markers) => {
+                  this.log.appendLine(`sector view: ${markers.length} markers in ${path.basename(s)}`);
+                  post({ type: "sectorMarkers", sector: s, markers });
+                },
                 onUnload: (s) => post({ type: "sectorUnload", sector: s }),
-                onProgress: (p) => post({ type: "sectorProgress", ...p }),
+                onProgress: (p) => {
+                  if (firstProgress || p.done === p.total) this.log.appendLine(`sector view: ${p.done} of ${p.total} meshes${p.current ? `, exporting ${p.current}` : ""}`);
+                  firstProgress = false;
+                  post({ type: "sectorProgress", ...p });
+                },
               });
             }
+            this.log.appendLine(`sector view: loading ${sector}${m.coarser ? " with the coarser sectors" : ""} (cache ${worldCache})`);
             const own: SectorRef = document.gamePath ? { path: sector } : { path: sector, root: archiveRootOf(document.uri.fsPath) ?? undefined };
             const sectors: (SectorRef | string)[] = [own];
             if (m.coarser) {
@@ -692,9 +709,16 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
               sectors.push(...over.filter((x) => x.toLowerCase() !== sector.toLowerCase()));
             }
             // Answers at once; the meshes follow as messages, and sectorDone at the end.
+            const t0 = Date.now();
             void sectorLoader.set(sectors).then(
-              (r) => post({ type: "sectorDone", skipped: r.skipped, sectors: sectors.map((x) => (typeof x === "string" ? x : x.path)) }),
-              (e) => post({ type: "sectorDone", skipped: [{ id: sector, why: e instanceof Error ? e.message : String(e) }], sectors: [] }),
+              (r) => {
+                this.log.appendLine(`sector view: done in ${Date.now() - t0} ms: ${sent} mesh(es) sent, ${r.skipped.length} skipped${r.skipped.length ? `, first: ${r.skipped[0].id}: ${r.skipped[0].why}` : ""}`);
+                post({ type: "sectorDone", skipped: r.skipped, sectors: sectors.map((x) => (typeof x === "string" ? x : x.path)) });
+              },
+              (e) => {
+                this.log.appendLine(`sector view: failed: ${e instanceof Error ? e.stack ?? e.message : String(e)}`);
+                post({ type: "sectorDone", skipped: [{ id: sector, why: e instanceof Error ? e.message : String(e) }], sectors: [] });
+              },
             );
             return reply(m.id, null);
           }

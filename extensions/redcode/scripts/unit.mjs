@@ -949,6 +949,18 @@ await check("world view: a load cut short by a second one still sends every mesh
   assert.deepEqual(got, [], "once complete, the same list sends nothing again");
 });
 
+await check("world view: the cache folder for a game stamp is a name Windows accepts", () => {
+  const ec = require("../dist/exportCache.js");
+  const stamp = ec.gameStamp("E:\\SteamLibrary\\steamapps\\common\\Cyberpunk 2077");
+  const folder = ec.stampFolder(stamp);
+  assert.match(folder, /^[0-9a-f]{12}$/);
+  assert.equal(ec.stampFolder(stamp), folder, "the same stamp, the same folder");
+  assert.notEqual(ec.stampFolder(stamp + "x"), folder, "another game version, another folder");
+  const dir = path.join(tmp, "stampdir", folder, "archive", "base");
+  fs.mkdirSync(dir, { recursive: true });
+  assert.ok(fs.existsSync(dir));
+});
+
 // ---- Animations A3: synced sets (docs/design/animation.md) ----
 
 const as = require("../dist/animsSet.js");
