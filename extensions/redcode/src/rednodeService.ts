@@ -100,11 +100,26 @@ function manifestVersion(dir: string): string | undefined {
 export type PackageResult =
   | { state: "no-rednode" }
   | { state: "current"; dir: string; version: string }
+  /** The game has a newer one, from a newer REDcode in another window: left as it is. */
+  | { state: "newer"; dir: string; version: string; installed: string }
   | { state: "installed" | "updated"; dir: string; version: string; from?: string };
+
+/** Compares two versions such as 0.2.0 by their numbers: below zero when a is older. */
+export function compareVersions(a: string, b: string): number {
+  const pa = a.split(/[.+-]/).map((x) => Number.parseInt(x, 10) || 0);
+  const pb = b.split(/[.+-]/).map((x) => Number.parseInt(x, 10) || 0);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const d = (pa[i] ?? 0) - (pb[i] ?? 0);
+    if (d !== 0) return d;
+  }
+  return 0;
+}
 
 /**
  * Copies the package from source (the extension's rednode/redcode) into the game's REDnode apps
- * folder when it is missing or another version. REDnode watches that folder and starts it.
+ * folder when it is missing or older. REDnode watches that folder and starts it. A newer one stays:
+ * two windows can run different REDcodes (a store one and a development one), and the older must not
+ * take the newer package's functions away (found 2026-11-20: 0.10.14 put 0.1.0 back over 0.2.0).
  */
 export function syncRednodePackage(source: string, gamePath: string): PackageResult {
   const apps = rednodeAppsDir(gamePath);
@@ -113,6 +128,7 @@ export function syncRednodePackage(source: string, gamePath: string): PackageRes
   const dir = path.join(apps, path.basename(source));
   const from = manifestVersion(dir);
   if (from === version) return { state: "current", dir, version };
+  if (from && compareVersions(from, version) > 0) return { state: "newer", dir, version, installed: from };
   fs.mkdirSync(dir, { recursive: true });
   // The manifest last, so REDnode restarts the package once, with every file in place.
   const files = fs

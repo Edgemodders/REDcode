@@ -733,6 +733,29 @@ await check("new file: Resize offers each odd side one pixel shorter, and scales
 
 // ---- The redcode REDnode package: every window's project (issue #32) ----
 
+await check("redcode REDnode package: installed, updated, and never put back to an older version", () => {
+  const rs = require("../dist/rednodeService.js");
+  const game = path.join(tmp, "pkggame");
+  const apps = path.join(game, "red4ext", "plugins", "REDnode", "apps");
+  fs.mkdirSync(apps, { recursive: true });
+  fs.writeFileSync(path.join(apps, "..", "REDnode.dll"), "");
+  const make = (v) => {
+    const src = path.join(tmp, `pkgsrc-${v}`, "redcode");
+    fs.mkdirSync(src, { recursive: true });
+    fs.writeFileSync(path.join(src, "rednode-app.json"), JSON.stringify({ id: "redcode", version: v }));
+    fs.writeFileSync(path.join(src, "service.mjs"), `// ${v}`);
+    return src;
+  };
+  const installedVersion = () => JSON.parse(fs.readFileSync(path.join(apps, "redcode", "rednode-app.json"), "utf8")).version;
+  assert.equal(rs.syncRednodePackage(make("0.2.0"), game).state, "installed");
+  assert.equal(rs.syncRednodePackage(make("0.1.0"), game).state, "newer");
+  assert.equal(installedVersion(), "0.2.0");
+  assert.equal(rs.syncRednodePackage(make("0.10.0"), game).state, "updated");
+  assert.equal(installedVersion(), "0.10.0");
+  assert.equal(rs.syncRednodePackage(make("0.10.0"), game).state, "current");
+  assert.ok(rs.compareVersions("0.2.0", "0.10.0") < 0);
+});
+
 await check("redcode service: every window's project, the last focused first; a closed window drops out; project() stays", async () => {
   const local = path.join(tmp, "localappdata");
   const before = process.env.LOCALAPPDATA;

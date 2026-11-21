@@ -1034,6 +1034,7 @@ function syncRednodeService(): void {
     const r = syncRednodePackage(path.join(extensionDir, "rednode", "redcode"), gamePath);
     if (r.state === "installed") log.appendLine(`Installed REDcode's REDnode package ${r.version} in ${r.dir}, so REDnode packages such as EDGEbuilder can ask for the open project.`);
     else if (r.state === "updated") log.appendLine(`Updated REDcode's REDnode package from ${r.from} to ${r.version} in ${r.dir}.`);
+    else if (r.state === "newer") log.appendLine(`The game has REDcode's REDnode package ${r.installed}, newer than this REDcode's ${r.version}: left as it is.`);
   } catch (e) {
     log.appendLine(`Could not install REDcode's REDnode package: ${(e as Error).message}`);
   }

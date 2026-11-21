@@ -744,13 +744,13 @@ Built 2026-11-20 after 0.10.14, three small items. Checked before:
 | 2 | **Replace…**, pick any WAV | The project gets `source\raw\sounds\<hash>.wav`, and the Project view selects the new `sfx_container_*.opuspak` under Archive. A message offers **Pack and Play** |
 | 3 | **Replace…** on the same sound with another WAV | It asks before putting it in place of the first one |
 | 4 | **Pack and Play** with the game running under REDnode (MCP server on), and make the sound happen in the game | Your WAV plays instead of the game's sound |
-| 5 | Close the project's folder, open Browse Game Sounds again | No **Replace…**: it needs a project |
+| 5 | Close the project's folder, open Browse Game Sounds again | **Replace…** still shows; a click says it needs a project and offers **New Project** and **Open Folder** (changed 2026-11-20 in step 1) |
 | 6 | **Opens Test: Open a Model with a Title**, pick a `.glb`, title `a battered vending machine` | A 3D tab titled **a battered vending machine**, with the model |
 | 7 | The same command, same file, title `vending machine, renamed` | The same tab comes forward with the new title; no second tab |
 | 8 | Change the `.glb` on disk (export it again, or copy another over it) | The tab redraws |
 | 9 | **Opens Test: Close the Models in a Folder**, pick the `.glb`'s folder | The tab closes; the message says 1 tab closed |
 | 10 | **REDcode: New Project** in a folder VS Code has not seen | Before it opens, a message says to trust the folder if VS Code asks. **Open Project** opens it; **Open, and Don't Say This Again** stops the message |
-| 11 | Two VS Code windows, each with a REDcode project; start the game with REDnode, MCP server on. Ask Claude to call `redcode__projects` | Both projects, the window focused last first, each with `focusedAt`. `redcode__project` answers the one focused last |
+| 11 | Two windows of the development build, each with a REDcode project: in the F5 window, **File > New Window** (Ctrl+Shift+N) opens a second window that runs the same build; a normal VS Code window runs the store REDcode, whose older REDnode package lacks `projects`. Start the game with REDnode, MCP server on. Ask Claude to call `redcode__projects` | Both projects, the window focused last first, each with `focusedAt`. `redcode__project` answers the one focused last |
 | 12 | Focus the other window, call `redcode__projects` again; then close one window and call it within 5 seconds | The order follows the focus; the closed window's project drops out |
 
 ## Sector view
