@@ -53,7 +53,7 @@ async function inFront(metres) {
 
 const write = () =>
   step('Write and swap', async () => {
-    written = await world.writeWorkspot('probe-a', { clips: CLIPS });
+    written = await world.writeWorkspot('probe_a', { clips: CLIPS });
     say(`  ${written.path}: ${written.entries.map((e) => `${e.name} ${e.entry}`).join(', ')}`);
     return written.swap ? `swapped via ${written.swap.via}` : 'not swapped';
   });
@@ -110,4 +110,4 @@ ui.window({
     log,
   ],
 });
-say('Animation Probe A 0.1.0 ready');
+say('Animation Probe A 0.1.1 ready');
