@@ -51,7 +51,7 @@ import { shortType, tweakYaml, type TweakMode } from "./tweakYaml";
 import { createProject, findProject, gamePathOf, ProjectFolders, projectPathFor, type ProjectInfo } from "./project";
 import { ProjectExplorer, type ProjectNode } from "./projectExplorer";
 import { isGameTexture, isTexture, TextureViewer, textureViewTypeFor } from "./textureViewer";
-import type { BridgeInfo, GameFileInfo, MeshImport, TextureSetup } from "./types";
+import type { BridgeInfo, GameFileInfo, MeshImport, SoundImportResult, TextureSetup } from "./types";
 
 /**
  * The oldest REDbridge this extension works with, from redcode.minBridgeVersion in package.json. The
@@ -844,47 +844,97 @@ async function openFileInEditor(target: string, node?: string): Promise<void> {
  * one step. The WAV goes into the project's source/raw/sounds as <hash>.wav, which is the name Import
  * from Raw needs, and is imported at once through REDbridge's sound.importWavs (0.9.0).
  */
-async function replaceSoundWithWav(hash: number): Promise<void> {
+/**
+ * Replace with a WAV: the WAV goes into the project's Raw folder as <hash>.wav and is imported. When the
+ * sound's event picks one of several at random (Replace All, the owner, 2026-11-20: cmn_generic_work_inhaler
+ * has four, so one replaced was heard one time in four), it offers to put the WAV in for all of them.
+ */
+async function replaceSoundWithWav(hash: number, event?: { name: string; hashes: number[] }): Promise<void> {
   const p = requireProject();
   if (!bridge?.running) throw new Error('REDbridge is not running. Run "REDcode: Restart REDbridge".');
   const b = bridge;
-  const picked = await vscode.window.showOpenDialog({ canSelectMany: false, openLabel: "Replace", title: `Replace sound ${hash} with a WAV`, filters: { "WAV audio": ["wav"] } });
+  let hashes = [hash];
+  const family = [...new Set(event?.hashes ?? [])];
+  if (event && family.length > 1 && family.includes(hash)) {
+    const all = `Replace All ${family.length}`;
+    const pick = await vscode.window.showInformationMessage(
+      `${event.name} plays one of ${family.length} sounds at random.`,
+      { modal: true, detail: `Replaced alone, sound ${hash} is heard about one time in ${family.length}. Put your WAV in for all ${family.length}, so the game always plays it?` },
+      all,
+      "Only This One",
+    );
+    if (!pick) return;
+    if (pick === all) hashes = [hash, ...family.filter((h) => h !== hash)];
+  }
+  const what = hashes.length > 1 ? `the ${hashes.length} sounds of ${event!.name}` : `sound ${hash}`;
+  const picked = await vscode.window.showOpenDialog({ canSelectMany: false, openLabel: "Replace", title: `Replace ${what} with a WAV`, filters: { "WAV audio": ["wav"] } });
   const wav = picked?.[0]?.fsPath;
   if (!wav) return;
-  const target = path.join(p.dir, ProjectFolders.raw, "sounds", `${hash}.wav`);
-  const same = path.resolve(wav).toLowerCase() === target.toLowerCase();
-  if (!same && fs.existsSync(target)) {
-    const pick = await vscode.window.showWarningMessage(`The project already has a replacement for sound ${hash}.`, { modal: true, detail: `${path.relative(p.dir, target)} is there. Put ${path.basename(wav)} in its place?` }, "Replace It");
-    if (pick !== "Replace It") return;
+  const soundsDir = path.join(p.dir, ProjectFolders.raw, "sounds");
+  const targets = hashes.map((h) => ({ hash: h, file: path.join(soundsDir, `${h}.wav`) }));
+  const isSource = (file: string) => path.resolve(wav).toLowerCase() === file.toLowerCase();
+  const already = targets.filter((t) => !isSource(t.file) && fs.existsSync(t.file));
+  if (already.length > 0) {
+    const one = already.length === 1;
+    const pick = await vscode.window.showWarningMessage(
+      one ? `The project already has a replacement for sound ${already[0].hash}.` : `The project already has replacements for ${already.length} of these sounds.`,
+      { modal: true, detail: `${already.map((t) => path.relative(p.dir, t.file)).join(", ")} ${one ? "is" : "are"} there. Put ${path.basename(wav)} in ${one ? "its" : "their"} place?` },
+      one ? "Replace It" : "Replace Them",
+    );
+    if (!pick) return;
   }
-  const backup = !same && fs.existsSync(target) ? fs.readFileSync(target) : undefined;
-  if (!same) {
-    fs.mkdirSync(path.dirname(target), { recursive: true });
-    fs.copyFileSync(wav, target);
+  // What was there before, so a failed import puts it back.
+  const backups = new Map<string, Buffer | undefined>();
+  fs.mkdirSync(soundsDir, { recursive: true });
+  for (const t of targets) {
+    if (isSource(t.file)) continue;
+    backups.set(t.file, fs.existsSync(t.file) ? fs.readFileSync(t.file) : undefined);
+    fs.copyFileSync(wav, t.file);
   }
+  const restore = (files: string[]) => {
+    for (const f of files) {
+      if (!backups.has(f)) continue;
+      const before = backups.get(f);
+      if (before) fs.writeFileSync(f, before);
+      else fs.rmSync(f, { force: true });
+    }
+  };
   const archiveDir = path.join(p.dir, ProjectFolders.archive);
-  let r;
+  let r: SoundImportResult | undefined;
   try {
-    r = await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: `Replacing sound ${hash}` }, () => b.importWavs([target], archiveDir));
+    r = await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: `Replacing ${what}` }, () =>
+      b.importWavs(
+        targets.map((t) => t.file),
+        archiveDir,
+      ),
+    );
   } catch (e) {
     r = undefined;
-    log.appendLine(`Replace sound ${hash}: ${e instanceof Error ? e.message : String(e)}`);
+    log.appendLine(`Replace ${what}: ${e instanceof Error ? e.message : String(e)}`);
   }
-  if (!r?.ok) {
-    // Nothing half done: the copy goes, or the earlier replacement comes back.
-    if (!same) {
-      if (backup) fs.writeFileSync(target, backup);
-      else fs.rmSync(target, { force: true });
-    }
+  if (!r?.ok || r.imported.length === 0) {
+    // Nothing half done: the copies go, or the earlier replacements come back.
+    restore(targets.map((t) => t.file));
     const why = r?.skipped.map((x) => x.reason).join("; ") || "see the REDcode log";
-    throw new Error(`Sound ${hash} was not replaced: ${why}`);
+    throw new Error(`${what[0].toUpperCase()}${what.slice(1)} ${hashes.length > 1 ? "were" : "was"} not replaced: ${why}`);
   }
+  // Some imported and some not (a hash missing from the game's index): the ones not imported go back.
+  const imported = r.imported;
+  const skipped = targets.filter((t) => !imported.includes(t.hash));
+  restore(skipped.map((t) => t.file));
+  for (const s of r.skipped) log.appendLine(`Replace ${what}: skipped ${s.file}: ${s.reason}`);
   const written = r.written.map((w) => path.join(archiveDir, w));
-  log.appendLine(`Replaced sound ${hash} with ${wav}: ${path.relative(p.dir, target)}, ${r.written.join(", ")}`);
+  log.appendLine(`Replaced ${imported.join(", ")} with ${wav}: ${r.written.join(", ")}`);
   explorer.refresh();
   await revealWritten(written[0] && mainWritten(written));
   const play = "Pack and Play";
-  const pick = await vscode.window.showInformationMessage(`Sound ${hash} is replaced in ${p.name}. Pack and Play to hear it in the game.`, play);
+  const done =
+    hashes.length === 1
+      ? `Sound ${hash} is replaced`
+      : skipped.length === 0
+        ? `All ${hashes.length} sounds of ${event!.name} are replaced`
+        : `${imported.length} of the ${hashes.length} sounds of ${event!.name} are replaced (not ${skipped.map((t) => t.hash).join(", ")}: see the REDcode log)`;
+  const pick = await vscode.window.showInformationMessage(`${done} in ${p.name}. Pack and Play to hear it in the game.`, play);
   if (pick === play) await vscode.commands.executeCommand("redcode.packAndPlay");
 }
 

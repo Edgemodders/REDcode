@@ -37,7 +37,7 @@ export class AudioPlayer implements vscode.CustomReadonlyEditorProvider {
     private readonly getBridge: () => BridgeClient | undefined,
     private readonly log: vscode.OutputChannel,
     /** Replace with a WAV: a game sound effect by hash, replaced in the open project; undefined without one. */
-    private readonly replaceSound?: () => ((hash: number) => Promise<void>) | undefined,
+    private readonly replaceSound?: () => ((hash: number, event?: { name: string; hashes: number[] }) => Promise<void>) | undefined,
   ) {}
 
   register(): vscode.Disposable {
@@ -118,7 +118,7 @@ export class AudioPlayer implements vscode.CustomReadonlyEditorProvider {
         void webview.postMessage({ type: "error", error: message });
       });
 
-    webview.onDidReceiveMessage(async (m: { type?: string; id?: number; index?: number; text?: string; eventHash?: number }) => {
+    webview.onDidReceiveMessage(async (m: { type?: string; id?: number; index?: number; text?: string; eventHash?: number; variations?: number[]; event?: string }) => {
       const reply = (body: object) => void webview.postMessage({ type: "reply", id: m.id, ...body });
       try {
         switch (m.type) {
@@ -152,7 +152,10 @@ export class AudioPlayer implements vscode.CustomReadonlyEditorProvider {
               else if (pick === "Open Folder") await vscode.commands.executeCommand("workbench.action.files.openFolder");
               return;
             }
-            await replace(index.hashes[m.index]);
+            // The event's sounds, by their place in the index: it plays one of them at random.
+            const all = index.hashes;
+            const hashes = (Array.isArray(m.variations) ? m.variations : []).filter((i) => Number.isInteger(i) && i >= 0 && i < all.length).map((i) => all[i]);
+            await replace(index.hashes[m.index], hashes.length > 1 ? { name: typeof m.event === "string" ? m.event : "This event", hashes } : undefined);
             return;
           }
           case "edgewave":

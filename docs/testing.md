@@ -36,6 +36,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Animations A3 (#21)](#animations-a3) | By hand | Requests | 2026-11-20 | Pass (owner, REDbridge 0.17.0), with three fixes |
 | [Edit in Blender: skinned meshes](#edit-in-blender-skinned-meshes) | By hand | | | Given to the owner 2026-11-20 |
 | [Replace with a WAV, titled models (#29), every window's project (#32)](#replace-with-a-wav-titled-models-29-and-every-windows-project-32) | By hand, in the game | Requests | 2026-11-20 | Pass (owner), with two fixes |
+| [Replace All](#replace-all) | By hand, in the game | Requests | | Given to the owner 2026-11-20 |
 | [Sector view](#sector-view) | By hand | C5 | | Given to the owner 2026-11-20 |
 | [Library view (#23)](#library-view-23) | By hand | Requests | 2026-11-15 | Pass, two fixes |
 | [Run Game without ELECTRON_RUN_AS_NODE (#24)](#run-game-without-electron_run_as_node-24) | By hand, in the game | Requests | 2026-11-20 | Pass |
@@ -754,6 +755,18 @@ Built 2026-11-20 after 0.10.14, three small items. Checked before:
 | 12 | Focus the other window, call `redcode__projects` again; then close one window and call it within 5 seconds | The order follows the focus; the closed window's project drops out |
 
 Result 2026-11-20, reported by the owner: steps 1 to 12 pass. Step 4 in the game: `cmn_generic_work_inhaler` picks one of four sounds, so replacing one was heard one time in four; with all four replaced the game played the WAV (Replace All is next, from this). Fixes it raised: **Replace…** shows without a project and offers New Project or Open Folder (steps 1 and 5); and an older REDcode in another window no longer puts its older REDnode package back over a newer one (found in step 11: the store 0.10.14 put 0.1.0 back over 0.2.0; a New Window from the F5 window is a normal window with the store REDcode, so steps 11 and 12 ran with today's build installed from a vsix).
+
+## Replace All
+
+Built 2026-11-20 from the hand test above, where `cmn_generic_work_inhaler` picks one of four sounds and replacing one was heard one time in four. Checked before: typecheck and the unit checks (67); REDbridge's `sound.importWavs` lists the hashes it imported, which the partial case relies on. **Not run:** anything in VS Code.
+
+| # | Do | Expected |
+|---|---|---|
+| 1 | F5 with **Run REDcode with Opens Test (no other extensions)**, a test project open. **REDcode: Browse Game Sounds**, filter `cmn_generic_work_inhaler`, play variation 2, **Replace…** | A question: the event plays one of 4 sounds at random, with **Replace All 4** and **Only This One** |
+| 2 | **Replace All 4**, pick a WAV | The file dialog's title names the 4 sounds. Since the project already has replacements from the test above, a second question names them, with **Replace Them** |
+| 3 | **Replace Them** | One progress message; then "All 4 sounds of cmn_generic_work_inhaler are replaced" with **Pack and Play**. `source\raw\sounds` has the four `<hash>.wav`, each the picked WAV |
+| 4 | Pick a single-sound event, such as `it_inhaler_heal`, **Replace…** | No question about variations: straight to the file dialog, as before |
+| 5 | **Pack and Play**; in the game, watch an NPC use an inhaler a few times | Your WAV every time |
 
 ## Sector view
 

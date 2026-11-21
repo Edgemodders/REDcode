@@ -6,6 +6,7 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 **New**
 
+- **Replace All** in the sound list: many sound events play one of several sounds at random, so replacing one is heard only some of the time. When the sound you replace is one of several, **Replace…** says so and offers to put your WAV in for all of them at once.
 - **Streaming sectors in 3D** (https://edgemodders.github.io/REDcode/design/sector-view.html). A `.streamingsector` from the game or your project opens on a 3D view, read-only, with the tree one click away.
   - **Drawing:** every mesh is drawn where the sector places it, copies included, with markers for entities, decals, lights and the rest. Each mesh is exported once and kept, so a sector opens fast the second time.
   - **Picking:** click a thing to see its node data entry in the Properties view, and **Show in Tree** goes to it.

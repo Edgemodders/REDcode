@@ -248,7 +248,8 @@
   $("save").addEventListener("click", () => vscode.postMessage({ type: "save", index: current?.index }));
   $("copy").addEventListener("click", () => current?.hash !== undefined && vscode.postMessage({ type: "copy", text: String(current.hash) }));
   // Replace with a WAV (the owner, 2026-11-20): the host picks the WAV, names it by the hash and imports it.
-  $("replace").addEventListener("click", () => current?.hash !== undefined && vscode.postMessage({ type: "replace", index: current.index }));
+  // With the event's other sounds, so the host can offer to replace them all (one is picked at random).
+  $("replace").addEventListener("click", () => current?.hash !== undefined && vscode.postMessage({ type: "replace", index: current.index, variations: current.variations, event: current.title }));
   $("edgewave").addEventListener("click", () => vscode.postMessage({ type: "edgewave", index: current?.index, eventHash: current?.eventHash }));
 
   // Click or drag on the waveform to seek.
@@ -371,7 +372,7 @@
     row?.classList.add("selected");
     row?.querySelector(`.chip[data-i="${i}"]`)?.classList.add("on");
     row?.scrollIntoView({ block: "nearest" });
-    const what = { title: r.n || `event ${r.h}`, index: i, hash: hashes[i], eventHash: r.h, autoplay: true };
+    const what = { title: r.n || `event ${r.h}`, index: i, hash: hashes[i], eventHash: r.h, variations: r.s, autoplay: true };
     current = what;
     $("waveNote").textContent = "Loading…";
     $("waveNote").hidden = false;
