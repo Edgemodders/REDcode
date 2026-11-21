@@ -34,7 +34,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Animations A1 (#21)](#animations-a1) | By hand | Requests | 2026-11-06 | Pass |
 | [Animations A2 (#21)](#animations-a2) | By hand | Requests | 2026-11-15 | Pass, three fixes |
 | [Animations A3 (#21)](#animations-a3) | By hand | Requests | 2026-11-20 | Pass (owner, REDbridge 0.17.0), with three fixes |
-| [Edit in Blender: skinned meshes](#edit-in-blender-skinned-meshes) | By hand | | | Given to the owner 2026-11-20 |
+| [Edit in Blender: skinned meshes](#edit-in-blender-skinned-meshes) | By hand | | 2026-11-20 | Pass (owner) |
 | [Replace with a WAV, titled models (#29), every window's project (#32)](#replace-with-a-wav-titled-models-29-and-every-windows-project-32) | By hand, in the game | Requests | 2026-11-20 | Pass (owner), with two fixes |
 | [Replace All](#replace-all) | By hand, in the game | Requests | 2026-11-20 | Pass (owner), with one fix |
 | [Sector view](#sector-view) | By hand | C5 | 2026-11-20 | Pass (owner), with two fixes and five changes, each retested |
@@ -705,6 +705,8 @@ A modder found that **Edit in Blender** opened nothing for a skinned mesh: Blend
 | 2 | Right-click the `.glb`, **Edit in Blender** | Blender opens with the body and its armature, no error in Blender's console |
 | 3 | Move a vertex, Ctrl+S | REDcode imports the mesh back; the mesh view shows the change |
 | 4 | A plain mesh (a prop), **Edit in Blender**, change it, Ctrl+S | As before the fix |
+
+Result 2026-11-20, reported by the owner: steps 1 to 4 pass, on the base male body in Blender 5.3. Step 1 no longer names a rig (Export to Raw asks for none; the plain export skins the body on its own 172 bones). A first try added an Icosphere, which the import leaves out (it writes back only the mesh's own parts, by name), so nothing showed; an edit to a body part showed at once.
 
 ## Animations A3
 
