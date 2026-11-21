@@ -701,7 +701,7 @@ A modder found that **Edit in Blender** opened nothing for a skinned mesh: Blend
 
 | Step | Do | Expect |
 |---|---|---|
-| 1 | F5 (REDcode main). In a project, Export to Raw a skinned mesh on its rig, such as `t0_000_ma_base__full.mesh` with `man_base_deformations.rig`, or any garment | A `.glb` in Raw |
+| 1 | F5 (REDcode main). Add a skinned mesh to a project, such as `base\characters\commonase_bodies\man_average	0_000_ma_base__full.mesh` or any garment, and **Export to Raw** it (no rig to choose: the export skins it on the mesh's own bones, 172 for this body, checked 2026-11-20) | A `.glb` in Raw |
 | 2 | Right-click the `.glb`, **Edit in Blender** | Blender opens with the body and its armature, no error in Blender's console |
 | 3 | Move a vertex, Ctrl+S | REDcode imports the mesh back; the mesh view shows the change |
 | 4 | A plain mesh (a prop), **Edit in Blender**, change it, Ctrl+S | As before the fix |
