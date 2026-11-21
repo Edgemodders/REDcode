@@ -217,7 +217,7 @@ export function activate(context: vscode.ExtensionContext): REDcodeApi | undefin
     vscode.commands.registerCommand("redcode.openGameFileAsJson", () => withBridge(openGameFileAsJson)),
     vscode.commands.registerCommand("redcode.searchGameFiles", () => withBridge(searchGameFiles)),
     vscode.commands.registerCommand("redcode.openAssetAsJson", (node: AssetNode) => withBridge((b) => openAssetAsJson(b, node))),
-    vscode.commands.registerCommand("redcode.addToProject", (node: AssetNode) => withBridge((b) => addToProject(b, node))),
+    vscode.commands.registerCommand("redcode.addToProject", (node: AssetNode, options?: { replace?: boolean }) => withBridge((b) => addToProject(b, node, options))),
     vscode.commands.registerCommand("redcode.extractTo", (node: AssetNode) => withBridge((b) => extractTo(b, node))),
     vscode.commands.registerCommand("redcode.addToLibrary", (node: AssetNode | ProjectNode) => withBridge((b) => addNodeToLibrary(b, node, context))),
     libraryChanged,
@@ -2257,7 +2257,7 @@ async function filesOf(b: BridgeClient, node: AssetNode, title: string): Promise
   );
 }
 
-async function addToProject(b: BridgeClient, node: AssetNode): Promise<void> {
+async function addToProject(b: BridgeClient, node: AssetNode, options: { replace?: boolean } = {}): Promise<void> {
   const p = requireProject();
   const files = await filesOf(b, node, "Add to project");
   if (node.kind === "folder" && files.length > 200) {
@@ -2266,7 +2266,53 @@ async function addToProject(b: BridgeClient, node: AssetNode): Promise<void> {
       return;
     }
   }
-  const items = files.map((f) => ({ path: f.name, outFile: projectPathFor(p, f.name) }));
+  let items = files.map((f) => ({ path: f.name, outFile: projectPathFor(p, f.name) }));
+  // A file already in the project may hold the modder's changes: never write the game's over it unasked.
+  const there = items.filter((i) => fs.existsSync(i.outFile));
+  if (there.length && !options.replace) {
+    if (items.length === 1) {
+      const name = path.basename(items[0].path);
+      const pick = await vscode.window.showWarningMessage(
+        `${name} is already in ${p.name}.`,
+        { modal: true, detail: "Replace It puts the game's file over the project's copy, and any change made to that copy is lost." },
+        "Open the Project's Copy",
+        "Replace It",
+      );
+      if (pick === "Open the Project's Copy") {
+        await vscode.commands.executeCommand("vscode.open", vscode.Uri.file(items[0].outFile));
+        const shown = explorer.nodeFor(items[0].outFile);
+        if (shown) await projectView.reveal(shown, { select: true, focus: false }).then(undefined, () => undefined);
+        return;
+      }
+      if (pick !== "Replace It") return;
+    } else {
+      const pick = await vscode.window.showWarningMessage(
+        `${there.length.toLocaleString()} of these ${items.length.toLocaleString()} files are already in ${p.name}.`,
+        { modal: true, detail: "Add the Others leaves the project's copies as they are. Replace All puts the game's files over them, and any change made to them is lost." },
+        "Add the Others",
+        "Replace All",
+      );
+      if (!pick) return;
+      if (pick === "Add the Others") {
+        const skip = new Set(there);
+        items = items.filter((i) => !skip.has(i));
+        if (!items.length) {
+          void vscode.window.showInformationMessage(`Every one of these files is already in ${p.name}.`);
+          return;
+        }
+      }
+    }
+  }
+  // An editor open on a file about to be replaced would keep the old one: close it first (it asks about unsaved changes).
+  const replacing = new Set(items.filter((i) => fs.existsSync(i.outFile)).map((i) => path.resolve(i.outFile).toLowerCase()));
+  if (replacing.size) {
+    const tabs = vscode.window.tabGroups.all.flatMap((g) => g.tabs).filter((t) => {
+      const input = t.input;
+      const uri = input instanceof vscode.TabInputText || input instanceof vscode.TabInputCustom ? input.uri : undefined;
+      return uri?.scheme === "file" && replacing.has(path.resolve(uri.fsPath).toLowerCase());
+    });
+    if (tabs.length && !(await vscode.window.tabGroups.close(tabs))) return;
+  }
   const result = await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: `Adding ${items.length.toLocaleString()} file(s) to ${p.name}` }, () => b.extractMany(items));
   log.appendLine(`Added ${result.extracted} file(s), ${result.bytes.toLocaleString()} bytes, to ${p.name}${result.failed.length ? `; failed: ${result.failed.join(", ")}` : ""}`);
   explorer.refresh();

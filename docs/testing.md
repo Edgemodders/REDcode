@@ -40,7 +40,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Replace with a WAV, titled models (#29), every window's project (#32)](#replace-with-a-wav-titled-models-29-and-every-windows-project-32) | By hand, in the game | Requests | 2026-11-20 | Pass (owner), with two fixes |
 | [Replace All](#replace-all) | By hand, in the game | Requests | 2026-11-20 | Pass (owner), with one fix |
 | [Sector view](#sector-view) | By hand | C5 | 2026-11-20 | Pass (owner), with two fixes and five changes, each retested |
-| [Sector materials (M1)](#sector-materials-m1) | By hand | C5 | 2026-11-21 | Partly run (the owner stopped early: step 9 needs the EDGEmat launch config) |
+| [Sector materials (M1)](#sector-materials-m1) | By hand | C5 | 2026-11-21 | Pass (owner), all 10 steps, with one fix (retest pending) |
 | [Sector camera](#sector-camera) | By hand | C5 | 2026-11-21 | Not run (checked in Chrome over the real bridge) |
 | [Library view (#23)](#library-view-23) | By hand | Requests | 2026-11-15 | Pass, two fixes |
 | [Run Game without ELECTRON_RUN_AS_NODE (#24)](#run-game-without-electron_run_as_node-24) | By hand, in the game | Requests | 2026-11-20 | Pass |
@@ -890,6 +890,16 @@ Found while checking:
 | 8 | Back on the sector, **Add Mesh to Project** with a project open | A question says that a change to the mesh then shows everywhere the game uses it. **Add It** adds the mesh to the project |
 | 9 | F5 with **Run REDcode with Opens Test and EDGEmat** (the EDGEmat clone). Steps 1, 3 and 4 again, then **Open in EDGEmat** | The note says "Materials by EDGEmat"; EDGEmat's Desk opens the mesh at the node's appearance |
 | 10 | On a project's copy of the sector (from the Sector view test, step 9), pick a thing whose mesh is also in the project (step 8), **Materials** | The project's mesh is drawn with the project's own materials |
+
+Result 2026-11-21, reported by the owner: all 10 steps pass. The first run stopped at step 9 because the no-extensions launch config has no EDGEmat; the second used **Run REDcode with Opens Test and EDGEmat**.
+
+Found: **Add to Project wrote over a file already in the project without asking.** The owner added the mesh through Open Mesh and the mesh view's **Add to Project**, then step 8's **Add Mesh to Project** added it again with no question. That was not REDcode knowing it was the same file: Add to Project (Game Assets, Search game files, the CR2W editor's header and the sector view) wrote the game's file over the project's copy every time, so changes made to that copy would have been lost. Fixed the same day: Add to Project asks first.
+
+| # | Do | Expected |
+|---|---|---|
+| R1 | With the mesh from step 8 in the project, pick it in the sector view again and **Add Mesh to Project** | One question: "<mesh> is already in <project>", with **Open the Project's Copy** and **Replace It**. Open opens the project's copy and shows it in the Project view; cancel changes nothing |
+| R2 | Change something in the project's copy and save; open the game's mesh (Game Assets) and its header's **Add to Project**, then **Replace It** | An editor open on the project's copy closes first (asking about unsaved changes), then the project's copy is the game's again |
+| R3 | In Game Assets, **Add to Project** on a folder that holds the mesh and other files | "1 of these n files are already in <project>", with **Add the Others** (the project's copy stays as it is) and **Replace All** |
 
 ## Sector camera
 

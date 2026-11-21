@@ -15,6 +15,8 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 - **By material** in the sector view colours each thing by the materials its appearance names. It gave everything one colour. Colours by mesh differ more too.
 
+- **Add to Project** asks before it writes over a file that is already in the project: open the project's copy, or replace it with the game's. It replaced it without asking, so changes made to the project's copy could be lost. With a folder, it can add only the files not there yet.
+
 **Changed**
 
 - **Edit in Blender** says when the Blender scene has a mesh object that is not one of the mesh's own parts, such as an added sphere: the import leaves it out, so REDcode names it after the save and says how to join it into a part (Ctrl+J).

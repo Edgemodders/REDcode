@@ -788,6 +788,11 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
                 else await this.openGameFile(mesh);
                 break;
               case "addMesh": {
+                // Already there: Add to Project's own question (open the project's copy, or replace it) is the one to ask.
+                if (inProject) {
+                  await vscode.commands.executeCommand("redcode.addToProject", { kind: "file", file: { name: mesh } });
+                  break;
+                }
                 const pick = await vscode.window.showInformationMessage(
                   `Add ${mesh.split("\\").pop()} to the project? A change to it then shows everywhere the game uses this mesh, not only here.`,
                   "Add It",

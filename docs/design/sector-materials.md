@@ -35,7 +35,7 @@ The page half's additions (`setMaterials`, `restoreMesh`, `replaceMesh`'s option
 
 ## M1 as built
 
-Built 2026-11-21; hand test pending ([testing](../testing.html#sector-materials-m1)). Two things changed from the plan, after a check in Chrome over the real bridge:
+Built 2026-11-21; hand test passed by the owner the same day, all 10 steps, with one fix: Add to Project now asks before it writes over a file already in the project ([testing](../testing.html#sector-materials-m1)). Two things changed from the plan, after a check in Chrome over the real bridge:
 
 - **No WolvenKit textures.** WolvenKit's export "with materials" writes a `.Material.json` beside the .glb and puts no textures in the .glb. So `texturedGlb` adds nothing to look at. The picked thing is drawn from its plain export, already in the cache (`cachedGlb`), with rendered maps put on its parts by material name. `texturedGlb` stays as the fallback for a mesh not in the cache.
 - **REDcode renders by itself.** Without EDGEmat installed, REDcode renders the materials with `renderMaterials` from `@edgemodders/edgemat-core`, which it already bundles for item search. This follows the owner's rule that REDcode views every file by itself. With EDGEmat installed, EDGEmat's API renders them, since it sees setups being edited on its Desk. The note under the view says which one did.
