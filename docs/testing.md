@@ -708,6 +708,13 @@ A modder found that **Edit in Blender** opened nothing for a skinned mesh: Blend
 
 Result 2026-11-20, reported by the owner: steps 1 to 4 pass, on the base male body in Blender 5.3. Step 1 no longer names a rig (Export to Raw asks for none; the plain export skins the body on its own 172 bones). A first try added an Icosphere, which the import leaves out (it writes back only the mesh's own parts, by name), so nothing showed; an edit to a body part showed at once.
 
+**The warning for objects the import leaves out** (built 2026-11-20 after that test, unreleased): the save hook names mesh objects that were not the file's parts when Blender opened it, and REDcode warns once for each new set of names. Checked in Blender 5.3 in the background: a save with only the body names nothing, and after adding a sphere the next save names `Icosphere.001`. **Not run:** the warning in VS Code.
+
+| # | Do | Expected |
+|---|---|---|
+| W1 | **Edit in Blender** on a mesh's `.glb`, add a sphere (Add > Mesh > Ico Sphere), Ctrl+S | After the import, a warning names the sphere, says the import left it out, and says to join it into a part with Ctrl+J. Saving again with the sphere still there does not warn again |
+| W2 | Join the sphere into a part (select it, then the part, Ctrl+J), Ctrl+S | No warning |
+
 ## Animations A3
 
 Built 2026-11-20 ([design](design/animation.html#a3-as-built), REDcode issue #21). Synced sets: a synced clip's members across the `.anims` files of its folder, placed by the sync tracks and played on one clock. **Needs REDbridge 0.17.0** (`anims.sync` and root motion in seconds, REDbridge #19), which REDcode's minimum is raised to at the release; until it is out, a REDbridge built from its main. Checked before:
