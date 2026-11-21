@@ -1,0 +1,15 @@
+{
+  "id": "anim-probe-a",
+  "name": "Animation Probe A",
+  "version": "0.1.0",
+  "author": "Edgemodders",
+  "description": "REDcode's animation Probe A (docs/research/animation-authoring.md): plays a game clip, the same clip imported back unchanged, and a copy with the left arm raised in Blender, on a spawned Trauma Team paramedic through a written workspot, to see whether an imported clip plays in the game. Asks for the bridge and archives permissions.",
+  "main": "mod.mjs",
+  "open": false,
+  "permissions": ["bridge", "archives"],
+  "requires": {
+    "rednode": ">=0.66.10",
+    "codeware": ">=1.14",
+    "redbridge": ">=0.15.0"
+  }
+}

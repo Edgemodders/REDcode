@@ -36,6 +36,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Animations A3 (#21)](#animations-a3) | By hand | Requests | 2026-11-20 | Pass (owner, REDbridge 0.17.0), with three fixes |
 | [Edit in Blender: skinned meshes](#edit-in-blender-skinned-meshes) | By hand | | 2026-11-20 | Pass (owner) |
 | [Keys (K4b)](#keys-k4b) | By hand | Requests | | Given to the owner 2026-11-20; needs REDbridge 0.18.0 or a build of its main |
+| [Animation Probe A](#animation-probe-a) | By hand, in the game | Research | | Offline half run 2026-11-20; the game half given to the owner |
 | [Replace with a WAV, titled models (#29), every window's project (#32)](#replace-with-a-wav-titled-models-29-and-every-windows-project-32) | By hand, in the game | Requests | 2026-11-20 | Pass (owner), with two fixes |
 | [Replace All](#replace-all) | By hand, in the game | Requests | 2026-11-20 | Pass (owner), with one fix |
 | [Sector view](#sector-view) | By hand | C5 | 2026-11-20 | Pass (owner), with two fixes and five changes, each retested |
@@ -693,6 +694,19 @@ Rerun on 9b1f4b8 (2026-11-15, the same setup): steps 2, 5, 9 and 11 pass. The la
 Step 6 rerun on 5469a6c (2026-11-15, the same setup): Frame fills the view at 0.16 s, 3.95 s and 7.74 s. But after Frame at 0.16 s, Play lost the body at 1.72 s and 3.37 s: the view followed `Root`, which stays on the ground while the body drops 3 m to it. Fixed: with Root motion on, the view follows `Hips` (a rig with none, such as the AV's, follows `Root`). Checked in Chrome with the harness: Frame at 0.16 s, then on to 1.72 s and 3.37 s, and the body stays in view. Step 6 waits for a rerun.
 
 Step 6 rerun on 75cb474 (2026-11-15, the same setup): pass. With Root motion on, Frame at 0.16 s fills the view, and playing on, the whole body stays in view at 1.72 s, 3.41 s, 5.52 s and 7.42 s, a little right of centre at 3.4 s and 5.5 s. Frame at 3.95 s and 7.74 s centres it. The AV with Root motion on (it follows `Root`): its bones stay in the middle of the view at every moment, with the grid shifting under them. **Animations A2 passes.**
+
+## Animation Probe A
+
+Does a clip imported through REDbridge play in the game? The research's first probe ([report](research/animation-authoring.html), section 8; files and results in `tools/probes/anim-probe-a/README.md`). The offline half ran on 2026-11-20: the unchanged copy is exact, the Blender copy carries its 70-degree arm, and Blender's export drops WolvenKit's clip extras (copied back). The package `anim-probe-a` is installed in the game's REDnode apps folder.
+
+| # | Do | Expected |
+|---|---|---|
+| 1 | In REDcode, open the folder `C:\Users\VYRAL\Documents\AnimProbeA`, then `source\archive\probe\anims\probe_a.anims`; pick `probe_a__arm`, then `probe_a__same` | The arm copy holds its left arm out; the same copy looks like the game's idle |
+| 2 | Start the game with REDnode, load a save, stand somewhere open; in REDcode, **Pack and Play** on the project | REDcode says it swapped the archive through REDnode |
+| 3 | In the REDnode overlay, switch on **Animation Probe A** with its bridge and archives permissions | Its window: Write and swap, Spawn, Play, game, same, arm |
+| 4 | **Write and swap**, **Spawn**, **Play** | A paramedic 3 m in front of V starts the game's idle, perhaps after a brief T pose |
+| 5 | **game**, **same**, **arm**, a few seconds apart | `same` looks exactly like `game`; `arm` holds the left arm out, the rest the same. Note any twitch or snap |
+| 6 | **Remove the paramedic**, switch the package off | |
 
 ## Keys (K4b)
 
