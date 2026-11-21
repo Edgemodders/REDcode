@@ -4,6 +4,10 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 ## Unreleased
 
+**Changed**
+
+- **Edit in Blender** says when the Blender scene has a mesh object that is not one of the mesh's own parts, such as an added sphere: the import leaves it out, so REDcode names it after the save and says how to join it into a part (Ctrl+J).
+
 ## 0.10.15 (2026-11-20)
 
 Streaming sectors in 3D, synced sets in the animation view, Replace with a WAV in the sound list, and a light for the 3D views. Needs REDbridge 0.17.0.

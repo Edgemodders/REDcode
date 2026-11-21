@@ -72,8 +72,12 @@ def redcode_run(op, **kwargs):
 bpy.ops.wm.read_factory_settings(use_empty=True)
 redcode_run(bpy.ops.import_scene.gltf, filepath=glb)
 bpy.ops.wm.save_as_mainfile(filepath=blend)
+# The mesh's own parts, by name: the import writes back only these, so other mesh objects are named on save.
+redcode_parts = {o.name for o in bpy.data.objects if o.type == "MESH"}
 
 def redcode_export(*_):
+    extra = sorted(o.name for o in bpy.data.objects if o.type == "MESH" and o.name not in redcode_parts and o.users_scene)
+    print("REDcode: not imported: " + "|".join(extra), flush=True)
     try:
         redcode_run(bpy.ops.export_scene.gltf, filepath=glb, export_format="GLB", export_normals=True, export_tangents=True)
     except TypeError:

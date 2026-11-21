@@ -1019,8 +1019,20 @@ async function editInBlenderCommand(arg?: ProjectNode | string): Promise<void> {
   const blend = glb.replace(/\.(glb|gltf)$/i, ".blend");
   log.appendLine(`Edit in Blender: ${blender} with ${path.relative(p.dir, glb)}`);
   const child = spawn(blender, ["--python", script, "--", glb, blend], { stdio: ["ignore", "pipe", "pipe"], windowsHide: false });
+  // Mesh objects in Blender that are not the mesh's own parts, as the script says on each save: the import leaves
+  // them out (found 2026-11-20: an added Icosphere seemed to be lost). Said once for each new set of names.
+  let notImported: string[] = [];
+  let warned = "";
   const relay = (d: Buffer) => {
-    for (const line of String(d).split(/\r?\n/)) if (line.startsWith("REDcode:") || /error|traceback/i.test(line)) log.appendLine(`  blender | ${line}`);
+    for (const line of String(d).split(/\r?\n/)) {
+      const extra = /^REDcode: not imported: ?(.*)$/.exec(line.trim());
+      if (extra) {
+        notImported = extra[1].split("|").filter(Boolean);
+        if (notImported.length === 0) warned = "";
+        continue;
+      }
+      if (line.startsWith("REDcode:") || /error|traceback/i.test(line)) log.appendLine(`  blender | ${line}`);
+    }
   };
   child.stdout?.on("data", relay);
   child.stderr?.on("data", relay);
@@ -1044,6 +1056,16 @@ async function editInBlenderCommand(arg?: ProjectNode | string): Promise<void> {
       if (!fs.existsSync(glb) || fs.statSync(glb).size !== size) return; // still being written; the next change comes
       log.appendLine(`Blender saved ${path.relative(p.dir, glb)}; importing it`);
       await shipCommand(() => modkitCommand(b, { kind: "file", file: glb }, "import"));
+      const names = notImported;
+      if (names.length > 0 && names.join("|") !== warned) {
+        warned = names.join("|");
+        log.appendLine(`Edit in Blender: not one of the mesh's parts, so not imported: ${names.join(", ")}`);
+        const one = names.length === 1;
+        void vscode.window.showWarningMessage(
+          `REDcode: ${one ? names[0] : names.join(", ")} ${one ? "is" : "are"} not one of ${path.basename(glb)}'s own parts, so the import left ${one ? "it" : "them"} out. ` +
+            `To keep ${one ? "it" : "them"}, join ${one ? "it" : "each"} into a part in Blender: select ${one ? "it" : "one"}, then the part, and press Ctrl+J. A new piece also needs weights on the armature to move with a body.`,
+        );
+      }
     }, 1200);
   });
   const status = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 45);
