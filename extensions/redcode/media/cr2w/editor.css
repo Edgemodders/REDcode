@@ -165,6 +165,13 @@ body.mesh-mode #props { display: flex; flex-direction: column; overflow: hidden;
 .meshview > .toolbar { flex-wrap: wrap; }
 .meshview .toolbar select { background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border, var(--line)); padding: 2px 6px; font: inherit; font-size: 12px; }
 .meshview .toolbar button.on { border-color: var(--accent); color: var(--accent); }
+.meshview .camerabar { gap: 14px; padding: 4px 0; }
+.meshview .camerabar .camgroup { display: inline-flex; gap: 4px; align-items: center; }
+.meshview .camerabar .camgroup > .dim { margin-right: 2px; }
+.meshview .camerabar button.cam { min-width: 26px; touch-action: none; user-select: none; }
+.meshview .camerabar button.cam:active { border-color: var(--accent); color: var(--accent); }
+.meshview .camerahelp { font-size: 12px; padding: 4px 0; }
+.meshview .camerahelp[hidden] { display: none; }
 .meshbody { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(120px, 1fr) 8px var(--side, minmax(180px, 24%)); }
 .meshsplitter { cursor: col-resize; position: relative; }
 .meshsplitter::after { content: ""; position: absolute; top: 0; bottom: 0; left: 3px; width: 2px; }

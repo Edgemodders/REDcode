@@ -16,4 +16,5 @@ What changed in each release of `@edgemodders/world-view`. Changes are grouped a
   - Placements carry their node's `appearance`.
   - The page half's `setMaterials` colours each copy by its appearance's materials when colouring by material. `replaceMesh` takes a `prepare` step for the loaded scene, and `restoreMesh` draws the plain mesh again.
   - `texturedGlb` exports a mod's own mesh from its file.
+- **The camera** (REDcode's `docs/design/sector-view.md`, part 3): the right button looks round and flies with W A S D Q E, the middle pans, the wheel zooms towards the cursor and sets the fly speed while the right button is held; Shift is faster and Ctrl slower. `flyTo` frames with a glide, from above or the opening side if asked; `hold` moves the camera while an on-screen button is held; `flySpeed` and `onFlySpeed`. A right click no longer picks.
 - **The stage:** an environment for reflections, tone mapping, and a light with brightness and a camera or fixed mode (REDcode issue #31, https://github.com/Edgemodders/REDcode/issues/31).

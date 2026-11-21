@@ -6,7 +6,7 @@
 // picked thing with its own materials, EDGEmat's when it is installed.
 
 import * as THREE from "three";
-import { createWorldView, type PageAppearance, type PageMarker, type PagePlacement, type WorldView } from "../../../packages/world-view/src/page";
+import { createWorldView, type CameraMove, type PageAppearance, type PageMarker, type PagePlacement, type WorldView } from "../../../packages/world-view/src/page";
 import { cssColour, el, lightControls, type LightSettings } from "./viewerKit";
 
 /** What the host sends while a sector loads. */
@@ -93,7 +93,10 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
   loadBar.hidden = true;
   stage.appendChild(loadBar);
   const info = el("div", "toolbar sectorinfo");
-  container.append(bar, stage, info);
+  const camBar = el("div", "toolbar camerabar");
+  const camHelp = el("div", "toolbar camerahelp dim");
+  camHelp.hidden = true;
+  container.append(bar, camBar, camHelp, stage, info);
 
   const view: WorldView = createWorldView(canvas, {
     background: cssColour("--vscode-editor-background", "#0d1017"),
@@ -136,6 +139,67 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
   const meshButtons = [openMesh, toEdgemat, addMesh];
   for (const b of meshButtons) b.hidden = true;
   info.append(progress, pickedLine, pickedMeta, toTree, ...meshButtons, realNote);
+
+  // ---- the camera's row: each move while its button is held (Shift faster, Ctrl slower), as the keys do ----
+  const group = (label: string, ...items: HTMLElement[]) => {
+    const g = el("span", "camgroup");
+    g.append(el("span", "dim", label), ...items);
+    return g;
+  };
+  const moveButton = (label: string, title: string, move: CameraMove) => {
+    const b = button(label, title);
+    b.classList.add("cam");
+    const stop = () => view.hold(move, false);
+    b.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0) return;
+      view.hold(move, true, { fast: e.shiftKey, slow: e.ctrlKey });
+      try {
+        b.setPointerCapture(e.pointerId);
+      } catch {
+        // No such pointer (a pen gone, a scripted event): pointerup still ends the move.
+      }
+    });
+    b.addEventListener("pointerup", stop);
+    b.addEventListener("pointercancel", stop);
+    b.addEventListener("lostpointercapture", stop);
+    return b;
+  };
+  const speedValue = el("span", "mono", "×1.0");
+  const showSpeed = (s: number) => (speedValue.textContent = `×${s < 1 ? s.toFixed(2) : s.toFixed(1)}`);
+  view.onFlySpeed(showSpeed);
+  const slower = button("−", "Fly slower (or the wheel, with the right button held)");
+  const faster = button("+", "Fly faster (or the wheel, with the right button held)");
+  slower.addEventListener("click", () => (view.flySpeed = view.flySpeed * 0.8));
+  faster.addEventListener("click", () => (view.flySpeed = view.flySpeed * 1.25));
+  const topView = button("Top", "Look down on the sector, or on the thing picked, from above");
+  const resetView = button("Reset", "Back to the view the sector opened with");
+  const helpButton = button("?", "The mouse and keys");
+  topView.addEventListener("click", () => view.flyTo(picked ? [picked] : undefined, "top"));
+  resetView.addEventListener("click", () => view.flyTo(undefined, "start"));
+  helpButton.addEventListener("click", () => {
+    camHelp.hidden = !camHelp.hidden;
+    helpButton.classList.toggle("on", !camHelp.hidden);
+  });
+  camHelp.textContent =
+    "Left drag: orbit. Right drag: look round, and fly with W A S D, Q down, E up. Middle drag, or Shift or Ctrl with the left: pan. " +
+    "Wheel: closer to the cursor; with the right button held, the fly speed. Shift: faster, Ctrl: slower. F: frame the picked thing. Double-click: fly to a thing.";
+  camBar.append(
+    group("Zoom", moveButton("+", "Closer to what the camera orbits", "zoomIn"), moveButton("−", "Further from what the camera orbits", "zoomOut")),
+    group(
+      "Move",
+      moveButton("Forward", "Fly where the camera looks (W)", "forward"),
+      moveButton("Back", "Fly back (S)", "back"),
+      moveButton("◀", "Strafe left (A)", "left"),
+      moveButton("▶", "Strafe right (D)", "right"),
+    ),
+    group("Pan", moveButton("▲", "Pan up the screen", "panUp"), moveButton("▼", "Pan down the screen", "panDown")),
+    group("Height", moveButton("Up", "Straight up (E)", "up"), moveButton("Down", "Straight down (Q)", "down")),
+    group("Orbit", moveButton("⟲", "Turn round what the camera orbits", "orbitLeft"), moveButton("⟳", "Turn round the other way", "orbitRight")),
+    group("Speed", slower, speedValue, faster),
+    topView,
+    resetView,
+    helpButton,
+  );
 
   let picked: string | null = null;
   /** What each placement draws, from the host's meshes: for the picked panel and its buttons. */
@@ -331,7 +395,17 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
     const path = picked ? pathOf(picked) : null;
     if (path) source.showInTree(path);
   });
-  fit.addEventListener("click", () => view.frame(picked ? [picked] : undefined));
+  fit.addEventListener("click", () => view.flyTo(picked ? [picked] : undefined));
+  canvas.addEventListener("keydown", (e) => {
+    if (e.key.toLowerCase() === "f" && !e.ctrlKey && !e.altKey && !e.metaKey) view.flyTo(picked ? [picked] : undefined);
+  });
+  // Double-click: pick the thing and fly close to it (the clicks before it picked it already).
+  canvas.addEventListener("dblclick", (e) => {
+    const p = view.pick(e.clientX, e.clientY);
+    if (!p) return;
+    if (picked !== p.id) choose(p.id);
+    view.flyTo([p.id]);
+  });
 
   let loaded = false;
   let framed = false;

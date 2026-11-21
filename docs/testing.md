@@ -40,7 +40,8 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Replace with a WAV, titled models (#29), every window's project (#32)](#replace-with-a-wav-titled-models-29-and-every-windows-project-32) | By hand, in the game | Requests | 2026-11-20 | Pass (owner), with two fixes |
 | [Replace All](#replace-all) | By hand, in the game | Requests | 2026-11-20 | Pass (owner), with one fix |
 | [Sector view](#sector-view) | By hand | C5 | 2026-11-20 | Pass (owner), with two fixes and five changes, each retested |
-| [Sector materials (M1)](#sector-materials-m1) | By hand | C5 | 2026-11-21 | Not run (checked in Chrome over the real bridge) |
+| [Sector materials (M1)](#sector-materials-m1) | By hand | C5 | 2026-11-21 | Partly run (the owner stopped early: step 9 needs the EDGEmat launch config) |
+| [Sector camera](#sector-camera) | By hand | C5 | 2026-11-21 | Not run (checked in Chrome over the real bridge) |
 | [Library view (#23)](#library-view-23) | By hand | Requests | 2026-11-15 | Pass, two fixes |
 | [Run Game without ELECTRON_RUN_AS_NODE (#24)](#run-game-without-electron_run_as_node-24) | By hand, in the game | Requests | 2026-11-20 | Pass |
 | [New File](#new-file) | By hand | Requests | 2026-11-20 | Pass, steps 1 to 13, four fixes |
@@ -889,6 +890,23 @@ Found while checking:
 | 8 | Back on the sector, **Add Mesh to Project** with a project open | A question says that a change to the mesh then shows everywhere the game uses it. **Add It** adds the mesh to the project |
 | 9 | F5 with **Run REDcode with Opens Test and EDGEmat** (the EDGEmat clone). Steps 1, 3 and 4 again, then **Open in EDGEmat** | The note says "Materials by EDGEmat"; EDGEmat's Desk opens the mesh at the node's appearance |
 | 10 | On a project's copy of the sector (from the Sector view test, step 9), pick a thing whose mesh is also in the project (step 8), **Materials** | The project's mesh is drawn with the project's own materials |
+
+## Sector camera
+
+Built 2026-11-21 ([design](design/sector-view.html#part-3-the-camera-2026-11-21)): the camera row, the right button's look, the wheel towards the cursor, F and double-click. Checked in Chrome over the real bridge on `exterior_-22_7_0_0`: each held move, Top, Reset, a double-click on node 848.7 gliding to 2.5 m from it, a right click keeping the pick, the wheel's speed with the right button held. Chrome drew 2 frames a second there, so the feel is this test's.
+
+| # | Do | Expected |
+|---|---|---|
+| 1 | F5 with **Run REDcode with Opens Test (no other extensions)**. Open `exterior_-22_7_0_0.streamingsector` | Under the toolbar a second row: **Zoom**, **Move**, **Pan**, **Height**, **Orbit**, **Speed ×1.0**, **Top**, **Reset**, **?** |
+| 2 | Hold each button of Zoom, Move, Pan, Height and Orbit, then let go | The camera moves while the button is held and stops when it is let go: Forward and Back along the view, the arrows strafe level, Up and Down straight up and down, Zoom closer and further, Orbit round the middle. With Shift held as you press, faster; with Ctrl, slower |
+| 3 | Speed + twice, then hold Forward | ×1.6, and faster flying |
+| 4 | Right-drag in the view, and press W, A, S, D, Q, E while holding it; turn the wheel while holding it | The view turns where the camera stands, flies with the keys, and Speed follows the wheel |
+| 5 | Middle-drag, and Shift with a left drag | The view pans |
+| 6 | The wheel over a building at the edge of the view | The camera goes towards that building, not the middle |
+| 7 | Double-click a small thing, such as the cardboard on the street | It is picked and the camera glides close to it |
+| 8 | **F**, then **Top**, then **Reset**; **Frame** | F frames the picked thing; Top looks down on it from above; Reset goes back to the view the sector opened with; Frame glides to the picked thing |
+| 9 | A right click on a thing, without dragging | The pick does not change |
+| 10 | **?** | A line names the mouse and keys; **?** again hides it |
 
 ## No Red Hot Tools
 

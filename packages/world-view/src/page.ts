@@ -85,6 +85,13 @@ export interface WorldView {
   /** The three.js camera, for a gizmo, with its pose (where it is and what it orbits) to read and set. */
   readonly camera: WorldCamera;
   frame(ids?: string[]): void;
+  /** frame, with the camera gliding there. from: look from above, or from the side the view starts on; else from where it is. */
+  flyTo(ids?: string[], from?: "top" | "start"): void;
+  /** A camera move held on or off, for on-screen buttons; fast and slow as Shift and Ctrl on the keys. */
+  hold(move: CameraMove, on: boolean, how?: { fast?: boolean; slow?: boolean }): void;
+  /** The fly speed's multiplier, 1 at first; the wheel changes it while the right button is held. */
+  flySpeed: number;
+  onFlySpeed(cb: (speed: number) => void): () => void;
   setOptions(options: Partial<WorldViewOptions>): void;
   /** How many placements, markers and draws are on screen now, for a status line. */
   stats(): { meshes: number; placements: number; shown: number; markers: number; draws: number };
@@ -93,6 +100,13 @@ export interface WorldView {
   readonly renderer: THREE.WebGLRenderer;
   dispose(): void;
 }
+
+/**
+ * The camera's moves. forward and back fly where the camera looks; left and right strafe; up and down go up
+ * and down in the world; panUp and panDown move along the screen's up; zoomIn and zoomOut go closer to and
+ * further from what it orbits; orbitLeft and orbitRight turn round it.
+ */
+export type CameraMove = "forward" | "back" | "left" | "right" | "up" | "down" | "panUp" | "panDown" | "zoomIn" | "zoomOut" | "orbitLeft" | "orbitRight";
 
 export type WorldCamera = THREE.PerspectiveCamera & { readonly pose: Pose; setPose(pose: Pose): void };
 
@@ -147,6 +161,10 @@ export function createWorldView(canvas: HTMLCanvasElement, options: WorldViewOpt
   const controls = new OrbitControls(camera, canvas);
   controls.enableDamping = true;
   controls.screenSpacePanning = true;
+  // As EDGEbuilder's free camera: the left button orbits (Shift or Ctrl with it pans), the middle pans, the
+  // right looks round and flies with the keys (below), and the wheel goes towards the cursor.
+  controls.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.PAN, RIGHT: null };
+  controls.zoomToCursor = true;
   const stage = createStage(renderer, scene, options.light);
   const accent = new THREE.Color(options.accent ?? 0x19f3ff);
   const white = new THREE.Color(1, 1, 1);
@@ -339,58 +357,144 @@ export function createWorldView(canvas: HTMLCanvasElement, options: WorldViewOpt
   const pickListeners = new Set<(p: Picked | null, e: PointerEvent) => void>();
   const pointerListeners = new Set<(t: "down" | "move" | "up", e: PointerEvent, id: string | null) => void>();
   let downAt: { x: number; y: number } | null = null;
+  /** The right button held: the camera turns where it stands, and the wheel sets the fly speed. */
+  let looking: { pointer: number; x: number; y: number } | null = null;
   const onDown = (e: PointerEvent) => {
-    downAt = { x: e.clientX, y: e.clientY };
+    glide = null;
+    if (e.button === 2) {
+      looking = { pointer: e.pointerId, x: e.clientX, y: e.clientY };
+      controls.enableZoom = false;
+      try {
+        canvas.setPointerCapture(e.pointerId);
+      } catch {
+        // No such pointer (a scripted event): the moves still come while the cursor is over the canvas.
+      }
+      canvas.focus();
+    }
+    if (e.button === 0) downAt = { x: e.clientX, y: e.clientY };
     if (pointerListeners.size) {
       const p = pick(e.clientX, e.clientY);
       for (const l of pointerListeners) l("down", e, p?.id ?? null);
     }
   };
   const onMove = (e: PointerEvent) => {
+    if (looking && e.pointerId === looking.pointer) {
+      look(e.clientX - looking.x, e.clientY - looking.y);
+      looking.x = e.clientX;
+      looking.y = e.clientY;
+    }
     if (!pointerListeners.size) return;
     const p = pick(e.clientX, e.clientY);
     for (const l of pointerListeners) l("move", e, p?.id ?? null);
   };
   const onUp = (e: PointerEvent) => {
+    if (looking && e.pointerId === looking.pointer && e.button === 2) {
+      looking = null;
+      controls.enableZoom = true;
+    }
     const p = pick(e.clientX, e.clientY);
     for (const l of pointerListeners) l("up", e, p?.id ?? null);
-    // A click, not a drag of the camera.
-    if (downAt && Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) < 4) for (const l of pickListeners) l(p, e);
-    downAt = null;
+    // A click of the left button, not a drag of the camera.
+    if (e.button === 0 && downAt && Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) < 4) for (const l of pickListeners) l(p, e);
+    if (e.button === 0) downAt = null;
+  };
+  const onLost = () => {
+    looking = null;
+    controls.enableZoom = true;
   };
   canvas.addEventListener("pointerdown", onDown);
   canvas.addEventListener("pointermove", onMove);
   canvas.addEventListener("pointerup", onUp);
+  canvas.addEventListener("lostpointercapture", onLost);
 
-  // ---- flying: WASD moves the camera and what it orbits; Q and E go down and up; Shift is faster ----
+  /** Turns the camera where it stands: what it orbits moves round it. */
+  const look = (dx: number, dy: number) => {
+    const offset = controls.target.clone().sub(camera.position);
+    const s = new THREE.Spherical().setFromVector3(offset);
+    s.theta -= dx * 0.004;
+    s.phi = Math.min(Math.PI - 0.02, Math.max(0.02, s.phi + dy * 0.004));
+    controls.target.copy(camera.position).add(new THREE.Vector3().setFromSpherical(s));
+  };
+
+  // ---- flying: W A S D move the camera and what it orbits, Q and E go down and up, Shift is faster, Ctrl slower ----
   const keys = new Set<string>();
+  const KeyMoves: Record<string, CameraMove> = { w: "forward", s: "back", a: "left", d: "right", e: "up", q: "down" };
   const onKey = (e: KeyboardEvent) => {
     const k = e.key.toLowerCase();
-    if (!"wasdqe".includes(k) && k !== "shift") return;
-    if (e.type === "keydown") keys.add(k);
-    else keys.delete(k);
+    if (!(k in KeyMoves) && k !== "shift" && k !== "control") return;
+    if (e.type === "keydown") {
+      keys.add(k);
+      if (k in KeyMoves) glide = null;
+    } else keys.delete(k);
   };
   canvas.tabIndex = canvas.tabIndex >= 0 ? canvas.tabIndex : 0;
   canvas.addEventListener("keydown", onKey);
   canvas.addEventListener("keyup", onKey);
-  canvas.addEventListener("blur", () => keys.clear());
+  const onBlur = () => keys.clear();
+  canvas.addEventListener("blur", onBlur);
+  /** Moves held by on-screen buttons, with their own fast and slow. */
+  const held = new Map<CameraMove, { fast?: boolean; slow?: boolean }>();
+  let flySpeed = 1;
+  const speedListeners = new Set<(speed: number) => void>();
+  const setFlySpeed = (v: number) => {
+    flySpeed = Math.min(20, Math.max(0.05, v));
+    for (const l of speedListeners) l(flySpeed);
+  };
+  const onWheel = (e: WheelEvent) => {
+    if (!looking) return;
+    e.preventDefault();
+    setFlySpeed(flySpeed * (e.deltaY < 0 ? 1.25 : 0.8));
+  };
+  canvas.addEventListener("wheel", onWheel, { passive: false });
   const fly = (dt: number) => {
-    if (!keys.size) return;
-    const speed = (keys.has("shift") ? 60 : 15) * dt * Math.max(1, camera.position.distanceTo(controls.target) / 30);
+    const moves = new Map<CameraMove, number>();
+    const keyRate = (keys.has("shift") ? 4 : 1) * (keys.has("control") ? 0.25 : 1);
+    for (const [k, m] of Object.entries(KeyMoves)) if (keys.has(k)) moves.set(m, keyRate);
+    for (const [m, how] of held) moves.set(m, Math.max(moves.get(m) ?? 0, (how.fast ? 4 : 1) * (how.slow ? 0.25 : 1)));
+    if (!moves.size) return;
+    const rate = (m: CameraMove) => moves.get(m) ?? 0;
+    const distance = camera.position.distanceTo(controls.target);
+    const speed = 15 * flySpeed * dt * Math.max(1, distance / 30);
     const forward = new THREE.Vector3();
     camera.getWorldDirection(forward);
     const right = new THREE.Vector3().crossVectors(forward, camera.up).normalize();
-    const move = new THREE.Vector3();
-    if (keys.has("w")) move.add(forward);
-    if (keys.has("s")) move.sub(forward);
-    if (keys.has("d")) move.add(right);
-    if (keys.has("a")) move.sub(right);
-    if (keys.has("e")) move.y += 1;
-    if (keys.has("q")) move.y -= 1;
-    if (move.lengthSq() === 0) return;
-    move.normalize().multiplyScalar(speed);
-    camera.position.add(move);
-    controls.target.add(move);
+    const screenUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
+    const move = new THREE.Vector3()
+      .addScaledVector(forward, rate("forward") - rate("back"))
+      .addScaledVector(right, rate("right") - rate("left"))
+      .addScaledVector(screenUp, rate("panUp") - rate("panDown"));
+    move.y += rate("up") - rate("down");
+    if (move.lengthSq() > 0) {
+      move.multiplyScalar(speed);
+      camera.position.add(move);
+      controls.target.add(move);
+    }
+    // Closer and further, and round, move the camera only.
+    const zoom = rate("zoomIn") - rate("zoomOut");
+    const orbit = rate("orbitRight") - rate("orbitLeft");
+    if (zoom || orbit) {
+      const offset = camera.position.clone().sub(controls.target);
+      if (zoom) offset.multiplyScalar(Math.exp(-1.2 * flySpeed * zoom * dt));
+      if (orbit) offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), 0.9 * orbit * dt);
+      if (offset.length() < 0.1) offset.setLength(0.1);
+      camera.position.copy(controls.target).add(offset);
+    }
+  };
+
+  // ---- gliding: flyTo moves there over a moment; any move of the modder's stops it ----
+  let glide: { from: Pose; to: Pose; t: number } | null = null;
+  const Glide = 0.45;
+  const stepGlide = (dt: number) => {
+    if (!glide) return;
+    glide.t = Math.min(1, glide.t + dt / Glide);
+    const k = 1 - Math.pow(1 - glide.t, 3);
+    const lerp = (a: number[], b: number[]) => new THREE.Vector3().fromArray(a).lerp(new THREE.Vector3().fromArray(b), k);
+    camera.position.copy(lerp(glide.from.position, glide.to.position));
+    controls.target.copy(lerp(glide.from.target, glide.to.target));
+    if (glide.t >= 1) {
+      glide = null;
+      culledAt.set(Infinity, 0, 0);
+    }
   };
 
   // ---- the loop ----
@@ -411,6 +515,7 @@ export function createWorldView(canvas: HTMLCanvasElement, options: WorldViewOpt
     if (!running) return;
     const dt = Math.min(clock.getDelta(), 0.1);
     fly(dt);
+    stepGlide(dt);
     controls.update();
     sinceCull += dt;
     if (sinceCull > 0.25) {
@@ -423,7 +528,8 @@ export function createWorldView(canvas: HTMLCanvasElement, options: WorldViewOpt
   };
   tick();
 
-  const frame = (ids?: string[]) => {
+  /** Where the camera goes to frame these ids, or everything; null when there is nothing. */
+  const framing = (ids?: string[], from?: "top" | "start"): Pose | null => {
     const box = new THREE.Box3();
     if (ids?.length) for (const id of ids) {
       const b = boxOf(id);
@@ -436,20 +542,32 @@ export function createWorldView(canvas: HTMLCanvasElement, options: WorldViewOpt
       for (const o of objects.values()) box.union(new THREE.Box3().setFromObject(o));
       if (box.isEmpty()) for (const m of markers.values()) box.union(m.box);
     }
-    if (box.isEmpty()) return;
+    if (box.isEmpty()) return null;
     const c = box.getCenter(new THREE.Vector3());
     const radius = Math.max(box.getBoundingSphere(new THREE.Sphere()).radius, 1);
     const distance = radius / Math.sin((camera.fov * Math.PI) / 360);
-    const dir = camera.position.clone().sub(controls.target);
+    const dir = from === "top" ? new THREE.Vector3(0, 1, 0.001) : from === "start" ? new THREE.Vector3(1, 0.7, 1) : camera.position.clone().sub(controls.target);
     if (dir.lengthSq() < 1e-6) dir.set(1, 0.7, 1);
-    camera.position.copy(c).add(dir.normalize().multiplyScalar(distance));
+    // Near and far follow the size, so a small thing close up is not clipped and a whole sector is not cut off.
     camera.near = Math.max(0.05, distance / 2000);
     camera.far = Math.max(20000, distance * 50);
     camera.updateProjectionMatrix();
-    controls.target.copy(c);
+    return { position: c.clone().add(dir.normalize().multiplyScalar(distance)).toArray(), target: c.toArray() };
+  };
+  const frame = (ids?: string[]) => {
+    const pose = framing(ids);
+    if (!pose) return;
+    glide = null;
+    camera.position.fromArray(pose.position);
+    controls.target.fromArray(pose.target);
     controls.update();
     culledAt.set(Infinity, 0, 0);
     cull();
+  };
+  const flyTo = (ids?: string[], from?: "top" | "start") => {
+    const to = framing(ids, from);
+    if (!to) return;
+    glide = { from: { position: camera.position.toArray(), target: controls.target.toArray() }, to, t: 0 };
   };
 
   const worldCamera = Object.defineProperties(camera, {
@@ -613,6 +731,23 @@ export function createWorldView(canvas: HTMLCanvasElement, options: WorldViewOpt
     rayFrom,
     camera: worldCamera,
     frame,
+    flyTo,
+    hold(move, on, how) {
+      if (on) {
+        glide = null;
+        held.set(move, how ?? {});
+      } else held.delete(move);
+    },
+    get flySpeed() {
+      return flySpeed;
+    },
+    set flySpeed(v: number) {
+      setFlySpeed(v);
+    },
+    onFlySpeed(cb) {
+      speedListeners.add(cb);
+      return () => speedListeners.delete(cb);
+    },
     setOptions(next) {
       const recolour = next.colourBy && next.colourBy !== opts.colourBy;
       opts = { ...opts, ...next };
@@ -646,8 +781,11 @@ export function createWorldView(canvas: HTMLCanvasElement, options: WorldViewOpt
       canvas.removeEventListener("pointerdown", onDown);
       canvas.removeEventListener("pointermove", onMove);
       canvas.removeEventListener("pointerup", onUp);
+      canvas.removeEventListener("lostpointercapture", onLost);
       canvas.removeEventListener("keydown", onKey);
       canvas.removeEventListener("keyup", onKey);
+      canvas.removeEventListener("blur", onBlur);
+      canvas.removeEventListener("wheel", onWheel);
       for (const r of records.values()) {
         for (const d of r.drawn) d.dispose();
         for (const p of r.parts) p.geometry.dispose();

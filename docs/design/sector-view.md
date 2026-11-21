@@ -99,6 +99,8 @@ view.pick(x, y) -> { id, point } | null / view.onPick(cb)
 view.onPointer(cb)                                      // down, move and up on the canvas, with the id under it
 view.toCanvas(worldPoint) -> [x, y] / view.rayFrom(x, y) -> { origin, direction }   // for a gizmo and box selection
 view.camera.pose / view.camera.setPose(pose) / view.frame(ids)
+view.flyTo(ids?, "top" | "start"?)                     // frame, gliding there
+view.hold(move, on, { fast?, slow? }) / view.flySpeed / view.onFlySpeed(cb)   // on-screen camera buttons
 view.scene, view.camera, view.renderer
 view.dispose()
 ```
@@ -136,6 +138,26 @@ Built the same day. The mesh view (`webview/meshViewer.ts`) and the animation vi
 A directional light needs only a direction, so the stage keeps one. In camera mode it comes from over the viewer's shoulder, and Fixed light freezes the direction it had. That works the same for a mesh at the origin and for a sector 1,400 m from it.
 
 Checked in Chrome: the mesh view with a game mesh exported with its materials showed the control and readable shading. The first tone and environment values washed the sector's colours almost to white, so they were turned down: exposure 0.8, environment 0.45. Not judged yet: EDGEmat's rendered metals and roughness, which #31 is for. EDGEmat sends those next. Glass and glow, #31's later rows, wait for EDGEmat's new fields.
+
+### Part 3: the camera (2026-11-21)
+
+The owner asked after the M1 hand test: buttons for zooming, panning, strafing and speed, as EDGEbuilder's free camera works, and a double-click that flies close to a thing. Built the same day.
+
+| Input | Does |
+|---|---|
+| Left drag | Orbit, as before |
+| Right drag | Look round where the camera stands; **W A S D** fly and **Q E** go down and up while it is held (they work without it too, once the view has the keys) |
+| Middle drag, or Shift or Ctrl with the left | Pan |
+| Wheel | Closer, towards the cursor (`zoomToCursor`); with the right button held, the fly speed |
+| Shift, Ctrl | Faster (×4), slower (×0.25), with the keys and the buttons |
+| **F** | Frame the picked thing, gliding there |
+| Double-click | Pick the thing and glide close to it |
+
+These are the package's own (EDGEbuilder's in-game viewport uses the same mapping), so EDGEbuilder's sector view gets them too. A right click no longer picks, since the right button is the look.
+
+REDcode's camera row under the toolbar: **Zoom** + and −, **Move** (Forward, Back, strafe left and right), **Pan** up and down, **Height** up and down, **Orbit** both ways, each moving while its button is held (`view.hold`); **Speed** − and + (`view.flySpeed`, shown as ×1.0 and following the wheel); **Top** (from above, on the picked thing or the sector) and **Reset** (the view it opened with), both gliding (`view.flyTo`); and **?** for a line naming the mouse and keys. **Frame** glides too.
+
+Checked in Chrome over the real bridge: every held move goes the right way (forward and back along the view, strafing level, height along the world's up, zoom changing the distance only, orbit keeping the target), Top looks straight down, Reset comes back to the opening side, a double-click on node 848.7 picked it and glided to 2.5 m from it, a right click kept the pick, the wheel with the right button held raised the speed to ×1.3. Chrome drew 2 frames a second in that window, so how the moves feel is the hand test's.
 
 ## Order
 
