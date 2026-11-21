@@ -37,7 +37,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Edit in Blender: skinned meshes](#edit-in-blender-skinned-meshes) | By hand | | | Given to the owner 2026-11-20 |
 | [Replace with a WAV, titled models (#29), every window's project (#32)](#replace-with-a-wav-titled-models-29-and-every-windows-project-32) | By hand, in the game | Requests | 2026-11-20 | Pass (owner), with two fixes |
 | [Replace All](#replace-all) | By hand, in the game | Requests | 2026-11-20 | Pass (owner), with one fix |
-| [Sector view](#sector-view) | By hand | C5 | | Given to the owner 2026-11-20 |
+| [Sector view](#sector-view) | By hand | C5 | 2026-11-20 | Pass (owner), with two fixes; three changes asked for |
 | [Library view (#23)](#library-view-23) | By hand | Requests | 2026-11-15 | Pass, two fixes |
 | [Run Game without ELECTRON_RUN_AS_NODE (#24)](#run-game-without-electron_run_as_node-24) | By hand, in the game | Requests | 2026-11-20 | Pass |
 | [New File](#new-file) | By hand | Requests | 2026-11-20 | Pass, steps 1 to 13, four fixes |
@@ -793,6 +793,8 @@ Built 2026-11-20 ([design](design/sector-view.html#as-built-part-1)). A `.stream
 | 9 | **Add to Project** on the sector (the **+** on its row in **Search game files**, or on the file in **Game Assets**), open the project's copy from the Project view, change a node data entry's `position` in the tree, save | The 3D view draws the saved copy, the moved thing in its new place |
 | 10b | Open any `.mesh` (3D), then an `.anims` (Animations) | Both have **Light** and **Fixed light** in their toolbars. A dark material is easier to read at 1.5× or 2.5×; metals are not black. The light chosen in one view is the one the next view opens with, in this window (REDcode issue #31) |
 | 10 | Close the sector's tab. In the Command Palette (Ctrl+Shift+P), **Opens Test: Open a Sector at Entry 780** (it calls `REDcodeApi.openSector(path, { select: 780 })`) | The sector opens with entry 780 picked and framed |
+
+Result 2026-11-20, reported by the owner: steps 1 to 10b pass. Two fixes came first: the mesh cache folder was named by the raw game stamp (its `:` and `|` made every export fail, so step 1 showed 202 markers and no meshes; now a hash of it, with a unit check, and the load is logged), and the 3D view is built once at a time (a guard; not the cause here). Step 9 now says where Add to Project is. The owner asked for three changes: progress while **Coarser levels** loads (it looked as if nothing happened), and **Show in Tree** and back keeping the 3D view, its camera and the coarser sectors loaded.
 
 ## No Red Hot Tools
 
