@@ -17,7 +17,8 @@
       { "command": "openstest.openModel", "title": "Opens Test: Open a Model with a Title" },
       { "command": "openstest.closeModel", "title": "Opens Test: Close the Models in a Folder" },
       { "command": "openstest.openAnimationNotAnims", "title": "Opens Test: Open an Animation from a File That Is Not One" },
-      { "command": "openstest.revealInProject", "title": "Opens Test: Reveal in Project" }
+      { "command": "openstest.revealInProject", "title": "Opens Test: Reveal in Project" },
+      { "command": "openstest.openSector", "title": "Opens Test: Open a Sector at Entry 780" }
     ]
   },
   "edgemodders": {

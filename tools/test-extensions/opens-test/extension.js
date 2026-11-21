@@ -34,6 +34,15 @@ exports.activate = (context) => {
       }
       await api.openAnimation(TraumaSoldiers, "synced__q001_00c_trauma_arrives_soldiers__land_v1__soldier_01", { entity: TraumaTeam, appearance: "corpo__traumateam_ma_paramedic__lvl1_01" });
     }),
+    vscode.commands.registerCommand("openstest.openSector", async () => {
+      // The sector view (REDcode 0.10.15, agreed with EDGEbuilder in its #8): a sector at one node data entry, picked and framed.
+      const api = await redcode();
+      if (typeof api?.openSector !== "function") {
+        void vscode.window.showWarningMessage("This REDcode has no openSector.");
+        return;
+      }
+      await api.openSector("base\\worlds\\03_night_city\\_compiled\\default\\exterior_-22_7_0_0.streamingsector", { select: 780 });
+    }),
     vscode.commands.registerCommand("openstest.openAnimationSet", async () => {
       // A3 (REDcode 0.10.15): the soldiers' landing as a synced set, the AV and soldier_02 with it, soldier_02 on the paramedic.
       const api = await redcode();
