@@ -4,6 +4,24 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 ## Unreleased
 
+## 0.10.15 (2026-11-20)
+
+Streaming sectors in 3D, synced sets in the animation view, Replace with a WAV in the sound list, and a light for the 3D views. Needs REDbridge 0.17.0.
+
+<!-- nexus
+New: Streaming sectors open in 3D: every mesh where the game places it, with Coarser levels and Show in Tree
+New: Synced sets in the animation view: Play the Set plays a scene's clips together, placed as in the game
+New: Replace a game sound with a WAV from the sound list, and Replace All for an event's variations
+New: Add to Project in the editor's header on a game file
+Changed: The 3D views light more like the game: reflections, tone mapping, Light and Fixed light
+Changed: The 3D views keep their camera and what they loaded when you go to the tree and back
+Changed: A splitter widens the list beside the mesh and animation views
+Fixed: Edit in Blender opens skinned meshes such as bodies and garments
+Fixed: Animations that showed every bone at one point, or flickered with the time running backwards
+Fixed: Show in Tree and search hits reach nodes past the first 200 of a long list
+Needs: REDbridge 0.17.0 (REDcode: Update REDbridge)
+-->
+
 **New**
 
 - **Add to Project** in the CR2W editor's header on a game file, which opens read-only: it copies the file into your project at its game path, as the **+** in Game Assets and Search game files does.
@@ -31,7 +49,6 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 **Fixed**
 
 - **Show in Tree**, a search hit or a link to a node far down a long list (past the first 200 entries) now opens the tree at that node and scrolls to it, rather than stopping at the first 200.
-- A sector could open with its markers and no meshes, when the editor started its 3D view twice. It now builds one view at a time, and a mesh that cannot be drawn is counted in the line under the view.
 - **Pack and Install** after **Pack and Play** no longer warns that the project's own archive was put in the game by something else: archives swapped into the running game through REDnode now count as the project's.
 - With two VS Code windows on different REDcode versions, the older one no longer puts its older REDnode package back over the newer one in the game.
 - Checkboxes in the CR2W editor and the 3D views (the synced set, the submesh list, true or false values) use the theme's colours, not the browser's blue and white.
