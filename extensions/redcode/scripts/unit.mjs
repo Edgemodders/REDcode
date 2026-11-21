@@ -961,6 +961,22 @@ await check("world view: the cache folder for a game stamp is a name Windows acc
   assert.ok(fs.existsSync(dir));
 });
 
+await check("world view: reading several sectors says how far it is, before the exports", async () => {
+  const bridge = {
+    async request(method) {
+      if (method === "sector.nodes") return { items: [] };
+      throw new Error(`unexpected ${method}`);
+    },
+  };
+  const seen = [];
+  const loader = wv.createSectorLoader(bridge, { cacheDir: path.join(tmp, "wvcache3"), onMesh: () => undefined, onMarkers: () => undefined, onUnload: () => undefined, onProgress: (p) => seen.push(`${p.phase}:${p.done}/${p.total}`) });
+  await loader.set(["s\\a.streamingsector", "s\\b.streamingsector", "s\\c.streamingsector"]);
+  assert.deepEqual(seen, ["reading:0/3", "reading:1/3", "reading:2/3", "exporting:0/0"]);
+  seen.length = 0;
+  await loader.set(["s\\a.streamingsector"]);
+  assert.deepEqual(seen, ["exporting:0/0"], "one sector, or none left to read: no reading steps");
+});
+
 // ---- Animations A3: synced sets (docs/design/animation.md) ----
 
 const as = require("../dist/animsSet.js");

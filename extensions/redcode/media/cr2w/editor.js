@@ -99,6 +99,8 @@
       } else {
         pendingAnimation = m.name ?? null;
         pendingPlaySet = !!m.playSet;
+        // Another entity while the tree shows: the kept view is on the old body, so it is built again.
+        if (m.rebody) disposeMesh();
         if (!opening && home === "anims" && mode !== "anims") { mode = "anims"; void render(true); }
       }
     } else if (m.type === "flush") {
@@ -240,7 +242,11 @@
     document.body.classList.toggle("atlas-mode", mode === "atlas");
     document.body.classList.toggle("mesh-mode", mode === "mesh" || mode === "anims" || mode === "sector");
     $("view").textContent = isSpecial() ? "Tree" : HomeLabels[home] ?? "Tree";
-    if (mode !== "mesh" && mode !== "anims" && mode !== "sector") disposeMesh();
+    // The 3D view stays while the tree shows (the owner, 2026-11-20: Show in Tree lost the camera and the
+    // coarser sectors); it is built again only after a save or revert, or for another body.
+    const in3d = mode === "mesh" || mode === "anims" || mode === "sector";
+    $("view3d").hidden = !in3d;
+    if (in3d && meshShown && view3dLabel) $("propsLabel").textContent = view3dLabel;
     if (mode === "table") {
       if (pendingRow !== null) await showPendingRow();
       else await renderTable();
@@ -250,8 +256,22 @@
       await renderMesh();
     } else if (mode === "anims") {
       await renderAnims();
+      // An animation asked for while the tree showed: the kept view goes to it.
+      if (pendingAnimation && meshView?.showAnimation) {
+        const name = pendingAnimation;
+        const playSet = pendingPlaySet;
+        pendingAnimation = null;
+        pendingPlaySet = false;
+        meshView.showAnimation(name, { playSet });
+      }
     } else if (mode === "sector") {
       await renderSector();
+      // An entry asked for while the tree showed (REDcodeApi.openSector): the kept view picks it.
+      if (pendingSectorEntry !== null && meshView?.selectEntry) {
+        const entry = pendingSectorEntry;
+        pendingSectorEntry = null;
+        meshView.selectEntry(entry);
+      }
     } else {
       // The Properties view draws the selection the host gave it; sending it back would make the editor draw the grid.
       await select(selected, force, sidebar);
@@ -271,6 +291,8 @@
   // the bytes; the bundled viewer (media/mesh/viewer.js) draws them. Unsaved edits show after a save.
   let meshView = null;
   let meshShown = false;
+  /** The label over the 3D view, put back when the view shows again after the tree. */
+  let view3dLabel = "";
   /** The 3D view being built, so a render while it is under way waits for it rather than starting another. */
   let meshMounting = null;
 
@@ -298,9 +320,9 @@
 
   async function buildMesh() {
     if (meshShown) return;
-    const grid = $("grid");
+    const grid = $("view3d");
     disposeMesh();
-    $("propsLabel").textContent = `${info.type}  ·  3D`;
+    $("propsLabel").textContent = view3dLabel = `${info.type}  ·  3D`;
     grid.replaceChildren(el("div", "note", "Exporting the mesh…"));
     try {
       const payload = await request("meshPayload");
@@ -335,9 +357,9 @@
 
   async function buildSector() {
     if (meshShown) return;
-    const grid = $("grid");
+    const grid = $("view3d");
     disposeMesh();
-    $("propsLabel").textContent = `${info.type}  ·  3D`;
+    $("propsLabel").textContent = view3dLabel = `${info.type}  ·  3D`;
     grid.replaceChildren(el("div", "note", "Reading the sector…"));
     try {
       const payload = await request("sectorPayload");
@@ -381,9 +403,9 @@
 
   async function buildAnims() {
     if (meshShown) return;
-    const grid = $("grid");
+    const grid = $("view3d");
     disposeMesh();
-    $("propsLabel").textContent = `${info.type}  ·  Animations`;
+    $("propsLabel").textContent = view3dLabel = `${info.type}  ·  Animations`;
     grid.replaceChildren(el("div", "note", "Exporting the animations, which can take a minute for a large file…"));
     try {
       const payload = await request("animsPayload");

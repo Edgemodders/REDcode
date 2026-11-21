@@ -14,7 +14,7 @@ const loader = createSectorLoader(bridge, {   // REDcode's BridgeClient or REDno
   onMesh: ({ sector, mesh, glb, placements }) => {},   // one unique mesh of a sector, and every place it is drawn
   onMarkers: (sector, markers) => {},         // things with no mesh: entities, decals, lights, collision...
   onUnload: (sector) => {},                   // every id under "<sector>#" goes
-  onProgress: ({ done, total, etaMs, current }) => {},
+  onProgress: ({ phase, done, total, etaMs, current }) => {}, // phase "reading": sectors read; "exporting": meshes
 });
 await loader.set(["base\\worlds\\03_night_city\\_compiled\\default\\exterior_-22_7_0_0.streamingsector"]);
 ```

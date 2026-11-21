@@ -796,6 +796,14 @@ Built 2026-11-20 ([design](design/sector-view.html#as-built-part-1)). A `.stream
 
 Result 2026-11-20, reported by the owner: steps 1 to 10b pass. Two fixes came first: the mesh cache folder was named by the raw game stamp (its `:` and `|` made every export fail, so step 1 showed 202 markers and no meshes; now a hash of it, with a unit check, and the load is logged), and the 3D view is built once at a time (a guard; not the cause here). Step 9 now says where Add to Project is. The owner asked for three changes: progress while **Coarser levels** loads (it looked as if nothing happened), and **Show in Tree** and back keeping the 3D view, its camera and the coarser sectors loaded.
 
+Built the same day (checked in Chrome with the editor page over REDbridge 0.17.0, scratchpad `edharness.mjs`: Coarser levels found 238 sectors and counted them as it read; Tree and back while it loaded gave the same canvas, and the reading went on). To retest:
+
+| # | Do | Expected |
+|---|---|---|
+| R1 | **Coarser levels** | The button says **Loading coarser levels…** and is greyed; a bar moves over the top of the view, then fills as "Reading sectors: n of 238" counts up, then "Exporting meshes: n of m". When done the button is back |
+| R2 | While it loads, or after: turn the camera somewhere, pick a building, **Show in Tree**, then **3D** in the header | The same view: the camera where you left it, the coarser sectors still there (and still loading if they were) |
+| R3 | An `.anims`: play an animation, **Tree**, then **Animations** | The same animation, where it had got to |
+
 ## No Red Hot Tools
 
 Built 2026-11-07, after REDcode 0.10.7: Red Hot Tools has no build for game 2.5, so REDcode drops its hot folder. Pack and Play swaps through REDnode (REDswap) or installs for the next start, and **Install to the Hot Folder** is gone. F5 with **Run REDcode**. Checked before: type check, build, `npm test` (39, one new for the install notice).

@@ -11,7 +11,7 @@ export type SectorMessage =
   | { type: "sectorMesh"; mesh: string; data: string; placements: PagePlacement[] }
   | { type: "sectorMarkers"; sector: string; markers: PageMarker[] }
   | { type: "sectorUnload"; sector: string }
-  | { type: "sectorProgress"; done: number; total: number; etaMs?: number; current?: string }
+  | { type: "sectorProgress"; phase?: "reading" | "exporting"; done: number; total: number; etaMs?: number; current?: string }
   | { type: "sectorDone"; skipped: { id: string; why: string }[]; sectors: string[] };
 
 export interface SectorSource {
@@ -58,6 +58,12 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
   canvas.style.height = "100%";
   canvas.style.display = "block";
   stage.appendChild(canvas);
+  // A thin bar over the top of the view while anything loads: moving while sectors are read, filling while meshes export.
+  const loadBar = el("div", "loadbar");
+  const loadFill = el("div", "fill");
+  loadBar.appendChild(loadFill);
+  loadBar.hidden = true;
+  stage.appendChild(loadBar);
   const info = el("div", "toolbar sectorinfo");
   container.append(bar, stage, info);
 
@@ -129,12 +135,29 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
   let framed = false;
   /** Meshes the page could not draw (the host exported them, three.js could not read them). */
   const failed: { id: string; why: string }[] = [];
+  /** Shows the bar: undefined for a moving one (how long is not known yet), else how far, 0 to 1. */
+  const busy = (part?: number) => {
+    loadBar.hidden = false;
+    loadBar.classList.toggle("busy", part === undefined);
+    loadFill.style.width = part === undefined ? "" : `${Math.round(Math.max(0, Math.min(1, part)) * 100)}%`;
+  };
+  const idle = () => {
+    loadBar.hidden = true;
+    coarser.disabled = false;
+    coarser.textContent = "Coarser levels";
+  };
   const load = async (withCoarser: boolean) => {
-    progress.textContent = withCoarser ? "Reading the coarser sectors over this one…" : "Reading the sector…";
+    progress.textContent = withCoarser ? "Finding the coarser sectors over this one…" : "Reading the sector…";
+    busy();
+    if (withCoarser) {
+      coarser.disabled = true;
+      coarser.textContent = "Loading coarser levels…";
+    }
     try {
       await source.load(withCoarser);
     } catch (e) {
       progress.textContent = `Could not load it: ${e instanceof Error ? e.message : String(e)}`;
+      idle();
     }
   };
   coarser.addEventListener("click", () => {
@@ -191,10 +214,17 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
           view.unloadSector(m.sector);
           return;
         case "sectorProgress":
-          progress.textContent = m.done < m.total ? `Exporting meshes: ${m.done.toLocaleString()} of ${m.total.toLocaleString()}${m.etaMs ? `, about ${seconds(m.etaMs)} left` : ""}` : "";
+          if (m.phase === "reading") {
+            progress.textContent = `Reading sectors: ${m.done.toLocaleString()} of ${m.total.toLocaleString()}`;
+            busy(m.total ? m.done / m.total : undefined);
+          } else if (m.done < m.total) {
+            progress.textContent = `Exporting meshes: ${m.done.toLocaleString()} of ${m.total.toLocaleString()}${m.etaMs ? `, about ${seconds(m.etaMs)} left` : ""}`;
+            busy(m.done / m.total);
+          } else progress.textContent = "";
           progress.title = m.current ?? "";
           return;
         case "sectorDone":
+          idle();
           {
             const all = [...m.skipped, ...failed];
             progress.textContent = all.length ? `${all.length.toLocaleString()} thing(s) could not be drawn` : "";

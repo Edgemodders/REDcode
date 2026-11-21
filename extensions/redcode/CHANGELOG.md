@@ -21,6 +21,7 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 **Changed**
 
+- The 3D views (meshes, animations, sectors) stay as they were when you go to the tree and back: the camera, the animation and the sectors loaded. A sector's **Coarser levels** shows how far it is, over the view and in the line under it, since there can be hundreds of sectors to read.
 - The animation and mesh views have a splitter between the 3D view and the list: drag it to widen the list for long names, double-click it for the default width. The width is kept for the window.
 - **The 3D views light like the game more** (https://github.com/Edgemodders/REDcode/issues/31, for EDGEmat). There is an environment for metals and gloss to reflect, and tone mapping so highlights do not clip. A **Light** control sets the brightness, and **Fixed light** keeps the light still while you turn the model, to see how shine moves. This is in the mesh view, the animation view and the sector view, and the setting is kept for the window.
 - **New Project** says, before it opens the new folder, to trust it if VS Code asks: in Restricted Mode REDcode stays off and the game's tools cannot see the project. It can be told not to say it again.

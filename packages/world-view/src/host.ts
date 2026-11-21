@@ -59,7 +59,12 @@ export interface Marker {
 }
 
 export interface Progress {
-  /** Unique meshes exported or found in the cache, of total. */
+  /**
+   * "reading": done of total sectors read (sector.nodes), before any mesh; "exporting" (or none): done of
+   * total unique meshes exported or found in the cache.
+   */
+  phase?: "reading" | "exporting";
+  /** Unique meshes exported or found in the cache, of total; or sectors read, while reading. */
   done: number;
   total: number;
   /** About how long the rest takes, from the exports so far. */
@@ -271,8 +276,13 @@ export function createSectorLoader(bridge: Bridge, options: LoaderOptions): Sect
       const skipped: { id: string; why: string }[] = [];
       // Every new sector's items first, so the page shows its cached meshes and markers at once.
       const queue: { sector: SectorRef; mesh: string; placements: Placement[] }[] = [];
+      const toRead = [...wanted.keys()].filter((key) => !(loaded.has(key) && complete.has(key))).length;
+      let read = 0;
       for (const [key, ref] of wanted) {
         if (loaded.has(key) && complete.has(key)) continue;
+        // Reading many sectors (the coarser levels) takes seconds each: said, so the page shows it is working.
+        if (toRead > 1) options.onProgress?.({ phase: "reading", done: read, total: toRead, current: ref.path });
+        read++;
         // Read but not finished: taken out and read again, so the page gets all of it.
         if (loaded.has(key)) {
           options.onUnload(ref.path);
@@ -304,7 +314,7 @@ export function createSectorLoader(bridge: Bridge, options: LoaderOptions): Sect
         const cached = fs.existsSync(meshGlbPath(options.cacheDir, q.mesh));
         if (!cached) {
           const left = total - done;
-          options.onProgress?.({ done, total, current: q.mesh, ...(exported ? { etaMs: Math.round((exportMs / exported) * left) } : {}) });
+          options.onProgress?.({ phase: "exporting", done, total, current: q.mesh, ...(exported ? { etaMs: Math.round((exportMs / exported) * left) } : {}) });
         }
         const t0 = Date.now();
         try {
@@ -323,7 +333,7 @@ export function createSectorLoader(bridge: Bridge, options: LoaderOptions): Sect
       }
       if (mine === generation) {
         for (const key of wanted.keys()) if (loaded.has(key)) complete.add(key);
-        options.onProgress?.({ done, total });
+        options.onProgress?.({ phase: "exporting", done, total });
       }
       return { skipped };
     },
