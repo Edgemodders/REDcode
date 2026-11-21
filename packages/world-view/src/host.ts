@@ -34,6 +34,8 @@ export interface Placement {
   id: string;
   matrix: number[];
   range?: number;
+  /** The node's mesh appearance, when the sector names one: which material each submesh shows (see meshMaterials). */
+  appearance?: string;
 }
 
 /** A unique mesh of one sector: its .glb (exported once, cached) and every place the sector draws it. */
@@ -176,8 +178,9 @@ export function itemsToBatches(sector: string, items: SectorItem[], kinds?: stri
       if (!batch) meshes.set(res.toLowerCase(), (batch = { mesh: res, placements: [] }));
       const list = batch.placements;
       const copies = it.instances?.length ? it.instances : undefined;
-      if (copies) copies.forEach((c, k) => list.push({ id: `${id}.${k}`, matrix: transformToGltf(c.position, c.rotation, c.scale), ...(range !== undefined ? { range } : {}) }));
-      else list.push({ id, matrix: transformToGltf(it.transform.position, it.transform.rotation, it.transform.scale), ...(range !== undefined ? { range } : {}) });
+      const extra = { ...(range !== undefined ? { range } : {}), ...(it.appearance ? { appearance: it.appearance } : {}) };
+      if (copies) copies.forEach((c, k) => list.push({ id: `${id}.${k}`, matrix: transformToGltf(c.position, c.rotation, c.scale), ...extra }));
+      else list.push({ id, matrix: transformToGltf(it.transform.position, it.transform.rotation, it.transform.scale), ...extra });
       continue;
     }
     markers.push({
@@ -210,7 +213,7 @@ async function exportMesh(bridge: Bridge, cacheDir: string, mesh: string, from?:
   if (loose && fs.existsSync(loose)) {
     // A mod's own mesh: its export is kept apart from the game's mesh of the same path, and made again
     // whenever the file is newer.
-    const looseCache = path.join(cacheDir, "loose", Buffer.from(path.resolve(from!.root!).toLowerCase()).toString("base64url").slice(0, 40));
+    const looseCache = looseCacheOf(cacheDir, from!.root!);
     const out = meshGlbPath(looseCache, mesh);
     if (fs.existsSync(out) && fs.statSync(out).mtimeMs > fs.statSync(loose).mtimeMs) return out;
     await bridge.request("project.export", { file: loose, archiveDir: from!.root!, rawDir: path.join(looseCache, "raw"), options: { meshBinary: true, meshMaterials: false, meshLodFilter: true } });
@@ -223,13 +226,7 @@ async function exportMesh(bridge: Bridge, cacheDir: string, mesh: string, from?:
   const file = path.join(archiveDir, ...rel);
   if (!fs.existsSync(file)) {
     fs.mkdirSync(path.dirname(file), { recursive: true });
-    try {
-      await bridge.request("archive.extract", { path: mesh, outFile: file });
-    } catch (e) {
-      if (!from?.archive) throw e;
-      await bridge.request("archive.extractFromMod", { archive: from.archive, items: [{ path: mesh, outFile: file }] });
-    }
-    if (!fs.existsSync(file)) throw new Error(`${mesh} is in neither the game nor the mod`);
+    await extractMesh(bridge, mesh, file, from);
   }
   await bridge.request("project.export", { file, archiveDir, rawDir: path.join(cacheDir, "raw"), options: { meshBinary: true, meshMaterials: false, meshLodFilter: true } });
   if (!fs.existsSync(out)) throw new Error(`WolvenKit wrote no .glb for ${mesh}`);
@@ -396,8 +393,42 @@ export async function sectorsNear(bridge: Bridge, point: number[], distance: num
 
 // ---- one object, on demand ---------------------------------------------------------------------
 
-/** A mesh with its materials and textures, for the one object picked; cached under cacheDir/textured. */
-export async function texturedGlb(bridge: Bridge, mesh: string, cacheDir: string): Promise<string> {
+/** The cache folder for a mod's loose files under root, kept apart from the game's files of the same paths. */
+const looseCacheOf = (cacheDir: string, root: string) => path.join(cacheDir, "loose", Buffer.from(path.resolve(root).toLowerCase()).toString("base64url").slice(0, 40));
+
+/**
+ * The plain .glb the loader exported for a mesh, when it is in the cache: the same parts and UVs a renderer's
+ * maps go on, so a picked thing needs no second export. A mod's own mesh's, while it is newer than its file.
+ */
+export function cachedGlb(cacheDir: string, mesh: string, from?: SectorRef): string | undefined {
+  const loose = looseFile(from, mesh);
+  const out = meshGlbPath(loose ? looseCacheOf(cacheDir, from!.root!) : cacheDir, mesh);
+  if (!fs.existsSync(out)) return undefined;
+  return !loose || fs.statSync(out).mtimeMs > fs.statSync(loose).mtimeMs ? out : undefined;
+}
+
+/** A mod's own copy of a game path under root, when it has one. */
+const looseFile = (from: SectorRef | undefined, gamePath: string) => {
+  if (!from?.root) return undefined;
+  const file = path.join(from.root, ...gamePath.split(/[\\/]/));
+  return fs.existsSync(file) ? file : undefined;
+};
+
+/**
+ * A mesh with its materials and textures, for the one object picked; cached under cacheDir/textured. A
+ * mod's own mesh (from.root) is exported from its file, and again whenever the file is newer.
+ */
+export async function texturedGlb(bridge: Bridge, mesh: string, cacheDir: string, from?: SectorRef): Promise<string> {
+  const options = { meshBinary: true, meshMaterials: true, meshLodFilter: true };
+  const loose = looseFile(from, mesh);
+  if (loose) {
+    const dir = path.join(looseCacheOf(cacheDir, from!.root!), "textured");
+    const out = meshGlbPath(dir, mesh);
+    if (fs.existsSync(out) && fs.statSync(out).mtimeMs > fs.statSync(loose).mtimeMs) return out;
+    await bridge.request("project.export", { file: loose, archiveDir: from!.root!, rawDir: path.join(dir, "raw"), options });
+    if (!fs.existsSync(out)) throw new Error(`WolvenKit wrote no .glb for ${mesh}`);
+    return out;
+  }
   const dir = path.join(cacheDir, "textured");
   const out = meshGlbPath(dir, mesh);
   if (fs.existsSync(out)) return out;
@@ -405,11 +436,84 @@ export async function texturedGlb(bridge: Bridge, mesh: string, cacheDir: string
   const file = path.join(archiveDir, ...mesh.split(/[\\/]/));
   if (!fs.existsSync(file)) {
     fs.mkdirSync(path.dirname(file), { recursive: true });
-    await bridge.request("archive.extract", { path: mesh, outFile: file });
+    await extractMesh(bridge, mesh, file, from);
   }
-  await bridge.request("project.export", { file, archiveDir, rawDir: path.join(dir, "raw"), options: { meshBinary: true, meshMaterials: true, meshLodFilter: true } });
+  await bridge.request("project.export", { file, archiveDir, rawDir: path.join(dir, "raw"), options });
   if (!fs.existsSync(out)) throw new Error(`WolvenKit wrote no .glb for ${mesh}`);
   return out;
+}
+
+/** A game file into outFile: from the game, or from a mod's archive when the game has none. */
+async function extractMesh(bridge: Bridge, mesh: string, outFile: string, from?: SectorRef): Promise<void> {
+  try {
+    await bridge.request("archive.extract", { path: mesh, outFile });
+  } catch (e) {
+    if (!from?.archive) throw e;
+    await bridge.request("archive.extractFromMod", { archive: from.archive, items: [{ path: mesh, outFile }] });
+  }
+  if (!fs.existsSync(outFile)) throw new Error(`${mesh} is in neither the game nor the mod`);
+}
+
+/** A mesh appearance: its name and the material it names for each submesh, by submesh index. */
+export interface MeshAppearance {
+  name: string;
+  chunkMaterials: string[];
+}
+
+interface NodeDto {
+  value?: unknown;
+  total?: number | null;
+  children?: { value?: unknown }[] | null;
+}
+
+const text = (v: unknown) => (v && typeof v === "object" && "$value" in v ? String((v as { $value: unknown }).$value ?? "") : String(v ?? ""));
+
+/**
+ * A mesh's appearances with the material each names per submesh, read once through cr2w.open and kept beside
+ * the mesh's file in the cache as .materials.json. For colouring by material and for a picked thing's panel;
+ * a plain export names every material "Default", so the names come from the mesh file itself.
+ */
+export async function meshMaterials(bridge: Bridge, cacheDir: string, mesh: string, from?: SectorRef): Promise<MeshAppearance[]> {
+  const loose = looseFile(from, mesh);
+  const base = loose ? looseCacheOf(cacheDir, from!.root!) : cacheDir;
+  const sidecar = path.join(base, "materials", ...mesh.split(/[\\/]/)) + ".json";
+  if (fs.existsSync(sidecar) && (!loose || fs.statSync(sidecar).mtimeMs > fs.statSync(loose).mtimeMs)) {
+    try {
+      return JSON.parse(fs.readFileSync(sidecar, "utf8")) as MeshAppearance[];
+    } catch {
+      // Read again below.
+    }
+  }
+  let file = loose;
+  if (!file) {
+    file = path.join(cacheDir, "archive", ...mesh.split(/[\\/]/));
+    if (!fs.existsSync(file)) {
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      await extractMesh(bridge, mesh, file, from);
+    }
+  }
+  const { doc } = await bridge.request<{ doc: string }>("cr2w.open", { file });
+  const out: MeshAppearance[] = [];
+  try {
+    const list = await bridge.request<NodeDto>("cr2w.getNode", { doc, path: "appearances", offset: 0, limit: 1000 });
+    const count = list.total ?? list.children?.length ?? 0;
+    if (count > 0) {
+      const paths = Array.from({ length: count }, (_, i) => [`appearances.${i}.Data.name`, `appearances.${i}.Data.chunkMaterials`]).flat();
+      const nodes = await bridge.request<NodeDto[]>("cr2w.getNodes", { doc, paths, limit: 1000 });
+      for (let i = 0; i < count; i++) out.push({ name: text(nodes[i * 2]?.value), chunkMaterials: (nodes[i * 2 + 1]?.children ?? []).map((c) => text(c.value)) });
+    }
+  } finally {
+    await bridge.request("cr2w.close", { doc }).catch(() => undefined);
+  }
+  fs.mkdirSync(path.dirname(sidecar), { recursive: true });
+  fs.writeFileSync(sidecar, JSON.stringify(out));
+  return out;
+}
+
+/** The appearance a placement shows: by name, else the first, as for "default" or none (unverified for a "default" the mesh lacks). */
+export function appearanceOf(appearances: MeshAppearance[], name?: string | null): MeshAppearance | undefined {
+  const lower = (name ?? "").toLowerCase();
+  return appearances.find((a) => a.name.toLowerCase() === lower) ?? appearances[0];
 }
 
 /** An entity in one appearance ("default" for its first), every mesh on one skeleton, no materials; cached under cacheDir/entities. */

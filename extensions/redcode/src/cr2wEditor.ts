@@ -12,9 +12,10 @@ import { gameUri, gamePathOfUri } from "./gameFs";
 import { meshGlbFor, meshPayload } from "./meshExport";
 import { animsClip, animsGlbFor, animsList, animsSkeleton, baseBodyFor, baseBodyGlb, entityBodyGlb, readAnimsGlb, type AnimsGlb, type BodyGlb } from "./animsGlb";
 import { listSet, memberGlb, newSetSession, placeSet, toMatrix, type SetMember } from "./animsSet";
-import { createSectorLoader, sectorsOver, type SectorLoader, type SectorRef } from "../../../packages/world-view/src/host";
+import { appearanceOf, cachedGlb, createSectorLoader, meshMaterials, sectorsOver, texturedGlb, type SectorLoader, type SectorRef } from "../../../packages/world-view/src/host";
+import { bridgeOver, renderMaterials } from "@edgemodders/edgemat-core";
 import { gameCacheReady, stampFolder } from "./exportCache";
-import { findEdgemat, mapsForWebview, openInEdgemat } from "./edgemat";
+import { findEdgemat, mapsForWebview, openInEdgemat, type RenderedMaterial } from "./edgemat";
 import { ProjectFolders } from "./project";
 import type { TextureViewer } from "./textureViewer";
 import type { DocumentInfo, MeshItem, PatchOp, PatchResult } from "./types";
@@ -247,6 +248,10 @@ interface Request {
   materials?: string[];
   /** columns: the localization table's column widths in pixels, by column name. */
   widths?: Record<string, number>;
+  /** sectorMeshInfo, sectorRender, sectorAction: a mesh the sector view draws, by game path. */
+  mesh?: string;
+  /** sectorAction: openInEdgemat, openMesh or addMesh. */
+  action?: string;
 }
 
 /** Where the localization table's column widths are kept, for every file. */
@@ -529,6 +534,13 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
     const setSource = (x: SetMember) => (x.self ? animsSource() : { gamePath: x.file });
     /** The sector view's loader (docs/design/sector-view.md), made when its 3D mode first loads. */
     let sectorLoader: SectorLoader | undefined;
+    /** The opened sector as the drawing package reads it: a project's copy from the project's loose files. */
+    const sectorRef = (sector: string): SectorRef => (document.gamePath ? { path: sector } : { path: sector, root: archiveRootOf(document.uri.fsPath) ?? undefined });
+    /** The sector view's cache: one per game version, in a folder named by the stamp's hash. */
+    const worldCacheDir = async () => {
+      const stamp = (await gameCacheReady(this.requireBridge(), path.join(this.textures.root.fsPath, "mesh"))) ?? "nogame";
+      return path.join(this.textures.root.fsPath, "mesh", "world", stampFolder(stamp));
+    };
     let materialWatch: vscode.Disposable | undefined;
     const messages = webview.onDidReceiveMessage(async (m: Request) => {
       try {
@@ -676,9 +688,7 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
             const bridge = this.requireBridge();
             const sector = meshGamePath();
             if (!sector) throw new Error("No game path for this sector");
-            const stamp = (await gameCacheReady(bridge, path.join(this.textures.root.fsPath, "mesh"))) ?? "nogame";
-            // One cache per game version, in a folder named by the stamp's hash.
-            const worldCache = path.join(this.textures.root.fsPath, "mesh", "world", stampFolder(stamp));
+            const worldCache = await worldCacheDir();
             // What the loader sends, counted for the log: a sector that shows markers and no meshes says where it stopped.
             let sent = 0;
             let firstProgress = true;
@@ -702,7 +712,7 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
               });
             }
             this.log.appendLine(`sector view: loading ${sector}${m.coarser ? " with the coarser sectors" : ""} (cache ${worldCache})`);
-            const own: SectorRef = document.gamePath ? { path: sector } : { path: sector, root: archiveRootOf(document.uri.fsPath) ?? undefined };
+            const own = sectorRef(sector);
             const sectors: (SectorRef | string)[] = [own];
             if (m.coarser) {
               const over = await sectorsOver(bridge, sector).catch(() => [sector]);
@@ -720,6 +730,74 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
                 post({ type: "sectorDone", skipped: [{ id: sector, why: e instanceof Error ? e.message : String(e) }], sectors: [] });
               },
             );
+            return reply(m.id, null);
+          }
+          case "sectorMeshInfo": {
+            // A drawn mesh's appearances and the material each names per submesh: for By material and the picked panel.
+            const sector = meshGamePath();
+            if (!sector || !m.mesh) throw new Error("No mesh");
+            return reply(m.id, await meshMaterials(this.requireBridge(), await worldCacheDir(), m.mesh, sectorRef(sector)));
+          }
+          case "sectorRender": {
+            // The picked thing with its materials: its plain export (the same parts and UVs) with rendered maps on
+            // it, from EDGEmat when it is installed (it sees setups being edited), else from the edgemat-core
+            // REDcode bundles. WolvenKit's export "with materials" puts no textures in the .glb, so it is only
+            // the fallback for a mesh not in the cache.
+            const sector = meshGamePath();
+            if (!sector || !m.mesh) throw new Error("No mesh");
+            const bridge = this.requireBridge();
+            const cache = await worldCacheDir();
+            const from = sectorRef(sector);
+            const glb = cachedGlb(cache, m.mesh, from) ?? (await texturedGlb(bridge, m.mesh, cache, from));
+            const look = appearanceOf(await meshMaterials(bridge, cache, m.mesh, from).catch(() => []), m.appearance);
+            const names = [...new Set(look?.chunkMaterials ?? [])].filter((x) => x);
+            // A project's own copy is rendered from its file.
+            const loose = from.root ? path.join(from.root, ...m.mesh.split(/[\\/]/)) : undefined;
+            const req = { mesh: loose && fs.existsSync(loose) ? loose : m.mesh, ...(look ? { appearance: look.name } : {}), ...(names.length ? { materials: names } : {}) };
+            const edgemat = await findEdgemat();
+            let maps: Record<string, Record<string, string | undefined>> | undefined;
+            let mapsError: string | undefined;
+            try {
+              let r: Record<string, RenderedMaterial>;
+              if (edgemat) {
+                if (!materialWatch) materialWatch = edgemat.onDidChangeMaterials((e) => post({ type: "materialsChanged", mesh: e.mesh, materials: e.materials }));
+                r = await edgemat.renderMaterials(req);
+              } else {
+                r = await renderMaterials(bridgeOver((method, params) => bridge.request(method, params)), undefined, path.join(this.textures.root.fsPath, "edgemat"), req, (line) => this.log.appendLine(`sector view: render: ${line}`));
+              }
+              maps = Object.fromEntries(Object.entries(r).map(([name, x]) => [name, mapsForWebview(x)]));
+            } catch (e) {
+              mapsError = e instanceof Error ? e.message : String(e);
+              this.log.appendLine(`sector view: could not render the materials of ${m.mesh}: ${mapsError}`);
+            }
+            return reply(m.id, { data: fs.readFileSync(glb).toString("base64"), appearance: look?.name, chunkMaterials: look?.chunkMaterials ?? [], edgemat: !!edgemat, ...(maps ? { maps } : {}), ...(mapsError ? { mapsError } : {}) });
+          }
+          case "sectorAction": {
+            const sector = meshGamePath();
+            if (!sector || !m.mesh) throw new Error("No mesh");
+            const mesh = m.mesh;
+            const root = sectorRef(sector).root;
+            const loose = root ? path.join(root, ...mesh.split(/[\\/]/)) : undefined;
+            const inProject = !!loose && fs.existsSync(loose);
+            switch (m.action) {
+              case "openInEdgemat":
+                await openInEdgemat({ mesh: inProject ? loose! : mesh, ...(m.appearance ? { appearance: m.appearance } : {}) }, this.log);
+                break;
+              case "openMesh":
+                if (inProject) await vscode.commands.executeCommand("vscode.openWith", vscode.Uri.file(loose!), cr2wViewTypeFor(mesh));
+                else await this.openGameFile(mesh);
+                break;
+              case "addMesh": {
+                const pick = await vscode.window.showInformationMessage(
+                  `Add ${mesh.split("\\").pop()} to the project? A change to it then shows everywhere the game uses this mesh, not only here.`,
+                  "Add It",
+                );
+                if (pick) await vscode.commands.executeCommand("redcode.addToProject", { kind: "file", file: { name: mesh } });
+                break;
+              }
+              default:
+                throw new Error(`No sector action ${m.action}`);
+            }
             return reply(m.id, null);
           }
           case "animsSet": {

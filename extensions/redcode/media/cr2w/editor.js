@@ -48,7 +48,7 @@
     } else if (m.type === "reload") {
       reloadAll(m.reason);
     } else if (m.type === "materialsChanged") {
-      meshView?.refreshMaterials?.();
+      meshView?.refreshMaterials?.(m);
     } else if (m.type === "changed") {
       // Another page edited the document: refetch and redraw, keeping the selection and expansion.
       reloadAll("an edit elsewhere");
@@ -378,6 +378,10 @@
           void render(true).then(() => revealInTree(path));
         },
         select,
+        // The picked thing's materials (docs/design/sector-materials.md).
+        meshInfo: (mesh) => request("sectorMeshInfo", { mesh }),
+        render: (mesh, appearance) => request("sectorRender", { mesh, appearance }),
+        action: (action, mesh, appearance) => request("sectorAction", { action, mesh, appearance }),
         light: payload.light,
         onLight: (settings) => vscode.postMessage({ type: "light", settings }),
         sideWidth: payload.sideWidth,

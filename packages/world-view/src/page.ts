@@ -16,6 +16,14 @@ export interface PagePlacement {
   id: string;
   matrix: number[];
   range?: number;
+  /** The node's mesh appearance: which material each submesh shows, once setMaterials has named them. */
+  appearance?: string;
+}
+
+/** A mesh appearance as the host half's meshMaterials reads it: the material named per submesh index. */
+export interface PageAppearance {
+  name: string;
+  chunkMaterials: string[];
 }
 
 export interface PageMarker {
@@ -58,8 +66,15 @@ export interface WorldView {
   unloadSector(path: string): void;
   addObject(id: string, object: THREE.Object3D): void;
   removeObject(id: string): void;
-  /** Draws a placement with another .glb (a textured mesh, an entity) instead of the plain mesh. */
-  replaceMesh(id: string, glb: ArrayBuffer): Promise<void>;
+  /**
+   * Draws a placement with another .glb (a textured mesh, an entity) instead of the plain mesh. prepare, when
+   * given, sees the loaded scene before it is drawn, such as to set its materials.
+   */
+  replaceMesh(id: string, glb: ArrayBuffer, prepare?: (scene: THREE.Object3D) => void | Promise<void>): Promise<void>;
+  /** Draws a placement replaced by replaceMesh with its plain mesh again. */
+  restoreMesh(id: string): void;
+  /** A mesh's appearances, for colouring by material: each placement's parts by the materials its appearance names. */
+  setMaterials(mesh: string, appearances: PageAppearance[]): void;
   setHidden(ids: string[], how: "hidden" | "ghost" | "shown"): void;
   highlight(ids: string[]): void;
   pick(x: number, y: number): Picked | null;
@@ -85,7 +100,9 @@ interface MeshRecord {
   key: string;
   name: string;
   /** The GLB's primitives, each baked into the mesh's own space. */
-  parts: { geometry: THREE.BufferGeometry; material: string }[];
+  parts: { geometry: THREE.BufferGeometry; material: string; submesh: number }[];
+  /** From setMaterials: the material per submesh, by appearance name in lower case; first is the first appearance's. */
+  materials?: { byName: Map<string, string[]>; first: string[] };
   box: THREE.Box3;
   placements: PagePlacement[];
   matrices: THREE.Matrix4[];
@@ -103,12 +120,18 @@ interface MarkerRecord {
 
 const MarkerColours: Record<string, number> = { entity: 0xffb347, decal: 0x9ab8ff, light: 0xffe066, collision: 0x55606f, sound: 0x7cfc9a, area: 0xc39bff, other: 0x8a94a6 };
 
-/** A stable pleasant colour for a name. */
-function colourFor(name: string): THREE.Color {
+/**
+ * A stable colour for a name. Hue, saturation and lightness each come from their own bits of the hash, so
+ * names whose hues are close still differ.
+ */
+export function colourFor(name: string): THREE.Color {
   let h = 2166136261;
   for (let i = 0; i < name.length; i++) h = Math.imul(h ^ name.charCodeAt(i), 16777619);
-  const hue = ((h >>> 0) % 360) / 360;
-  return new THREE.Color().setHSL(hue, 0.32, 0.46);
+  h >>>= 0;
+  const hue = (h % 360) / 360;
+  const sat = 0.3 + ((h >>> 9) % 8) * 0.05;
+  const light = 0.36 + ((h >>> 13) % 6) * 0.04;
+  return new THREE.Color().setHSL(hue, sat, light);
 }
 
 const sectorOf = (id: string) => id.slice(0, id.lastIndexOf("#"));
@@ -144,14 +167,28 @@ export function createWorldView(canvas: HTMLCanvasElement, options: WorldViewOpt
   const ghostGroup = new THREE.Group();
   scene.add(ghostGroup);
 
-  const materialFor = (record: MeshRecord, part: string) => {
-    const name = opts.colourBy === "material" ? `m:${part}` : `r:${record.key}`;
+  /** Coloured by material once the mesh's names are known: then each copy's colour is its instance colour. */
+  const byMaterial = (record: MeshRecord) => opts.colourBy === "material" && !!record.materials;
+  const materialFor = (record: MeshRecord) => {
+    const name = byMaterial(record) ? "white" : `r:${record.key}`;
     let m = materials.get(name);
     if (!m) {
-      m = new THREE.MeshStandardMaterial({ color: colourFor(name), roughness: 0.8, metalness: 0 });
+      m = new THREE.MeshStandardMaterial({ color: name === "white" ? 0xffffff : colourFor(name), roughness: 0.8, metalness: 0 });
       materials.set(name, m);
     }
     return m;
+  };
+  const materialColours = new Map<string, THREE.Color>();
+  /** A copy's colour for one part: the selection's, or (by material) its material's, or white over the mesh's colour. */
+  const copyColour = (record: MeshRecord, part: MeshRecord["parts"][number], placement: PagePlacement) => {
+    if (highlighted.has(placement.id)) return accent;
+    if (!byMaterial(record)) return white;
+    const m = record.materials!;
+    const names = (placement.appearance && m.byName.get(placement.appearance.toLowerCase())) || m.first;
+    const name = names[part.submesh] || part.material;
+    let c = materialColours.get(name);
+    if (!c) materialColours.set(name, (c = colourFor(`m:${name}`)));
+    return c;
   };
 
   // ---- drawing the placements ----
@@ -176,10 +213,10 @@ export function createWorldView(canvas: HTMLCanvasElement, options: WorldViewOpt
     for (let i = 0; i < record.placements.length; i++) if (visible(record, i)) record.slots.push(i);
     if (!record.slots.length) return;
     for (const part of record.parts) {
-      const im = new THREE.InstancedMesh(part.geometry, materialFor(record, part.material), record.slots.length);
+      const im = new THREE.InstancedMesh(part.geometry, materialFor(record), record.slots.length);
       record.slots.forEach((pi, slot) => {
         im.setMatrixAt(slot, record.matrices[pi]);
-        im.setColorAt(slot, highlighted.has(record.placements[pi].id) ? accent : white);
+        im.setColorAt(slot, copyColour(record, part, record.placements[pi]));
       });
       im.instanceMatrix.needsUpdate = true;
       if (im.instanceColor) im.instanceColor.needsUpdate = true;
@@ -443,7 +480,9 @@ export function createWorldView(canvas: HTMLCanvasElement, options: WorldViewOpt
           geometry.computeBoundingBox();
           if (geometry.boundingBox) box.union(geometry.boundingBox);
           const material = Array.isArray(m.material) ? m.material[0] : m.material;
-          parts.push({ geometry, material: material?.name || m.name || key });
+          // WolvenKit names each part submesh_03_LOD_1: the index is what an appearance's chunkMaterials go by.
+          const sub = /submesh_(\d+)/i.exec(m.name || m.parent?.name || "");
+          parts.push({ geometry, material: material?.name || m.name || key, submesh: sub ? Number(sub[1]) : parts.length });
         });
         if (box.isEmpty()) box.setFromCenterAndSize(new THREE.Vector3(), new THREE.Vector3(1, 1, 1));
         record = { key, name: mesh, parts, box, placements: [], matrices: [], boxes: [], drawn: [], slots: [] };
@@ -508,8 +547,9 @@ export function createWorldView(canvas: HTMLCanvasElement, options: WorldViewOpt
       if (o) world.remove(o);
       objects.delete(id);
     },
-    async replaceMesh(id, glb) {
+    async replaceMesh(id, glb, prepare) {
       const gltf = await loader.parseAsync(glb, "");
+      if (prepare) await prepare(gltf.scene);
       let matrix: THREE.Matrix4 | undefined;
       for (const r of records.values()) {
         const i = r.placements.findIndex((p) => p.id === id);
@@ -526,6 +566,19 @@ export function createWorldView(canvas: HTMLCanvasElement, options: WorldViewOpt
       replaced.set(id, holder);
       world.add(holder);
       redrawAll();
+    },
+    restoreMesh(id) {
+      const old = replaced.get(id);
+      if (!old) return;
+      world.remove(old);
+      replaced.delete(id);
+      redrawAll();
+    },
+    setMaterials(mesh, appearances) {
+      const record = records.get(mesh.toLowerCase());
+      if (!record) return;
+      record.materials = { byName: new Map(appearances.map((a) => [a.name.toLowerCase(), a.chunkMaterials])), first: appearances[0]?.chunkMaterials ?? [] };
+      if (opts.colourBy === "material") redraw(record);
     },
     setHidden(ids, how) {
       for (const id of ids) {

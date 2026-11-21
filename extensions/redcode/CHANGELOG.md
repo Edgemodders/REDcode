@@ -7,6 +7,11 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 **New**
 
 - **Keys** (https://github.com/Edgemodders/REDcode/issues/33): one place in REDcode's sidebar for the AI service keys every EDGE tool shares, in VS Code and in the game (OpenAI, Anthropic, Gemini, ElevenLabs, Tripo and others). See where each key comes from and which tools read it; set, replace and remove them. Other EDGE extensions ask REDcode for a key, and REDcode asks you the first time each tool wants one. Needs REDbridge 0.18.0.
+- **Materials in the sector view:** **Materials** draws the thing you pick with its own materials, rendered by EDGEmat when it is installed and by REDcode with EDGEmat's renderer otherwise. The line under the view names the picked mesh, its appearance and its materials, with **Open Mesh**, **Open in EDGEmat** (at the node's appearance) and **Add Mesh to Project**. Multilayered world materials still render a flat grey.
+
+**Fixed**
+
+- **By material** in the sector view colours each thing by the materials its appearance names. It gave everything one colour. Colours by mesh differ more too.
 
 **Changed**
 

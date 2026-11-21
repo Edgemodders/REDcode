@@ -865,6 +865,42 @@ await check("world view: a sector's items become one batch per mesh, a placement
   assert.deepEqual(markers.map((m) => [m.id.split("#")[1], m.kind]), [["5", "entity"], ["6", "collision"], ["7", "decal"]]);
   assert.deepEqual(markers[1].box, { min: [0, 0, -2], max: [1, 3, -0] });
   assert.equal(wv.itemsToBatches(S, items, ["worldEntityNode"]).meshes.size, 0, "kinds filter the classes");
+  const looked = wv.itemsToBatches(S, [{ ...items[1], appearance: "rusty" }]).meshes.get("base\\a\\vent.mesh");
+  assert.deepEqual(looked.placements.map((p) => p.appearance), ["rusty", "rusty"], "each copy carries its node's appearance");
+});
+
+await check("world view: a mesh's material names are read once, kept beside its export, and found by appearance", async () => {
+  const cache = path.join(tmp, "wvmaterials");
+  const calls = [];
+  const bridge = {
+    async request(method, params) {
+      calls.push(method);
+      if (method === "archive.extract") {
+        fs.mkdirSync(path.dirname(params.outFile), { recursive: true });
+        fs.writeFileSync(params.outFile, "mesh");
+        return {};
+      }
+      if (method === "cr2w.open") return { doc: "d1" };
+      if (method === "cr2w.getNode") return { total: 2, children: [{}, {}] };
+      if (method === "cr2w.getNodes")
+        return [
+          { value: { $value: "default" } },
+          { children: [{ value: { $value: "concrete" } }, { value: { $value: "glass" } }] },
+          { value: { $value: "Rusty" } },
+          { children: [{ value: { $value: "rust" } }, { value: { $value: "glass" } }] },
+        ];
+      if (method === "cr2w.close") return {};
+      throw new Error(`unexpected ${method}`);
+    },
+  };
+  const list = await wv.meshMaterials(bridge, cache, "m\\wall.mesh");
+  assert.deepEqual(list, [{ name: "default", chunkMaterials: ["concrete", "glass"] }, { name: "Rusty", chunkMaterials: ["rust", "glass"] }]);
+  assert.deepEqual(calls, ["archive.extract", "cr2w.open", "cr2w.getNode", "cr2w.getNodes", "cr2w.close"]);
+  assert.deepEqual(await wv.meshMaterials(bridge, cache, "m\\wall.mesh"), list, "the second read comes from the cache");
+  assert.equal(calls.length, 5, "and asks the bridge nothing");
+  assert.equal(wv.appearanceOf(list, "rusty").name, "Rusty", "by name, ignoring case");
+  assert.equal(wv.appearanceOf(list, "missing").name, "default", "else the first");
+  assert.equal(wv.appearanceOf(list, undefined).name, "default");
 });
 
 await check("world view: the loader exports each mesh once, cached first, and unloads what leaves the list", async () => {

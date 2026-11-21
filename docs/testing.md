@@ -40,6 +40,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Replace with a WAV, titled models (#29), every window's project (#32)](#replace-with-a-wav-titled-models-29-and-every-windows-project-32) | By hand, in the game | Requests | 2026-11-20 | Pass (owner), with two fixes |
 | [Replace All](#replace-all) | By hand, in the game | Requests | 2026-11-20 | Pass (owner), with one fix |
 | [Sector view](#sector-view) | By hand | C5 | 2026-11-20 | Pass (owner), with two fixes and five changes, each retested |
+| [Sector materials (M1)](#sector-materials-m1) | By hand | C5 | 2026-11-21 | Not run (checked in Chrome over the real bridge) |
 | [Library view (#23)](#library-view-23) | By hand | Requests | 2026-11-15 | Pass, two fixes |
 | [Run Game without ELECTRON_RUN_AS_NODE (#24)](#run-game-without-electron_run_as_node-24) | By hand, in the game | Requests | 2026-11-20 | Pass |
 | [New File](#new-file) | By hand | Requests | 2026-11-20 | Pass, steps 1 to 13, four fixes |
@@ -862,6 +863,32 @@ Result 2026-11-20, reported by the owner: R1 to R3 pass. Found in it: **Show in 
 | R5 | On the game sector, **Add to Project** in the header | The copy is added and selected in the Project view; the button shows on game files only, not on the project's copy |
 
 Result 2026-11-20, reported by the owner: R4 and R5 pass. The Sector view test is complete.
+
+## Sector materials (M1)
+
+Built 2026-11-21 ([design](design/sector-materials.html)): **By material** by the real material names, the **Materials** switch for the picked thing, and the picked panel. Checked before:
+- **Type check, build, unit checks:** 75 pass, one new for the host half's `meshMaterials` (read once, kept beside the export, found by appearance) and the placements' appearance.
+- **The page in Chrome over REDbridge 0.18.0** (scratchpad `sm/svharness2.mjs`, the game running), on `exterior_-22_7_0_0`:
+  - **By material:** 105 meshes' names read in about 2 s; the buildings share `ml_cct_cpz_building_a_masksset` and show one colour.
+  - **A pick:** the panel named the mesh, its appearance and its material.
+  - **Materials:** the cardboard trash (#357) drew with its colour map, rendered by edgemat-core 0.3.2 in REDcode.
+
+Found while checking:
+- **No textures from WolvenKit:** its export "with materials" writes a `.Material.json` beside the .glb and no textures in it. So the switch puts rendered maps on the plain export instead, and renders with the edgemat-core REDcode bundles when EDGEmat is not installed.
+- **World materials render flat grey:** the world's multilayered materials (`multilayered.mt` with an `.mlsetup` and an `..._masksset.mlmask`, as on the corporate plaza buildings and the sidewalk) come out a flat grey from EDGEmat's renderer. That is EDGEmat's to improve, asked in M2's request.
+
+| # | Do | Expected |
+|---|---|---|
+| 1 | F5 with **Run REDcode with Opens Test (no other extensions)**. Open `exterior_-22_7_0_0.streamingsector` (Search game files) | As before: the sector in 3D, in colours by mesh, which now differ in lightness and strength as well as hue |
+| 2 | **By material** | "Reading material names: n of 105" below the view, then the colours change: the tall buildings all one colour (they share one material), other things in others |
+| 3 | Click the cardboard and bottles on the street (or any small thing) | The line below: its id, then the mesh's file name, its appearance and its materials. Hover that text: the mesh's path and the material per submesh. **Open Mesh**, **Open in EDGEmat** and **Add Mesh to Project** show beside **Show in Tree** |
+| 4 | **Materials** on | "Exporting its materials…", then the cardboard drawn with its own texture, and "Materials by REDcode (EDGEmat's renderer), approximate" |
+| 5 | Click a building | The cardboard goes back to its flat colour; the building is drawn with its material: flat grey for now (the finding above) |
+| 6 | **Materials** off | The building goes back to its flat colour |
+| 7 | **Open Mesh** | The mesh opens in REDcode's mesh view |
+| 8 | Back on the sector, **Add Mesh to Project** with a project open | A question says that a change to the mesh then shows everywhere the game uses it. **Add It** adds the mesh to the project |
+| 9 | F5 with **Run REDcode with Opens Test and EDGEmat** (the EDGEmat clone). Steps 1, 3 and 4 again, then **Open in EDGEmat** | The note says "Materials by EDGEmat"; EDGEmat's Desk opens the mesh at the node's appearance |
+| 10 | On a project's copy of the sector (from the Sector view test, step 9), pick a thing whose mesh is also in the project (step 8), **Materials** | The project's mesh is drawn with the project's own materials |
 
 ## No Red Hot Tools
 
