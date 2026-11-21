@@ -977,6 +977,51 @@ await check("world view: reading several sectors says how far it is, before the 
   assert.deepEqual(seen, ["exporting:0/0"], "one sector, or none left to read: no reading steps");
 });
 
+// ---- Keys (REDcode issue #33, K4b; docs/design/keys.md) ----
+
+await check("keys: service ids, the store's folder, consent names and REDbridge's refusals", () => {
+  const k = require("../dist/keys.js");
+  assert.equal(k.checkServiceId("openai"), undefined);
+  assert.equal(k.checkServiceId("my-tool-2"), undefined);
+  assert.match(k.checkServiceId("OpenAI"), /Lowercase/);
+  assert.match(k.checkServiceId("a".repeat(41)), /at most 40/);
+  assert.match(k.checkServiceId(""), /Type/);
+  assert.equal(k.keysFolder({ EDGEMODDERS_KEYS_DIR: "D:\\k" }), "D:\\k");
+  assert.equal(k.keysFolder({ APPDATA: "C:\\Users\\x\\AppData\\Roaming" }), path.join("C:\\Users\\x\\AppData\\Roaming", "Edgemodders", "keys"));
+  assert.equal(k.consentKey(" EDGEhack ", "openai"), k.consentKey("edgehack", "openai"), "a caller is the same whatever its case");
+  assert.match(k.keyError(new Error("No method by the name 'keys.list' is found.")).message, /REDbridge 0\.18\.0/);
+  assert.match(k.keyError(new Error("REDbridge's key methods are off")).message, /Restart REDbridge/);
+  assert.equal(k.keyError(new Error("A key has no spaces")).message, "A key has no spaces");
+});
+
+await check("keys: the view's lines say where a key comes from and who reads it, never the key", () => {
+  const k = require("../dist/keys.js");
+  const base = { service: "openai", name: "OpenAI", env: "OPENAI_API_KEY", unreadable: false, usedBy: [] };
+  assert.equal(k.describeKey({ ...base, set: false, source: null }).description, "not set");
+  const file = k.describeKey({ ...base, set: true, source: "file", last4: "abcd", updated: "2026-11-20T10:00:00Z", usedBy: [{ tool: "edgehack", at: "x" }, { tool: "rednode", at: "y" }] });
+  assert.equal(file.description, "…abcd · used by edgehack, rednode");
+  assert.match(file.tooltip, /saved 2026-11-20/);
+  assert.match(k.describeKey({ ...base, set: true, source: "env", last4: "wxyz" }).description, /from OPENAI_API_KEY/);
+  assert.match(k.describeKey({ ...base, set: true, source: "file", unreadable: true }).description, /can't be read/);
+});
+
+await check("keys: only REDcode's own key code reaches keys.*; request() refuses them", async () => {
+  const k = require("../dist/keys.js");
+  const client = new k.BridgeClient({ exe: "none" });
+  await assert.rejects(() => client.request("keys.get", { service: "openai" }), /not open to other callers/);
+  await assert.rejects(() => client.request("KEYS.list"), /not open to other callers/);
+  await assert.rejects(() => client[k.KeyAccess]("archive.search"), /Not a key store method/);
+  // The calls go through the symbol: a stand-in bridge answers them.
+  const seen = [];
+  const fake = { running: true, [k.KeyAccess]: async (method, params) => { seen.push(`${method} ${JSON.stringify(params ?? {})}`); return method === "keys.delete" ? true : { service: params?.service }; } };
+  await k.keyInfo(fake, "openai");
+  await k.getKey(fake, "openai", "EDGEhack");
+  await k.setKey(fake, "openai", "sk-test");
+  assert.equal(await k.deleteKey(fake, "openai"), true);
+  assert.deepEqual(seen, ['keys.info {"service":"openai"}', 'keys.get {"service":"openai","tool":"EDGEhack"}', 'keys.set {"service":"openai","key":"sk-test"}', 'keys.delete {"service":"openai"}']);
+  await assert.rejects(() => k.listKeys({ running: false }), /needs REDbridge running/);
+});
+
 // ---- Animations A3: synced sets (docs/design/animation.md) ----
 
 const as = require("../dist/animsSet.js");

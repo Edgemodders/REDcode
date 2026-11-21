@@ -4,6 +4,10 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 ## Unreleased
 
+**New**
+
+- **Keys** (https://github.com/Edgemodders/REDcode/issues/33): one place in REDcode's sidebar for the AI service keys every EDGE tool shares, in VS Code and in the game (OpenAI, Anthropic, Gemini, ElevenLabs, Tripo and others). See where each key comes from and which tools read it; set, replace and remove them. Other EDGE extensions ask REDcode for a key, and REDcode asks you the first time each tool wants one. Needs REDbridge 0.18.0.
+
 **Changed**
 
 - **Edit in Blender** says when the Blender scene has a mesh object that is not one of the mesh's own parts, such as an added sphere: the import leaves it out, so REDcode names it after the save and says how to join it into a part (Ctrl+J).

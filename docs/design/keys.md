@@ -43,7 +43,7 @@ Then Marketplace support said keywords trigger the rejection. EDGEhack 0.1.1, wh
 | Phase | Where | What |
 |---|---|---|
 | K4a | REDbridge | **Built on REDbridge's main, 2026-11-20:** `keys.get`, `keys.set`, `keys.delete`, `keys.info`, `keys.list` on the store, with `used-by.json` kept as REDnode's library keeps it. Off unless REDbridge is started with `--keys`. Checked both ways against REDnode's `keys.mjs` and against the dev PC's own keys |
-| K4b | REDcode | The Keys view, `REDcodeApi.keys`, the consent prompt |
+| K4b | REDcode | **Built on REDcode's main, 2026-11-20** (below): the Keys view, `REDcodeApi.keys`, the consent prompt. Hand test given to the owner; needs REDbridge 0.18.0 (built from REDbridge's main until it is released) |
 | K4c | EDGEwave first | The pilot: its extension asks REDcode, its MCP server reads through REDbridge, its saved ElevenLabs key moves over, and **Connect an Assistant** stops writing the key |
 | K4d | Every other key-using tool | EDGEhack, EDGEmat, EDGEfab (and REDnode's host, through REDbridge in place of PowerShell, if the owner wants it). A request issue each |
 
@@ -51,6 +51,18 @@ Then Marketplace support said keywords trigger the rejection. EDGEhack 0.1.1, wh
 
 - **No Marketplace release of REDcode with the key API** until one tool has run the whole key lifecycle on it, MCP use included: K4c's pilot, set, asked, read, changed and cleared, in VS Code and through its MCP server.
 - **Then every tool that uses keys moves to this design, and they are all released at once.**
+
+## K4b as built (2026-11-20)
+
+| Part | Where |
+|---|---|
+| The calls | `src/keys.ts`, no VS Code imports: `listKeys`, `keyInfo`, `getKey`, `setKey`, `deleteKey` over REDbridge's `keys.*`, the service id check, the store's folder (`EDGEMODDERS_KEYS_DIR`, else `%APPDATA%\Edgemodders\keys`), the view's lines (`describeKey`, never the key) and REDbridge's refusals turned into what to do ("needs REDbridge 0.18.0", "Restart REDbridge") |
+| Who may call `keys.*` | REDcode starts its REDbridge with `--keys` (0.17.0 ignores the flag). `BridgeClient.request()`, which `REDcodeApi.bridge()` hands out and the MCP server uses, refuses `keys.*`; REDcode's own calls go through a symbol-keyed method (`KeyAccess`). A courtesy, as the design says |
+| The view and the API | `src/keysView.ts`: the Keys view (collapsed by default, after LocKeys), its commands, the consent prompt (modal, Allow or Don't Allow, kept in global state `redcode.keyConsent` per caller and service, one question at a time), `REDcodeApi.keys` (`get`, `ask`, `onDidChange`), and a watch on the store's folder so a key set in the game or another window shows and fires `onDidChange` |
+| Consent | Asked only when there is a key to hand over: `get` for an unset key answers `undefined` without asking. `ask` allows its caller, who just had the modder type the key |
+| Checked | Unit checks (3, 74 in all): ids, folder, consent names, refusals, the view's lines, `request()` refusing `keys.*`, the calls through a stand-in bridge. Against REDbridge built from main on a scratch folder with test keys: the whole life of a key (set, read with `used-by.json` recording the caller, removed), a refused key, the variable winning, REDbridge without `--keys`, and REDbridge 0.17.0 starting with `--keys` and saying 0.18.0 is needed |
+
+**Release:** the owner's rule stands. REDcode's main now carries the key API, so no REDcode goes to the stores until EDGEwave's pilot (K4c) has run the whole key lifecycle on it, MCP use included.
 
 ## Open
 

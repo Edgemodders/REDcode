@@ -47,6 +47,7 @@ if (api?.apiVersion === 1) {
 | `revealInProject(file)` | Selects a file or folder of the open project in the Project view, unfolding the folders above it, and shows and focuses the view. `file` is a path on disk, such as one under the project's `source\archive` or `source\raw`. Resolves `true` when it was shown, `false` when it is not in the open project or does not exist. Check `typeof api.revealInProject === "function"` first. Since 0.10.10 (REDcode issue #27) |
 | `openModel(file, options?)` | Opens a `.glb` or `.gltf` on disk in REDcode's 3D view, in a tab titled `options.title`, or the file's name without one. For files that share one name, such as EDGEfab's props, each a `view.glb`. The same file again shows its open tab, with the new title, and the view redraws when the file changes. A `.mesh` opens in the CR2W editor's 3D view, whose tab VS Code names after the file. A missing file, or another kind, is refused. Since 0.10.15 (REDcode issue #29): check `typeof api.openModel === "function"` first |
 | `openSector(path, options?)` | Opens a `.streamingsector` in REDcode's 3D sector view, read-only, with the tree one click away. `path` is what `openFile` takes. With `options.select`, a node data entry (the `<entry>` of a `<sector>#<entry>` id, as ArchiveXL and REDnode's node registry use) is picked and framed, and the Properties view shows it. Since 0.10.15 ([Sector view](design/sector-view.html)): check `typeof api.openSector === "function"` first |
+| `keys` | The AI service keys every EDGE tool shares, in VS Code and in the game: `get(service, caller)`, `ask(service, caller)`, `onDidChange`. See [Keys](#keys). Needs REDbridge 0.18.0. On `main`, not released: no store release carries it until EDGEwave's pilot has run it (the owner's rule, [Keys](design/keys.html#releases-the-owner-2026-11-19)). Check `api.keys` first |
 | `closeModel(fileOrFolder)` | Closes the tabs `openModel` opened for a file, or for every file under a folder, and answers how many it closed: they are plain panels, with no file URI to find them by in `vscode.window.tabGroups`. Call it before moving or deleting a folder that holds models. Since 0.10.15 |
 
 ### Sound references
@@ -60,6 +61,27 @@ if (api?.apiVersion === 1) {
 | `{ uri }` | A file on disk or a `redcode-game:` URI | Ogg Vorbis for a `.wem`, WAV for Opus, other formats as they are |
 
 VS Code's webview cannot decode Opus, so REDcode decodes it and returns WAV. Ogg Vorbis and WAV decode with the webview's `decodeAudioData`, so a caller needs no decoder of its own.
+
+## Keys
+
+REDcode keeps the shared key store, `%APPDATA%\Edgemodders\keys`, for every EDGE VS Code tool (REDcode issue #33, [design](design/keys.html)). REDbridge decrypts and writes it; no other extension carries key code. A tool asks REDcode:
+
+```ts
+const redcode = vscode.extensions.getExtension("edgemodders.redcode-cyberpunk");
+const api = await redcode?.activate();
+const key = (await api?.keys?.get("openai", "EDGEhack")) ?? (await api?.keys?.ask("openai", "EDGEhack"));
+```
+
+| Member | What it does |
+|---|---|
+| `get(service, caller)` | The key, or `undefined` when none is set, the store's file cannot be read by this Windows user, or the modder said no. The first time `caller` asks for `service`, REDcode asks the modder "EDGEhack wants your OpenAI key" (Allow, Don't Allow) and remembers the answer; dismissing the question answers `undefined` and asks again next time. `caller` is the tool's name for people, recorded in `used-by.json`. An environment variable (`OPENAI_API_KEY`; for another id, its name in capitals with `_API_KEY`) wins over the store |
+| `ask(service, caller)` | Asks for the key in a password box and saves it for every tool; asks again with REDbridge's reason when it refuses one (spaces, or not its service's start: `sk-` for OpenAI, `sk-ant-` for Anthropic). Returns the key, or `undefined` when the modder cancels. The caller may read it from then on |
+| `onDidChange` | Fires with a service id when its key is set, replaced or removed: in REDcode, or by another tool or the game (REDcode watches the store's folder) |
+
+- **Services:** `anthropic`, `gemini`, `openai`, `elevenlabs`, `tripo`, or another id of 1 to 40 lowercase letters, digits or dashes.
+- **Errors:** `get` and `ask` throw when REDbridge is not running, when it is older than 0.18.0 ("The key store needs REDbridge 0.18.0 or later"), or for a service id or caller that is not one.
+- **`bridge()` is not a way round it:** its `request()` refuses `keys.*`, and so does REDcode's MCP server, which exposes no key methods. That is a courtesy, not a lock: extensions share one process.
+- **The Keys view** in REDcode's sidebar lists every service with where its key comes from and the tools that read it; **Set Key**, **Remove Key**, **Add a Key for Another Service** and **Forget Tool Permissions for Keys** are there.
 
 ## Open in EDGEwave
 

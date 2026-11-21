@@ -15,7 +15,19 @@ export interface BridgeOptions {
   gamePath?: string;
   /** DOTNET_ROOT for a per-user .NET runtime. Inherits the environment when empty. */
   dotnetRoot?: string;
+  /**
+   * Starts REDbridge with --keys, so its keys.* methods answer (REDbridge 0.18.0; an older one ignores the
+   * flag). Only REDcode's own bridge does: the MCP server and REDnode's host start theirs without it.
+   */
+  keys?: boolean;
 }
+
+/**
+ * The key store's way in (REDcode issue #33): keys.* go through bridge[KeyAccess] only, which REDcode's own
+ * src/keys.ts uses, never through request(). Other extensions get this client from REDcodeApi.bridge() and
+ * ask REDcodeApi.keys instead, which asks the modder first. A courtesy, not a lock: extensions share one process.
+ */
+export const KeyAccess: unique symbol = Symbol("REDcode key store");
 
 export interface BridgeEvents {
   log: [line: string];
@@ -47,6 +59,7 @@ export class BridgeClient extends EventEmitter<BridgeEvents> {
       return;
     }
     const args = this.options.gamePath ? ["--game", this.options.gamePath] : [];
+    if (this.options.keys) args.push("--keys");
     const env = { ...process.env };
     if (this.options.dotnetRoot) {
       env.DOTNET_ROOT = this.options.dotnetRoot;
@@ -105,8 +118,18 @@ export class BridgeClient extends EventEmitter<BridgeEvents> {
     return this.connection.sendRequest<T>(method, params ?? {});
   }
 
-  /** Any bridge method by name, for libraries that take a call function, such as edgemat-core's bridgeOver. */
+  /**
+   * Any bridge method by name, for libraries that take a call function, such as edgemat-core's bridgeOver.
+   * Not the key store's: those go through REDcodeApi.keys, which asks the modder.
+   */
   request<T = unknown>(method: string, params?: Record<string, unknown>): Promise<T> {
+    if (/^keys\./i.test(method)) return Promise.reject(new Error("REDbridge's key methods are not open to other callers: ask REDcodeApi.keys, which asks the modder first."));
+    return this.call<T>(method, params);
+  }
+
+  /** The key store's methods, for REDcode's src/keys.ts only (see KeyAccess). */
+  [KeyAccess]<T>(method: string, params?: Record<string, unknown>): Promise<T> {
+    if (!/^keys\./.test(method)) return Promise.reject(new Error(`Not a key store method: ${method}`));
     return this.call<T>(method, params);
   }
 

@@ -10,6 +10,7 @@
 // members may be added within version 1; a change that breaks callers raises apiVersion.
 // See docs/api.md.
 
+import type { KeysApi } from "./keysView";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as vscode from "vscode";
@@ -112,6 +113,12 @@ export interface REDcodeApi {
   /** Opens a project .glb, .gltf or .mesh in Blender; each save there is imported back (REDcode: Edit in Blender). */
   editInBlender(file: string): Promise<void>;
   /**
+   * The AI service keys every EDGE tool shares (REDcode issue #33): get asks the modder before a tool first
+   * reads a key, ask asks for one and saves it for every tool, onDidChange follows the store. Needs REDbridge
+   * 0.18.0. Since 0.10.16; an older REDcode has no keys.
+   */
+  readonly keys: KeysApi;
+  /**
    * Opens a file in REDcode's CR2W editor: a game path (base\journal\cooked_journal.journal, read-only), a file
    * on disk, or a file: or redcode-game: URI string. With node, the tree opens expanded to that path, as
    * paths are in the JSON (graph.Data.nodes.12), and the grid shows it.
@@ -166,6 +173,7 @@ export type { TextureSetup };
 
 export interface ApiHost {
   version: string;
+  keys: KeysApi;
   getBridge(): BridgeClient | undefined;
   gamePath(): string | undefined;
   project(): ProjectInfo | undefined;
@@ -244,6 +252,7 @@ export function createApi(host: ApiHost): REDcodeApi {
     apiVersion: 1,
     version: host.version,
     bridge: () => host.getBridge(),
+    keys: host.keys,
     gamePath: host.gamePath,
     project: () => projectRef(host.project()),
     onDidChangeProject: (listener, thisArgs, disposables) => host.onDidChangeProject((p) => listener.call(thisArgs, projectRef(p)), undefined, disposables),

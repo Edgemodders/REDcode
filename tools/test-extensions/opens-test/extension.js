@@ -34,6 +34,20 @@ exports.activate = (context) => {
       }
       await api.openAnimation(TraumaSoldiers, "synced__q001_00c_trauma_arrives_soldiers__land_v1__soldier_01", { entity: TraumaTeam, appearance: "corpo__traumateam_ma_paramedic__lvl1_01" });
     }),
+    vscode.commands.registerCommand("openstest.readKey", async () => {
+      // Keys (REDcode issue #33, K4b): another extension asking REDcode for a key, as EDGEhack or EDGEwave will.
+      const api = await redcode();
+      if (!api?.keys) {
+        void vscode.window.showWarningMessage("This REDcode has no keys API.");
+        return;
+      }
+      try {
+        const key = await api.keys.get("tripo", "Opens Test");
+        void vscode.window.showInformationMessage(key ? `Opens Test read the Tripo key: ...${key.slice(-4)}` : "Opens Test: no key (none set, or not allowed).");
+      } catch (e) {
+        void vscode.window.showErrorMessage(`Opens Test: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    }),
     vscode.commands.registerCommand("openstest.openSector", async () => {
       // The sector view (REDcode 0.10.15, agreed with EDGEbuilder in its #8): a sector at one node data entry, picked and framed.
       const api = await redcode();

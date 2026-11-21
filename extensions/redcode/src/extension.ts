@@ -47,6 +47,7 @@ import { LocHover, LocTree, locKeyOf, locLanguage, locTextOf, type LocNode } fro
 import type { LocEntry } from "./types";
 import { createApi, projectRef, type AnimationOptions, type ImportResult, type REDcodeApi } from "./api";
 import { publishProject, syncRednodePackage, withdrawProject } from "./rednodeService";
+import { registerKeys, type KeysApi } from "./keysView";
 import { shortType, tweakYaml, type TweakMode } from "./tweakYaml";
 import { createProject, findProject, gamePathOf, ProjectFolders, projectPathFor, type ProjectInfo } from "./project";
 import { ProjectExplorer, type ProjectNode } from "./projectExplorer";
@@ -86,6 +87,8 @@ let tweakClaims: TweakClaims;
 let tweakView: vscode.TreeView<TweakNode>;
 let tweakPanel: TweakRecordPanel;
 let locTree: LocTree;
+/** The Keys view and REDcodeApi.keys (REDcode issue #33). */
+let keys: { api: KeysApi; refresh: () => void } | undefined;
 /** Fires when the open project changes, for REDcodeApi.onDidChangeProject. */
 const projectChanged = new vscode.EventEmitter<ProjectInfo | undefined>();
 let textures: TextureViewer;
@@ -280,7 +283,9 @@ export function activate(context: vscode.ExtensionContext): REDcodeApi | undefin
   void resolveBlender().catch(() => undefined);
   startBridge(context);
 
+  keys = registerKeys(context, () => bridge, log);
   return createApi({
+    keys: keys.api,
     version: String((context.extension.packageJSON as { version?: string }).version ?? "0.0.0"),
     getBridge: () => bridge,
     gamePath: () => {
@@ -1765,7 +1770,8 @@ function startBridge(context: vscode.ExtensionContext, onReady?: (info: BridgeIn
   const gamePath = config.get<string>("gamePath", "");
   const dotnetRoot = config.get<string>("dotnetRoot", "") || undefined;
 
-  const client = new BridgeClient({ exe, gamePath, dotnetRoot });
+  // --keys: the shared key store's methods (REDbridge 0.18.0; an older one ignores it). REDcode is their keeper.
+  const client = new BridgeClient({ exe, gamePath, dotnetRoot, keys: true });
   bridge = client;
   client.on("log", (line) => log.appendLine(line));
   client.on("error", (error) => {
@@ -2071,6 +2077,7 @@ let gameLoaded: boolean | undefined;
 
 function setGameLoaded(loaded: boolean): void {
   void vscode.commands.executeCommand("setContext", "redcode.gameLoaded", loaded);
+  keys?.refresh();
   if (loaded !== gameLoaded) {
     gameLoaded = loaded;
     // A new bridge process has not loaded TweakDB; drop what the old one gave.

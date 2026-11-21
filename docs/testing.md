@@ -35,6 +35,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Animations A2 (#21)](#animations-a2) | By hand | Requests | 2026-11-15 | Pass, three fixes |
 | [Animations A3 (#21)](#animations-a3) | By hand | Requests | 2026-11-20 | Pass (owner, REDbridge 0.17.0), with three fixes |
 | [Edit in Blender: skinned meshes](#edit-in-blender-skinned-meshes) | By hand | | 2026-11-20 | Pass (owner) |
+| [Keys (K4b)](#keys-k4b) | By hand | Requests | | Given to the owner 2026-11-20; needs REDbridge 0.18.0 or a build of its main |
 | [Replace with a WAV, titled models (#29), every window's project (#32)](#replace-with-a-wav-titled-models-29-and-every-windows-project-32) | By hand, in the game | Requests | 2026-11-20 | Pass (owner), with two fixes |
 | [Replace All](#replace-all) | By hand, in the game | Requests | 2026-11-20 | Pass (owner), with one fix |
 | [Sector view](#sector-view) | By hand | C5 | 2026-11-20 | Pass (owner), with two fixes and five changes, each retested |
@@ -692,6 +693,22 @@ Rerun on 9b1f4b8 (2026-11-15, the same setup): steps 2, 5, 9 and 11 pass. The la
 Step 6 rerun on 5469a6c (2026-11-15, the same setup): Frame fills the view at 0.16 s, 3.95 s and 7.74 s. But after Frame at 0.16 s, Play lost the body at 1.72 s and 3.37 s: the view followed `Root`, which stays on the ground while the body drops 3 m to it. Fixed: with Root motion on, the view follows `Hips` (a rig with none, such as the AV's, follows `Root`). Checked in Chrome with the harness: Frame at 0.16 s, then on to 1.72 s and 3.37 s, and the body stays in view. Step 6 waits for a rerun.
 
 Step 6 rerun on 75cb474 (2026-11-15, the same setup): pass. With Root motion on, Frame at 0.16 s fills the view, and playing on, the whole body stays in view at 1.72 s, 3.41 s, 5.52 s and 7.42 s, a little right of centre at 3.4 s and 5.5 s. Frame at 3.95 s and 7.74 s centres it. The AV with Root motion on (it follows `Root`): its bones stay in the middle of the view at every moment, with the grid shifting under them. **Animations A2 passes.**
+
+## Keys (K4b)
+
+Built 2026-11-20 (REDcode issue #33, [design](design/keys.html#k4b-as-built-2026-11-20)). Checked before: 3 unit checks, and REDcode's key calls against REDbridge built from main on a scratch folder with test keys (see the design page). **Not run:** anything in VS Code. These steps use your real key store, `%APPDATA%\Edgemodders\keys`, which REDnode's in-game Keys view shares: use a test key you can remove, or note which keys are set first.
+
+| # | Do | Expected |
+|---|---|---|
+| 1 | Build REDbridge from main (`npm run bridge:build` in REDcode, or done already on 2026-11-20). In the F5 window, set `redcode.bridgePath` to `E:\Modding\Cyberpunk 2077\REDbridge\src\REDbridge\bin\Release\net10.0\REDbridge.exe` and **REDcode: Restart REDbridge** | REDbridge starts. Note the old `redcode.bridgePath` to put back afterwards |
+| 2 | Open the **Keys** view in REDcode's sidebar (below LocKeys) | Anthropic, Gemini, OpenAI, ElevenLabs and Tripo, each with "not set", or the last four characters and the tools that read it for keys you already have |
+| 3 | The pencil on Tripo (or any service you do not use), paste `tsk-test-1234` | The row shows `…1234 · not used yet`. REDnode's in-game Keys view, if open, shows it too |
+| 4 | The pencil again, type `not a key` | The box asks again with REDbridge's reason; Escape leaves the key as it was |
+| 5 | Command Palette: **Opens Test: Read a Key** (it calls `REDcodeApi.keys.get("tripo", "Opens Test")`) | A question: "Opens Test wants your Tripo key", Allow or Don't Allow. **Allow**: a message shows the key's last four characters. The row now says `used by Opens Test` |
+| 6 | **Opens Test: Read a Key** again | No question this time |
+| 7 | The view's `...` menu: **Forget Tool Permissions for Keys**, then **Opens Test: Read a Key**, and **Don't Allow** | The question comes back; Don't Allow gives "no key", and the next read does not ask again |
+| 8 | The trash can on Tripo, **Remove** | The row is back to "not set" |
+| 9 | Put `redcode.bridgePath` back, **Restart REDbridge** (0.17.0) | The Keys view says the key store needs REDbridge 0.18.0, with Update REDbridge |
 
 ## Edit in Blender: skinned meshes
 

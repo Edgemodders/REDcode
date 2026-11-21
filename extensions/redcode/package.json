@@ -350,6 +350,11 @@
           "name": "LocKeys"
         },
         {
+          "id": "redcode.keys",
+          "name": "Keys",
+          "visibility": "collapsed"
+        },
+        {
           "type": "webview",
           "id": "redcode.properties",
           "name": "Properties"
@@ -735,6 +740,35 @@
         "title": "Clear the Project Filter",
         "category": "REDcode",
         "icon": "$(clear-all)"
+      },
+      {
+        "command": "redcode.keys.set",
+        "title": "Set Key...",
+        "category": "REDcode",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "redcode.keys.clear",
+        "title": "Remove Key...",
+        "category": "REDcode",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "redcode.keys.add",
+        "title": "Add a Key for Another Service...",
+        "category": "REDcode",
+        "icon": "$(add)"
+      },
+      {
+        "command": "redcode.keys.refresh",
+        "title": "Refresh Keys",
+        "category": "REDcode",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "redcode.keys.forgetPermissions",
+        "title": "Forget Tool Permissions for Keys",
+        "category": "REDcode"
       }
     ],
     "menus": {
@@ -881,6 +915,21 @@
           "command": "redcode.clearLocKeySearch",
           "when": "view == redcode.lockeys",
           "group": "navigation@3"
+        },
+        {
+          "command": "redcode.keys.add",
+          "when": "view == redcode.keys",
+          "group": "navigation@1"
+        },
+        {
+          "command": "redcode.keys.refresh",
+          "when": "view == redcode.keys",
+          "group": "navigation@2"
+        },
+        {
+          "command": "redcode.keys.forgetPermissions",
+          "when": "view == redcode.keys",
+          "group": "1_keys@1"
         }
       ],
       "view/item/context": [
@@ -1088,6 +1137,26 @@
           "command": "redcode.addLocKeyToProject",
           "when": "view == redcode.lockeys && viewItem =~ /^locEntry/ && redcode.projectOpen",
           "group": "2_project@1"
+        },
+        {
+          "command": "redcode.keys.set",
+          "when": "view == redcode.keys && viewItem =~ /^key\\./",
+          "group": "inline@1"
+        },
+        {
+          "command": "redcode.keys.clear",
+          "when": "view == redcode.keys && viewItem =~ /^key\\.(set|unreadable)$/",
+          "group": "inline@2"
+        },
+        {
+          "command": "redcode.keys.set",
+          "when": "view == redcode.keys && viewItem =~ /^key\\./",
+          "group": "1_key@1"
+        },
+        {
+          "command": "redcode.keys.clear",
+          "when": "view == redcode.keys && viewItem =~ /^key\\.(set|unreadable)$/",
+          "group": "1_key@2"
         }
       ],
       "commandPalette": [
@@ -1265,6 +1334,10 @@
         },
         {
           "command": "redcode.addLocKeyToProject",
+          "when": "false"
+        },
+        {
+          "command": "redcode.keys.clear",
           "when": "false"
         }
       ]
