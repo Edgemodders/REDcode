@@ -790,7 +790,7 @@ Built 2026-11-20 ([design](design/sector-view.html#as-built-part-1)). A `.stream
 | 6 | **Markers** off and on; **By material**; the light from 0.5× to 2.5×; **Fixed light**, then turn the view | Markers go and come back; the colours change; the scene gets darker and brighter; with Fixed light the shading stays put on the buildings while the view turns |
 | 7 | **Coarser levels** | The coarser sectors over this one load (their meshes export the first time, which can take minutes for a busy area), and the progress line counts them |
 | 8 | Close the tab and open the sector again | It draws at once from the cache |
-| 9 | **Add to Project** on the sector, open the project's copy, change a node data entry's `position` in the tree, save | The 3D view draws the saved copy, the moved thing in its new place |
+| 9 | **Add to Project** on the sector (the **+** on its row in **Search game files**, or on the file in **Game Assets**), open the project's copy from the Project view, change a node data entry's `position` in the tree, save | The 3D view draws the saved copy, the moved thing in its new place |
 | 10b | Open any `.mesh` (3D), then an `.anims` (Animations) | Both have **Light** and **Fixed light** in their toolbars. A dark material is easier to read at 1.5× or 2.5×; metals are not black. The light chosen in one view is the one the next view opens with, in this window (REDcode issue #31) |
 | 10 | Close the sector's tab. In the Command Palette (Ctrl+Shift+P), **Opens Test: Open a Sector at Entry 780** (it calls `REDcodeApi.openSector(path, { select: 780 })`) | The sector opens with entry 780 picked and framed |
 
