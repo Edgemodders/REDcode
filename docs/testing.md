@@ -715,6 +715,8 @@ Result 2026-11-20, reported by the owner: steps 1 to 4 pass, on the base male bo
 | W1 | **Edit in Blender** on a mesh's `.glb`, add a sphere (Add > Mesh > Ico Sphere), Ctrl+S | After the import, a warning names the sphere, says the import left it out, and says to join it into a part with Ctrl+J. Saving again with the sphere still there does not warn again |
 | W2 | Join the sphere into a part (select it, then the part, Ctrl+J), Ctrl+S | No warning |
 
+Result 2026-11-20, reported by the owner: W1 and W2 pass; the warning named `Icosphere.001`.
+
 ## Animations A3
 
 Built 2026-11-20 ([design](design/animation.html#a3-as-built), REDcode issue #21). Synced sets: a synced clip's members across the `.anims` files of its folder, placed by the sync tracks and played on one clock. **Needs REDbridge 0.17.0** (`anims.sync` and root motion in seconds, REDbridge #19), which REDcode's minimum is raised to at the release; until it is out, a REDbridge built from its main. Checked before:
