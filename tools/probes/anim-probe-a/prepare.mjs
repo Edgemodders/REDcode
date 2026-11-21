@@ -3,6 +3,7 @@
 // 1. Exports the generic idle set, takes the clip stand__2h_on_sides__01 alone (with its skin).
 // 2. "same": that clip, renamed probe_a__same, imported unchanged into probe\anims\probe_a.anims (a new set on man_base.rig).
 // 3. "arm": the clip through Blender (left arm raised 70 degrees), renamed probe_a__arm, imported into the same set.
+//    Then both clips' fallbackFrameIndices are cleared, or the game crashes starting them (see 3b).
 // 4. Reads the set back, exports it again and measures the left arm against the game's clip.
 // Nothing from the game is kept outside the probe project and the cache; nothing is committed.
 import { createRequire } from "node:module";
@@ -134,6 +135,22 @@ fitted.animations = [{ ...fitted.animations[0], name: "probe_a__arm", extras: ke
 fs.writeFileSync(rawGlb, writeGlb(fitted, fromBlender.bin));
 const r2 = await importIt(true);
 console.log("import arm:", r2.ok, JSON.stringify(r2.anims ?? r2).slice(0, 500));
+
+// 3b. No fallback frames. Each clip keeps the game clip's fallbackFrameIndices (from WolvenKit's extras), but a
+// new set from WolvenKit's import has empty fallback tables, and the game crashed starting such a clip (run 1,
+// 2026-11-21). Cleared, the clips play (run 2), as the game's own additive clips do with none.
+{
+  const target = path.join(archiveDir, TARGET);
+  const open = await b.request("cr2w.open", { file: target });
+  const doc = open.doc;
+  const root = await b.request("cr2w.getNode", { doc, path: "" });
+  const n = root.children.find((c) => c.name === "animations").count;
+  const ops = Array.from({ length: n }, (_, i) => ({ op: "replace", path: `animations.${i}.Data.animation.Data.animBuffer.Data.fallbackFrameIndices`, value: [] }));
+  await b.request("cr2w.patch", { doc, ops });
+  await b.request("cr2w.save", { doc });
+  await b.request("cr2w.close", { doc });
+  console.log(`fallback frames cleared on ${n} clip(s)`);
+}
 
 // 4. Read back.
 const target = path.join(archiveDir, TARGET);

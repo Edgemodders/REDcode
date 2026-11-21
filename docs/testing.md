@@ -36,7 +36,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Animations A3 (#21)](#animations-a3) | By hand | Requests | 2026-11-20 | Pass (owner, REDbridge 0.17.0), with three fixes |
 | [Edit in Blender: skinned meshes](#edit-in-blender-skinned-meshes) | By hand | | 2026-11-20 | Pass (owner) |
 | [Keys (K4b)](#keys-k4b) | By hand | Requests | 2026-11-21 | Pass (owner), steps 1 to 8 on REDbridge 0.18.0; the optional step 9 not run |
-| [Animation Probe A](#animation-probe-a) | By hand, in the game | Research | | Offline half run 2026-11-20; the game half given to the owner |
+| [Animation Probe A](#animation-probe-a) | By hand, in the game | Research | 2026-11-21 | Pass (owner), run 2, once the clips' fallback frames were cleared |
 | [Replace with a WAV, titled models (#29), every window's project (#32)](#replace-with-a-wav-titled-models-29-and-every-windows-project-32) | By hand, in the game | Requests | 2026-11-20 | Pass (owner), with two fixes |
 | [Replace All](#replace-all) | By hand, in the game | Requests | 2026-11-20 | Pass (owner), with one fix |
 | [Sector view](#sector-view) | By hand | C5 | 2026-11-20 | Pass (owner), with two fixes and five changes, each retested |
@@ -709,6 +709,8 @@ Does a clip imported through REDbridge play in the game? The research's first pr
 | 6 | **Remove the paramedic**, switch the package off | |
 
 Run 1 (owner, 2026-11-21): step 4 first failed, because the package named its workspot `probe-a` and REDnode's `world.writeWorkspot` takes only a to z, 0 to 9 and `_` (package 0.1.1 uses `probe_a`). Then steps 4 and 5's **game** passed. **same** crashed the game: an access violation reading 0x3F69C, right after the jump (crash report `Cyberpunk2077-20261121-014819`, no stack). The likely cause (**unverified**): each imported clip keeps the game clip's `fallbackFrameIndices` (`[0]`, from WolvenKit's clip extras), but a new set from WolvenKit's import has empty fallback tables (`fallbackDataAddresses`, `fallbackDataAddressIndexes`, `fallbackAnimFrameDescs`, `fallbackAnimDescIndexes`, `fallbackAnimDataBuffer`), which WolvenKit never writes. The game's set fills them for 289 of its 292 clips; the 3 left out are additive clips with empty `fallbackFrameIndices`. Tried next: both probe clips' `fallbackFrameIndices` cleared (the project's copy patched; the first version kept in the scratchpad), packed and swapped in again.
+
+Run 2 (owner, 2026-11-21), after Pack and Play of the patched set: **pass.** `same` plays as `game`, and `arm` raises the left arm, animated, the rest as the game's idle. **Play** put the paramedic in a very brief T pose first, before the first clip, which is the game's own (expected in step 4). So clearing `fallbackFrameIndices` was the fix; `prepare.mjs` now does it (step 3b). **Animation Probe A passes:** a clip imported through REDbridge, unchanged or edited in Blender, plays in the game.
 
 ## Keys (K4b)
 

@@ -27,7 +27,14 @@ REDbridge 0.17.0, Blender 5.3, project `C:\Users\VYRAL\Documents\AnimProbeA`:
 - Blender at its default 24 fps resampled the clip (764 frames at 29.97 fps); at 30 fps it keeps 765 frames.
 - The arm copy: 70.0 degrees from the game's clip at the start, 70.4 at 10.8 s; 765 keys on the left arm (Blender keys every frame), the rest as the game's.
 
-## In the game (the owner)
+## In the game, 2026-11-21 (the owner)
+
+**Pass, run 2.** `same` plays as `game`; `arm` raises the left arm, animated, the rest as the game's idle. **Play** shows the paramedic in a very brief T pose first, before the first clip (the game's own `game`).
+
+- **Run 1:** the package's workspot name `probe-a` was refused (`world.writeWorkspot` takes a to z, 0 to 9 and `_`; 0.1.1 uses `probe_a`). Then **same** crashed the game (an access violation at 0x3F69C).
+- **The cause, as far as run 2 shows:** WolvenKit's import keeps each clip's `fallbackFrameIndices` (`[0]`, from the game clip's extras) but writes no fallback tables in a new set. The game's set has them for 289 of its 292 clips; its 3 additive clips have none. `prepare.mjs` now clears `fallbackFrameIndices` on every clip of the written set (step 3b), and with that both clips play.
+
+## Steps in the game
 
 1. In REDcode, open the `AnimProbeA` folder (`C:\Users\VYRAL\Documents\AnimProbeA`) and open `source\archive\probe\anims\probe_a.anims`. Pick `probe_a__arm`: the left arm is held out. `probe_a__same` looks like the game's idle.
 2. Start the game with REDnode, load a save, stand somewhere open. In REDcode, **Pack and Play** on the project (it swaps `AnimProbeA.archive` in through REDnode).
