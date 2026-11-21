@@ -714,7 +714,7 @@ Built 2026-11-20 (REDcode issue #33, [design](design/keys.html#k4b-as-built-2026
 
 | # | Do | Expected |
 |---|---|---|
-| 1 | Build REDbridge from main (`npm run bridge:build` in REDcode, or done already on 2026-11-20). In the F5 window, set `redcode.bridgePath` to `E:\Modding\Cyberpunk 2077\REDbridge\src\REDbridge\bin\Release\net10.0\REDbridge.exe` and **REDcode: Restart REDbridge** | REDbridge starts. Note the old `redcode.bridgePath` to put back afterwards |
+| 1 | In the F5 window, **REDcode: Update REDbridge** (REDbridge 0.18.0, released 2026-11-21, has the key store) | The REDcode output says REDbridge 0.18.0 |
 | 2 | Open the **Keys** view in REDcode's sidebar (below LocKeys) | Anthropic, Gemini, OpenAI, ElevenLabs and Tripo, each with "not set", or the last four characters and the tools that read it for keys you already have |
 | 3 | The pencil on Tripo (or any service you do not use), paste `tsk-test-1234` | The row shows `…1234 · not used yet`. REDnode's in-game Keys view, if open, shows it too |
 | 4 | The pencil again, type `not a key` | The box asks again with REDbridge's reason; Escape leaves the key as it was |
@@ -722,7 +722,7 @@ Built 2026-11-20 (REDcode issue #33, [design](design/keys.html#k4b-as-built-2026
 | 6 | **Opens Test: Read a Key** again | No question this time |
 | 7 | The view's `...` menu: **Forget Tool Permissions for Keys**, then **Opens Test: Read a Key**, and **Don't Allow** | The question comes back; Don't Allow gives "no key", and the next read does not ask again |
 | 8 | The trash can on Tripo, **Remove** | The row is back to "not set" |
-| 9 | Put `redcode.bridgePath` back, **Restart REDbridge** (0.17.0) | The Keys view says the key store needs REDbridge 0.18.0, with Update REDbridge |
+| 9 | Optional, only if you keep a REDbridge 0.17.0 somewhere: point `redcode.bridgePath` at it, **Restart REDbridge**, then put it back | The Keys view says the key store needs REDbridge 0.18.0, with Update REDbridge (already checked against 0.17.0 outside VS Code on 2026-11-20) |
 
 ## Edit in Blender: skinned meshes
 
