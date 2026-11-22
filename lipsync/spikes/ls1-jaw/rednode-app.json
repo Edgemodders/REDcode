@@ -1,0 +1,13 @@
+{
+  "id": "edgefab-ls1-jaw",
+  "name": "EDGEfab spike LS1: the jaw on command",
+  "version": "0.2.0",
+  "author": "Edgemodders",
+  "description": "A spike, not a mod to keep: spawns a woman beside V and sets float inputs on her animation graphs, to see whether a script can move a live NPC's jaw. Needs the test archive edgefab_ls1_jaw.archive in the game, which changes the women's face graph. Switching it off removes the person.",
+  "main": "mod.mjs",
+  "open": false,
+  "requires": {
+    "rednode": ">=0.59.0",
+    "codeware": ">=1.14"
+  }
+}
