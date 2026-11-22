@@ -784,6 +784,8 @@ Asked in AT2's run (the owner, 2026-11-22): after **Developer: Reload Window** t
 | P1 | Open a few folders under Archive and Raw, shut the Packed root, then **Developer: Reload Window** | The same folders are open and Packed is shut |
 | P2 | Shut one of those folders, reload | It stays shut; the others stay open |
 
+Result 2026-11-22, reported by the owner: P1 and P2 pass.
+
 ## Animation Tools pack (AT3)
 
 The REDnode pack in the game ([design](design/animation-tools.html#at3-as-built-2026-11-22); files in `packs/animation-tools/README.md`). Installed in the game's REDnode apps folder on 2026-11-22 (`node packs/animation-tools/build.mjs --install <game>`). Up to four Generates, about $2 on the owner's Uthana account. REDnode 0.68.0 or later, with REDbridge found by REDnode (its Mod Manager offers **Get REDbridge** when not).
@@ -841,6 +843,8 @@ Built 2026-11-22, from EDGEfab's K4d test (a tool could not tell "no key" from "
 | S7 | Allow another tool on another key first (say EDGEmat's Gemini or OpenAI). Then the Tripo row's unlock button, **Forget** | A question lists "opens test: allowed". After Forget the row has no unlock button, **Read a Key** asks again, and the other key's row still shows its tool |
 
 If S1 or S2 says "you said Don't Allow", closing the question is saved as a no on this PC, and that is a bug to fix.
+
+Result 2026-11-22, reported by the owner: S1 to S7 pass. Closing the question saves nothing, so EDGEfab's Tripo "deny" came from Don't Allow. **Key status passes.**
 
 ## Edit in Blender: skinned meshes
 
@@ -1028,6 +1032,7 @@ Built 2026-11-21 ([design](design/sector-view.html#part-3-the-camera-2026-11-21)
 | 9 | A right click on a thing, without dragging | The pick does not change |
 | 10 | **?** | A line names the mouse and keys; **?** again hides it |
 
+Result 2026-11-22, reported by the owner: steps 1 to 10 pass. **Sector camera passes.**
 
 ## Sector selection
 
