@@ -103,3 +103,11 @@ Chrome drew 2 frames a second there, so how it feels is the hand test's.
 - Moving, turning or deleting the selected things: the sector view is read-only. That is EDGEbuilder's world editing.
 - Materials on many things at once: **Materials** draws the current one only, since each rendering takes one or two seconds.
 - Selecting across sectors the view has not loaded.
+
+## Next: every copy of a mesh (the owner, 2026-11-22)
+
+Asked in the Add to Project retest: a modder with sector meshes in the project cannot tell where they are in the sector view. Agreed: both places, built after the release now in test (with M2 and Lip Sync L1).
+
+- **Project view:** a hover button on a `.mesh`, **Select in Sector View**, shown while a sector view is open. It selects every copy of that mesh in the open sector view and frames them.
+- **The selected list:** an **All Copies** hover button on each row, selecting every copy of that row's mesh.
+- **Either asks first** when it would replace a selection of more than one thing. With no copy of the mesh in the sector, it says so.
