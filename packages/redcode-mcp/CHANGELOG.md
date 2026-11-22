@@ -4,6 +4,10 @@ What changed in each redcode-mcp release. The release notes on GitHub come from 
 
 ## Unreleased
 
+## 0.6.0 (2026-11-22)
+
+Animations made from words with Uthana, from a GLB, or in place of a game clip. The Uthana key from the shared key store needs REDbridge 0.18.0; with an older REDbridge, set `UTHANA_API_KEY`.
+
 **New**
 
 - **Made animations:** `anim_generate` makes a clip from words with Uthana onto the game's own skeleton (it costs the modder money, so it says to ask first), `anim_add_clip` from a `.glb` on the game's rig, `anim_replace_clip` in place of one of the game's clips, and `anim_made_clips` lists a project's made clips. The Uthana key comes from `UTHANA_API_KEY` or the shared key store.
