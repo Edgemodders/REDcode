@@ -1,0 +1,9 @@
+# NVIDIA's Audio2Face-3D sample client (tag v2.0) with its pinned Python packages, so nothing is installed on Windows.
+FROM python:3.11-slim
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && rm -rf /var/lib/apt/lists/*
+WORKDIR /samples
+COPY Audio2Face-3D-Samples/proto/sample_wheel/nvidia_ace-1.2.0-py3-none-any.whl /tmp/
+COPY Audio2Face-3D-Samples/scripts/audio2face_3d_microservices_interaction_app /samples/app
+RUN pip install --no-cache-dir /tmp/nvidia_ace-1.2.0-py3-none-any.whl -r /samples/app/requirements.txt
+WORKDIR /samples/app
+ENTRYPOINT ["python3", "a2f_3d.py"]

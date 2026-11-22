@@ -1,0 +1,13 @@
+{
+  "id": "edgefab-ls2-shapes",
+  "name": "EDGEfab spike LS2: mouth shapes",
+  "version": "0.1.0",
+  "author": "Edgemodders",
+  "description": "A spike, not a mod to keep: spawns a woman beside V and shows mouth shapes on her face, one number each, through an anim feature. Needs the test archive edgefab_ls2_shapes.archive in the game, which changes the women's face graph. Switching it off removes the person.",
+  "main": "mod.mjs",
+  "open": false,
+  "requires": {
+    "rednode": ">=0.59.0",
+    "codeware": ">=1.14"
+  }
+}
