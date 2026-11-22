@@ -291,11 +291,30 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
   // ---- the selection (docs/design/sector-selection.md): many things, one of them current ----
   let selection: string[] = [];
   let shownCurrent: string | null | undefined;
+  /** Isolate on: the things ghosted, everything shown but the selection. It follows the selection, and ends with it. */
+  let isolated: string[] | null = null;
+  const endIsolate = () => {
+    if (!isolated) return;
+    view.setHidden(isolated, "shown");
+    isolated = null;
+    isolate.classList.remove("on");
+  };
+  const applyIsolate = () => {
+    if (isolated) view.setHidden(isolated, "shown");
+    const keep = new Set(selection);
+    isolated = view.idsShown().filter((id) => !keep.has(id));
+    view.setHidden(isolated, "ghost");
+    isolate.classList.add("on");
+  };
   const select = (ids: string[], current?: string | null) => {
     selection = [...new Set(ids)];
     const now = current && selection.includes(current) ? current : (selection[0] ?? null);
     picked = now;
     view.highlight(selection, now);
+    if (isolated) {
+      if (selection.length) applyIsolate();
+      else endIsolate();
+    }
     // A volume being dragged selects many times a second: the panel and Materials only when the current one changes.
     if (shownCurrent !== now) {
       shownCurrent = now;
@@ -400,18 +419,9 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
   };
   frameAll.addEventListener("click", () => view.flyTo(selection));
   clearAll.addEventListener("click", () => choose(null));
-  let isolated: string[] | null = null;
   isolate.addEventListener("click", () => {
-    if (isolated) {
-      view.setHidden(isolated, "shown");
-      isolated = null;
-      isolate.classList.remove("on");
-      return;
-    }
-    const keep = new Set(selection);
-    isolated = view.idsShown().filter((id) => !keep.has(id));
-    view.setHidden(isolated, "ghost");
-    isolate.classList.add("on");
+    if (isolated) endIsolate();
+    else if (selection.length) applyIsolate();
   });
   addAll.addEventListener("click", () => {
     const meshes = selection.map((id) => drawnAs.get(id)?.mesh).filter((x): x is string => !!x);
@@ -611,6 +621,7 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
     if (k === "escape") {
       view.volume.clear();
       choose(null);
+      endIsolate();
     }
     if (k === "a" && (e.ctrlKey || e.metaKey)) {
       // VS Code's webview hands every key to the workbench from the page's window, and its Select All then runs
@@ -619,6 +630,7 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
       e.preventDefault();
       e.stopPropagation();
       selectAllAt = performance.now();
+      view.volume.clear();
       select(view.idsShown(), picked);
     }
   });
