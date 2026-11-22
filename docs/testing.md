@@ -37,6 +37,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Edit in Blender: skinned meshes](#edit-in-blender-skinned-meshes) | By hand | | 2026-11-20 | Pass (owner) |
 | [Keys (K4b)](#keys-k4b) | By hand | Requests | 2026-11-21 | Pass (owner), steps 1 to 8 on REDbridge 0.18.0; the optional step 9 not run |
 | [Animation Probe A](#animation-probe-a) | By hand, in the game | Research | 2026-11-21 | Pass (owner), run 2, once the clips' fallback frames were cleared |
+| [Animation Probe D](#animation-probe-d) | By hand, in the game | Research | 2026-11-22 | Not run (offline half run: Uthana kept the game's skeleton exactly) |
 | [Replace with a WAV, titled models (#29), every window's project (#32)](#replace-with-a-wav-titled-models-29-and-every-windows-project-32) | By hand, in the game | Requests | 2026-11-20 | Pass (owner), with two fixes |
 | [Replace All](#replace-all) | By hand, in the game | Requests | 2026-11-20 | Pass (owner), with one fix |
 | [Sector view](#sector-view) | By hand | C5 | 2026-11-20 | Pass (owner), with two fixes and five changes, each retested |
@@ -716,6 +717,21 @@ Run 1 (owner, 2026-11-21): step 4 first failed, because the package named its wo
 Run 2 (owner, 2026-11-21), after Pack and Play of the patched set: **pass.** `same` plays as `game`, and `arm` raises the left arm, animated, the rest as the game's idle. **Play** put the paramedic in a very brief T pose first, before the first clip, which is the game's own (expected in step 4). So clearing `fallbackFrameIndices` was the fix; `prepare.mjs` now does it (step 3b). REDbridge does it too since 442721a (on its main, unreleased): `project.import` clears them on the clips it writes and says so in its notes. Run with that build and without step 3b, the probe writes a set byte for byte the one that passed here; REDbridge's probe checks it, and it and REDcode's smoke test pass. The comment on WolvenKit's fallback item: https://github.com/WolvenKit/WolvenKit/issues/1425#issuecomment-7059024153.
 
 **Kept clips, checked the same day** (the REDnode session's question: the fix reads and writes the whole set again after WolvenKit's write). The arm clip imported over a copy of the game's 292-clip idle set (`template`, keep), once with REDbridge 0.18.0 and once with the fix, each result turned to WolvenKit JSON, whose buffers carry their bytes: **one difference**, the imported clip's `fallbackFrameIndices` (1 item, then none). The 292 kept clips, all 293 data chunks and the set's fallback tables are the same. Seen on the way, in both builds and so WolvenKit's own: the import puts the new clip first and writes one data chunk per clip (68 in the game's set), while the fallback tables stay as the game's (211 entries). Whether those still match the kept clips in the game is **unverified**. **Animation Probe A passes:** a clip imported through REDbridge, unchanged or edited in Blender, plays in the game.
+
+## Animation Probe D
+
+Can Uthana alone make a clip on the game's skeleton, and does it play, added as a new clip and in place of a game clip? ([report](research/animation-authoring.html), section 8; files and results in `tools/probes/anim-probe-d/README.md`.) The offline half ran on 2026-11-22: the base male body on `man_base.rig` uploaded to Uthana as is (auto-rig off), a 5 s text-to-motion wave generated onto it (`text-to-motion-3.0`), and Uthana's GLB came back on the game's own skeleton: all 71 animated bones by the game's names, the rest pose identical. Fitted by name (no retargeting), imported by REDbridge with no skips: `probe_d__wave` in a new set, and the same motion over `stand__2h_on_sides__01` in a copy of the game's idle set (291 clips kept). The package `anim-probe-d` is installed in the game's REDnode apps folder.
+
+| # | Do | Expected |
+|---|---|---|
+| 1 | In REDcode, open the folder `C:\Users\VYRAL\Documents\AnimProbeD`, then `source\archive\probe\anims\probe_d.anims`; pick `probe_d__wave` | The base body raises its right hand and waves. Say whether it looks natural |
+| 2 | Start the game with REDnode, load a save, stand somewhere open; in REDcode, **Pack and Play** on the project | REDcode says it swapped the archive through REDnode |
+| 3 | In the REDnode overlay, switch on **Animation Probe D** with its bridge and archives permissions | Its window: Write and swap, Spawn, Play, kept, added, replaced |
+| 4 | **Write and swap**, **Spawn**, **Play** | A paramedic 3 m in front of V starts **kept**: he stretches his arms |
+| 5 | **kept**, **added**, **replaced**, a few seconds apart | **kept** stretches (a game clip the rewritten set kept: this also answers Probe A's open point on the kept clips' fallback tables); **added** and **replaced** both wave the right hand. Note any twitch, slide or snap |
+| 6 | **Remove the paramedic**, switch the package off | |
+
+If **added** waves but **replaced** shows the game's own idle, the game may still hold the set it loaded before the swap (**unverified**): **Pack and Install**, restart the game, and try **replaced** again.
 
 ## Keys (K4b)
 

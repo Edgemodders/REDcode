@@ -1,0 +1,18 @@
+{
+  "id": "anim-probe-d",
+  "name": "Animation Probe D",
+  "version": "0.1.0",
+  "author": "Edgemodders",
+  "description": "REDcode's animation Probe D (docs/research/animation-authoring.md): a clip made by Uthana from a text prompt onto the game's own skeleton, played on a spawned Trauma Team paramedic through a written workspot, both added as a new clip and replacing the game's own idle clip, with a kept game clip of the same set as the control. Asks for the bridge and archives permissions.",
+  "main": "mod.mjs",
+  "open": false,
+  "permissions": [
+    "bridge",
+    "archives"
+  ],
+  "requires": {
+    "rednode": ">=0.66.10",
+    "codeware": ">=1.14",
+    "redbridge": ">=0.15.0"
+  }
+}
