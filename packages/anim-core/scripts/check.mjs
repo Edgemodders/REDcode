@@ -77,6 +77,19 @@ try {
   const madeOne = core.madeClips(project).find((m) => m.name === "wave_hello");
   check(own.set === "animprobed\\anims\\wave_hello\\wave_hello.anims" && madeOne?.set === own.set && fs.existsSync(madeOne.glb) && fs.existsSync(path.join(project.archiveDir, ...own.set.split("\\"))), `a made clip gets its own set (${own.set}), its .glb and its record`);
   check(again.record.id === own.record.id && madeOne?.kind === "anim" && madeOne.anim.rig === rig.rig && madeOne.anim.seconds > 4.9 && madeOne.anim.fps === 30 && madeOne.anim.name === "wave_hello" && !madeOne.anim.rootMotion, `the record has EDGEdir's facts, and the id stays (${own.record.id})`);
+  // EDGEfab #7's asks: a license like its prop records', and a clip with EDGEfab's edits not made again silently.
+  const licensed = await core.addClip(bridge, project, rig, "wave_hello", fitted.glb, { seconds: r.duration, license: core.uthanaLicense() });
+  const editedFile = licensed.files.find((f) => f.endsWith(".edgefab.json"));
+  fs.writeFileSync(editedFile, JSON.stringify({ ...licensed.record, edited: new Date().toISOString(), edits: [{ kind: "trim" }] }));
+  let refused = false;
+  try {
+    await core.addClip(bridge, project, rig, "wave_hello", fitted.glb, { seconds: r.duration });
+  } catch (e) {
+    refused = e instanceof core.EditedClipError;
+  }
+  const allowed = await core.addClip(bridge, project, rig, "wave_hello", fitted.glb, { seconds: r.duration, overwriteEdited: true });
+  check(licensed.record.license?.source === "uthana" && licensed.record.license.plan === "paid" && !!licensed.record.license.note, "the record carries a license, shaped like EDGEfab's");
+  check(refused && allowed.record.id === own.record.id && !core.hasEdits(core.recordOf(project, "wave_hello")), "a clip with EDGEfab's edits is refused unless allowed, and keeps its id when made again");
   const names = await core.clipsIn(bridge, path.join(project.archiveDir, ...rig.referenceSet.split("\\")));
   check(names.length === 292 && names.includes("stand__2h_on_sides__01__stretch_arms__01"), `the replaced set keeps its ${names.length} clips`);
 

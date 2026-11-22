@@ -4,7 +4,7 @@ title: Animation Tools
 
 # Animation Tools: prompt, add and replace clips
 
-Draft 0.2, 2026-11-22, agreed with the owner the same day (every decision below), with the owner's wishes for the pack added. AT1 is built and checked the same day; the rest is not built.
+Draft 0.2, 2026-11-22, agreed with the owner the same day (every decision below), with the owner's wishes for the pack added. AT1 and AT2 are built the same day (AT2 hand test pending); AT3 and AT4 are not built.
 
 The owner, 2026-11-22: a REDnode tool pack, **Animation Tools**, to prompt an animation and play it on a spawned NPC in the game, beside REDcode's own viewing, prompting and importing, so the workflow is seamless. EDGEfab's part (manual editing) is still being thought about. It may share a library with REDcode.
 
@@ -124,8 +124,8 @@ Prompting and playing on V, as the owner asked, needs two things the NPCs do not
 
 | Need | State |
 |---|---|
-| **A package that plays a clip on V**: a workspot on the player, or a stand-in copy of V | REDnode #47 (V as an actor), open, filed by EDGEdir. The pack's need goes on it, with the owner's go |
-| **V's own rig**: V's skeleton has about 152 joints where the NPCs' have 71, and FPP and TPP differ | A probe first (**Probe E**): whether V's TPP rig has a body REDbridge exports skinned (REDcode has none for V yet), whether Uthana keeps it as it kept `man_base`, and whether a clip on the 71 shared bones plays on V |
+| **A package that plays a clip on V**: a workspot on the player, or a stand-in copy of V | REDnode #47 (V as an actor), open, filed by EDGEdir. The pack's need is on it (2026-11-22, https://github.com/Edgemodders/REDnode/issues/47#issuecomment-7080037970). REDnode's V actor spike (REDnode 0.70.0, built, not yet run in the game) tries both ways; its 0.2.0 adds REDcode's test (steps 13 to 17): two written workspots, one on V's skeleton and one on the NPC rig, each with V's own clip and two NPC clips, played on V with jumps, and the NPC-rig one on the copy |
+| **V's own rig**: V's skeleton has about 152 joints where the NPCs' have 71, and FPP and TPP differ | REDnode's answer (2026-11-22, from the game's files): V's own clips and the player workspots are on `player_man_skeleton.rig` or `player_woman_skeleton.rig`; the photo mode copy of V animates on `man_base`, so way B may take NPC clips as a spawned NPC does (**unverified** until the spike runs). Then **Probe E**, if V needs clips on V's own rig: whether that rig has a body REDbridge exports skinned, and whether Uthana keeps it as it kept `man_base` |
 
 Until both are in, the pack's **V** entry says what it waits on, and the rest works on NPCs.
 
@@ -135,7 +135,7 @@ Until both are in, the pack's **V** entry says what it waits on, and the rest wo
 |---|---|---|
 | **AT0** | REDbridge's fallback frames fix released (REDbridge 0.19.0, by the REDnode session, on the owner's go). Not a blocker: the fit empties each clip's fallback frames itself, so made clips are safe on 0.18.0; the fix matters for GLBs imported without the fit | `redcode.minBridgeVersion` raised with a REDcode release, when it comes |
 | **AT1** | `@edgemodders/anim-core` from the probe's scripts, with checks run on the PC against the game and Uthana (a recorded Uthana GLB is never committed) | The probe's own clips made again through the library, byte for byte |
-| **AT2** | REDcode: Generate, Add and Replace in the animation view, the commands, the MCP tools, `uthana` in the Keys view | A hand test: a clip from words in REDcode, then in the game through Pack and Play and Probe D's package |
+| **AT2** | REDcode: Generate, Add and Replace in the animation view, the commands, the MCP tools, `uthana` in the Keys view. **Built 2026-11-22**, hand test pending | A hand test: a clip from words in REDcode, then in the game through Pack and Play and Probe D's package |
 | **AT3** | The Animation Tools pack, on NPCs: character, spawn, prompt, the clip list, play; its own release and Nexus page | A hand test in the game, with REDcode closed, then with it open |
 | **AT4** | V: Probe E, then V in the pack once REDnode #47 lands | A clip made for V plays on V |
 
@@ -172,6 +172,21 @@ Each step has its hand test in [testing](../testing.html) before the next starts
 Then the layout of [EDGEfab #7](https://github.com/Edgemodders/EDGEfab/issues/7) (decision 4, changed): `addClip` writes each clip in its own set with its record, and `madeClips(project)` lists them by their records. Two more checks pass (20 of 20): a clip gets its own set, `.glb` and record, and made again keeps its id. **EDGEdir's own reader** (`projectAnims` in EDGEdir's `src/core/made.ts`, bundled and run on the check's project) finds both clips with their rig, length, frame rate and `.glb`.
 
 Not yet run: `generate` end to end, which starts a paid job. Its first run is AT2's hand test.
+
+**EDGEfab's answer on #7** (2026-11-22, https://github.com/Edgemodders/EDGEfab/issues/7#issuecomment-7080113370): the record's name `<name>.edgefab.json`, and `madeBy` and `source`, are fine; it asked for a `license` shaped like its prop records' (`{ source, plan, terms, note }`), and for the modder to be asked before a clip it has edited is made again or replaced. An EDGEfab edit keeps `id`, `madeBy`, `made`, `source` and `license`, and adds `edited` and `edits`. Both asks are in: `uthanaLicense()` (from Uthana's terms 2.0.0, read 2026-11-22: a paying customer owns the output to the extent rights exist, 4.2; Uthana may train on inputs and outputs, 6.2), and `EditedClipError`, which `generate` raises before Uthana is paid. Checks 22 of 22. EDGEfab will use anim-core from npm once it is published.
+
+## AT2 as built (2026-11-22)
+
+| Part | Where |
+|---|---|
+| The Make panel | `webview/animViewer.ts` (`makePanel`): **Make** in the animation view's bar opens it above the clip list: the words, model and length (with the price on **Generate**), In place, As written, the name, and **As a new clip in the project** or **Replace <clip>** (on a game set, in a copy of its set; on a made clip's own set, **Make <clip> again**). **From a GLB…** beside it. Each stage shows under it. Offered on `man_base` and `woman_base` sets with a project open; otherwise the panel says why |
+| The host | `src/animMake.ts` (`makeClip`): the name (a taken name made from the words gets `_2`; a typed one asks **Make It Again** or **Keep Both**, and says when EDGEfab has edited it), closing tabs on a set it replaces, the key, anim-core's `generate` or the fit of a `.glb`, then the Project view refreshed. `src/cr2wEditor.ts` (`animsMake`, `make` in the payload, stages as `animsMakeStage`), `src/animCommands.ts` (the commands, the editor's hook, `generateAnimation`) |
+| Commands | **Generate an Animation with Uthana**, **Add a Clip from GLB** (also on a `.glb` in the Project view), **Replace a Game Clip**, each with a notification for its stages; the made clip opens in the animation view |
+| `REDcodeApi.generateAnimation(options, caller)` | The key through `keys.get` for the caller, so the modder is asked once ([API](../api.html)) |
+| MCP | `anim_generate`, `anim_add_clip`, `anim_replace_clip`, `anim_made_clips` in redcode-mcp, which now starts REDbridge with `--keys`; the key from `UTHANA_API_KEY` or the store ([MCP](../mcp.html)) |
+| Keys | `uthana` in REDcode's known services, and in REDbridge's (REDbridge main 4942dc3, unreleased: its name and `UTHANA_API_KEY`) |
+
+Checked offline: typecheck and build; the unit checks (75); anim-core's check (22); the MCP tools over stdio (`anim_add_clip` writes the clip, its set and record; a second of the same name is refused without `again`; `anim_made_clips` lists it; `anim_generate` read the key from the store through REDbridge and stopped at its length check, with no job). The panel and the commands are the hand test's, with the first paid Generate ([testing](../testing.html#animation-tools-at2)).
 
 ## Not in this design
 

@@ -211,6 +211,16 @@ body.mesh-mode #props { display: flex; flex-direction: column; overflow: hidden;
 .animscrub { flex: 1; min-width: 80px; accent-color: var(--accent); }
 .animtime { white-space: nowrap; min-width: 11em; text-align: right; }
 .animrig { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* animation tools AT2: the Make panel above the list */
+.animmake { border-bottom: 1px solid var(--line); padding: 6px 8px 8px; display: flex; flex-direction: column; gap: 6px; flex: none; }
+.animmake[hidden] { display: none; }
+.animmake .label { margin: 0; }
+.animmake textarea, .animmake input[type="text"], .animmake select { background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border, var(--line)); padding: 2px 6px; font: inherit; font-size: 12px; min-width: 0; }
+.animmake textarea { resize: vertical; width: 100%; box-sizing: border-box; }
+.animmake .makerow { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.animmake .makename { flex: 1; min-width: 8em; }
+.animmake .makecheck { display: inline-flex; align-items: center; gap: 2px; font-size: 12px; white-space: nowrap; }
+.animmake .makestatus { white-space: normal; font-size: 12px; }
 
 /* the .glb/.gltf viewer page */
 body.meshfile { display: flex; flex-direction: column; height: 100vh; margin: 0; }

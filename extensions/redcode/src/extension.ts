@@ -48,6 +48,8 @@ import type { LocEntry } from "./types";
 import { createApi, projectRef, type AnimationOptions, type ImportResult, type REDcodeApi } from "./api";
 import { publishProject, syncRednodePackage, withdrawProject } from "./rednodeService";
 import { registerKeys, type KeysApi } from "./keysView";
+import { registerAnimCommands } from "./animCommands";
+import { uthanaKeyFor } from "./animMake";
 import { shortType, tweakYaml, type TweakMode } from "./tweakYaml";
 import { createProject, findProject, gamePathOf, ProjectFolders, projectPathFor, type ProjectInfo } from "./project";
 import { ProjectExplorer, type ProjectNode } from "./projectExplorer";
@@ -284,6 +286,24 @@ export function activate(context: vscode.ExtensionContext): REDcodeApi | undefin
   startBridge(context);
 
   keys = registerKeys(context, () => bridge, log);
+  // Making clips (docs/design/animation-tools.md, AT2): the animation view's Make panel, the commands and the API.
+  const anims = registerAnimCommands(context, {
+    deps: {
+      bridge: () => {
+        if (!bridge?.running) throw new Error('The REDbridge process is not running. Run "REDcode: Restart REDbridge".');
+        return bridge;
+      },
+      projectDir: () => requireProject().dir,
+      cacheDir: path.join(storage.fsPath, "cache", "anim"),
+      uthanaKey: () => uthanaKeyFor(bridge, async () => keys?.api.ask("uthana", "REDcode")),
+      log,
+      refresh: () => explorer.refresh(),
+    },
+    projectDir: () => project?.dir,
+    open: (file, clip) => openAnimationInEditor(file, clip),
+    keyFor: async (caller) => (await keys?.api.get("uthana", caller)) ?? (await keys?.api.ask("uthana", caller)),
+  });
+  cr2w.animMaker = anims.maker;
   return createApi({
     keys: keys.api,
     version: String((context.extension.packageJSON as { version?: string }).version ?? "0.0.0"),
@@ -309,6 +329,10 @@ export function activate(context: vscode.ExtensionContext): REDcodeApi | undefin
     openModel: (file: string, options?: { title?: string }) => openModelInView(file, options),
     closeModel: (fileOrFolder: string) => (typeof fileOrFolder === "string" && fileOrFolder ? meshViewer.closeModel(fileOrFolder) : 0),
     openSector: (target: string, options?: { select?: number | number[] }) => openSectorInEditor(target, options),
+    generateAnimation: (options, caller) => {
+      if (typeof caller !== "string" || !caller.trim()) return Promise.reject(new Error("generateAnimation: name the tool that asks (caller)"));
+      return anims.generateAnimation(options, caller.trim());
+    },
   });
 }
 

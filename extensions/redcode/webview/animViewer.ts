@@ -49,7 +49,49 @@ export interface AnimsSource {
   /** The side list's width in pixels, kept for the window; undefined is the default width. */
   sideWidth?: number;
   onSideWidth?: (width: number | undefined) => void;
+  /** Making clips (docs/design/animation-tools.md, AT2). Without it, no Make panel. */
+  make?: MakeApi;
 }
+
+/** What the Make panel asks of the host. */
+export interface MakeApi {
+  /** Why clips cannot be made here (no project open, another rig), or undefined when they can. */
+  why?: string;
+  /** The file is the game's: a replacement goes into a copy of its set in the project. */
+  game: boolean;
+  /** This file is the own set of the project's made clip of this name: replacing makes it again. */
+  made?: string;
+  run(req: MakeAsk): Promise<{ clip: string; set: string; cost?: number; notes: string[] }>;
+}
+
+export interface MakeAsk {
+  action: "generate" | "glb";
+  prompt?: string;
+  length?: number;
+  model?: string;
+  inPlace?: boolean;
+  asWritten?: boolean;
+  name?: string;
+  /** The clip to replace, by name: the one the view shows. */
+  replace?: string;
+}
+
+/** Uthana's text-to-motion models, as anim-core prices them (Uthana's docs, 2026-11-22). */
+const MakeModels = [
+  { id: "text-to-motion-3.0", label: "3.0", perSecond: 0.1, min: 4 },
+  { id: "text-to-motion-3.0-lite", label: "3.0 Lite", perSecond: 0.1, min: 5 },
+  { id: "text-to-motion-3.0-mini", label: "3.0 Mini", perSecond: 0.075, min: 5 },
+];
+
+const MakeStages: Record<string, string> = {
+  "stand-in": "Getting the stand-in character on Uthana (uploaded once per rig)…",
+  queued: "Uthana has the job…",
+  running: "Uthana is making the motion…",
+  downloading: "Downloading the motion…",
+  fitting: "Fitting it onto the game's rig…",
+  importing: "Writing the clip into the project…",
+  done: "Opening the clip…",
+};
 
 /** A member of a synced moment, as the host lists it. */
 export interface SetMemberInfo {
@@ -95,6 +137,8 @@ export interface AnimsView {
   refreshMaterials(): void;
   /** Goes to an animation by name, and plays it; with playSet, plays its synced set too. */
   showAnimation(name: string, options?: { playSet?: boolean }): void;
+  /** A stage of a make the Make panel started, from the host. */
+  makeStage?(stage: string, detail?: string): void;
 }
 
 /** Each member's colour in the view and the list, after the opened one's. */
@@ -490,6 +534,19 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
   // A3: the picked clip's synced set, when it has one.
   const setBox = el("div", "animset");
   setBox.hidden = true;
+  // AT2: the Make panel above the list, shown by the bar's Make button.
+  const make = source.make ? makePanel(source.make, () => info()?.name) : undefined;
+  if (make) {
+    const makeButton = el("button", "", "Make");
+    makeButton.title = source.make!.why ?? "Make a clip from words with Uthana, or from a .glb, as a new clip or in place of the one shown";
+    makeButton.addEventListener("click", () => {
+      make.box.hidden = !make.box.hidden;
+      makeButton.classList.toggle("on", !make.box.hidden);
+      if (!make.box.hidden) make.focus();
+    });
+    bar.insertBefore(makeButton, bar.firstChild);
+    side.append(make.box);
+  }
   side.append(el("div", "label", "Animations"), filter, list, setBox);
   const rows: HTMLElement[] = source.animations.map((a, i) => {
     const row = el("div", "part animrow");
@@ -523,6 +580,7 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
     rows.forEach((r, i) => r.classList.toggle("selected", i === index));
     rows[index].scrollIntoView({ block: "nearest" });
     current = index;
+    make?.refresh();
     time.textContent = "Loading…";
     let clip = clips.get(index);
     if (!clip) {
@@ -862,5 +920,141 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
     },
     refreshMaterials: () => undefined,
     showAnimation,
+    makeStage: (stage, detail) => make?.stage(stage, detail),
+  };
+}
+
+/**
+ * The Make panel (AT2): words for Uthana, or a .glb, made into a new clip in the project or in place of the clip
+ * shown. The host does the work and opens the clip it made.
+ */
+function makePanel(api: MakeApi, shown: () => string | undefined): { box: HTMLElement; refresh: () => void; stage: (stage: string, detail?: string) => void; focus: () => void } {
+  const box = el("div", "animmake");
+  box.hidden = true;
+  box.append(el("div", "label", "Make a clip"));
+  if (api.why) {
+    box.append(el("div", "dim", api.why));
+    return { box, refresh: () => undefined, stage: () => undefined, focus: () => undefined };
+  }
+  const prompt = el("textarea", "makeprompt");
+  prompt.rows = 3;
+  prompt.placeholder = "What it shows, such as: a man stands relaxed, raises his right hand and waves hello, then lowers it";
+  prompt.spellcheck = true;
+
+  const length = el("select");
+  length.title = "How long, in seconds";
+  const model = el("select");
+  model.title = "Uthana's model and its price";
+  for (const m of MakeModels) {
+    const o = el("option", "", `${m.label}, $${m.perSecond.toFixed(m.perSecond < 0.1 ? 3 : 2)}/s`);
+    o.value = m.id;
+    model.appendChild(o);
+  }
+  const fillLengths = () => {
+    const m = MakeModels.find((x) => x.id === model.value) ?? MakeModels[0];
+    const keep = Number(length.value) || 5;
+    length.replaceChildren();
+    for (let s = m.min; s <= 10; s++) {
+      const o = el("option", "", `${s} s`);
+      o.value = String(s);
+      if (s === Math.max(keep, m.min)) o.selected = true;
+      length.appendChild(o);
+    }
+  };
+  fillLengths();
+  const check = (label: string, title: string, on: boolean) => {
+    const wrap = el("label", "makecheck");
+    const input = el("input");
+    input.type = "checkbox";
+    input.checked = on;
+    wrap.title = title;
+    wrap.append(input, document.createTextNode(` ${label}`));
+    return { wrap, input };
+  };
+  const inPlace = check("In place", "No travel across the floor: workspots in the game apply no root motion. Off keeps the travel (untried in the game)", true);
+  const asWritten = check("As written", "Send the words as they are; otherwise Uthana rewrites them into a motion description first", false);
+  const name = el("input", "makename");
+  name.type = "text";
+  name.placeholder = "Name: from the words";
+  name.spellcheck = false;
+  name.title = "The new clip's name: lowercase letters, digits and _";
+  const goesTo = el("select");
+  goesTo.title = "A new clip in the project, or in place of the clip shown";
+  const asNew = el("option", "", "As a new clip in the project");
+  asNew.value = "new";
+  const asReplace = el("option", "", "");
+  asReplace.value = "replace";
+  goesTo.append(asNew, asReplace);
+
+  const generate = el("button", "on", "Generate");
+  const fromGlb = el("button", "", "From a GLB…");
+  fromGlb.title = "A .glb with a clip already on the game's rig (from Blender, say), through the same fit";
+  const status = el("div", "dim makestatus", "");
+  const row = (...kids: HTMLElement[]) => {
+    const r = el("div", "makerow");
+    r.append(...kids);
+    return r;
+  };
+  box.append(prompt, row(model, length, inPlace.wrap, asWritten.wrap), row(name, goesTo), row(generate, fromGlb), status);
+
+  const price = () => {
+    const m = MakeModels.find((x) => x.id === model.value) ?? MakeModels[0];
+    return Math.round(m.perSecond * Number(length.value) * 100) / 100;
+  };
+  const refresh = () => {
+    const clip = shown();
+    asReplace.textContent = api.made ? `Make ${api.made} again` : clip ? `Replace ${clip}${api.game ? " (a copy of this set in the project)" : ""}` : "Replace the clip shown";
+    asReplace.disabled = !clip && !api.made;
+    generate.textContent = `Generate, $${price().toFixed(2)}`;
+    generate.title = "Uthana makes the motion from the words; it charges only a finished job";
+    const replacing = goesTo.value === "replace";
+    name.disabled = replacing;
+  };
+  model.addEventListener("change", () => {
+    fillLengths();
+    refresh();
+  });
+  length.addEventListener("change", refresh);
+  goesTo.addEventListener("change", refresh);
+  refresh();
+
+  let busy = false;
+  const run = async (action: "generate" | "glb") => {
+    if (busy) return;
+    if (action === "generate" && !prompt.value.trim()) {
+      status.textContent = "Say what the animation shows first.";
+      prompt.focus();
+      return;
+    }
+    busy = true;
+    generate.disabled = fromGlb.disabled = true;
+    status.textContent = action === "generate" ? "Starting…" : "Pick the .glb…";
+    try {
+      const replacing = goesTo.value === "replace";
+      const r = await api.run({
+        action,
+        ...(action === "generate" ? { prompt: prompt.value.trim(), length: Number(length.value), model: model.value, asWritten: asWritten.input.checked } : {}),
+        inPlace: inPlace.input.checked,
+        ...(name.value.trim() && !replacing ? { name: name.value.trim() } : {}),
+        ...(replacing ? { replace: api.made ?? shown() } : {}),
+      });
+      status.textContent = `Made ${r.clip}${r.cost !== undefined ? ` ($${r.cost.toFixed(2)})` : ""} in ${r.set}.${r.notes.length ? ` ${r.notes.join(" ")}` : ""}`;
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      status.textContent = /cancel/i.test(message) ? "" : `Not made: ${message}`;
+    } finally {
+      busy = false;
+      generate.disabled = fromGlb.disabled = false;
+    }
+  };
+  generate.addEventListener("click", () => void run("generate"));
+  fromGlb.addEventListener("click", () => void run("glb"));
+  return {
+    box,
+    refresh,
+    stage: (stage, detail) => {
+      if (busy) status.textContent = MakeStages[stage] ?? `${stage}${detail ? ` ${detail}` : ""}`;
+    },
+    focus: () => prompt.focus(),
   };
 }

@@ -49,6 +49,8 @@
       reloadAll(m.reason);
     } else if (m.type === "materialsChanged") {
       meshView?.refreshMaterials?.(m);
+    } else if (m.type === "animsMakeStage") {
+      meshView?.makeStage?.(m.stage, m.detail);
     } else if (m.type === "changed") {
       // Another page edited the document: refetch and redraw, keeping the selection and expansion.
       reloadAll("an edit elsewhere");
@@ -434,6 +436,10 @@
         sideWidth: payload.sideWidth,
         onSideWidth: (width) => vscode.postMessage({ type: "sideWidth", width }),
         initial,
+        // AT2: Generate with Uthana, and clips from a .glb, as new clips or in place of the one shown.
+        make: payload.make
+          ? { why: payload.make.why, game: !!payload.make.game, made: payload.make.made, run: (make) => request("animsMake", { make }) }
+          : undefined,
         note: payload.dirty ? "Shows the saved file; save to see your edits" : "",
         say: (message) => status(message, "error"),
         // A3: the synced set of the picked clip, listed, placed and loaded by the host.

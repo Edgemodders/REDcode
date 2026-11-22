@@ -20,6 +20,7 @@ import type { MeshImport, TextureSetup } from "./types";
 import { sourceFile } from "./exportCache";
 import { gamePathOfUri } from "./gameFs";
 import { ProjectFolders, type ProjectInfo } from "./project";
+import type { GenerateAnimationOptions } from "./animCommands";
 
 /**
  * A sound, as REDcode's player and sound list know it and as EDGEwave's edgewave.openSound takes it:
@@ -159,7 +160,31 @@ export interface REDcodeApi {
    * and framed. Since 0.10.15 (docs/design/sector-view.md): check that the member is there before calling it.
    */
   openSector(path: string, options?: { select?: number | number[] }): Promise<void>;
+  /**
+   * Makes an animation from words with Uthana onto the base man's or woman's rig, as a new clip in the open project
+   * (its own set, with the record EDGEdir reads, as EDGEfab #7 agreed) or in place of a game clip, and opens it in
+   * REDcode's animation view unless options.open is false. It spends the modder's Uthana credit with their key:
+   * caller names your tool, and the modder is asked once whether it may use the key, as keys.get asks.
+   * Unreleased (docs/design/animation-tools.md, AT2): check that the member is there before calling it.
+   */
+  generateAnimation(options: GenerateAnimationOptions, caller: string): Promise<MadeAnimation>;
 }
+
+/** What generateAnimation answers. */
+export interface MadeAnimation {
+  /** The set's file on disk, and its path under the project's archive folder. */
+  file: string;
+  set: string;
+  clip: string;
+  replaced: boolean;
+  /** US dollars. */
+  cost?: number;
+  /** The made clip's id, as EDGEdir names it (a new clip only). */
+  id?: string;
+  notes: string[];
+}
+
+export type { GenerateAnimationOptions };
 
 /** What importFile answers. */
 export interface ImportResult {
@@ -190,6 +215,7 @@ export interface ApiHost {
   openModel(file: string, options?: { title?: string }): Promise<void>;
   closeModel(fileOrFolder: string): number;
   openSector(path: string, options?: { select?: number | number[] }): Promise<void>;
+  generateAnimation(options: GenerateAnimationOptions, caller: string): Promise<MadeAnimation>;
 }
 
 /** What REDcodeApi.openAnimation plays an animation on (since 0.10.12). */
@@ -308,5 +334,6 @@ export function createApi(host: ApiHost): REDcodeApi {
     openModel: host.openModel,
     closeModel: host.closeModel,
     openSector: host.openSector,
+    generateAnimation: host.generateAnimation,
   };
 }

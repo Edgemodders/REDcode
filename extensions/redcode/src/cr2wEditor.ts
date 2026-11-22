@@ -256,6 +256,18 @@ interface Request {
   meshes?: string[];
   /** sectorAction copy: the text for the clipboard. */
   text?: string;
+  /** animsMake: what to make (docs/design/animation-tools.md, AT2); replace is the clip the view shows, by name. */
+  make?: { action: "generate" | "glb"; prompt?: string; length?: number; model?: string; inPlace?: boolean; asWritten?: boolean; name?: string; replace?: string };
+}
+
+/** Making clips in the animation view: the extension's side (src/animMake.ts), set by extension.ts. */
+export interface AnimMaker {
+  /** Why making is not offered for a file on this rig, or undefined when it is. */
+  why(rig: string): string | undefined;
+  /** Makes the clip, reports each stage, and opens the result. */
+  run(req: import("./animMake").MakeRequest, onStage: (stage: string, detail?: string) => void): Promise<import("./animMake").MakeResult>;
+  /** The clip names of the project's made clip whose own set this file is, or undefined (then a replace makes it again). */
+  madeClipOf(file: string): string | undefined;
 }
 
 /** Where the localization table's column widths are kept, for every file. */
@@ -298,6 +310,8 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
   /** A sector's node data entry to select once the editor page is ready, by URI (REDcodeApi.openSector). */
   private readonly pendingSectorEntries = new Map<string, number | number[]>();
   private readonly saved = new vscode.EventEmitter<Cr2wDocument>();
+  /** Generate, Add and Replace Clip in the animation view, when extension.ts gives them. */
+  animMaker?: AnimMaker;
   /** Fired after a document is saved, for views that read the file (the LocKeys view). */
   readonly onDidSave = this.saved.event;
 
@@ -645,7 +659,11 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
               if (t?.duration && t.duration > 0) a.duration = t.duration;
             }
             const { body, bodyNote } = await this.animsBody(document, rig);
+            // Making clips (AT2): offered on the rigs anim-core knows, with a project open.
+            const makeWhy = this.animMaker ? this.animMaker.why(rig) : "Making clips is not available";
+            const madeClip = document.gamePath ? undefined : this.animMaker?.madeClipOf(document.uri.fsPath);
             return reply(m.id, {
+              make: { why: makeWhy, game: document.gamePath !== undefined, made: madeClip },
               skeleton: animsSkeleton(anims).toString("base64"),
               animations,
               rig,
@@ -670,6 +688,33 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
               animsMoving = readAnimsGlb(r.glb);
             }
             return reply(m.id, animsClip(moving ? animsMoving! : anims, m.index ?? -1).toString("base64"));
+          }
+          case "animsMake": {
+            // Generate with Uthana, or a clip from a .glb, as a new clip or in place of the clip shown (AT2).
+            if (!this.animMaker) throw new Error("Making clips is not available");
+            const want = m.make;
+            if (!want) throw new Error("Nothing to make");
+            const rig = await this.animsRig(document);
+            const madeClip = document.gamePath ? undefined : this.animMaker.madeClipOf(document.uri.fsPath);
+            const set = meshGamePath();
+            // Replacing a made clip in its own set is making it again under its name; a game clip is replaced in a copy of its set.
+            const replace = want.replace && !madeClip ? (set ? { set, clip: want.replace } : undefined) : undefined;
+            if (want.replace && !madeClip && !replace) throw new Error("This file is not under a project's Archive folder or in the game, so its clips cannot be replaced");
+            const result = await this.animMaker.run(
+              {
+                action: want.action,
+                rig,
+                prompt: want.prompt,
+                length: want.length,
+                model: want.model as import("./animMake").MakeRequest["model"],
+                inPlace: want.inPlace,
+                asWritten: want.asWritten,
+                name: want.replace && madeClip ? madeClip : want.name,
+                replace,
+              },
+              (stage, detail) => post({ type: "animsMakeStage", stage, detail }),
+            );
+            return reply(m.id, result);
           }
           case "light":
             await this.context.workspaceState.update(LightKey, m.settings);

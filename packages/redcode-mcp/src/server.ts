@@ -15,7 +15,8 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z, type ZodRawShape } from "zod";
 import { audioFormat, GameSoundIndex, opusSound, parseOpusInfo, wwiseHash, type OpusIndex } from "../../../extensions/redcode/src/audio";
-import { BridgeClient } from "../../../extensions/redcode/src/bridgeClient";
+import { BridgeClient, KeyAccess } from "../../../extensions/redcode/src/bridgeClient";
+import * as anim from "../../anim-core/src/index";
 import { gameVersionOf, isInside, libraryFolders, planAsset, readLibraryRoot, suggestedLibraryRoot, writeAsset, writeLibraryRoot, type AssetSource } from "../../../extensions/redcode/src/library";
 import { findProject, gamePathOf } from "../../../extensions/redcode/src/project";
 import type { PatchOp } from "../../../extensions/redcode/src/types";
@@ -75,7 +76,9 @@ async function getBridge(): Promise<BridgeClient> {
   if (bridge?.running) return bridge;
   if (starting) return starting;
   starting = (async () => {
-    const b = new BridgeClient({ exe: config.exe, gamePath: config.gamePath, dotnetRoot: config.dotnetRoot });
+    // --keys: the anim_* tools read the Uthana key from the shared store when the environment has none (REDcode's
+    // docs/design/keys.md: MCP servers read the store through REDbridge). request() still refuses keys.*.
+    const b = new BridgeClient({ exe: config.exe, gamePath: config.gamePath, dotnetRoot: config.dotnetRoot, keys: true });
     b.on("log", (line) => log(`bridge | ${line}`));
     b.on("exit", (code) => {
       log(`bridge exited with ${code}; it restarts on the next call, and open document sessions are gone`);
@@ -258,6 +261,124 @@ tool("library_add", "Add a game file or a project's file to the EDGE Library, th
   if (plan.take.length > 500 && !a.allowLarge) throw new Error(`${plan.main} needs ${plan.take.length} files. Check with the modder, then pass allowLarge.`);
   return writeAsset(b, source, plan, { root, folder: a.folder, gamePathFolders: a.gamePathFolders, ifExists: a.ifExists, tool: `redcode-mcp ${Version}`, gameVersion: await gameVersionOf(info.gameDir), gameDir: info.gameDir });
 });
+
+// ---- made animations (REDcode's docs/design/animation-tools.md, AT2), over @edgemodders/anim-core ----
+
+const animCache = path.join(process.env.LOCALAPPDATA ?? os.tmpdir(), "REDcode", "mcp-cache", "anim");
+const RigSchema = z.enum(["man_base", "woman_base"]).optional().describe("The rig: man_base (default) or woman_base, the base man's and woman's rigs the game's NPC clips use.");
+const ProjectSchema = z.string().describe("The WolvenKit project's folder (the one with the .cpmodproj).");
+
+/** The project at a folder, which must hold a .cpmodproj. */
+function animProject(dir: string): anim.Project {
+  if (!fs.existsSync(dir) || !fs.readdirSync(dir).some((f) => f.toLowerCase().endsWith(".cpmodproj"))) throw new Error(`${dir} has no .cpmodproj: give the project's folder`);
+  return anim.projectAt(dir);
+}
+
+/** The Uthana key: UTHANA_API_KEY, or the shared key store through REDbridge (service uthana). */
+async function uthanaKey(b: BridgeClient): Promise<string> {
+  const fromEnv = env("UTHANA_API_KEY");
+  if (fromEnv) return fromEnv;
+  const r = await b[KeyAccess]<{ key: string | null }>("keys.get", { service: "uthana", tool: `redcode-mcp ${Version}` }).catch((e: Error) => {
+    throw new Error(`Could not read the Uthana key from the shared store (${e.message}); set it in REDcode's Keys view, or UTHANA_API_KEY`);
+  });
+  if (!r.key) throw new Error("No Uthana key: the modder sets it in REDcode's Keys view (service uthana), or UTHANA_API_KEY");
+  return r.key;
+}
+
+/** A clip name not yet a made clip, or the error when it is and again was not given. */
+function animName(project: anim.Project, name: string, again: boolean | "edited" | undefined): { name: string } {
+  const old = anim.recordOf(project, name);
+  if (!old) return { name };
+  if (!again) throw new Error(`The project already has a made clip named ${name}. Ask the modder: pass again: true to make it again (it keeps its id, so EDGEdir's scenes using it get the new take), or another name.`);
+  if (anim.hasEdits(old) && again !== "edited") throw new Error(`${name} has edits made in EDGEfab, which making it again would lose. Ask the modder; pass again: "edited" to make it again anyway.`);
+  return { name };
+}
+
+const madeOut = (r: anim.ImportResult & { record?: anim.AnimRecord }, project: anim.Project, extra: Record<string, unknown> = {}) => ({
+  set: r.set,
+  file: path.join(project.archiveDir, ...r.set.split("\\")),
+  clip: r.clip,
+  id: r.record?.id,
+  record: r.record,
+  notes: r.notes,
+  ...extra,
+  next: "Pack the project (project_pack) and swap it into the running game (rednode's archives_reload), then play it on a spawned NPC with a written workspot (rednode's world tools).",
+});
+
+tool("anim_generate", "Make an animation from words with Uthana's text to motion, onto the game's own skeleton (the base man's or woman's rig), as a new clip in a WolvenKit project: its own set at <mod>\\anims\\<name>\\<name>.anims with the record EDGEdir and EDGEfab read (<name>.edgefab.json). It costs the modder money on their Uthana account: $0.10 a second with text-to-motion-3.0 or its Lite, $0.075 with Mini, charged only when the job finishes. Tell the modder the cost and get their yes before calling. Takes a minute or two. The key comes from UTHANA_API_KEY or the shared key store.", {
+  project: ProjectSchema,
+  prompt: z.string().describe("What the animation shows, such as 'a man stands relaxed, raises his right hand and waves hello, then lowers it'. One person, whole body."),
+  rig: RigSchema,
+  length: z.number().optional().describe("Seconds: 4 to 10 for text-to-motion-3.0, 5 to 10 for Lite and Mini. Default 5."),
+  model: z.enum(["text-to-motion-3.0", "text-to-motion-3.0-lite", "text-to-motion-3.0-mini"]).optional(),
+  inPlace: z.boolean().optional().describe("No travel across the floor (default true): the game's workspots apply no root motion."),
+  asWritten: z.boolean().optional().describe("Send the prompt as written; otherwise Uthana rewrites it first."),
+  name: z.string().optional().describe("The clip's name (lowercase letters, digits, _); from the prompt when left out."),
+  again: z.union([z.boolean(), z.literal("edited")]).optional().describe("When a made clip has the name: true makes it again (keeping its id); 'edited' also when EDGEfab has edited it. Ask the modder first."),
+}, async (a, b) => {
+  const project = animProject(a.project);
+  const rig = anim.Rigs[a.rig ?? "man_base"];
+  const asked = anim.slug(a.name ?? anim.clipNameFor(a.prompt));
+  const { name } = animName(project, asked, a.again);
+  const key = await uthanaKey(b);
+  const stages: string[] = [];
+  const r = await anim.generate({
+    bridge: anim.asBridge(b), uthana: anim.uthana(key), key, rig, project, cacheDir: animCache,
+    prompt: a.prompt, length: a.length, model: a.model, inPlace: a.inPlace, rewritePrompt: a.asWritten ? false : undefined,
+    name, overwriteEdited: a.again === "edited", onStage: (s) => stages.push(s),
+  });
+  return madeOut(r, project, { cost: r.cost, motionId: r.motionId, fit: r.report });
+});
+
+tool("anim_add_clip", "Add a clip from a .glb already on the game's rig (bone names as the game's: Hips, Spine, LeftArm…; from Blender, say) to a WolvenKit project as a made animation, through the same fit as anim_generate (every channel the game needs, the feet grounded, WolvenKit's clip data): its own set at <mod>\\anims\\<name>\\<name>.anims with the record EDGEdir and EDGEfab read. Free. A .glb on another skeleton needs retargeting first (EDGEfab's).", {
+  project: ProjectSchema,
+  file: z.string().describe("The .glb on disk; its first animation is taken."),
+  rig: RigSchema,
+  name: z.string().optional().describe("The clip's name; from the file's name when left out."),
+  again: z.union([z.boolean(), z.literal("edited")]).optional().describe("As anim_generate's again."),
+}, async (a, b) => {
+  const project = animProject(a.project);
+  const rig = anim.Rigs[a.rig ?? "man_base"];
+  const { name } = animName(project, anim.slug(a.name ?? path.basename(a.file).replace(/\.(anims\.)?glb$/i, "")), a.again);
+  const bridge = anim.asBridge(b);
+  const motion = fs.readFileSync(a.file);
+  const { glb, report } = anim.fitClip(anim.readGlb(motion), await anim.referenceClip(bridge, animCache, rig), name);
+  const r = await anim.addClip(bridge, project, rig, name, glb, { seconds: report.duration, overwriteEdited: a.again === "edited", license: { source: "own", note: `From ${path.basename(a.file)}, imported through redcode-mcp` } }, { motion, record: { source: "glb", file: path.basename(a.file) } });
+  return madeOut(r, project, { fit: report });
+});
+
+tool("anim_replace_clip", "Replace one of the game's own clips with a made one, in a copy of its .anims set at the game's path in a WolvenKit project (every other clip of the set kept), so whatever plays that clip in the game plays the new one. From words with Uthana (prompt: costs money as anim_generate; ask the modder first) or from a .glb on the game's rig (file: free). The whole set is replaced in the game, so another mod replacing a clip of the same set conflicts with it.", {
+  project: ProjectSchema,
+  set: z.string().describe("The game's .anims set, by game path, such as base\\animations\\npc\\generic_characters\\male_average\\interactive_scene\\generic_male_average__stand__2h_on_sides__01.anims."),
+  clip: z.string().describe("The clip in it to replace, by name."),
+  prompt: z.string().optional().describe("Make the new clip from these words with Uthana."),
+  file: z.string().optional().describe("Or from this .glb on the game's rig."),
+  length: z.number().optional(),
+  model: z.enum(["text-to-motion-3.0", "text-to-motion-3.0-lite", "text-to-motion-3.0-mini"]).optional(),
+  inPlace: z.boolean().optional(),
+}, async (a, b) => {
+  if (!a.prompt === !a.file) throw new Error("Give prompt or file, not both");
+  const project = animProject(a.project);
+  const bridge = anim.asBridge(b);
+  const info = await bridge.request<{ items: { rig?: string | null; error?: string }[] }>("anims.info", { files: [a.set] });
+  const rigPath = info.items?.[0]?.rig;
+  if (!rigPath) throw new Error(`${a.set}: ${info.items?.[0]?.error ?? "not an animation set in the game"}`);
+  const rig = anim.rigFor(rigPath);
+  if (!rig) throw new Error(`${a.set} is on ${rigPath}; made clips go on man_base or woman_base for now`);
+  if (a.prompt) {
+    const key = await uthanaKey(b);
+    const r = await anim.generate({ bridge, uthana: anim.uthana(key), key, rig, project, cacheDir: animCache, prompt: a.prompt, length: a.length, model: a.model, inPlace: a.inPlace, replace: { set: a.set, clip: a.clip } });
+    return madeOut(r, project, { cost: r.cost, motionId: r.motionId, fit: r.report });
+  }
+  const motion = fs.readFileSync(a.file!);
+  const { glb, report } = anim.fitClip(anim.readGlb(motion), await anim.referenceClip(bridge, animCache, rig), a.clip);
+  const r = await anim.replaceClip(bridge, project, a.set, a.clip, glb, { motion, record: { source: "glb", file: path.basename(a.file!) } });
+  return madeOut(r, project, { fit: report });
+});
+
+tool("anim_made_clips", "The made animations in a WolvenKit project, newest first, found by their records (<name>.edgefab.json, kind anim): each one's name, id, rig, length, set and how it was made (a prompt, a file).", {
+  project: ProjectSchema,
+}, async (a) => anim.madeClips(animProject(a.project)).map((m) => ({ name: m.name, id: m.id, rig: m.anim.rig, seconds: m.anim.seconds, set: m.set, madeBy: m.madeBy, made: m.made, source: m.source, edited: anim.hasEdits(m) })));
 
 tool("project_pack", "Pack a folder (a project's source/archive) into <modName>.archive in outDir through WolvenKit's packer. Returns the archive path, size, file count and warnings for paths with capital letters or spaces. Bridge 0.6.1.", {
   dir: z.string().describe("The folder to pack, laid out as game paths (base/..., ep1/...)."),

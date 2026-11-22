@@ -439,6 +439,22 @@
         "icon": "$(edit)"
       },
       {
+        "command": "redcode.anims.generate",
+        "title": "Generate an Animation with Uthana",
+        "category": "REDcode",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "redcode.anims.addClip",
+        "title": "Add a Clip from GLB",
+        "category": "REDcode"
+      },
+      {
+        "command": "redcode.anims.replaceClip",
+        "title": "Replace a Game Clip",
+        "category": "REDcode"
+      },
+      {
         "command": "redcode.stopBlender",
         "title": "Stop Watching Blender",
         "category": "REDcode"
@@ -1114,6 +1130,11 @@
           "group": "1_modkit@2"
         },
         {
+          "command": "redcode.anims.addClip",
+          "when": "view == redcode.project && viewItem =~ /^projectFile/ && resourceExtname == .glb",
+          "group": "1_modkit@3"
+        },
+        {
           "command": "redcode.copyLocKey",
           "when": "view == redcode.lockeys && viewItem =~ /^locEntry/",
           "group": "inline@2"
@@ -1303,6 +1324,18 @@
         {
           "command": "redcode.editInBlender",
           "when": "false"
+        },
+        {
+          "command": "redcode.anims.generate",
+          "when": "redcode.projectOpen"
+        },
+        {
+          "command": "redcode.anims.addClip",
+          "when": "redcode.projectOpen"
+        },
+        {
+          "command": "redcode.anims.replaceClip",
+          "when": "redcode.projectOpen"
         },
         {
           "command": "redcode.stopBlender",

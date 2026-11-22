@@ -40,7 +40,7 @@ export interface KeyValue {
 }
 
 /** The services every EDGE tool knows, in the order the Keys view lists them (REDbridge's keys.list does too). */
-export const KnownServices = ["anthropic", "gemini", "openai", "elevenlabs", "tripo"];
+export const KnownServices = ["anthropic", "gemini", "openai", "elevenlabs", "tripo", "uthana"];
 
 /** A service id as REDbridge takes it: 1 to 40 lowercase letters, digits or dashes. Answers why not, or undefined. */
 export function checkServiceId(id: string): string | undefined {

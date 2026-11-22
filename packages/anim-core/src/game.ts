@@ -13,9 +13,13 @@ export interface Bridge {
 }
 
 /** Either kind of REDbridge client as a Bridge. */
-export function asBridge(b: { request?: Bridge["request"]; call?: (method: string, params?: Record<string, unknown>) => Promise<any> }): Bridge {
-  if (typeof b.request === "function") return b as Bridge;
-  if (typeof b.call === "function") return { request: (m, p) => b.call!(m, p) };
+export function asBridge(client: object): Bridge {
+  const b = client as { request?: unknown; call?: unknown };
+  if (typeof b.request === "function") return client as Bridge;
+  if (typeof b.call === "function") {
+    const call = b.call as (method: string, params?: Record<string, unknown>) => Promise<any>;
+    return { request: (m, p) => call.call(client, m, p) };
+  }
   throw new Error("Not a REDbridge client: it has neither request nor call");
 }
 
@@ -205,6 +209,52 @@ export interface AnimRecord {
   madeBy?: string;
   made?: string;
   source?: Record<string, unknown>;
+  /** Where the motion came from and on what terms, shaped like EDGEfab's prop records' license (EDGEfab #7). */
+  license?: { source: string; plan?: string; terms?: string; note: string };
+  /** Set by EDGEfab when it edits the clip (EDGEfab #7): a clip with edits is not made again without asking. */
+  edited?: string;
+  edits?: unknown[];
+}
+
+/** Thrown when a clip about to be made again or replaced has EDGEfab's edits, and the caller did not allow it. */
+export class EditedClipError extends Error {
+  constructor(
+    readonly clip: string,
+    readonly record: AnimRecord,
+  ) {
+    super(`${clip} has edits made in EDGEfab, which making it again would lose`);
+    this.name = "EditedClipError";
+  }
+}
+
+/** The record of a made clip in the project, or undefined when there is none. */
+export function recordOf(project: Project, clip: string, set = addedSet(project, clip)): AnimRecord | undefined {
+  const file = path.join(path.dirname(path.join(project.rawDir, ...set.split(BS))), `${clip}.edgefab.json`);
+  try {
+    const r = JSON.parse(fs.readFileSync(file, "utf8")) as AnimRecord;
+    return r?.kind === "anim" ? r : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Whether a record carries EDGEfab's edits, which making the clip again would lose. */
+export const hasEdits = (r: AnimRecord | undefined) => !!r && (!!r.edited || (Array.isArray(r.edits) && r.edits.length > 0));
+
+/**
+ * What Uthana's terms say of its output (Terms of Use 2.0.0, effective 2026-11-09, read 2026-11-22; the plan is the
+ * caller's to say, since anim-core cannot read it).
+ */
+export function uthanaLicense(plan: "paid" | "free" = "paid") {
+  return {
+    source: "uthana",
+    plan,
+    terms: "https://uthana.com/terms",
+    note:
+      plan === "paid"
+        ? "Made with Uthana. A paying customer owns the output, to the extent rights exist (terms 4.2); Uthana may use inputs and outputs to train its models (6.2)."
+        : 'Made with Uthana before paying: a non-exclusive licence, with the credit "Animation generated with Uthana (uthana.com)" (terms 4.3).',
+  };
 }
 
 /** A made clip in a project, found by its record. */
@@ -275,20 +325,19 @@ export async function addClip(
   rig: Rig,
   clip: string,
   glb: Buffer,
-  facts: { seconds: number; fps?: number; rootMotion?: boolean; loop?: boolean },
+  facts: { seconds: number; fps?: number; rootMotion?: boolean; loop?: boolean; license?: AnimRecord["license"]; overwriteEdited?: boolean },
   source?: { motion?: Buffer; record?: Record<string, unknown> },
   set = addedSet(project, clip),
 ): Promise<ImportResult & { record: AnimRecord }> {
-  const r = await importClip(bridge, project, set, clip, glb, { rig: rig.rig });
+  const old = recordOf(project, clip, set);
+  if (hasEdits(old) && !facts.overwriteEdited) throw new EditedClipError(clip, old!);
   const dir = path.dirname(path.join(project.rawDir, ...set.split(BS)));
   const recordFile = path.join(dir, `${clip}.edgefab.json`);
-  let id: string = crypto.randomUUID();
-  try {
-    const old = JSON.parse(fs.readFileSync(recordFile, "utf8"));
-    if (old?.kind === "anim" && typeof old.id === "string" && old.id) id = old.id;
-  } catch {
-    // a new one
-  }
+  // Made again, a clip keeps its id: EDGEdir's clips name it by that. No import over the old set: its own clip is
+  // the only one, so the new set starts from the rig.
+  const id = old?.id || crypto.randomUUID();
+  if (old) fs.rmSync(path.join(project.archiveDir, ...set.split(BS)), { force: true });
+  const r = await importClip(bridge, project, set, clip, glb, { rig: rig.rig });
   const record: AnimRecord = {
     kind: "anim",
     id,
@@ -297,6 +346,7 @@ export async function addClip(
     madeBy: "REDcode",
     made: new Date().toISOString(),
     ...(source?.record ? { source: source.record } : {}),
+    ...(facts.license ? { license: facts.license } : {}),
   };
   fs.writeFileSync(path.join(dir, `${clip}.glb`), glb);
   fs.writeFileSync(recordFile, JSON.stringify(record, null, 2));

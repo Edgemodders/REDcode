@@ -38,7 +38,8 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Keys (K4b)](#keys-k4b) | By hand | Requests | 2026-11-21 | Pass (owner), steps 1 to 8 on REDbridge 0.18.0; the optional step 9 not run |
 | [Animation Probe A](#animation-probe-a) | By hand, in the game | Research | 2026-11-21 | Pass (owner), run 2, once the clips' fallback frames were cleared |
 | [Animation Probe D](#animation-probe-d) | By hand, in the game | Research | 2026-11-22 | Pass (owner), run 2, once every bone's translation was keyed |
-| [anim-core check](#anim-core-check) | Automated, on the PC (game and Uthana key) | Animation Tools AT1 | 2026-11-22 | Pass, 20 of 20 |
+| [anim-core check](#anim-core-check) | Automated, on the PC (game and Uthana key) | Animation Tools AT1 | 2026-11-22 | Pass, 22 of 22 |
+| [Animation Tools AT2](#animation-tools-at2) | By hand, in REDcode and the game | Animation Tools AT2 | 2026-11-22 | Not run (checked offline: typecheck, unit 75, anim-core 22, the MCP tools over stdio) |
 | [Replace with a WAV, titled models (#29), every window's project (#32)](#replace-with-a-wav-titled-models-29-and-every-windows-project-32) | By hand, in the game | Requests | 2026-11-20 | Pass (owner), with two fixes |
 | [Replace All](#replace-all) | By hand, in the game | Requests | 2026-11-20 | Pass (owner), with one fix |
 | [Sector view](#sector-view) | By hand | C5 | 2026-11-20 | Pass (owner), with two fixes and five changes, each retested |
@@ -753,6 +754,22 @@ Run 2 (owner, 2026-11-22), after Pack and Play of the refitted sets: **pass** ("
 | 7 | `rigFor`, clip names, costs |
 
 Run 2026-11-22 with REDbridge main (0.18.0 and the fallback frames fix): **pass, 18 of 18**, after two fixes found by the first run (the woman's reference clip, `-0` in rest translations). Then **20 of 20** with EDGEfab #7's layout, and EDGEdir's own reader (`projectAnims`) found both made clips in the check's project.
+
+## Animation Tools AT2
+
+Making clips in REDcode ([design](design/animation-tools.html#at2-as-built-2026-11-22)): the Make panel in the animation view, the commands, and the first paid Generate through REDcode. Two Generates, about $1 on the owner's Uthana account; the rest is free. REDbridge 0.18.0 is enough; REDbridge main (4942dc3) also names Uthana in the Keys view.
+
+| # | Do | Expected |
+|---|---|---|
+| 1 | F5 with **Run REDcode with Opens Test (no other extensions)**, the folder `C:\Users\VYRAL\Documents\AnimProbeD` open. Look at the Keys view | Uthana is listed, set |
+| 2 | In Game Assets, open `base\animations\npc\generic_characters\male_average\interactive_scene\generic_male_average__stand__2h_on_sides__01.anims`; press **Make** in the animation view's bar | A panel above the clip list: the words, the model (3.0, $0.10/s), the length (5 s), In place, As written, a name, **As a new clip in the project**, **Generate, $0.50** and **From a GLB…** |
+| 3 | Words: "a man stands relaxed, then crosses his arms and taps his right foot". **Generate** | The stages show under the panel; in a minute or two the new clip opens in a new tab on the base body and plays. The Project view shows `animprobed\anims\man_stands_relaxed_crosses\` with the set, and under source/raw the clip's `.glb`, `.source.glb` and `.edgefab.json` |
+| 4 | Back in the game set's tab, **Generate** again with the same words and no name | It is made as `man_stands_relaxed_crosses_2`, beside the first |
+| 5 | Type the first clip's name (`man_stands_relaxed_crosses`) in Name and press **Generate**; at the question, press Escape | Before anything is paid, a question: **Make It Again** (it keeps its id) or **Keep Both**. Escape makes nothing and the panel is quiet |
+| 6 | In the game set, pick `stand__2h_on_sides__01__stretch_arms__01`; Goes to **Replace stand__2h_on_sides__01__stretch_arms__01**; **From a GLB…** and pick `C:\Users\VYRAL\Documents\AnimProbeD\uthana\mz78xjkXMWPK-inplace.glb` | Free. The project's copy of the set opens at that clip, and it waves (Probe D's motion). The note says the copy replaces the game's whole set |
+| 7 | In the Project view, right-click `source/raw/animprobed/anims/man_stands_relaxed_crosses/man_stands_relaxed_crosses.glb` and **Add a Clip from GLB**, man's rig, name `crossed_arms_copy` | Free. A new clip `crossed_arms_copy` opens and plays the same motion as step 3's |
+| 8 | Start the game with REDnode; **Pack and Play** the project; in the overlay, **Animation Probe D**: **Write and swap**, **Spawn**, **Play**, then **kept** | **kept** now waves (its clip was replaced in step 6); **replaced** waves too (Probe D's replacement) |
+| 9 | Optional: the Command Palette's **Generate an Animation with Uthana** (a third $0.50) | It asks the rig, the words and the length, shows the stages in a notification, and opens the clip |
 
 ## Keys (K4b)
 

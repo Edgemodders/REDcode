@@ -13,6 +13,8 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 - **Select many things in the sector view:** Ctrl+click adds or takes out, Shift+drag selects in a box on the screen, and **Volume** draws a box in the world (drag its base, move up for its height, click), with handles to resize and move it. **Touching** also takes long things such as roads and walls. The list on the right shows what is selected: click a row to fly to it, or hover for Show in Tree, Open Mesh, Open in EDGEmat, Add Mesh to Project and remove. **Frame All**, **Isolate**, **Add Meshes to Project** and **Copy** act on them all. Ctrl+A selects everything shown, Esc nothing.
 
+- **Make animations from words:** **Make** in the animation view of a man's or woman's clip set opens a panel: say what the animation shows, pick its length, and **Generate** makes it with Uthana (https://uthana.com, with your own key; $0.10 a second, charged only when it finishes) straight onto the game's skeleton, as a new clip in your project or in place of the clip shown. **From a GLB…** does the same with a clip already on the game's rig, from Blender say. The new clip opens at once on its body. Each made clip gets its own set and a record EDGEdir and EDGEfab read. Also as commands (**Generate an Animation with Uthana**, **Add a Clip from GLB**, **Replace a Game Clip**) and for other tools as `REDcodeApi.generateAnimation`. Uthana joins the Keys view.
+
 **Fixed**
 
 - **By material** in the sector view colours each thing by the materials its appearance names. It gave everything one colour. Colours by mesh differ more too.
