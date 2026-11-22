@@ -54,6 +54,8 @@ nav:
     url: /design/keys.html
   - title: Animation Tools
     url: /design/animation-tools.html
+  - title: Lip Sync
+    url: /design/lipsync.html
   - title: Animation authoring
     url: /research/animation-authoring.html
   - title: MCP
