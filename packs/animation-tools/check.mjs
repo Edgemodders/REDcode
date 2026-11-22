@@ -109,7 +109,7 @@ const statusNode = find("text", (n) => /Pick a character|Looking|Clips go/.test(
 const busyNow = () => /…$/.test(statusNode.text) && !/Pick it and Play/.test(statusNode.text);
 const logNode = all.find((n) => n.kind === "list");
 /** Presses a button and waits for its step's line in the log. */
-const seen = { labels: new Set(), disabled: false };
+const seen = { labels: new Set(), disabled: false, tips: new Set() };
 const press = async (label, stepName = label) => {
   const before = logNode.lines.length;
   const b = button(label);
@@ -118,6 +118,7 @@ const press = async (label, stepName = label) => {
     await wait(100);
     seen.labels.add(b.label);
     if (b.disabled) seen.disabled = true;
+    if (b.tip) seen.tips.add(b.tip);
     if (logNode.lines.slice(before).some((l) => l.includes(`${stepName}:`) || l.includes(`${stepName} failed`))) return;
   }
   throw new Error(`${label} never finished`);
@@ -137,7 +138,7 @@ const clipPick = find("select", (n) => n.label === "Clip");
 console.log("clips:", JSON.stringify(clipPick.options), "picked", clipPick.value);
 // 3. Generate a second with the same words: a new name.
 await press("Generate");
-console.log("while generating: disabled", seen.disabled, "labels", [...seen.labels].slice(0, 8).join(" | "), "then", button("Generate").label, button("Generate").disabled ? "(still disabled)" : "(enabled)");
+console.log("while generating: disabled", seen.disabled, "tip", JSON.stringify([...seen.tips]), "then", JSON.stringify(button("Generate").tip ?? ""), "labels", [...seen.labels].slice(0, 8).join(" | "), "then", button("Generate").label, button("Generate").disabled ? "(still disabled)" : "(enabled)");
 const progressNode = all.find((n) => n.kind === "progress");
 console.log("progress at the end:", progressNode.value, "of", progressNode.max, progressNode.label);
 console.log("clips now:", clipPick.options.map((o) => o.value).join(", "));

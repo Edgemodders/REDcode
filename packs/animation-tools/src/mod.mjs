@@ -143,7 +143,7 @@ const priceLabel = () => `Generate, $${(Math.round(model.perSecond * length * 10
 const priceButton = () => {
   if (!generating) generateButton.set({ label: priceLabel() });
 };
-/** Under the button while it works: how far along, and what it is doing (the UI kit has no tooltips). */
+/** Under the button while it works: how far along, and what it is doing. The button's own tooltip says only that it is generating. */
 const progress = ui.progress(0, { max: StageCount, label: '' });
 const why = ui.text('Uthana charges only a finished job. The clip plays on the character when it is made.', { tone: 'dim' });
 
@@ -170,6 +170,8 @@ const drawBusy = () => {
 /** The Generate button busy: disabled, a spinner, the stage and the time so far; the line under it says why. */
 function startGenerating() {
   generating = { stage: 'key', started: Date.now(), frame: 0, timer: setInterval(drawBusy, 250) };
+  // In the click itself, so the tooltip shows while the cursor rests on the button (REDnode #55; an older REDnode ignores tip).
+  generateButton.set({ disabled: true, tip: 'Generating…' });
   setStage('key');
 }
 function setStage(stage) {
@@ -185,7 +187,7 @@ function stopGenerating(ok) {
   generating = null;
   progress.set({ value: ok ? StageCount : 0, label: ok ? `Done in ${took}` : '' });
   why.set({ text: ok ? 'Uthana charges only a finished job. The clip plays on the character when it is made.' : 'Not made. Uthana charges only a finished job.', tone: 'dim' });
-  generateButton.set({ label: priceLabel() });
+  generateButton.set({ label: priceLabel(), tip: '' });
 }
 priceButton();
 
