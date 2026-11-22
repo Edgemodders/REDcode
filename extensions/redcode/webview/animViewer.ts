@@ -61,6 +61,8 @@ export interface MakeApi {
   game: boolean;
   /** This file is the own set of the project's made clip of this name: replacing makes it again. */
   made?: string;
+  /** How that made clip was made (its record's source): prompt, model, length, upperBodyOnly, inPlace, made; or source "glb" and file. */
+  from?: Record<string, unknown>;
   run(req: MakeAsk): Promise<{ clip: string; set: string; cost?: number; notes: string[] }>;
 }
 
@@ -83,6 +85,18 @@ const MakeModels = [
   { id: "text-to-motion-3.0-lite", label: "3.0 Lite", perSecond: 0.1, min: 5 },
   { id: "text-to-motion-3.0-mini", label: "3.0 Mini", perSecond: 0.075, min: 5 },
 ];
+
+/** A made clip's line: what it was made from, with what, when. */
+function madeFromText(from: Record<string, unknown>): string {
+  const when = typeof from.made === "string" && !Number.isNaN(Date.parse(from.made)) ? new Date(from.made).toLocaleString() : "";
+  if (from.source === "glb") return `Made from ${typeof from.file === "string" ? from.file : "a .glb"}${when ? `, ${when}` : ""}.`;
+  const m = MakeModels.find((x) => x.id === from.model);
+  const secs = typeof from.length === "number" ? from.length : undefined;
+  const cost = m && secs ? `, about $${(m.perSecond * secs).toFixed(2)}` : "";
+  const how = [m ? `Uthana ${m.label}` : "Uthana", secs ? `${secs} s` : "", from.upperBodyOnly ? "upper body only" : "", from.inPlace === false ? "with travel" : ""].filter(Boolean).join(", ");
+  const sent = typeof from.sent === "string" && from.sent !== from.prompt ? " The words went with REDcode's grounding rule." : "";
+  return `Made with ${how}${cost}${when ? `, ${when}` : ""}, from the words below.${sent}`;
+}
 
 /** The stages in order, for the progress bar, with each one's short name for the busy button. */
 const MakeSteps: [stage: string, short: string][] = [
@@ -558,6 +572,11 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
     });
     bar.insertBefore(makeButton, bar.firstChild);
     side.append(make.box);
+    // A made clip's own tab opens with the panel shown: its words and how it was made are what it is about.
+    if (source.make?.from && !source.make.why) {
+      make.box.hidden = false;
+      makeButton.classList.add("on");
+    }
   }
   side.append(el("div", "label", "Animations"), filter, list, setBox);
   const rows: HTMLElement[] = source.animations.map((a, i) => {
@@ -1013,6 +1032,18 @@ function makePanel(api: MakeApi, shown: () => string | undefined): { box: HTMLEl
     r.append(...kids);
     return r;
   };
+  // A made clip's own tab: how it was made, and its words ready for another go.
+  const from = api.from;
+  const madeLine = from ? el("div", "dim makefrom", madeFromText(from)) : undefined;
+  if (from && typeof from.prompt === "string") {
+    prompt.value = from.prompt;
+    if (typeof from.model === "string" && MakeModels.some((m) => m.id === from.model)) model.value = from.model;
+    fillLengths();
+    if (typeof from.length === "number") length.value = String(from.length);
+    upperBody.input.checked = from.upperBodyOnly === true;
+    if (typeof from.inPlace === "boolean") inPlace.input.checked = from.inPlace;
+  }
+  if (madeLine) box.append(madeLine);
   box.append(prompt, row(model, length, inPlace.wrap, upperBody.wrap, asWritten.wrap), row(name, goesTo), row(generate, fromGlb), bar, status);
   const inputs: (HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement)[] = [prompt, model, length, inPlace.input, upperBody.input, asWritten.input, name, goesTo, generate, fromGlb];
 

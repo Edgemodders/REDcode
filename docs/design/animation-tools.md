@@ -206,6 +206,22 @@ Checked outside the game (`packs/animation-tools/check.mjs`): the built `mod.mjs
 
 **Unverified until the hand test:** the corpo plaza crowd records on their rigs with a written workspot; the woman's stand-in on Uthana (not uploaded yet, so its first Generate uploads it); REDnode's key window for `uthana` (it takes any service id, unnamed).
 
+## A made clip's words, and takes (the owner, 2026-11-22)
+
+Asked in AT2's hand test: a made clip's tab should show the words that made it, and offer more takes.
+
+**Built the same day, in the release under test:** a made clip's own tab opens with the Make panel shown. A line says how it was made (Uthana's model, the length, about what it cost, when, and whether the grounding rule went with the words; or the `.glb` it came from). The panel holds its words, model, length, In place and Upper body only, ready for another go. They come from the record's `source`, which already kept them.
+
+**Agreed for after the release (with M2 and Lip Sync L1):** takes.
+
+- **Uthana has no edit of a motion by words.** Its API has stitch and loop (a preview, expected to change: https://uthana.com/docs/api/capabilities/stitch-loop-motions), so a take is a fresh text to motion from the clip's words.
+- **New Take** generates again from the words, which can be changed first, at the usual price.
+- **Every take is kept** beside the clip (its motion, as `.source.glb` is now), and listed in the panel with its words and date.
+- **A take previews on the body for free**, fitted from its kept motion.
+- **Use This Take** fits it into the clip, keeping the clip's name and id. Switching costs nothing.
+- **The record** gets a `takes` list beside `source`, with the take in use marked. EDGEfab and EDGEdir read the record; they skip fields they do not know, and will be told.
+- **Later, perhaps:** Loop and Join over Uthana's stitch and loop, once it leaves preview.
+
 ## Not in this design
 
 - Video to motion: the same chain with a video upload instead of a prompt, once text to motion is in use.

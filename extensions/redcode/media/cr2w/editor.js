@@ -438,7 +438,7 @@
         initial,
         // AT2: Generate with Uthana, and clips from a .glb, as new clips or in place of the one shown.
         make: payload.make
-          ? { why: payload.make.why, game: !!payload.make.game, made: payload.make.made, run: (make) => request("animsMake", { make }) }
+          ? { why: payload.make.why, game: !!payload.make.game, made: payload.make.made, from: payload.make.from, run: (make) => request("animsMake", { make }) }
           : undefined,
         note: payload.dirty ? "Shows the saved file; save to see your edits" : "",
         say: (message) => status(message, "error"),

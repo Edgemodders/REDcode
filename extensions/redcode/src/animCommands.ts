@@ -162,6 +162,14 @@ export function registerAnimCommands(context: vscode.ExtensionContext, host: Ani
     ),
   );
 
+  /** The project's made clip whose own set this file is. */
+  const madeOf = (file: string) => {
+    const dir = host.projectDir();
+    if (!dir) return undefined;
+    const want = path.resolve(file).toLowerCase();
+    const archive = path.join(dir, ProjectFolders.archive);
+    return madeClips(projectAt(dir)).find((m) => path.join(archive, ...m.set.split("\\")).toLowerCase() === want);
+  };
   /** One make at a time, from any animation view: two at once would write the same project together. */
   let making = false;
   const maker: AnimMaker = {
@@ -185,12 +193,10 @@ export function registerAnimCommands(context: vscode.ExtensionContext, host: Ani
         making = false;
       }
     },
-    madeClipOf: (file) => {
-      const dir = host.projectDir();
-      if (!dir) return undefined;
-      const want = path.resolve(file).toLowerCase();
-      const archive = path.join(dir, ProjectFolders.archive);
-      return madeClips(projectAt(dir)).find((m) => path.join(archive, ...m.set.split("\\")).toLowerCase() === want)?.name;
+    madeClipOf: (file) => madeOf(file)?.name,
+    madeFromOf: (file) => {
+      const m = madeOf(file);
+      return m ? { ...(m.source ?? {}), made: (m.source?.made as string | undefined) ?? m.made } : undefined;
     },
   };
 

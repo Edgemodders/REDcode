@@ -268,6 +268,8 @@ export interface AnimMaker {
   run(req: import("./animMake").MakeRequest, onStage: (stage: string, detail?: string) => void): Promise<import("./animMake").MakeResult>;
   /** The clip names of the project's made clip whose own set this file is, or undefined (then a replace makes it again). */
   madeClipOf(file: string): string | undefined;
+  /** How that made clip was made, from its record's source (the words, model and length for Uthana; the file for a .glb). */
+  madeFromOf(file: string): Record<string, unknown> | undefined;
 }
 
 /** Where the localization table's column widths are kept, for every file. */
@@ -663,7 +665,7 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
             const makeWhy = this.animMaker ? this.animMaker.why(rig) : "Making clips is not available";
             const madeClip = document.gamePath ? undefined : this.animMaker?.madeClipOf(document.uri.fsPath);
             return reply(m.id, {
-              make: { why: makeWhy, game: document.gamePath !== undefined, made: madeClip },
+              make: { why: makeWhy, game: document.gamePath !== undefined, made: madeClip, from: madeClip ? this.animMaker?.madeFromOf(document.uri.fsPath) : undefined },
               skeleton: animsSkeleton(anims).toString("base64"),
               animations,
               rig,
