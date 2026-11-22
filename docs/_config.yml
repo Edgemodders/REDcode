@@ -52,6 +52,8 @@ nav:
     url: /design/sector-selection.html
   - title: Keys
     url: /design/keys.html
+  - title: Animation Tools
+    url: /design/animation-tools.html
   - title: Animation authoring
     url: /research/animation-authoring.html
   - title: MCP
