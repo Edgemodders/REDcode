@@ -37,7 +37,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Edit in Blender: skinned meshes](#edit-in-blender-skinned-meshes) | By hand | | 2026-11-20 | Pass (owner) |
 | [Keys (K4b)](#keys-k4b) | By hand | Requests | 2026-11-21 | Pass (owner), steps 1 to 8 on REDbridge 0.18.0; the optional step 9 not run |
 | [Animation Probe A](#animation-probe-a) | By hand, in the game | Research | 2026-11-21 | Pass (owner), run 2, once the clips' fallback frames were cleared |
-| [Animation Probe D](#animation-probe-d) | By hand, in the game | Research | 2026-11-22 | Not run (offline half run: Uthana kept the game's skeleton exactly) |
+| [Animation Probe D](#animation-probe-d) | By hand, in the game | Research | 2026-11-22 | Run 1 failed (the made clips warped the body: translation keys missing); fixed, run 2 pending |
 | [Replace with a WAV, titled models (#29), every window's project (#32)](#replace-with-a-wav-titled-models-29-and-every-windows-project-32) | By hand, in the game | Requests | 2026-11-20 | Pass (owner), with two fixes |
 | [Replace All](#replace-all) | By hand, in the game | Requests | 2026-11-20 | Pass (owner), with one fix |
 | [Sector view](#sector-view) | By hand | C5 | 2026-11-20 | Pass (owner), with two fixes and five changes, each retested |
@@ -732,6 +732,8 @@ Can Uthana alone make a clip on the game's skeleton, and does it play, added as 
 | 6 | **Remove the paramedic**, switch the package off | |
 
 If **added** waves but **replaced** shows the game's own idle, the game may still hold the set it loaded before the swap (**unverified**): **Pack and Install**, restart the game, and try **replaced** again.
+
+Run 1 (owner, 2026-11-22): **kept** played (he stretched his arms), but on **Play** the paramedic sank about a foot into the ground. **added** and **replaced** were wild and scattered, the mesh warped; no wave. The cause: the fit wrote rotation on every bone but translation on `Hips` only, and the game reads a bone with no translation keys as not at its rest length, so the skeleton collapsed (REDcode's view falls back on the rest pose, so it looked right there). The game's clip keys translation and rotation on all 71 bones. Fixed the same day: the fit writes every channel the game clip has, Uthana's where it has them (rotation on every bone, translation on `Root` and `Hips`), the rig's rest value otherwise; read back, 71 translation and 71 rotation channels, every bone at its rig length. The sinking is not in the clip: the game's stretch clip holds `Hips` at 0.96 m throughout, as the idle does; where the workspot puts him is the likely cause (**unverified**). Next: run 2, Pack and Play again.
 
 ## Keys (K4b)
 

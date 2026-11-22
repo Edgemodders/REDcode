@@ -195,20 +195,36 @@ async function fit(name, variant = "inplace", replace = false) {
   }
 
   // Uthana's channels, by node name and path.
-  const channels = [];
+  const theirs = new Map();
   const byPath = {};
   for (const c of anim.channels) {
     const node = sj.nodes[c.target.node]?.name;
     byPath[c.target.path] = (byPath[c.target.path] ?? 0) + 1;
     if (!node || !animated.has(node)) continue;
-    if (c.target.path === "scale") continue;
-    if (c.target.path === "translation" && node !== "Hips") continue;
-    if (c.target.path === "weights") continue;
     const sampler = anim.samplers[c.sampler];
-    channels.push({ node, path: c.target.path, interpolation: sampler.interpolation ?? "LINEAR", times: readAccessor(src, sampler.input).map((v) => v[0]), values: readAccessor(src, sampler.output) });
+    theirs.set(`${node}/${c.target.path}`, { node, path: c.target.path, interpolation: sampler.interpolation ?? "LINEAR", times: readAccessor(src, sampler.input).map((v) => v[0]), values: readAccessor(src, sampler.output) });
   }
-  console.log(`  uthana channels: ${JSON.stringify(byPath)}; kept ${channels.length} (rotation on the game's bones, translation on Hips)`);
-  if (channels.some((c) => c.interpolation === "CUBICSPLINE")) throw new Error("Uthana's keys are cubic spline; the import takes linear or step");
+  if ([...theirs.values()].some((c) => c.interpolation === "CUBICSPLINE")) throw new Error("Uthana's keys are cubic spline; the import takes linear or step");
+  // Every channel the game's clip has, as the game wants (run 1 in the game, 2026-11-22: with translation on Hips
+  // alone, every other bone collapsed and the body warped, where REDcode's view fell back on the rest pose).
+  // Uthana's keys where it has them: rotation on every bone, translation on Root and Hips only; otherwise the
+  // game rig's rest value, held on every frame of Uthana's time base.
+  const base = theirs.get("Hips/rotation")?.times ?? [...theirs.values()][0].times;
+  const channels = [];
+  let fromRest = 0;
+  for (const gc of gameClip.channels) {
+    const node = gj.nodes[gc.target.node];
+    const p = gc.target.path;
+    const keep = theirs.get(`${node.name}/${p}`);
+    if (keep && (p === "rotation" || (p === "translation" && (node.name === "Hips" || node.name === "Root")))) {
+      channels.push(keep);
+      continue;
+    }
+    const rest = p === "rotation" ? node.rotation ?? [0, 0, 0, 1] : p === "translation" ? node.translation ?? [0, 0, 0] : node.scale ?? [1, 1, 1];
+    channels.push({ node: node.name, path: p, interpolation: "LINEAR", times: base, values: base.map(() => rest) });
+    fromRest++;
+  }
+  console.log(`  uthana channels: ${JSON.stringify(byPath)}; written ${channels.length} as the game clip has them, ${channels.length - fromRest} from Uthana, ${fromRest} held at the rest pose`);
 
   // A new binary: the game clip's nodes need none of their own (the skin's joints list is kept without its
   // inverse bind matrices, as Probe A did), so only the new keys go in.
@@ -234,12 +250,12 @@ async function fit(name, variant = "inplace", replace = false) {
   const samplers = [];
   const outChannels = [];
   for (const c of channels) {
-    const input = put(c.times.map((t) => [t - channels[0].times[0]]), "SCALAR");
+    const input = put(c.times.map((t) => [t - base[0]]), "SCALAR");
     const output = put(c.values, c.path === "rotation" ? "VEC4" : "VEC3");
     samplers.push({ input, output, interpolation: c.interpolation });
     outChannels.push({ sampler: samplers.length - 1, target: { node: gameNode.get(c.node), path: c.path } });
   }
-  const duration = Math.max(...channels.map((c) => c.times.at(-1) - channels[0].times[0]));
+  const duration = Math.max(...channels.map((c) => c.times.at(-1) - base[0]));
   const extras = JSON.parse(JSON.stringify(gameClip.extras));
   // The rig's 13 float tracks: the game idle's values, each held constant from the start (its one keyed track is
   // constant too), since a set's numTracks stays 13 whether or not a clip keys them. Fallback frames are the game
@@ -294,6 +310,21 @@ async function fit(name, variant = "inplace", replace = false) {
   const backGlb = fs.readdirSync(back, { recursive: true }).map((f) => path.join(back, String(f))).find((f) => f.endsWith(".glb"));
   const bk = readGlb(fs.readFileSync(backGlb));
   const ba = bk.json.animations.find((a) => a.name === clipName);
+  // The channels as the game will read them: every bone needs its translation (a bone's length), not just a turn.
+  const kinds = {};
+  for (const c of ba.channels) kinds[c.target.path] = (kinds[c.target.path] ?? 0) + 1;
+  const missingT = [...animated].filter((n) => !ba.channels.some((c) => c.target.path === "translation" && bk.json.nodes[c.target.node].name === n));
+  console.log(`  read back: ${JSON.stringify(kinds)}; bones without translation keys: ${missingT.join(" ") || "none"}`);
+  let worst = ["", 0];
+  for (const c of ba.channels.filter((x) => x.target.path === "translation")) {
+    const n = bk.json.nodes[c.target.node];
+    const v = readAccessor(bk, ba.samplers[c.sampler].output);
+    const r = gj.nodes[gameNode.get(n.name)]?.translation ?? [0, 0, 0];
+    const len = (x) => Math.hypot(...x);
+    const d = n.name === "Hips" || n.name === "Root" ? 0 : Math.max(...v.map((x) => Math.abs(len(x) - len(r))));
+    if (d > worst[1]) worst = [n.name, d];
+  }
+  console.log(`  bone lengths: the largest change from the rig is ${(worst[1] * 100).toFixed(2)} cm${worst[0] ? ` (${worst[0]})` : ""}`);
   for (const bone of ["RightArm", "RightForeArm", "RightHand", "LeftArm", "Spine2", "Head"]) {
     const ni = bk.json.nodes.findIndex((n) => n.name === bone);
     const ch = ba.channels.find((c) => c.target.node === ni && c.target.path === "rotation");

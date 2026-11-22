@@ -6,7 +6,7 @@ The fourth probe of the animation research (`docs/research/animation-authoring.m
 |---|---|
 | `character` | Exports the base male body skinned on `man_base.rig` (through REDcode's `baseBodyGlb`: the game's 187 joints and rest pose, no materials, 2.1 MB) and uploads it to Uthana once with auto-rig off. Its id goes in `probe-d.json` in the project |
 | `generate "<prompt>" [seconds] [model]` | A text-to-motion job (`text-to-motion-3.0` by default) onto that character; downloads the GLB at 30 fps, with root motion and in place, into the project's `uthana` folder |
-| `fit [name] [variant]` | The fitting step: Uthana's keys by bone name onto the nodes of the game's own clip export, translation on `Hips` only, WolvenKit's extras from the game idle with its 13 float tracks held constant and no fallback frames; then REDbridge's import into `probe\anims\probe_d.anims`, a new set on `man_base.rig`, as `probe_d__<name>`. Reads the set back and measures the arm |
+| `fit [name] [variant]` | The fitting step: Uthana's keys by bone name onto the nodes of the game's own clip export, every channel the game's clip has (Uthana's rotation on every bone and translation on `Root` and `Hips`, the rig's rest value elsewhere), WolvenKit's extras from the game idle with its 13 float tracks held constant and no fallback frames; then REDbridge's import into `probe\anims\probe_d.anims`, a new set on `man_base.rig`, as `probe_d__<name>`. Reads the set back and measures the arm |
 | `replace [variant]` | The same motion over the game's own clip `stand__2h_on_sides__01`, in a copy of its set at the game's path (the other 291 clips kept) |
 
 ```
@@ -27,6 +27,10 @@ REDbridge main (0.18.0 and the fallback frames fix), project `C:\Users\VYRAL\Doc
 - **The import:** REDbridge took it with no skips and no notes: 4.97 s, 150 frames, 71 joints, 13 const float tracks, no fallback frames.
 - **Read back:** the right arm turns up to 54 degrees, the forearm and hand about 77 near 1.8 s; the left arm 5, the spine 1, the head 2. A one-handed wave.
 - **The replacement:** the game's set copied with `stand__2h_on_sides__01` updated and 291 clips kept (5.4 MB).
+
+## In the game
+
+Run 1 (owner, 2026-11-22): **kept** played (he stretched his arms), but on **Play** the paramedic sank about a foot into the ground. **added** and **replaced** were wild and scattered, the mesh warped; no wave. The cause: the fit wrote rotation on every bone but translation on `Hips` only, and the game reads a bone with no translation keys as not at its rest length, so the skeleton collapsed (REDcode's view falls back on the rest pose, so it looked right there). The game's clip keys translation and rotation on all 71 bones. Fixed the same day: the fit writes every channel the game clip has, Uthana's where it has them (rotation on every bone, translation on `Root` and `Hips`), the rig's rest value otherwise; read back, 71 translation and 71 rotation channels, every bone at its rig length. The sinking is not in the clip: the game's stretch clip holds `Hips` at 0.96 m throughout, as the idle does; where the workspot puts him is the likely cause (**unverified**). Next: run 2, Pack and Play again.
 
 ## Steps in the game
 
