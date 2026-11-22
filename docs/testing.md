@@ -40,6 +40,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Animation Probe D](#animation-probe-d) | By hand, in the game | Research | 2026-11-22 | Pass (owner), run 2, once every bone's translation was keyed |
 | [anim-core check](#anim-core-check) | Automated, on the PC (game and Uthana key) | Animation Tools AT1 | 2026-11-22 | Pass, 22 of 22 |
 | [Animation Tools AT2](#animation-tools-at2) | By hand, in REDcode and the game | Animation Tools AT2 | 2026-11-22 | Not run (checked offline: typecheck, unit 75, anim-core 22, the MCP tools over stdio) |
+| [Animation Tools pack (AT3)](#animation-tools-pack-at3) | By hand, in the game | Animation Tools AT3 | 2026-11-22 | Not run (checked outside the game: `packs/animation-tools/check.mjs`) |
 | [Replace with a WAV, titled models (#29), every window's project (#32)](#replace-with-a-wav-titled-models-29-and-every-windows-project-32) | By hand, in the game | Requests | 2026-11-20 | Pass (owner), with two fixes |
 | [Replace All](#replace-all) | By hand, in the game | Requests | 2026-11-20 | Pass (owner), with one fix |
 | [Sector view](#sector-view) | By hand | C5 | 2026-11-20 | Pass (owner), with two fixes and five changes, each retested |
@@ -770,6 +771,24 @@ Making clips in REDcode ([design](design/animation-tools.html#at2-as-built-2026-
 | 7 | In the Project view, right-click `source/raw/animprobed/anims/man_stands_relaxed_crosses/man_stands_relaxed_crosses.glb` and **Add a Clip from GLB**, man's rig, name `crossed_arms_copy` | Free. A new clip `crossed_arms_copy` opens and plays the same motion as step 3's |
 | 8 | Start the game with REDnode; **Pack and Play** the project; in the overlay, **Animation Probe D**: **Write and swap**, **Spawn**, **Play**, then **kept** | **kept** now waves (its clip was replaced in step 6); **replaced** waves too (Probe D's replacement) |
 | 9 | Optional: the Command Palette's **Generate an Animation with Uthana** (a third $0.50) | It asks the rig, the words and the length, shows the stages in a notification, and opens the clip |
+
+## Animation Tools pack (AT3)
+
+The REDnode pack in the game ([design](design/animation-tools.html#at3-as-built-2026-11-22); files in `packs/animation-tools/README.md`). Installed in the game's REDnode apps folder on 2026-11-22 (`node packs/animation-tools/build.mjs --install <game>`). Up to four Generates, about $2 on the owner's Uthana account. REDnode 0.68.0 or later, with REDbridge found by REDnode (its Mod Manager offers **Get REDbridge** when not).
+
+| # | Do | Expected |
+|---|---|---|
+| 1 | Close VS Code. Start the game with REDnode, load a save, stand V somewhere open. In the Mod Manager, switch on **Animation Tools** and allow its bridge, archives and Uthana key permissions | Its window: the project line, Character, Make a clip, Custom animations |
+| 2 | Read the project line | With no REDcode window open on a project: the pack's own project, `Documents\REDnode\Animation Tools` |
+| 3 | Character **Trauma Team medic (man)**, **Spawn** | The medic 3 m in front of V, facing V. Say if he faces away |
+| 4 | What it shows: "a man stands relaxed, then crosses his arms and taps his right foot", 5 s; **Generate, $0.50** | The first time, REDnode's key window asks for the Uthana key (Allow). The status line goes through the stages; in a minute or two the medic plays it, after a brief T pose (the game's own, the first time a workspot plays) |
+| 5 | Generate a second: "a man looks around nervously, then shrugs" | It plays on the medic at once; **Custom animations** lists both, newest first, with their words |
+| 6 | Pick the first in the list, **Play**; then **Stop** | He switches to it at once; Stop returns him to standing. Note any twitch or snap |
+| 7 | Character **Corpo plaza woman (woman)**, **Spawn** | The medic goes and a woman stands in front of V; her list says no made clips on this rig yet |
+| 8 | "a woman stretches her arms above her head, then relaxes", **Generate** | The woman's stand-in uploads first (once, free), then she plays it. Say if her body looks wrong (it is her rig's first clip) |
+| 9 | Open VS Code with REDcode on a project (`C:\Users\VYRAL\Documents\AnimProbeD`); in the game, press the window's refresh icon | The project line names REDcode's project AnimProbeD; the lists show that project's made clips |
+| 10 | Optional: one more Generate there | The clip shows in REDcode's Project view under `animprobed\anims\<name>\` |
+| 11 | **Remove**, switch the app off | The character is gone |
 
 ## Keys (K4b)
 

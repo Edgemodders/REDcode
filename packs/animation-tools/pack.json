@@ -1,0 +1,11 @@
+{
+  "id": "animation-tools",
+  "name": "Animation Tools",
+  "version": "0.1.0",
+  "rednode": ">=0.68.0",
+  "summary": "A REDnode app: make animations from your words with Uthana and play them on a character in front of V, swapped into the running game at once. Clips go into REDcode's open project, ready to pack into a mod.",
+  "guide": "https://edgemodders.github.io/REDcode/design/animation-tools.html",
+  "apps": [
+    "animation-tools"
+  ]
+}

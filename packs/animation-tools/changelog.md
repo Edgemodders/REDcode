@@ -1,0 +1,11 @@
+# Animation Tools changelog
+
+What changed in each release of Animation Tools, a REDnode app shipped beside REDcode, for its Nexus page and its GitHub release. The same rules as REDcode's changelog: a line under **Unreleased** with each change a player would notice, grouped **New**, **Changed**, **Fixed**, **Other**; before a release, rename **Unreleased** to `## <version> (<date>)`, with the version from `pack.json`, and add the short Nexus summary under the heading (`<!-- nexus` ... `-->`).
+
+## Unreleased
+
+**New**
+
+- The first version: pick a character (the Trauma Team medic, a corpo plaza man or woman, or another record on a man's or woman's rig) and **Spawn** them 3 m in front of V.
+- Say what they should do and **Generate**: Uthana makes the motion from your words on the game's own skeleton (with your Uthana key; $0.10 a second, charged only when it finishes). The clip goes into REDcode's open project, or the app's own when none is open, is swapped into the running game and plays at once.
+- **Custom animations** lists the clips made for that character's rig, newest first, with their words: pick one and **Play**, or **Stop**. Works with REDcode closed.

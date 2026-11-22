@@ -4,7 +4,7 @@ title: Animation Tools
 
 # Animation Tools: prompt, add and replace clips
 
-Draft 0.2, 2026-11-22, agreed with the owner the same day (every decision below), with the owner's wishes for the pack added. AT1 and AT2 are built the same day (AT2 hand test pending); AT3 and AT4 are not built.
+Draft 0.2, 2026-11-22, agreed with the owner the same day (every decision below), with the owner's wishes for the pack added. AT1, AT2 and AT3 are built the same day (the AT2 and AT3 hand tests pending); AT3r (its release) and AT4 (V) are not.
 
 The owner, 2026-11-22: a REDnode tool pack, **Animation Tools**, to prompt an animation and play it on a spawned NPC in the game, beside REDcode's own viewing, prompting and importing, so the workflow is seamless. EDGEfab's part (manual editing) is still being thought about. It may share a library with REDcode.
 
@@ -136,7 +136,8 @@ Until both are in, the pack's **V** entry says what it waits on, and the rest wo
 | **AT0** | REDbridge's fallback frames fix released (REDbridge 0.19.0, by the REDnode session, on the owner's go). Not a blocker: the fit empties each clip's fallback frames itself, so made clips are safe on 0.18.0; the fix matters for GLBs imported without the fit | `redcode.minBridgeVersion` raised with a REDcode release, when it comes |
 | **AT1** | `@edgemodders/anim-core` from the probe's scripts, with checks run on the PC against the game and Uthana (a recorded Uthana GLB is never committed) | The probe's own clips made again through the library, byte for byte |
 | **AT2** | REDcode: Generate, Add and Replace in the animation view, the commands, the MCP tools, `uthana` in the Keys view. **Built 2026-11-22**, hand test pending | A hand test: a clip from words in REDcode, then in the game through Pack and Play and Probe D's package |
-| **AT3** | The Animation Tools pack, on NPCs: character, spawn, prompt, the clip list, play; its own release and Nexus page | A hand test in the game, with REDcode closed, then with it open |
+| **AT3** | The Animation Tools pack, on NPCs: character, spawn, prompt, the clip list, play. **Built 2026-11-22**, hand test pending | A hand test in the game, with REDcode closed, then with it open |
+| **AT3r** | Its release: the zip, a GitHub release `animation-tools-v<version>` from REDcode's release workflow, and its own Nexus page, which the owner makes (the page, then its images) | After AT3's hand test passes, on the owner's go |
 | **AT4** | V: Probe E, then V in the pack once REDnode #47 lands | A clip made for V plays on V |
 
 Each step has its hand test in [testing](../testing.html) before the next starts.
@@ -187,6 +188,23 @@ Not yet run: `generate` end to end, which starts a paid job. Its first run is AT
 | Keys | `uthana` in REDcode's known services, and in REDbridge's (REDbridge main 4942dc3, unreleased: its name and `UTHANA_API_KEY`) |
 
 Checked offline: typecheck and build; the unit checks (75); anim-core's check (22); the MCP tools over stdio (`anim_add_clip` writes the clip, its set and record; a second of the same name is refused without `again`; `anim_made_clips` lists it; `anim_generate` read the key from the store through REDbridge and stopped at its length check, with no job). The panel and the commands are the hand test's, with the first paid Generate ([testing](../testing.html#animation-tools-at2)).
+
+## AT3 as built (2026-11-22)
+
+`packs/animation-tools/` (Animation Tools 0.1.0, unreleased; its `README.md` has the files): one REDnode Node mod, `src/mod.mjs`, built by `build.mjs` into `dist/packs/animation-tools` with anim-core and REDcode's `pack.ts` bundled in (52 KB). Permissions `bridge`, `archives`, `keys:uthana`; REDnode 0.68.0 or later (`ui.select`).
+
+| Part of the window | |
+|---|---|
+| The project line | REDcode's open project, from `%LOCALAPPDATA%\REDcode\project.json`; otherwise the pack's own WolvenKit project, `Documents\REDnode\Animation Tools`, made on first use. The title bar's refresh looks again |
+| **Character** | The Trauma Team medic (`Character.trauma_team_paramedic`, man), a corpo plaza man and woman (`Character.LightCrowd_corpoplaza_ma` and `_wa`), or another record with its rig picked; **V** is listed and waits on REDnode #47. **Spawn** puts them 3 m in front of V, facing V (Probe A's yaw); **Remove** |
+| **Make a clip** | The words, the model and length, a name, **In place** and **Play when made**; **Generate, $0.50** with its price. A taken name gets `_2` (the pack never makes a clip again in place, so EDGEfab's edits cannot be lost from the game). The key through `secrets.askShared('uthana')`; each stage on the status line |
+| **Custom animations** | The made clips on the character's rig (`madeClips`), newest first, with their words; **Play** and **Stop** |
+
+**Play:** the project is packed and swapped in only when a file under its `source/archive` changed since the last swap; the rig's workspot `animtools_<rig>` is written again (REDnode's `world.writeWorkspot`, on `man_base.rig` or `woman_base.rig`) only when its clips changed; a new workspot respawns the character carrying it (`world.useWorkspot` with `workspot` and `entry`), otherwise `world.jumpWorkspot`.
+
+Checked outside the game (`packs/animation-tools/check.mjs`): the built `mod.mjs` with a stand-in `rednode` over the real REDbridge and a fake Uthana serving Probe D's motion. The window finds a REDcode project from a stand-in `project.json`; Spawn; Generate runs the whole chain (stand-in upload, job, download in place at 30 fps, fit with the hips lifted 3.1 cm, import into its own set with its record, pack, swap, workspot, play); a second Generate of the same words is `_2` and the workspot then holds both; Play of the first jumps, with no pack or swap; Stop; the woman's list is empty. Found and fixed there: the character faced away from V (a turn too many), and every Play packed and swapped again.
+
+**Unverified until the hand test:** the corpo plaza crowd records on their rigs with a written workspot; the woman's stand-in on Uthana (not uploaded yet, so its first Generate uploads it); REDnode's key window for `uthana` (it takes any service id, unnamed).
 
 ## Not in this design
 

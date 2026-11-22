@@ -1,0 +1,15 @@
+{
+  "id": "animation-tools",
+  "name": "Animation Tools",
+  "version": "0.1.0",
+  "author": "Edgemodders",
+  "description": "Make animations from your words with Uthana and play them on a character in front of V. Pick a character and spawn it, say what it should do, and Generate: the clip is made on the game's own skeleton, goes into REDcode's open project (or the pack's own), is swapped into the running game and plays at once. Your custom animations for that character are listed to play again. Needs your Uthana key, REDbridge, and the bridge and archives permissions.",
+  "main": "mod.mjs",
+  "open": false,
+  "permissions": ["bridge", "archives", "keys:uthana"],
+  "requires": {
+    "rednode": ">=0.68.0",
+    "codeware": ">=1.14",
+    "redbridge": ">=0.15.0"
+  }
+}

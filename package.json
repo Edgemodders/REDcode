@@ -16,6 +16,7 @@
     "mcp:build": "npm run build --workspace packages/redcode-mcp",
     "world-view:build": "npm run build --workspace packages/world-view",
     "anim-core:build": "npm run build --workspace packages/anim-core",
+    "animation-tools:build": "node packs/animation-tools/build.mjs",
     "release:notes": "node tools/release-notes.mjs",
     "release": "gh workflow run release.yml --ref main -f what=REDcode -f release=true",
     "release:theme": "gh workflow run release.yml --ref main -f \"what=REDnode HUD theme\" -f release=true",
