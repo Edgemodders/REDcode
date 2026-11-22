@@ -5,7 +5,7 @@
 import * as fs from "node:fs";
 import * as vscode from "vscode";
 import type { BridgeClient } from "./bridgeClient";
-import { checkServiceId, consentKey, deleteKey, describeKey, getKey, keyInfo, keysFolder, keyStatus, listKeys, setKey, type KeyInfo, type KeyStatus } from "./keys";
+import { answersFor, checkServiceId, consentKey, deleteKey, describeKey, getKey, keyInfo, keysFolder, keyStatus, listKeys, setKey, withoutService, type Consent, type KeyInfo, type KeyStatus } from "./keys";
 
 /** REDcodeApi.keys: how another EDGE extension gets an AI service key, with the modder's say. */
 export interface KeysApi {
@@ -33,7 +33,6 @@ export interface KeysApi {
 }
 
 const ConsentKey = "redcode.keyConsent";
-type Consent = Record<string, "allow" | "deny">;
 
 type KeyNode = { kind: "key"; info: KeyInfo } | { kind: "message"; text: string; detail?: string; command?: vscode.Command };
 
@@ -41,7 +40,10 @@ class KeysTree implements vscode.TreeDataProvider<KeyNode> {
   private readonly changed = new vscode.EventEmitter<void>();
   readonly onDidChangeTreeData = this.changed.event;
 
-  constructor(private readonly getBridge: () => BridgeClient | undefined) {}
+  constructor(
+    private readonly getBridge: () => BridgeClient | undefined,
+    private readonly consent: () => Consent,
+  ) {}
 
   refresh(): void {
     this.changed.fire();
@@ -73,22 +75,30 @@ class KeysTree implements vscode.TreeDataProvider<KeyNode> {
     const item = new vscode.TreeItem(info.name || info.service);
     const { description, tooltip } = describeKey(info);
     item.description = description;
-    item.tooltip = tooltip;
+    const answers = answersFor(this.consent(), info.service);
+    const allowed = answers.filter((a) => a.answer === "allow").map((a) => a.caller);
+    const refused = answers.filter((a) => a.answer === "deny").map((a) => a.caller);
+    const said = [allowed.length ? `Allowed: ${allowed.join(", ")}` : "", refused.length ? `Refused: ${refused.join(", ")}` : ""].filter(Boolean).join("\n");
+    item.tooltip = said ? `${tooltip}\n${said}` : tooltip;
     item.iconPath = new vscode.ThemeIcon(info.unreadable ? "warning" : info.set ? "key" : "circle-large-outline");
-    item.contextValue = info.unreadable ? "key.unreadable" : !info.set ? "key.unset" : info.source === "env" ? "key.env" : "key.set";
+    // .answered: some tool has an answer for this key, so its row offers to forget them.
+    item.contextValue = (info.unreadable ? "key.unreadable" : !info.set ? "key.unset" : info.source === "env" ? "key.env" : "key.set") + (answers.length ? ".answered" : "");
     return item;
   }
 }
 
 /** Registers the Keys view, its commands and the folder watch; returns REDcodeApi.keys. */
 export function registerKeys(context: vscode.ExtensionContext, getBridge: () => BridgeClient | undefined, log: vscode.OutputChannel): { api: KeysApi; refresh: () => void } {
-  const tree = new KeysTree(getBridge);
+  const consent = (): Consent => context.globalState.get<Consent>(ConsentKey, {});
+  const tree = new KeysTree(getBridge, consent);
   const changed = new vscode.EventEmitter<string>();
   const view = vscode.window.createTreeView("redcode.keys", { treeDataProvider: tree });
   context.subscriptions.push(view, changed);
 
-  const consent = (): Consent => context.globalState.get<Consent>(ConsentKey, {});
-  const remember = (caller: string, service: string, answer: "allow" | "deny") => context.globalState.update(ConsentKey, { ...consent(), [consentKey(caller, service)]: answer });
+  const remember = async (caller: string, service: string, answer: "allow" | "deny") => {
+    await context.globalState.update(ConsentKey, { ...consent(), [consentKey(caller, service)]: answer });
+    tree.refresh();
+  };
   /** One question at a time per caller and service, so two calls at once do not ask twice. */
   const asking = new Map<string, Promise<boolean>>();
 
@@ -241,6 +251,27 @@ export function registerKeys(context: vscode.ExtensionContext, getBridge: () => 
         if (ok !== "Forget") return;
         await context.globalState.update(ConsentKey, {});
         log.appendLine("Keys: tool permissions forgotten");
+        tree.refresh();
+      })(),
+    ),
+    vscode.commands.registerCommand("redcode.keys.forgetKeyPermissions", (node?: KeyNode) =>
+      run(async () => {
+        if (node?.kind !== "key") return;
+        const info = node.info;
+        const answers = answersFor(consent(), info.service);
+        if (answers.length === 0) {
+          void vscode.window.showInformationMessage(`REDcode: no tool has asked for the ${info.name} key yet.`);
+          return;
+        }
+        const ok = await vscode.window.showWarningMessage(
+          `Forget which tools may read your ${info.name} key?`,
+          { modal: true, detail: `${answers.map((a) => `${a.caller}: ${a.answer === "allow" ? "allowed" : "refused"}`).join("\n")}\n\nEach is asked again the next time it wants this key. Other keys' answers stay.` },
+          "Forget",
+        );
+        if (ok !== "Forget") return;
+        await context.globalState.update(ConsentKey, withoutService(consent(), info.service));
+        log.appendLine(`Keys: tool permissions for ${info.service} forgotten`);
+        tree.refresh();
       })(),
     ),
   );

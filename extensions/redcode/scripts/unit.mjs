@@ -1051,6 +1051,14 @@ await check("keys: status tells no key from a no, and never holds the key", () =
   assert.ok(!("last4" in k.keyStatus(info, "allow")), "not even the last four characters");
 });
 
+await check("keys: one key's tool permissions are forgotten, the others' kept", () => {
+  const k = require("../dist/keys.js");
+  const consent = { "edgehack|openai": "allow", "edgemat|openai": "deny", "edgemat|gemini": "allow", "edgefab|tripo": "deny", "x|openai-2": "allow" };
+  assert.deepEqual(k.answersFor(consent, "openai"), [{ caller: "edgehack", answer: "allow" }, { caller: "edgemat", answer: "deny" }]);
+  assert.deepEqual(k.withoutService(consent, "openai"), { "edgemat|gemini": "allow", "edgefab|tripo": "deny", "x|openai-2": "allow" }, "a service whose id only starts the same is kept");
+  assert.deepEqual(k.answersFor(consent, "anthropic"), []);
+});
+
 await check("keys: only REDcode's own key code reaches keys.*; request() refuses them", async () => {
   const k = require("../dist/keys.js");
   const client = new k.BridgeClient({ exe: "none" });

@@ -816,7 +816,7 @@ Result 2026-11-21, reported by the owner: steps 1 to 8 pass, on REDbridge 0.18.0
 
 ### Key status
 
-Built 2026-11-22, from EDGEfab's K4d test (a tool could not tell "no key" from "you said no"; [design](design/keys.html#open)): `REDcodeApi.keys.status(service, caller)`, and Opens Test's **Read a Key** says why it got no key. Checked before: typecheck and the unit checks (76, one for `keyStatus`). **Not run:** anything in VS Code. It also checks what closing the question does, which EDGEfab's test left open.
+Built 2026-11-22, from EDGEfab's K4d test (a tool could not tell "no key" from "you said no"; [design](design/keys.html#open)): `REDcodeApi.keys.status(service, caller)`, and Opens Test's **Read a Key** says why it got no key; then (the owner, the same day) an unlock button on each key's row that forgets the tool permissions for that key only, and the row's tooltip naming the tools allowed and refused (S6, S7). Checked before: typecheck and the unit checks (77, for `keyStatus`, `answersFor` and `withoutService`). **Not run:** anything in VS Code. It also checks what closing the question does, which EDGEfab's test left open.
 
 | # | Do | Expected |
 |---|---|---|
@@ -825,6 +825,8 @@ Built 2026-11-22, from EDGEfab's K4d test (a tool could not tell "no key" from "
 | S3 | **Read a Key** again, and **Don't Allow** | "no key (you said Don't Allow)", with `"access":"denied"` |
 | S4 | **Read a Key** again | No question; "you said Don't Allow" again |
 | S5 | **Forget Tool Permissions for Keys**, **Read a Key**, **Allow** | The key's last four characters, as before |
+| S6 | Hover the Tripo row in the Keys view | Its tooltip ends "Allowed: opens test". An unlock button shows beside Set Key; rows no tool has asked for have none |
+| S7 | Allow another tool on another key first (say EDGEmat's Gemini or OpenAI). Then the Tripo row's unlock button, **Forget** | A question lists "opens test: allowed". After Forget the row has no unlock button, **Read a Key** asks again, and the other key's row still shows its tool |
 
 If S1 or S2 says "you said Don't Allow", closing the question is saved as a no on this PC, and that is a bug to fix.
 

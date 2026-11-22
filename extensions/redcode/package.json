@@ -785,6 +785,12 @@
         "command": "redcode.keys.forgetPermissions",
         "title": "Forget Tool Permissions for Keys",
         "category": "REDcode"
+      },
+      {
+        "command": "redcode.keys.forgetKeyPermissions",
+        "title": "Forget Tool Permissions for This Key...",
+        "category": "REDcode",
+        "icon": "$(unlock)"
       }
     ],
     "menus": {
@@ -1165,9 +1171,14 @@
           "group": "inline@1"
         },
         {
-          "command": "redcode.keys.clear",
-          "when": "view == redcode.keys && viewItem =~ /^key\\.(set|unreadable)$/",
+          "command": "redcode.keys.forgetKeyPermissions",
+          "when": "view == redcode.keys && viewItem =~ /^key\\..*\\.answered$/",
           "group": "inline@2"
+        },
+        {
+          "command": "redcode.keys.clear",
+          "when": "view == redcode.keys && viewItem =~ /^key\\.(set|unreadable)(\\.answered)?$/",
+          "group": "inline@3"
         },
         {
           "command": "redcode.keys.set",
@@ -1176,8 +1187,13 @@
         },
         {
           "command": "redcode.keys.clear",
-          "when": "view == redcode.keys && viewItem =~ /^key\\.(set|unreadable)$/",
+          "when": "view == redcode.keys && viewItem =~ /^key\\.(set|unreadable)(\\.answered)?$/",
           "group": "1_key@2"
+        },
+        {
+          "command": "redcode.keys.forgetKeyPermissions",
+          "when": "view == redcode.keys && viewItem =~ /^key\\..*\\.answered$/",
+          "group": "1_key@3"
         }
       ],
       "commandPalette": [
@@ -1371,6 +1387,10 @@
         },
         {
           "command": "redcode.keys.clear",
+          "when": "false"
+        },
+        {
+          "command": "redcode.keys.forgetKeyPermissions",
           "when": "false"
         }
       ]

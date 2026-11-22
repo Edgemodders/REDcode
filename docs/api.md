@@ -83,7 +83,7 @@ const key = (await api?.keys?.get("openai", "EDGEhack")) ?? (await api?.keys?.as
 - **Services:** `anthropic`, `gemini`, `openai`, `elevenlabs`, `tripo`, or another id of 1 to 40 lowercase letters, digits or dashes.
 - **Errors:** `get`, `ask` and `status` throw when REDbridge is not running, when it is older than 0.18.0 ("The key store needs REDbridge 0.18.0 or later"), or for a service id or caller that is not one.
 - **`bridge()` is not a way round it:** its `request()` refuses `keys.*`, and so does REDcode's MCP server, which exposes no key methods. That is a courtesy, not a lock: extensions share one process.
-- **The Keys view** in REDcode's sidebar lists every service with where its key comes from and the tools that read it; **Set Key**, **Remove Key**, **Add a Key for Another Service** and **Forget Tool Permissions for Keys** are there.
+- **The Keys view** in REDcode's sidebar lists every service with where its key comes from and the tools that read it; **Set Key**, **Remove Key**, **Add a Key for Another Service** and **Forget Tool Permissions for Keys** are there. A key's row names the tools allowed and refused in its tooltip, and its unlock button forgets the answers for that key only.
 
 ## Open in EDGEwave
 

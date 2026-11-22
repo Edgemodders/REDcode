@@ -85,6 +85,24 @@ export function consentKey(caller: string, service: string): string {
   return `${caller.trim().toLowerCase()}|${service}`;
 }
 
+/** The remembered answers, by consentKey: allow or deny. */
+export type Consent = Record<string, "allow" | "deny">;
+
+/** The tools that have an answer for one service, as consent remembers them (callers in lower case). */
+export function answersFor(consent: Consent, service: string): { caller: string; answer: "allow" | "deny" }[] {
+  const tail = `|${service}`;
+  return Object.entries(consent)
+    .filter(([k]) => k.endsWith(tail))
+    .map(([k, answer]) => ({ caller: k.slice(0, -tail.length), answer }))
+    .sort((a, b) => a.caller.localeCompare(b.caller));
+}
+
+/** The remembered answers without one service's, so each tool is asked again for that key only. */
+export function withoutService(consent: Consent, service: string): Consent {
+  const tail = `|${service}`;
+  return Object.fromEntries(Object.entries(consent).filter(([k]) => !k.endsWith(tail)));
+}
+
 /** Turns REDbridge's refusals into what the modder can do about them. */
 export function keyError(e: unknown): Error {
   const message = e instanceof Error ? e.message : String(e);
