@@ -196,7 +196,7 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
   camHelp.textContent =
     "Left drag: orbit. Right drag: look round, and fly with W A S D, Q down, E up. Middle drag, or Ctrl with the left: pan. " +
     "Wheel: closer to the cursor; with the right button held, the fly speed. Shift: faster, Ctrl: slower. F: frame the picked thing. Double-click: fly to a thing. " +
-    "Click: select one. Ctrl+click: add or take out. Shift+drag: select in a box on the screen. Volume: a box in the world. Esc: select nothing. Ctrl+A: select all.";
+    "Click: select one. Ctrl+click: add or take out. Shift+drag: select in a box on the screen. Volume: a box in the world. Esc: select nothing. Ctrl+A: select all (click in the view first).";
   camBar.append(
     group("Zoom", moveButton("+", "Closer to what the camera orbits", "zoomIn"), moveButton("−", "Further from what the camera orbits", "zoomOut")),
     group(
@@ -590,7 +590,16 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
     if (path) source.showInTree(path);
   });
   fit.addEventListener("click", () => view.flyTo(picked ? [picked] : undefined));
-  canvas.addEventListener("keydown", (e) => {
+  // The view's keys work wherever the view has the keyboard: the 3D view, the list, its buttons, the line under
+  // it. A click anywhere in it gives it the keyboard; a text box keeps its own keys (Ctrl+A selects its text).
+  container.tabIndex = -1;
+  container.addEventListener("pointerdown", (e) => {
+    const t = e.target as HTMLElement | null;
+    if (t && !t.closest("input, textarea, select, button, [contenteditable]") && !container.contains(document.activeElement)) container.focus({ preventScroll: true });
+  });
+  container.addEventListener("keydown", (e) => {
+    const t = e.target as HTMLElement | null;
+    if (t?.closest("input, textarea, select, [contenteditable]")) return;
     const k = e.key.toLowerCase();
     if (k === "f" && !e.ctrlKey && !e.altKey && !e.metaKey) view.flyTo(picked ? [picked] : undefined);
     if (k === "escape") {

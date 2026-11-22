@@ -250,3 +250,5 @@ input[type="checkbox"]:checked::after {
 }
 input[type="checkbox"]:focus-visible { outline: 1px solid var(--vscode-focusBorder, var(--accent)); outline-offset: 1px; }
 input[type="checkbox"]:disabled { opacity: .5; cursor: default; }
+/* The sector view takes the keyboard when clicked (Ctrl+A, F, Esc): no focus ring round the whole view. */
+.meshview:focus { outline: none; }

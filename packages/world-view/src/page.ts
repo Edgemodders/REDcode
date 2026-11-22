@@ -389,8 +389,9 @@ export function createWorldView(canvas: HTMLCanvasElement, options: WorldViewOpt
       } catch {
         // No such pointer (a scripted event): the moves still come while the cursor is over the canvas.
       }
-      canvas.focus();
     }
+    // Any button gives the view the keyboard (W A S D, and the caller's Ctrl+A, F and Esc).
+    canvas.focus({ preventScroll: true });
     if (e.button === 0) downAt = { x: e.clientX, y: e.clientY };
     if (pointerListeners.size) {
       const p = pick(e.clientX, e.clientY);
