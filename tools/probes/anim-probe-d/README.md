@@ -32,6 +32,8 @@ REDbridge main (0.18.0 and the fallback frames fix), project `C:\Users\VYRAL\Doc
 
 Run 1 (owner, 2026-11-22): **kept** played (he stretched his arms), but on **Play** the paramedic sank about a foot into the ground. **added** and **replaced** were wild and scattered, the mesh warped; no wave. The cause: the fit wrote rotation on every bone but translation on `Hips` only, and the game reads a bone with no translation keys as not at its rest length, so the skeleton collapsed (REDcode's view falls back on the rest pose, so it looked right there). The game's clip keys translation and rotation on all 71 bones. Fixed the same day: the fit writes every channel the game clip has, Uthana's where it has them (rotation on every bone, translation on `Root` and `Hips`), the rig's rest value otherwise; read back, 71 translation and 71 rotation channels, every bone at its rig length. The sinking is not in the clip: the game's stretch clip holds `Hips` at 0.96 m throughout, as the idle does; where the workspot puts him is the likely cause (**unverified**). Next: run 2, Pack and Play again.
 
+Run 2 (owner, 2026-11-22), after Pack and Play of the refitted sets: **pass** ("It worked now"). **Animation Probe D passes:** a clip Uthana made from a text prompt, on the game's own skeleton, with no Blender and no retargeting of our own, plays in the game, both as a new clip and in place of a game clip, and the rewritten set's kept clip plays too. Whether the paramedic still sank on **Play** was not said.
+
 ## Steps in the game
 
 The package **Animation Probe D** (`rednode/anim-probe-d`) is in the game's REDnode apps folder. It writes a workspot with three clips and plays them on a spawned Trauma Team paramedic:
