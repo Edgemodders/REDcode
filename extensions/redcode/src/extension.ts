@@ -147,7 +147,7 @@ export function activate(context: vscode.ExtensionContext): REDcodeApi | undefin
   tweakTree = new TweakTree(tweakDb, tweakClaims);
   locTree = new LocTree(() => bridge, () => project?.dir);
   tweakPanel = new TweakRecordPanel(context.extensionUri, tweakDb, tweakClaims, log, (gamePath) => void openGameFileByPath(gamePath));
-  explorer = new ProjectExplorer(() => project);
+  explorer = new ProjectExplorer(() => project, context.workspaceState);
   textures = new TextureViewer(() => bridge, storage, log);
   const cr2w = new Cr2wEditorProvider(
     context,
@@ -180,6 +180,9 @@ export function activate(context: vscode.ExtensionContext): REDcodeApi | undefin
     vscode.commands.registerCommand("redcode.openAssetInEditor", (node: AssetNode) => openAssetInEditor(node)),
     (assetsView = vscode.window.createTreeView("redcode.assets", { treeDataProvider: assets, showCollapseAll: true })),
     (projectView = vscode.window.createTreeView("redcode.project", { treeDataProvider: explorer, showCollapseAll: true })),
+    // The folders left open come back open after a reload (VS Code keeps no tree state for an extension's view).
+    projectView.onDidExpandElement((e) => explorer.remember(e.element, true)),
+    projectView.onDidCollapseElement((e) => explorer.remember(e.element, false)),
     textures.register(),
     cr2w.register(),
     new Cr2wPropertiesView(cr2w).register(),

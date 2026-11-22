@@ -39,7 +39,31 @@ export class ProjectExplorer implements vscode.TreeDataProvider<ProjectNode> {
   /** The filter, the matching files and the folders on the way to them, all as lower-case full paths. */
   private filtered: { filter: TreeFilter; files: Set<string>; folders: Set<string> } | undefined;
 
-  constructor(private readonly getProject: () => ProjectInfo | undefined) {}
+  /**
+   * Which roots and folders are open, kept in the workspace so the tree comes back as it was after a reload. Keys are
+   * the items' ids (root:archive, dir:<lower-case path>); a root is open unless it says false, a folder shut unless true.
+   */
+  private open: Record<string, boolean>;
+
+  constructor(
+    private readonly getProject: () => ProjectInfo | undefined,
+    private readonly state?: vscode.Memento,
+  ) {
+    this.open = state?.get<Record<string, boolean>>(ProjectExplorer.OpenKey) ?? {};
+  }
+
+  private static readonly OpenKey = "redcode.projectTreeOpen";
+
+  /** Remembers a root or folder opened or shut (the tree view's expand and collapse events). Filtered trees are not kept. */
+  remember(node: ProjectNode, isOpen: boolean): void {
+    if (this.filtered) return;
+    const id = node.kind === "root" ? `root:${node.key}` : node.kind === "folder" ? `dir:${node.dir.toLowerCase()}` : undefined;
+    if (!id) return;
+    if (node.kind === "root" ? isOpen : !isOpen) delete this.open[id];
+    else this.open[id] = isOpen;
+    void this.state?.update(ProjectExplorer.OpenKey, this.open);
+  }
+
 
   refresh(): void {
     // Files come and go: a filter is matched again on every refresh.
@@ -103,7 +127,7 @@ export class ProjectExplorer implements vscode.TreeDataProvider<ProjectNode> {
       return item;
     }
     if (node.kind === "root") {
-      const item = new vscode.TreeItem(RootLabels[node.key], vscode.TreeItemCollapsibleState.Expanded);
+      const item = new vscode.TreeItem(RootLabels[node.key], this.open[`root:${node.key}`] === false ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.Expanded);
       item.id = `root:${node.key}`;
       item.description = `${countFiles(node.dir).toLocaleString()} files`;
       item.tooltip = `${RootHints[node.key]}\n${node.dir}`;
@@ -113,7 +137,10 @@ export class ProjectExplorer implements vscode.TreeDataProvider<ProjectNode> {
     }
     if (node.kind === "folder") {
       // Filtered, the folders on the way to matches start open; the id differs so VS Code does not reuse the old state.
-      const item = new vscode.TreeItem(path.basename(node.dir), this.filtered ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed);
+      const item = new vscode.TreeItem(
+        path.basename(node.dir),
+        this.filtered || this.open[`dir:${node.dir.toLowerCase()}`] ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed,
+      );
       item.id = `${this.filtered ? `f:${this.filtered.filter.pattern}:` : ""}dir:${node.dir.toLowerCase()}`;
       item.iconPath = folderIcon();
       item.contextValue = "projectFolder" + this.tags(node.dir, true);

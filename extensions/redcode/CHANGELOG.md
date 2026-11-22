@@ -23,6 +23,8 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 **Changed**
 
+- **The Project view** comes back after a reload with the folders you left open still open. It started with every folder shut.
+
 - **Edit in Blender** says when the Blender scene has a mesh object that is not one of the mesh's own parts, such as an added sphere: the import leaves it out, so REDcode names it after the save and says how to join it into a part (Ctrl+J).
 
 ## 0.10.15 (2026-11-20)
