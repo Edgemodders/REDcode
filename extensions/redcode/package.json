@@ -1137,7 +1137,7 @@
         },
         {
           "command": "redcode.anims.addClip",
-          "when": "view == redcode.project && viewItem =~ /^projectFile/ && resourceExtname == .glb",
+          "when": "view == redcode.project && viewItem =~ /^projectFile\\.model(\\.import|\\.export|\\.archive)?$/",
           "group": "1_modkit@3"
         },
         {
