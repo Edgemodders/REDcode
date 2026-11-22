@@ -1010,13 +1010,22 @@ function makePanel(api: MakeApi, shown: () => string | undefined): { box: HTMLEl
   name.placeholder = "Name: from the words";
   name.spellcheck = false;
   name.title = "The new clip's name: lowercase letters, digits and _";
-  const goesTo = el("select");
-  goesTo.title = "A new clip in the project, or in place of the clip shown";
-  const asNew = el("option", "", "As a new clip in the project");
-  asNew.value = "new";
-  const asReplace = el("option", "", "");
-  asReplace.value = "replace";
-  goesTo.append(asNew, asReplace);
+  // Where the clip goes, as two choices in sight (a dropdown hid Replace: AT2's hand test).
+  const goesName = `goesto${Math.random().toString(36).slice(2)}`;
+  const choice = (label: string, title: string, on: boolean) => {
+    const wrap = el("label", "makecheck");
+    const input = el("input");
+    input.type = "radio";
+    input.name = goesName;
+    input.checked = on;
+    wrap.title = title;
+    const text = el("span", "", label);
+    wrap.append(input, document.createTextNode(" "), text);
+    return { wrap, input, text };
+  };
+  const asNew = choice("As a new clip in the project", "A new clip in its own set in the project", true);
+  const asReplace = choice("Replace the clip shown", "In place of the clip picked in the list: a game clip is replaced in a copy of its set in the project", false);
+  const replacingNow = () => asReplace.input.checked;
 
   const generate = el("button", "on", "Generate");
   const fromGlb = el("button", "", "From a GLB…");
@@ -1044,8 +1053,8 @@ function makePanel(api: MakeApi, shown: () => string | undefined): { box: HTMLEl
     if (typeof from.inPlace === "boolean") inPlace.input.checked = from.inPlace;
   }
   if (madeLine) box.append(madeLine);
-  box.append(prompt, row(model, length, inPlace.wrap, upperBody.wrap, asWritten.wrap), row(name, goesTo), row(generate, fromGlb), bar, status);
-  const inputs: (HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement)[] = [prompt, model, length, inPlace.input, upperBody.input, asWritten.input, name, goesTo, generate, fromGlb];
+  box.append(prompt, row(model, length, inPlace.wrap, upperBody.wrap, asWritten.wrap), row(asNew.wrap, asReplace.wrap), row(name), row(generate, fromGlb), bar, status);
+  const inputs: (HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement)[] = [prompt, model, length, inPlace.input, upperBody.input, asWritten.input, name, asNew.input, asReplace.input, generate, fromGlb];
 
   /** A make is running: every input stays off until it ends. */
   let busy = false;
@@ -1055,11 +1064,12 @@ function makePanel(api: MakeApi, shown: () => string | undefined): { box: HTMLEl
   };
   const refresh = () => {
     const clip = shown();
-    asReplace.textContent = api.made ? `Make ${api.made} again` : clip ? `Replace ${clip}${api.game ? " (a copy of this set in the project)" : ""}` : "Replace the clip shown";
-    asReplace.disabled = !clip && !api.made;
+    asReplace.text.textContent = api.made ? `Make ${api.made} again` : clip ? `Replace ${clip}${api.game ? " (in a copy of this set in the project)" : ""}` : "Replace the clip picked in the list";
+    if (!busy) asReplace.input.disabled = !clip && !api.made;
+    if (asReplace.input.disabled && asReplace.input.checked) asNew.input.checked = true;
     generate.textContent = `Generate, $${price().toFixed(2)}`;
     generate.title = "Uthana makes the motion from the words; it charges only a finished job";
-    const replacing = goesTo.value === "replace";
+    const replacing = replacingNow();
     if (!busy) name.disabled = replacing;
   };
   model.addEventListener("change", () => {
@@ -1067,7 +1077,8 @@ function makePanel(api: MakeApi, shown: () => string | undefined): { box: HTMLEl
     refresh();
   });
   length.addEventListener("change", refresh);
-  goesTo.addEventListener("change", refresh);
+  asNew.input.addEventListener("change", refresh);
+  asReplace.input.addEventListener("change", refresh);
   refresh();
 
   let started = 0;
@@ -1115,7 +1126,7 @@ function makePanel(api: MakeApi, shown: () => string | undefined): { box: HTMLEl
     setBusy(true, action === "generate" ? generate : fromGlb, action === "generate" ? "Generating" : "Making the clip from the .glb");
     status.textContent = action === "generate" ? "Starting…" : "Pick the .glb…";
     try {
-      const replacing = goesTo.value === "replace";
+      const replacing = replacingNow();
       const r = await api.run({
         action,
         ...(action === "generate" ? { prompt: prompt.value.trim(), length: Number(length.value), model: model.value, asWritten: asWritten.input.checked } : {}),
