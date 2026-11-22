@@ -183,9 +183,38 @@ export function slug(text: string, fallback = "clip"): string {
   return s || fallback;
 }
 
-/** The project's set for added clips on a rig: <project>\anims\<rig>.anims. */
-export function addedSet(project: Project, rig: Rig): string {
-  return at(slug(project.name, "mod"), "anims", `${rig.id}.anims`);
+/**
+ * A made clip's own set: <mod>\anims\<name>\<name>.anims, one clip per set, as EDGEfab and EDGEdir agreed for a
+ * made animation in a project (EDGEfab #7, 2026-11-16; the owner chose it for REDcode on 2026-11-22).
+ */
+export function addedSet(project: Project, clip: string): string {
+  return at(slug(project.name, "mod"), "anims", clip, `${clip}.anims`);
+}
+
+/**
+ * The facts of a made animation, as EDGEfab #7 agreed them and EDGEdir reads them from the record
+ * source\raw\<mod>\anims\<name>\<name>.edgefab.json, beside the clip <name>.glb.
+ */
+export interface AnimRecord {
+  kind: "anim";
+  /** Made once, kept for good: EDGEdir's clips name the animation by it. */
+  id: string;
+  name: string;
+  anim: { rig: string; seconds: number; fps: number; rootMotion: boolean; loop: boolean; name: string };
+  /** Which tool made it, and from what (REDcode's own fields; readers skip what they do not know). */
+  madeBy?: string;
+  made?: string;
+  source?: Record<string, unknown>;
+}
+
+/** A made clip in a project, found by its record. */
+export interface MadeClip extends AnimRecord {
+  /** The set's path under the project's archive folder. */
+  set: string;
+  /** The record's file. */
+  record: string;
+  /** The clip's .glb on the game's rig. */
+  glb: string;
 }
 
 export interface ImportResult {
@@ -235,9 +264,78 @@ async function importClip(bridge: Bridge, project: Project, set: string, clip: s
   return { set, clip, from: a.from, added: a.added, updated: a.updated, notes: a.notes, files };
 }
 
-/** A fitted clip into the project's set for its rig: a new set on the rig the first time, imported over after. */
-export function addClip(bridge: Bridge, project: Project, rig: Rig, clip: string, glb: Buffer, source?: { motion?: Buffer; record?: Record<string, unknown> }, set = addedSet(project, rig)): Promise<ImportResult> {
-  return importClip(bridge, project, set, clip, glb, { rig: rig.rig }, source);
+/**
+ * A fitted clip as a made animation: its own set on the rig, and beside the set's .glb the clip as <name>.glb and
+ * its record <name>.edgefab.json (EDGEfab #7). A clip made again under the same name keeps its id. source.motion
+ * (the motion as it came, such as Uthana's) is kept as <name>.source.glb.
+ */
+export async function addClip(
+  bridge: Bridge,
+  project: Project,
+  rig: Rig,
+  clip: string,
+  glb: Buffer,
+  facts: { seconds: number; fps?: number; rootMotion?: boolean; loop?: boolean },
+  source?: { motion?: Buffer; record?: Record<string, unknown> },
+  set = addedSet(project, clip),
+): Promise<ImportResult & { record: AnimRecord }> {
+  const r = await importClip(bridge, project, set, clip, glb, { rig: rig.rig });
+  const dir = path.dirname(path.join(project.rawDir, ...set.split(BS)));
+  const recordFile = path.join(dir, `${clip}.edgefab.json`);
+  let id: string = crypto.randomUUID();
+  try {
+    const old = JSON.parse(fs.readFileSync(recordFile, "utf8"));
+    if (old?.kind === "anim" && typeof old.id === "string" && old.id) id = old.id;
+  } catch {
+    // a new one
+  }
+  const record: AnimRecord = {
+    kind: "anim",
+    id,
+    name: clip,
+    anim: { rig: rig.rig, seconds: Math.round(facts.seconds * 1000) / 1000, fps: facts.fps ?? 30, rootMotion: facts.rootMotion ?? false, loop: facts.loop ?? false, name: clip },
+    madeBy: "REDcode",
+    made: new Date().toISOString(),
+    ...(source?.record ? { source: source.record } : {}),
+  };
+  fs.writeFileSync(path.join(dir, `${clip}.glb`), glb);
+  fs.writeFileSync(recordFile, JSON.stringify(record, null, 2));
+  r.files.push(path.join(dir, `${clip}.glb`), recordFile);
+  if (source?.motion) {
+    fs.writeFileSync(path.join(dir, `${clip}.source.glb`), source.motion);
+    r.files.push(path.join(dir, `${clip}.source.glb`));
+  }
+  return { ...r, record };
+}
+
+/** The made clips in a project, found by their records (kind "anim") under source\raw, newest first. */
+export function madeClips(project: Project): MadeClip[] {
+  const out: (MadeClip & { at: number })[] = [];
+  const walk = (dir: string, depth: number) => {
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const e of entries) {
+      const full = path.join(dir, e.name);
+      if (e.isDirectory() && depth < 16 && !e.name.startsWith(".")) walk(full, depth + 1);
+      else if (e.isFile() && e.name.toLowerCase().endsWith(".edgefab.json")) {
+        try {
+          const r = JSON.parse(fs.readFileSync(full, "utf8")) as AnimRecord;
+          if (r?.kind !== "anim" || !r.id || !r.anim) continue;
+          const name = e.name.slice(0, -".edgefab.json".length);
+          const rel = path.relative(project.rawDir, path.join(dir, `${name}.anims`)).split(path.sep).join(BS);
+          out.push({ ...r, set: rel, record: full, glb: path.join(dir, `${name}.glb`), at: fs.statSync(full).mtimeMs });
+        } catch {
+          // not a record anim-core can read
+        }
+      }
+    }
+  };
+  walk(project.rawDir, 0);
+  return out.sort((a, b) => b.at - a.at).map(({ at: _at, ...c }) => c);
 }
 
 /**

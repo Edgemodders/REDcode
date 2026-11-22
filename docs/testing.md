@@ -38,7 +38,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Keys (K4b)](#keys-k4b) | By hand | Requests | 2026-11-21 | Pass (owner), steps 1 to 8 on REDbridge 0.18.0; the optional step 9 not run |
 | [Animation Probe A](#animation-probe-a) | By hand, in the game | Research | 2026-11-21 | Pass (owner), run 2, once the clips' fallback frames were cleared |
 | [Animation Probe D](#animation-probe-d) | By hand, in the game | Research | 2026-11-22 | Pass (owner), run 2, once every bone's translation was keyed |
-| [anim-core check](#anim-core-check) | Automated, on the PC (game and Uthana key) | Animation Tools AT1 | 2026-11-22 | Pass, 18 of 18 |
+| [anim-core check](#anim-core-check) | Automated, on the PC (game and Uthana key) | Animation Tools AT1 | 2026-11-22 | Pass, 20 of 20 |
 | [Replace with a WAV, titled models (#29), every window's project (#32)](#replace-with-a-wav-titled-models-29-and-every-windows-project-32) | By hand, in the game | Requests | 2026-11-20 | Pass (owner), with two fixes |
 | [Replace All](#replace-all) | By hand, in the game | Requests | 2026-11-20 | Pass (owner), with one fix |
 | [Sector view](#sector-view) | By hand | C5 | 2026-11-20 | Pass (owner), with two fixes and five changes, each retested |
@@ -748,10 +748,11 @@ Run 2 (owner, 2026-11-22), after Pack and Play of the refitted sets: **pass** ("
 | 2 | The library's fit: every channel, on the game's own skeleton (rest pose within 0.04 degrees) |
 | 3 | The library's add and replace into another fresh project; both sets byte for byte the probe's; the replaced set keeps its 292 clips |
 | 4 | Uthana: the key works; the stand-in uploads to Probe D's character; a second ask uses the record; the record holds no key; the download matches the probe's file |
-| 5 | The woman's rig: her reference clip's 71 bones, all in her stand-in |
-| 6 | `rigFor`, clip names, costs |
+| 5 | A made clip in its own set with its `.glb` and record (EDGEfab #7's layout); made again, its id stays |
+| 6 | The woman's rig: her reference clip's 71 bones, all in her stand-in |
+| 7 | `rigFor`, clip names, costs |
 
-Run 2026-11-22 with REDbridge main (0.18.0 and the fallback frames fix): **pass, 18 of 18**, after two fixes found by the first run (the woman's reference clip, `-0` in rest translations).
+Run 2026-11-22 with REDbridge main (0.18.0 and the fallback frames fix): **pass, 18 of 18**, after two fixes found by the first run (the woman's reference clip, `-0` in rest translations). Then **20 of 20** with EDGEfab #7's layout, and EDGEdir's own reader (`projectAnims`) found both made clips in the check's project.
 
 ## Keys (K4b)
 

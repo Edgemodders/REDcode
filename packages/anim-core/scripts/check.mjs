@@ -61,7 +61,7 @@ try {
   const r = fitted.report;
   console.log(`     fit: ${r.duration.toFixed(2)} s, ${r.frames} frames, ${r.channels.written} channels (${r.channels.fromMotion} from the motion), lift ${(r.grounding.lift * 100).toFixed(1)} cm, rest pose within ${r.restDifference.degrees.toFixed(3)} degrees (${r.restDifference.bone}), missing ${r.missingBones.length}`);
   check(r.channels.written === 142 && r.missingBones.length === 0 && r.restDifference.degrees < 0.1, "the fit writes every channel, on the game's own skeleton");
-  const added = await core.addClip(bridge, project, rig, "probe_d__wave", fitted.glb, undefined, "probe\\anims\\probe_d.anims");
+  const added = await core.addClip(bridge, project, rig, "probe_d__wave", fitted.glb, { seconds: r.duration }, undefined, "probe\\anims\\probe_d.anims");
   check(added.added.includes("probe_d__wave"), `added to ${added.set} (from ${added.from})`);
   const replacing = core.fitClip(core.readGlb(fs.readFileSync(motionFile)), reference, rig.referenceClip);
   const replaced = await core.replaceClip(bridge, project, rig.referenceSet, rig.referenceClip, replacing.glb);
@@ -71,6 +71,12 @@ try {
     const y = fs.readFileSync(path.join(project.archiveDir, ...set.split("\\")));
     check(x.equals(y), `${path.basename(set)}: the library's set is byte for byte the probe's (${x.length.toLocaleString()} bytes)`);
   }
+  // A made animation in its own set, with its record as EDGEdir reads it (EDGEfab #7); made again, its id stays.
+  const own = await core.addClip(bridge, project, rig, "wave_hello", fitted.glb, { seconds: r.duration }, { motion: fs.readFileSync(motionFile), record: { service: "uthana" } });
+  const again = await core.addClip(bridge, project, rig, "wave_hello", fitted.glb, { seconds: r.duration });
+  const madeOne = core.madeClips(project).find((m) => m.name === "wave_hello");
+  check(own.set === "animprobed\\anims\\wave_hello\\wave_hello.anims" && madeOne?.set === own.set && fs.existsSync(madeOne.glb) && fs.existsSync(path.join(project.archiveDir, ...own.set.split("\\"))), `a made clip gets its own set (${own.set}), its .glb and its record`);
+  check(again.record.id === own.record.id && madeOne?.kind === "anim" && madeOne.anim.rig === rig.rig && madeOne.anim.seconds > 4.9 && madeOne.anim.fps === 30 && madeOne.anim.name === "wave_hello" && !madeOne.anim.rootMotion, `the record has EDGEdir's facts, and the id stays (${own.record.id})`);
   const names = await core.clipsIn(bridge, path.join(project.archiveDir, ...rig.referenceSet.split("\\")));
   check(names.length === 292 && names.includes("stand__2h_on_sides__01__stretch_arms__01"), `the replaced set keeps its ${names.length} clips`);
 

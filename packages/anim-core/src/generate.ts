@@ -83,7 +83,9 @@ export async function generate(o: GenerateOptions): Promise<Generated> {
     made: new Date().toISOString(),
     terms: "https://uthana.com/terms",
   };
-  const r = o.replace ? await replaceClip(o.bridge, o.project, o.replace.set, clip, glb, { motion, record }) : await addClip(o.bridge, o.project, o.rig, clip, glb, { motion, record });
+  const r = o.replace
+    ? await replaceClip(o.bridge, o.project, o.replace.set, clip, glb, { motion, record })
+    : await addClip(o.bridge, o.project, o.rig, clip, glb, { seconds: report.duration, fps: 30, rootMotion: o.inPlace === false }, { motion, record });
   stage("done", clip);
   return { ...r, motionId, characterId: character.id, report, cost: cost(model, length) };
 }

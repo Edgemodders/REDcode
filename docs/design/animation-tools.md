@@ -74,9 +74,10 @@ The button says the cost (**Generate, $0.50**). Uthana charges only a finished j
 
 | Kind | Path |
 |---|---|
-| Added clips | `<project>\anims\<rig>.anims` (`mymod\anims\man_base.anims`), one set per rig per project, lowercase |
+| Added clips | `<mod>\anims\<name>\<name>.anims` (`mymod\anims\wave_hello\wave_hello.anims`), one set per clip, lowercase: the place EDGEfab and EDGEdir agreed for a made animation ([EDGEfab #7](https://github.com/Edgemodders/EDGEfab/issues/7)) |
+| Each added clip's record | `source/raw/<mod>/anims/<name>/<name>.edgefab.json` (`kind: "anim"`, an `id` made once and kept, `name`, and `anim`: `rig`, `seconds`, `fps`, `rootMotion`, `loop`, `name`), beside the clip `<name>.glb` on the game's rig and the motion as it came, `<name>.source.glb`. EDGEdir's index finds made animations by this record |
 | Replaced clips | The game's set at the game's path, a copy in the project with every other clip kept |
-| The sources | `source/raw/<set path>.sources/<clip>.glb` and `<clip>.json` |
+| A replacement's sources | `source/raw/<game set>.sources/<clip>.glb` and `<clip>.json`: no record, since the clip is the game's |
 
 A replacement swaps the whole file, so two mods that replace clips in the same set conflict, the first loaded wins. The panel says so once. If Probe C passes, replacements become ArchiveXL override sets.
 
@@ -104,7 +105,7 @@ A REDnode Node mod with one window, made in Node with REDnode's `ui`, as Remove 
 | **Project** | REDcode's open project, from `%LOCALAPPDATA%\REDcode\project.json`, which the `redcode` package reads. A menu when several windows have one (`projects()`). When none is open, the pack's own WolvenKit project, made on first use in `Documents\REDnode\Animation Tools` (**unverified** whether REDnode would rather name the place) |
 | **Prompt** | Prompt, length, model, in place, name, as in REDcode; **Generate** with its cost |
 | **Character** | A list to pick from: **V**, and NPCs by their records, each with its rig (`man_base` or `woman_base`), searchable, with a few to start (the Trauma Team paramedic, Probe D's, and a woman's). **Spawn** puts the NPC 3 m in front of V, facing V; **Remove** takes it away. Only NPCs on a rig anim-core knows are offered (**unverified** how a record names its rig: through its entity's skeleton, to be read when built) |
-| **Clips** | The custom animations for the picked character: every clip in the project's set for its rig (made or imported), newest first, with the prompt as the clip's description from its `.json`. Pick one and **Play**, or play it as soon as it is made (**Play when made**, on by default). **Stop** returns the NPC to standing |
+| **Clips** | The custom animations for the picked character: every made clip in the project on its rig, found by their records (`madeClips`), newest first, with the prompt from the record as its description. Pick one and **Play**, or play it as soon as it is made (**Play when made**, on by default). **Stop** returns the NPC to standing |
 | **Status** | Each stage, as REDcode's panel shows them |
 
 The pack bundles `anim-core` into its `mod.mjs` at build. Generate runs the whole chain with no VS Code: the key, the stand-in, Uthana, the fit, the import into the project's set, the pack (REDcode's `src/pack.ts`, which has no VS Code imports), the swap, a workspot written with the clip, and play. If REDcode has the same project open, its Project view and animation view refresh by themselves.
@@ -147,7 +148,7 @@ Each step has its hand test in [testing](../testing.html) before the next starts
 | 1 | Where clips made from the game go | **Agreed 2026-11-22:** REDcode's open project; the pack's own project when none is open |
 | 2 | Does the pack work without VS Code | **Agreed 2026-11-22:** yes, through REDnode's REDbridge |
 | 3 | The library's name | **Agreed 2026-11-22:** `@edgemodders/anim-core`, like `edgemat-core` |
-| 4 | Added clips in one set per rig per project (`<project>\anims\<rig>.anims`) | **Agreed 2026-11-22**: simple to find, and a workspot names the set |
+| 4 | Where added clips go | **Agreed 2026-11-22**, then changed the same day by the owner: one set per clip with its record, as agreed on [EDGEfab #7](https://github.com/Edgemodders/EDGEfab/issues/7), so EDGEdir finds REDcode's clips with no change (one set per rig was the first answer) |
 | 5 | In place by default | **Agreed 2026-11-22**, until Probe B shows how a moving clip plays |
 | 6 | MCP tools in AT2, not later | **Agreed 2026-11-22**: an assistant making clips from words is the AI-first path, and EDGEdir will want it |
 
@@ -167,6 +168,8 @@ Each step has its hand test in [testing](../testing.html) before the next starts
 - The library makes Probe D's two sets again from Probe D's downloaded motion, **byte for byte** the probe's: the added set (45,378 bytes) and the replaced idle set (5,660,892 bytes, its 292 clips kept). One difference had to go first: the game's export has `-0` in six rest translations, which the probe's script had turned into `0`; WolvenKit keeps the sign, so the fit now writes `0`.
 - Uthana, with no paid job: the key works, the stand-in uploads to Probe D's character (`cz6QP1PNTjpH`), a second ask is answered from the record, the record holds no key, and the download of Probe D's motion is the probe's file.
 - The woman's rig: her reference clip animates the same 71 bones, and her stand-in (187 joints) has all of them. Her stand-in is not uploaded yet.
+
+Then the layout of [EDGEfab #7](https://github.com/Edgemodders/EDGEfab/issues/7) (decision 4, changed): `addClip` writes each clip in its own set with its record, and `madeClips(project)` lists them by their records. Two more checks pass (20 of 20): a clip gets its own set, `.glb` and record, and made again keeps its id. **EDGEdir's own reader** (`projectAnims` in EDGEdir's `src/core/made.ts`, bundled and run on the check's project) finds both clips with their rig, length, frame rate and `.glb`.
 
 Not yet run: `generate` end to end, which starts a paid job. Its first run is AT2's hand test.
 
