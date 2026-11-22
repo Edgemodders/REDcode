@@ -4,6 +4,24 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 ## Unreleased
 
+## 0.10.16 (2026-11-22)
+
+Keys for every EDGE tool, animations made from words with Uthana, and materials, a camera and selecting many things in the sector view. Needs REDbridge 0.18.0.
+
+<!-- nexus
+New: Keys: one place for the AI service keys every EDGE tool shares, and which tools may read each
+New: Make animations from words with Uthana (your own key), as a new clip or in place of a game clip
+New: Add a clip from a GLB on the game's rig, from Blender say, through the same fit
+New: The sector view draws the picked thing with its own materials, through EDGEmat or by itself
+New: Sector view camera: a row of move buttons, right-button fly, F and double-click to frame
+New: Select many things in the sector view: Ctrl+click, a box, a Volume, Isolate, Add Meshes, Copy
+Fixed: By material in the sector view colours each thing by its own materials
+Fixed: Add to Project asks before it writes over a file already in the project
+Changed: The Project view keeps its open folders after a reload
+Changed: Edit in Blender names scene objects the import leaves out
+Needs: REDbridge 0.18.0 (REDcode: Update REDbridge)
+-->
+
 **New**
 
 - **Keys** (https://github.com/Edgemodders/REDcode/issues/33): one place in REDcode's sidebar for the AI service keys every EDGE tool shares, in VS Code and in the game (OpenAI, Anthropic, Gemini, ElevenLabs, Tripo and others). See where each key comes from and which tools read it; set, replace and remove them. Other EDGE extensions ask REDcode for a key, and REDcode asks you the first time each tool wants one; after a Don't Allow, a tool can tell that you said no rather than that no key is set, and need not ask again. Hover a key to see which tools you allowed or refused; its unlock button forgets those answers for that key only. Needs REDbridge 0.18.0.

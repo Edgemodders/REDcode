@@ -67,14 +67,20 @@ Every record type and record, with a page per record where links take you to the
 [color=#00ffff][size=4][b]Game animations[/b][/size][/color]
 An [i].anims[/i] file opens on its animations: pick one and watch it play on a body (the base male or female body, or a character's own meshes when another tool asks) or as bones and joints, with play and pause, a scrub bar, single frames, loop, speed, and a Root motion switch that moves the whole rig through the scene. A synced clip lists its set, the other clips of the same moment such as the Trauma Team's AV and soldiers landing, and [b]Play the Set[/b] plays them together, each placed where the game puts it.
 
+[color=#00ffff][size=4][b]Animations from words[/b][/size][/color]
+Press [b]Make[/b] in a man's or woman's animation, say what it should show, and [b]Generate[/b]: [url=https://uthana.com]Uthana[/url] makes the motion straight onto the game's own skeleton (with your own Uthana key, $0.10 a second, charged only when it finishes). It becomes a new clip in your project, or takes the place of a game clip, facing the way the game's clips face and with feet that respect the ground. [b]From a GLB[/b] does the same with a clip from Blender. Open a made clip again and its words are there, ready for another go.
+
 [color=#00ffff][size=4][b]The world in 3D[/b][/size][/color]
-A [i].streamingsector[/i] opens in 3D: every building, prop and street mesh where the sector places it, with markers for lights, sounds and spawn points. Fly around with W, A, S, D, click a thing to see its node, [b]Show in Tree[/b] to edit it, and [b]Coarser levels[/b] to add what the game draws from far away.
+A [i].streamingsector[/i] opens in 3D: every building, prop and street mesh where the sector places it, with markers for lights, sounds and spawn points. Fly around with the right mouse button and W, A, S, D, or the camera buttons; double-click a thing to fly to it. Click a thing to see its node and its own materials, [b]Show in Tree[/b] to edit it, and [b]Coarser levels[/b] to add what the game draws from far away. Select many at once with Ctrl+click, a box on the screen or a [b]Volume[/b] in the world, then [b]Isolate[/b] them, add their meshes to your project or copy the list.
 
 [color=#00ffff][size=4][b]Pack, install, play[/b][/size][/color]
 [b]Pack[/b] builds your mod the way WolvenKit does (Ctrl+Shift+B), [b]Install[/b] puts it in the game (through EDGEdeck when you have it, so you can undo it, and only your mod: other mods' changes wait for you), and [b]Run Game[/b] starts Cyberpunk. [b]Pack and Play[/b] does it in one click, straight into the running game: through [url=https://github.com/Edgemodders/REDnode]REDnode[/url] and its REDswap when the game runs with it and its MCP server is on (edited sound banks too), or else it installs the mod for the next start. Export to glTF, PNG and WAV, edit, and import back: a GLB can become a new mesh, and edited sound effects go back into the game's sound banks. REDmod packs carry your custom sounds.
 
 [size=4][b][color=#19f3ff]Works with the other EDGE tools[/color][/b][/size]
 [b]Add to Library[/b] puts a game or project file in the EDGE Library, the store the EDGE tools share, with the files it needs, and the [b]Library[/b] view shows the Library and adds its items to your project, with [b]Refresh Project from Library[/b] when an item has a newer version. And a tool can claim the TweakDB records it is made for, so a click on one opens that tool.
+
+[size=4][b][color=#19f3ff]One place for your AI keys[/color][/b][/size]
+The [b]Keys[/b] view keeps the AI service keys every EDGE tool shares, in VS Code and in the game (OpenAI, Anthropic, Gemini, ElevenLabs, Tripo, Uthana and others): set one once, see which tools read it, and say which tools may.
 
 [size=4][b][color=#19f3ff]TweakXL files[/color][/b][/size]
 Syntax highlighting, brackets, comments and snippets for TweakXL's [i].tweak[/i] format.
@@ -83,7 +89,7 @@ Syntax highlighting, brackets, comments and snippets for TweakXL's [i].tweak[/i]
 [url=https://www.npmjs.com/package/@edgemodders/redcode-mcp]@edgemodders/redcode-mcp[/url] gives Claude Code and other assistants the same engine: browse the archives, read and patch CR2W files, export, import, pack, and query the TweakDB and the game's texts. Ask your assistant to make the mod, and watch it work in the same project. With REDnode in the game, REDcode also tells REDnode mods and the assistants connected to it which project is open, so EDGEbuilder can place your own objects.
 
 [size=4][b][color=#19f3ff]Coming next[/color][/b][/size]
-Planned: the [b]REDnode loop[/b], to edit a REDnode mod and see it in the running game without a restart, with the game's logs and a debugger in VS Code.
+Planned: the [b]Lip Sync editor[/b], to see a character's lines on their head and add new voiced lines; [b]takes[/b] for made animations; changing a sector's materials live from EDGEmat; and the [b]REDnode loop[/b], to edit a REDnode mod and see it in the running game without a restart, with the game's logs and a debugger in VS Code.
 
 [size=5][b][color=#fcee0a]Requirements[/color][/b][/size]
 
