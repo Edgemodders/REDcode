@@ -1026,7 +1026,7 @@ function makePanel(api: MakeApi, shown: () => string | undefined): { box: HTMLEl
     return { wrap, input, text };
   };
   const asNew = choice("New Clip", "A new clip, in its own set in the project", true);
-  const asReplace = choice("Replace", "In place of the clip picked in the list", false);
+  const asReplace = choice("Replace Clip", "In place of the clip picked in the list", false);
   const replacingNow = () => asReplace.input.checked;
 
   const generate = el("button", "on", "Generate");
