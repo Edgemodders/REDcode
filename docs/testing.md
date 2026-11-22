@@ -772,6 +772,8 @@ Making clips in REDcode ([design](design/animation-tools.html#at2-as-built-2026-
 | 8 | Start the game with REDnode; **Pack and Play** the project; in the overlay, **Animation Probe D**: **Write and swap**, **Spawn**, **Play**, then **kept** | **kept** now waves (its clip was replaced in step 6); **replaced** waves too (Probe D's replacement) |
 | 9 | Optional: the Command Palette's **Generate an Animation with Uthana** (a third $0.50) | It asks the rig, the words and the length, shows the stages in a notification, and opens the clip |
 
+Run 1 (owner, 2026-11-22), in progress: step 3 made the clip with Name empty, as meant (the name comes from the words). Found: nothing showed that Generate was working, and the panel's inputs could still be changed. Fixed the same day: while a make runs, every input in the panel is off, the button shows a spinner, the stage and the time so far (its tooltip says it is generating), a bar under it steps through the stages, and a notification shows each stage; a second make from any animation view is refused until it ends. Typecheck, build and unit checks pass; not run in VS Code yet.
+
 ## Animation Tools pack (AT3)
 
 The REDnode pack in the game ([design](design/animation-tools.html#at3-as-built-2026-11-22); files in `packs/animation-tools/README.md`). Installed in the game's REDnode apps folder on 2026-11-22 (`node packs/animation-tools/build.mjs --install <game>`). Up to four Generates, about $2 on the owner's Uthana account. REDnode 0.68.0 or later, with REDbridge found by REDnode (its Mod Manager offers **Get REDbridge** when not).

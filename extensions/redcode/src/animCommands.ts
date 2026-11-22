@@ -162,12 +162,28 @@ export function registerAnimCommands(context: vscode.ExtensionContext, host: Ani
     ),
   );
 
+  /** One make at a time, from any animation view: two at once would write the same project together. */
+  let making = false;
   const maker: AnimMaker = {
     why: (rig) => (!host.projectDir() ? "Open a project first: made clips go into it." : makeRig(rig).why),
     run: async (req, onStage) => {
-      const r = await makeClip(host.deps, req, onStage);
-      await host.open(r.file, r.clip);
-      return r;
+      if (making) throw new Error("Another clip is being made; wait for it to finish.");
+      making = true;
+      try {
+        // A notification with each stage too, seen from any tab while the panel waits.
+        const r = await vscode.window.withProgress(
+          { location: vscode.ProgressLocation.Notification, title: req.action === "generate" ? "Generating with Uthana" : "Making the clip" },
+          (progress) =>
+            makeClip(host.deps, req, (stage, detail) => {
+              progress.report({ message: StageText[stage] });
+              onStage(stage, detail);
+            }),
+        );
+        await host.open(r.file, r.clip);
+        return r;
+      } finally {
+        making = false;
+      }
     },
     madeClipOf: (file) => {
       const dir = host.projectDir();

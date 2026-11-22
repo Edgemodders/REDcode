@@ -84,6 +84,17 @@ const MakeModels = [
   { id: "text-to-motion-3.0-mini", label: "3.0 Mini", perSecond: 0.075, min: 5 },
 ];
 
+/** The stages in order, for the progress bar, with each one's short name for the busy button. */
+const MakeSteps: [stage: string, short: string][] = [
+  ["start", "Starting"],
+  ["stand-in", "Stand-in"],
+  ["queued", "Queued"],
+  ["running", "Uthana is making it"],
+  ["downloading", "Downloading"],
+  ["fitting", "Fitting"],
+  ["importing", "Writing"],
+  ["done", "Opening"],
+];
 const MakeStages: Record<string, string> = {
   "stand-in": "Getting the stand-in character on Uthana (uploaded once per rig)…",
   queued: "Uthana has the job…",
@@ -992,13 +1003,21 @@ function makePanel(api: MakeApi, shown: () => string | undefined): { box: HTMLEl
   const fromGlb = el("button", "", "From a GLB…");
   fromGlb.title = "A .glb with a clip already on the game's rig (from Blender, say), through the same fit";
   const status = el("div", "dim makestatus", "");
+  // While a make runs: how far along (a bar through the stages) and how long so far, in the button.
+  const bar = el("div", "makebar");
+  const barFill = el("div", "makebarfill");
+  bar.appendChild(barFill);
+  bar.hidden = true;
   const row = (...kids: HTMLElement[]) => {
     const r = el("div", "makerow");
     r.append(...kids);
     return r;
   };
-  box.append(prompt, row(model, length, inPlace.wrap, upperBody.wrap, asWritten.wrap), row(name, goesTo), row(generate, fromGlb), status);
+  box.append(prompt, row(model, length, inPlace.wrap, upperBody.wrap, asWritten.wrap), row(name, goesTo), row(generate, fromGlb), bar, status);
+  const inputs: (HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement)[] = [prompt, model, length, inPlace.input, upperBody.input, asWritten.input, name, goesTo, generate, fromGlb];
 
+  /** A make is running: every input stays off until it ends. */
+  let busy = false;
   const price = () => {
     const m = MakeModels.find((x) => x.id === model.value) ?? MakeModels[0];
     return Math.round(m.perSecond * Number(length.value) * 100) / 100;
@@ -1010,7 +1029,7 @@ function makePanel(api: MakeApi, shown: () => string | undefined): { box: HTMLEl
     generate.textContent = `Generate, $${price().toFixed(2)}`;
     generate.title = "Uthana makes the motion from the words; it charges only a finished job";
     const replacing = goesTo.value === "replace";
-    name.disabled = replacing;
+    if (!busy) name.disabled = replacing;
   };
   model.addEventListener("change", () => {
     fillLengths();
@@ -1020,7 +1039,41 @@ function makePanel(api: MakeApi, shown: () => string | undefined): { box: HTMLEl
   goesTo.addEventListener("change", refresh);
   refresh();
 
-  let busy = false;
+  let started = 0;
+  let timer: ReturnType<typeof setInterval> | undefined;
+  let busyButton: HTMLButtonElement = generate;
+  let busyShort = "Starting";
+  const elapsed = () => {
+    const s = Math.floor((Date.now() - started) / 1000);
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  };
+  const drawBusy = () => {
+    const spin = el("span", "makespin");
+    busyButton.replaceChildren(spin, document.createTextNode(` ${busyShort}… ${elapsed()}`));
+  };
+  /** Busy: every input off (so nothing changes under the make), a spinner and the time in the button, the bar. */
+  const setBusy = (on: boolean, button: HTMLButtonElement, what: string) => {
+    busy = on;
+    for (const i of inputs) i.disabled = on;
+    box.classList.toggle("busy", on);
+    if (on) {
+      busyButton = button;
+      busyButton.title = what;
+      started = Date.now();
+      busyShort = MakeSteps[0][1];
+      barFill.style.width = "0%";
+      bar.hidden = false;
+      drawBusy();
+      timer = setInterval(drawBusy, 1000);
+    } else {
+      clearInterval(timer);
+      timer = undefined;
+      bar.hidden = true;
+      fromGlb.textContent = "From a GLB…";
+      fromGlb.title = "A .glb with a clip already on the game's rig (from Blender, say), through the same fit";
+      refresh();
+    }
+  };
   const run = async (action: "generate" | "glb") => {
     if (busy) return;
     if (action === "generate" && !prompt.value.trim()) {
@@ -1028,8 +1081,7 @@ function makePanel(api: MakeApi, shown: () => string | undefined): { box: HTMLEl
       prompt.focus();
       return;
     }
-    busy = true;
-    generate.disabled = fromGlb.disabled = true;
+    setBusy(true, action === "generate" ? generate : fromGlb, action === "generate" ? "Generating" : "Making the clip from the .glb");
     status.textContent = action === "generate" ? "Starting…" : "Pick the .glb…";
     try {
       const replacing = goesTo.value === "replace";
@@ -1046,8 +1098,8 @@ function makePanel(api: MakeApi, shown: () => string | undefined): { box: HTMLEl
       const message = e instanceof Error ? e.message : String(e);
       status.textContent = /cancel/i.test(message) ? "" : `Not made: ${message}`;
     } finally {
-      busy = false;
-      generate.disabled = fromGlb.disabled = false;
+      setBusy(false, generate, "");
+      // refresh() does not turn the name back on while replacing; the rest come back as they were.
     }
   };
   generate.addEventListener("click", () => void run("generate"));
@@ -1056,7 +1108,14 @@ function makePanel(api: MakeApi, shown: () => string | undefined): { box: HTMLEl
     box,
     refresh,
     stage: (stage, detail) => {
-      if (busy) status.textContent = MakeStages[stage] ?? `${stage}${detail ? ` ${detail}` : ""}`;
+      if (!busy) return;
+      status.textContent = MakeStages[stage] ?? `${stage}${detail ? ` ${detail}` : ""}`;
+      const at = MakeSteps.findIndex(([s]) => s === stage);
+      if (at >= 0) {
+        busyShort = MakeSteps[at][1];
+        barFill.style.width = `${Math.round(((at + 1) / MakeSteps.length) * 100)}%`;
+        drawBusy();
+      }
     },
     focus: () => prompt.focus(),
   };
