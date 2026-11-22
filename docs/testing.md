@@ -1035,7 +1035,7 @@ Built 2026-11-21 ([design](design/sector-selection.html#as-built-2026-11-21)): C
 | 12 | **Opens Test: Open a Sector at Entries 780, 692 and 443** | The sector opens with those three entries selected (780 current) and framed |
 ## No Red Hot Tools
 
-Run 1 (owner, 2026-11-22), in progress: at step 11, Ctrl+A selected the page's text. The view's keys were on the 3D canvas alone, which took the keyboard only with the right button. Fixed the same day: any button on the canvas gives it the keyboard, and Ctrl+A, F and Esc work anywhere in the view after a click (a text box keeps its own Ctrl+A). Not rerun yet.
+Run 1 (owner, 2026-11-22), in progress: at step 11, Ctrl+A selected the page's text. The view's keys were on the 3D canvas alone, which took the keyboard only with the right button. Fixed the same day: any button on the canvas gives it the keyboard, and Ctrl+A, F and Esc work anywhere in the view after a click (a text box keeps its own Ctrl+A). Rerun: still the page's text. VS Code's webview hands every key to the workbench from the page's window (its `pre/index.html`, `handleInnerKeydown`), and the workbench's Select All then runs `execCommand("selectAll")` in the page. Fixed: the view stops Ctrl+A before it reaches the window, and undoes a page selection that comes within a second of it. Not rerun yet.
 
 Built 2026-11-07, after REDcode 0.10.7: Red Hot Tools has no build for game 2.5, so REDcode drops its hot folder. Pack and Play swaps through REDnode (REDswap) or installs for the next start, and **Install to the Hot Folder** is gone. F5 with **Run REDcode**. Checked before: type check, build, `npm test` (39, one new for the install notice).
 

@@ -81,6 +81,12 @@ const b64 = (s: string) => {
 
 const seconds = (ms: number) => (ms < 60000 ? `${Math.round(ms / 1000)} s` : `${Math.round(ms / 60000)} min`);
 
+/** When the sector view last took Ctrl+A: the page's text selected just after it is VS Code's Select All, undone. */
+let selectAllAt = -Infinity;
+document.addEventListener("selectionchange", () => {
+  if (performance.now() - selectAllAt < 1000 && !document.getSelection()?.isCollapsed) document.getSelection()?.removeAllRanges();
+});
+
 export async function mountSector(container: HTMLElement, source: SectorSource): Promise<SectorView> {
   container.replaceChildren();
   container.classList.add("meshview");
@@ -607,7 +613,12 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
       choose(null);
     }
     if (k === "a" && (e.ctrlKey || e.metaKey)) {
+      // VS Code's webview hands every key to the workbench from the page's window, and its Select All then runs
+      // execCommand("selectAll") in the page: stopped here, before the key reaches the window. The selection
+      // guard is for a VS Code that listens earlier.
       e.preventDefault();
+      e.stopPropagation();
+      selectAllAt = performance.now();
       select(view.idsShown(), picked);
     }
   });
