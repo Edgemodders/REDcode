@@ -997,6 +997,8 @@ Found: **Add to Project wrote over a file already in the project without asking.
 | R2 | Change something in the project's copy and save; open the game's mesh (Game Assets) and its header's **Add to Project**, then **Replace It** | An editor open on the project's copy closes first (asking about unsaved changes), then the project's copy is the game's again |
 | R3 | In Game Assets, **Add to Project** on a folder that holds the mesh and other files | "1 of these n files are already in <project>", with **Add the Others** (the project's copy stays as it is) and **Replace All** |
 
+Retest 2026-11-22, reported by the owner: R1 to R3 pass, on a mesh added from the sector view just before (Add Mesh to Project twice). Found: no way to find the project's sector meshes in the sector view; agreed for after the release ([Sector selection](design/sector-selection.html), every copy of a mesh). **Sector materials (M1) passes, with its retest.**
+
 ## Sector camera
 
 Built 2026-11-21 ([design](design/sector-view.html#part-3-the-camera-2026-11-21)): the camera row, the right button's look, the wheel towards the cursor, F and double-click. Checked in Chrome over the real bridge on `exterior_-22_7_0_0`: each held move, Top, Reset, a double-click on node 848.7 gliding to 2.5 m from it, a right click keeping the pick, the wheel's speed with the right button held. Chrome drew 2 frames a second there, so the feel is this test's.
