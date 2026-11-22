@@ -1124,6 +1124,8 @@ function makePanel(api: MakeApi, shown: () => string | undefined): { box: HTMLEl
         ...(name.value.trim() && !replacing ? { name: name.value.trim() } : {}),
         ...(replacing ? { replace: api.made ?? shown() } : {}),
       });
+      // A name is for one clip: the next make names its own unless one is typed again.
+      name.value = "";
       status.textContent = `Made ${r.clip}${r.cost !== undefined ? ` ($${r.cost.toFixed(2)})` : ""} in ${r.set}.${r.notes.length ? ` ${r.notes.join(" ")}` : ""}`;
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
