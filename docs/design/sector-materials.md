@@ -42,6 +42,8 @@ Built 2026-11-21; hand test passed by the owner the same day, all 10 steps, with
 
 Found: the world's multilayered materials come out a flat grey from EDGEmat's renderer (edgemat-core 0.3.2). These are `multilayered.mt` with an `.mlsetup` and an `..._masksset.mlmask`, such as the corporate plaza buildings and the sidewalks. Plain textured materials render properly; the cardboard trash got its 1.6 MB colour map. Better world materials are EDGEmat's, asked with M2's needs in [EDGEmat #17](https://github.com/Edgemodders/EDGEmat/issues/17) (2026-11-21). The package's additions are noted on [EDGEbuilder #8](https://github.com/Edgemodders/EDGEbuilder/issues/8#issuecomment-7065042770).
 
+**EDGEmat #17 done (2026-11-22):** its hand test "The Desk's edits in the 3D view" passed (the owner, all 8 steps, with REDcode main). A Desk entry's change names that entry's copy of its mesh in `onDidChangeMaterials`; `edgemat.openMesh` answers `{ desk, mesh }`; `renderMaterials` without the library draws layered materials. It ships in EDGEmat 0.3.4, held for the joint K4d release. That unblocks M2, which starts after the REDcode release now in test.
+
 Timings, with the game running:
 - **Material names:** 105 meshes in about 2 s the first time, then from the cache.
 - **A building's rendering:** 1.5 to 2.4 s.
