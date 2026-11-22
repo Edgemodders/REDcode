@@ -70,6 +70,7 @@ export interface MakeAsk {
   length?: number;
   model?: string;
   inPlace?: boolean;
+  upperBodyOnly?: boolean;
   asWritten?: boolean;
   name?: string;
   /** The clip to replace, by name: the one the view shows. */
@@ -938,7 +939,7 @@ function makePanel(api: MakeApi, shown: () => string | undefined): { box: HTMLEl
   }
   const prompt = el("textarea", "makeprompt");
   prompt.rows = 3;
-  prompt.placeholder = "What it shows, such as: a man stands relaxed, raises his right hand and waves hello, then lowers it";
+  prompt.placeholder = "What it shows, such as: a man stands relaxed, raises his right hand and waves hello, then lowers it. Say what the feet do when they move; REDcode asks Uthana for feet that respect the ground (lifting, stepping, running and jumping are fine; floating and sliding are not)";
   prompt.spellcheck = true;
 
   const length = el("select");
@@ -972,6 +973,7 @@ function makePanel(api: MakeApi, shown: () => string | undefined): { box: HTMLEl
     return { wrap, input };
   };
   const inPlace = check("In place", "No travel across the floor: workspots in the game apply no root motion. Off keeps the travel (untried in the game)", true);
+  const upperBody = check("Upper body only", "The legs held still (Uthana's torso only), for arm and upper body motions such as a wave or a phone. Off, the whole body moves, with feet that respect the ground", false);
   const asWritten = check("As written", "Send the words as they are; otherwise Uthana rewrites them into a motion description first", false);
   const name = el("input", "makename");
   name.type = "text";
@@ -995,7 +997,7 @@ function makePanel(api: MakeApi, shown: () => string | undefined): { box: HTMLEl
     r.append(...kids);
     return r;
   };
-  box.append(prompt, row(model, length, inPlace.wrap, asWritten.wrap), row(name, goesTo), row(generate, fromGlb), status);
+  box.append(prompt, row(model, length, inPlace.wrap, upperBody.wrap, asWritten.wrap), row(name, goesTo), row(generate, fromGlb), status);
 
   const price = () => {
     const m = MakeModels.find((x) => x.id === model.value) ?? MakeModels[0];
@@ -1035,6 +1037,7 @@ function makePanel(api: MakeApi, shown: () => string | undefined): { box: HTMLEl
         action,
         ...(action === "generate" ? { prompt: prompt.value.trim(), length: Number(length.value), model: model.value, asWritten: asWritten.input.checked } : {}),
         inPlace: inPlace.input.checked,
+        upperBodyOnly: upperBody.input.checked,
         ...(name.value.trim() && !replacing ? { name: name.value.trim() } : {}),
         ...(replacing ? { replace: api.made ?? shown() } : {}),
       });

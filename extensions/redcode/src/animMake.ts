@@ -18,6 +18,8 @@ export interface MakeRequest {
   length?: number;
   model?: anim.Model;
   inPlace?: boolean;
+  /** The lower body held still (Uthana's torso_only), for arm and upper body motions. */
+  upperBodyOnly?: boolean;
   /** Uthana rewrites the prompt unless this is set. */
   asWritten?: boolean;
   /** The new clip's name; from the prompt (or the file's name) when left out. */
@@ -155,6 +157,7 @@ export async function makeClip(deps: MakeDeps, req: MakeRequest, onStage: StageC
       length: req.length,
       model: req.model,
       inPlace: req.inPlace,
+      upperBodyOnly: req.upperBodyOnly,
       rewritePrompt: req.asWritten ? false : undefined,
       name,
       replace: req.replace,

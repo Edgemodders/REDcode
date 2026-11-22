@@ -257,7 +257,7 @@ interface Request {
   /** sectorAction copy: the text for the clipboard. */
   text?: string;
   /** animsMake: what to make (docs/design/animation-tools.md, AT2); replace is the clip the view shows, by name. */
-  make?: { action: "generate" | "glb"; prompt?: string; length?: number; model?: string; inPlace?: boolean; asWritten?: boolean; name?: string; replace?: string };
+  make?: { action: "generate" | "glb"; prompt?: string; length?: number; model?: string; inPlace?: boolean; upperBodyOnly?: boolean; asWritten?: boolean; name?: string; replace?: string };
 }
 
 /** Making clips in the animation view: the extension's side (src/animMake.ts), set by extension.ts. */
@@ -708,6 +708,7 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
                 length: want.length,
                 model: want.model as import("./animMake").MakeRequest["model"],
                 inPlace: want.inPlace,
+                upperBodyOnly: want.upperBodyOnly,
                 asWritten: want.asWritten,
                 name: want.replace && madeClip ? madeClip : want.name,
                 replace,

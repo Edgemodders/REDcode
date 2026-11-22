@@ -57,13 +57,17 @@ try {
   // 1. The library into project B.
   const project = core.ensureProject(path.join(scratch, "LibraryD"), "AnimProbeD");
   const reference = await core.referenceClip(bridge, cacheDir, rig);
-  const fitted = core.fitClip(core.readGlb(fs.readFileSync(motionFile)), reference, "probe_d__wave");
+  // As the probe made it (no facing turn, which came after Probe D), for the byte for byte comparison.
+  const fitted = core.fitClip(core.readGlb(fs.readFileSync(motionFile)), reference, "probe_d__wave", { face: false });
+  // The default fit turns the motion to face as the game's idle does (the pack's first in-game run).
+  const faced = core.fitClip(core.readGlb(fs.readFileSync(motionFile)), reference, "faced").report;
+  check(Math.abs(Math.abs(faced.facing) - 146) < 3, `the fit turns Uthana's motion ${faced.facing.toFixed(0)} degrees to face as the game's clips do`);
   const r = fitted.report;
   console.log(`     fit: ${r.duration.toFixed(2)} s, ${r.frames} frames, ${r.channels.written} channels (${r.channels.fromMotion} from the motion), lift ${(r.grounding.lift * 100).toFixed(1)} cm, rest pose within ${r.restDifference.degrees.toFixed(3)} degrees (${r.restDifference.bone}), missing ${r.missingBones.length}`);
   check(r.channels.written === 142 && r.missingBones.length === 0 && r.restDifference.degrees < 0.1, "the fit writes every channel, on the game's own skeleton");
   const added = await core.addClip(bridge, project, rig, "probe_d__wave", fitted.glb, { seconds: r.duration }, undefined, "probe\\anims\\probe_d.anims");
   check(added.added.includes("probe_d__wave"), `added to ${added.set} (from ${added.from})`);
-  const replacing = core.fitClip(core.readGlb(fs.readFileSync(motionFile)), reference, rig.referenceClip);
+  const replacing = core.fitClip(core.readGlb(fs.readFileSync(motionFile)), reference, rig.referenceClip, { face: false });
   const replaced = await core.replaceClip(bridge, project, rig.referenceSet, rig.referenceClip, replacing.glb);
   check(replaced.updated.includes(rig.referenceClip) && replaced.from === "template", `replaced ${rig.referenceClip} in a copy of the game's set (from ${replaced.from})`);
   for (const set of ["probe\\anims\\probe_d.anims", rig.referenceSet]) {
@@ -119,6 +123,7 @@ try {
   const joints = new Set(wBody.json.skins[0].joints.map((j) => wBody.json.nodes[j].name));
   check([...wBones].every((n) => joints.has(n)), `the woman's stand-in (${wBody.json.skins[0].joints.length} joints) has every bone her clips animate`);
   check(core.rigFor(w.rig) === w && core.rigFor(rig.rig.toUpperCase()) === rig, "rigFor finds both rigs");
+  check(core.promptFor("a man waves").startsWith("a man waves. Natural human movement") && core.promptFor("a man waves", "free") === "a man waves", "the grounding rule goes with the words, unless the feet are free");
   check(core.clipNameFor("A man stands relaxed, raises his right hand and waves hello") === "man_stands_relaxed_raises" && core.cost("text-to-motion-3.0", 5) === 0.5, "clip names and costs");
 } finally {
   b.stop();

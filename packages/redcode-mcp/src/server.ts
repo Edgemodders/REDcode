@@ -313,6 +313,7 @@ tool("anim_generate", "Make an animation from words with Uthana's text to motion
   model: z.enum(["text-to-motion-3.0", "text-to-motion-3.0-lite", "text-to-motion-3.0-mini"]).optional(),
   inPlace: z.boolean().optional().describe("No travel across the floor (default true): the game's workspots apply no root motion."),
   asWritten: z.boolean().optional().describe("Send the prompt as written; otherwise Uthana rewrites it first."),
+  upperBodyOnly: z.boolean().optional().describe("Hold the legs still (Uthana's torso_only), for arm and upper body motions. Off (default), the whole body moves; REDcode adds a rule to the prompt for feet that respect the ground: lifting a leg, stepping, running and jumping are fine; floating, sliding and shuffling are not."),
   name: z.string().optional().describe("The clip's name (lowercase letters, digits, _); from the prompt when left out."),
   again: z.union([z.boolean(), z.literal("edited")]).optional().describe("When a made clip has the name: true makes it again (keeping its id); 'edited' also when EDGEfab has edited it. Ask the modder first."),
 }, async (a, b) => {
@@ -324,7 +325,7 @@ tool("anim_generate", "Make an animation from words with Uthana's text to motion
   const stages: string[] = [];
   const r = await anim.generate({
     bridge: anim.asBridge(b), uthana: anim.uthana(key), key, rig, project, cacheDir: animCache,
-    prompt: a.prompt, length: a.length, model: a.model, inPlace: a.inPlace, rewritePrompt: a.asWritten ? false : undefined,
+    prompt: a.prompt, length: a.length, model: a.model, inPlace: a.inPlace, upperBodyOnly: a.upperBodyOnly, rewritePrompt: a.asWritten ? false : undefined,
     name, overwriteEdited: a.again === "edited", onStage: (s) => stages.push(s),
   });
   return madeOut(r, project, { cost: r.cost, motionId: r.motionId, fit: r.report });

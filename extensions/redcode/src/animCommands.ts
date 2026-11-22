@@ -30,6 +30,8 @@ export interface GenerateAnimationOptions {
   model?: Model;
   /** No travel across the floor (default true). */
   inPlace?: boolean;
+  /** The legs held still, for arm and upper body motions. */
+  upperBodyOnly?: boolean;
   /** The clip's name; from the prompt when left out. */
   name?: string;
   /** Replace a game clip (in a copy of its set in the project) instead of making a new clip. */
@@ -183,7 +185,7 @@ export function registerAnimCommands(context: vscode.ExtensionContext, host: Ani
     if (!key) throw new Error(`${caller} may not use the Uthana key, or none is set`);
     const r = await makeClip(
       { ...host.deps, uthanaKey: async () => key },
-      { action: "generate", rig: rigPathOf(o.rig), prompt: o.prompt, length: o.length, model: o.model, inPlace: o.inPlace, name: o.name, replace: o.replace },
+      { action: "generate", rig: rigPathOf(o.rig), prompt: o.prompt, length: o.length, model: o.model, inPlace: o.inPlace, upperBodyOnly: o.upperBodyOnly, name: o.name, replace: o.replace },
     );
     if (o.open !== false) await host.open(r.file, r.clip);
     return r;

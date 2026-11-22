@@ -26,6 +26,8 @@ export interface UthanaJob {
 export interface DownloadOptions {
   fps?: 24 | 30 | 60;
   inPlace?: boolean;
+  /** Uthana's torso_only: the lower body held still, for arm and upper body motions. */
+  torsoOnly?: boolean;
 }
 
 export interface Uthana {
@@ -102,8 +104,8 @@ export function uthana(key: string, fetchImpl: typeof fetch = fetch): Uthana {
       }
     },
 
-    async download(characterId, motionId, { fps = 30, inPlace = true } = {}) {
-      const qs = new URLSearchParams({ fps: String(fps), no_mesh: "true", ...(inPlace ? { in_place: "true" } : {}) });
+    async download(characterId, motionId, { fps = 30, inPlace = true, torsoOnly = false } = {}) {
+      const qs = new URLSearchParams({ fps: String(fps), no_mesh: "true", ...(inPlace ? { in_place: "true" } : {}), ...(torsoOnly ? { torso_only: "true" } : {}) });
       let url = `${Base}/motion/file/motion_viewer/${encodeURIComponent(characterId)}/${encodeURIComponent(motionId)}/glb/motion.glb?${qs}`;
       let r = await fetchImpl(url, { headers: { Authorization: auth }, redirect: "manual" });
       // A redirect is followed with the key only when it stays on Uthana's own host.

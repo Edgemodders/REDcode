@@ -6,6 +6,21 @@ import { addClip, EditedClipError, hasEdits, recordOf, referenceClip, replaceCli
 import { readGlb } from "./glb";
 import { cost, Models, motionIdOf, type Model, type Uthana } from "./uthana";
 
+/**
+ * Added to the words for a body motion (the owner, 2026-11-22: the first made clips floated, a foot drifting aside
+ * while the other tapped): feet that respect the ground as real feet do, full body motions included. Lifting a leg,
+ * stepping, running and jumping are normal; floating, drifting and shuffling are not (the owner, 2026-11-22). "free"
+ * leaves it out, for a motion the rule gets in the way of.
+ */
+export const GroundingRule =
+  "Natural human movement on solid ground, as a real body moves: lifting a foot or a leg, stepping, kicking, running and jumping are all fine. Whenever the body is not in the air, its weight rests on a foot on the floor; a foot that bears weight is flat on the ground and does not slide; a lifted foot is clearly lifted for a reason and comes back down. No foot floats, drifts or hovers above the ground, and the feet do not shuffle unless asked to.";
+
+/** The words Uthana gets: the modder's, with the grounding rule unless the feet are free. */
+export function promptFor(words: string, feet: "planted" | "free" = "planted"): string {
+  const w = words.trim().replace(/\s+$/, "");
+  return feet === "free" ? w : `${w}${/[.!?]$/.test(w) ? "" : "."} ${GroundingRule}`;
+}
+
 export type Stage = "stand-in" | "queued" | "running" | "downloading" | "fitting" | "importing" | "done";
 
 export interface GenerateOptions {
@@ -25,6 +40,10 @@ export interface GenerateOptions {
   inPlace?: boolean;
   /** Uthana rewrites the prompt unless false. */
   rewritePrompt?: boolean;
+  /** "planted" (default): the grounding rule goes with the words; "free" for a motion that steps, kicks or jumps. */
+  feet?: "planted" | "free";
+  /** The lower body held still (Uthana's torso_only), for arm and upper body motions. */
+  upperBodyOnly?: boolean;
   /** The clip's name; from the prompt when left out. */
   name?: string;
   /** Replace this game clip in its set instead of adding to the project's set. */
@@ -70,7 +89,8 @@ export async function generate(o: GenerateOptions): Promise<Generated> {
   const character = await standIn(o.bridge, o.uthana, o.key, o.rig, o.cacheDir);
   if (o.signal?.aborted) throw new Error("Stopped");
 
-  const job = await o.uthana.textToMotion(o.prompt, { model, length, characterId: character.id, rewritePrompt: o.rewritePrompt });
+  const sent = promptFor(o.prompt, o.feet);
+  const job = await o.uthana.textToMotion(sent, { model, length, characterId: character.id, rewritePrompt: o.rewritePrompt });
   stage("queued", job.id);
   const done = await o.uthana.wait(job.id, { signal: o.signal, onStatus: (s) => s === "RESERVED" && stage("running", job.id) });
   if (done.status !== "FINISHED") throw new Error(`Uthana's job ${done.status.toLowerCase()}: ${JSON.stringify(done.result ?? null).slice(0, 300)}`);
@@ -78,7 +98,7 @@ export async function generate(o: GenerateOptions): Promise<Generated> {
   if (!motionId) throw new Error(`Uthana finished but named no motion: ${JSON.stringify(done.result ?? null).slice(0, 300)}`);
 
   stage("downloading", motionId);
-  const motion = await o.uthana.download(character.id, motionId, { fps: 30, inPlace: o.inPlace !== false });
+  const motion = await o.uthana.download(character.id, motionId, { fps: 30, inPlace: o.inPlace !== false, torsoOnly: !!o.upperBodyOnly });
 
   stage("fitting");
   const { glb, report } = fitClip(readGlb(motion), await referenceClip(o.bridge, o.cacheDir, o.rig), clip);
@@ -88,6 +108,9 @@ export async function generate(o: GenerateOptions): Promise<Generated> {
   const record = {
     source: "uthana",
     prompt: o.prompt,
+    ...(sent !== o.prompt ? { sent } : {}),
+    feet: o.feet ?? "planted",
+    ...(o.upperBodyOnly ? { upperBodyOnly: true } : {}),
     model,
     length,
     inPlace: o.inPlace !== false,

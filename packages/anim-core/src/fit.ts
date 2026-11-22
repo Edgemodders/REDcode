@@ -30,11 +30,67 @@ export interface FitReport {
   restDifference: { bone: string; degrees: number };
   /** Metres: where the lowest heel or toe was, where the game clip's is, and how much the hips were lifted. */
   grounding: { motionLowest: number; gameLowest: number; lift: number };
+  /** Degrees the motion was turned about the vertical so its first frame faces as the game clip does. */
+  facing: number;
 }
 
 export interface FitOptions {
   /** Lift the hips to the game clip's foot height (default true). */
   ground?: boolean;
+  /** Turn the motion to face as the game clip does at its first frame (default true). */
+  face?: boolean;
+}
+
+// ---- quaternions [x, y, z, w] ----
+const qmul = (a: number[], b: number[]) => [
+  a[3] * b[0] + a[0] * b[3] + a[1] * b[2] - a[2] * b[1],
+  a[3] * b[1] - a[0] * b[2] + a[1] * b[3] + a[2] * b[0],
+  a[3] * b[2] + a[0] * b[1] - a[1] * b[0] + a[2] * b[3],
+  a[3] * b[3] - a[0] * b[0] - a[1] * b[1] - a[2] * b[2],
+];
+const qconj = (q: number[]) => [-q[0], -q[1], -q[2], q[3]];
+const qrot = (q: number[], v: number[]) => qmul(qmul(q, [v[0], v[1], v[2], 0]), qconj(q)).slice(0, 3);
+const qnorm = (q: number[]) => {
+  const n = Math.hypot(q[0], q[1], q[2], q[3]) || 1;
+  return q.map((x) => x / n);
+};
+
+/** The world rotation of a node at the first key: its parents' first keys (or rest) and its own. */
+function worldRotationAtStart(nodes: GlbNode[], channels: Channel[], name: string): number[] {
+  const parent = new Map<number, number>();
+  nodes.forEach((n, i) => (n.children ?? []).forEach((c) => parent.set(c, i)));
+  const chain: number[] = [];
+  for (let i: number | undefined = nodes.findIndex((n) => n.name === name); i !== undefined && i >= 0; i = parent.get(i)) chain.unshift(i);
+  let q = [0, 0, 0, 1];
+  for (const i of chain) {
+    const ch = channels.find((c) => c.node === nodes[i].name && c.path === "rotation");
+    q = qmul(q, ch?.values[0] ?? nodes[i].rotation ?? [0, 0, 0, 1]);
+  }
+  return qnorm(q);
+}
+
+/** Degrees about the world's vertical (glTF Y) that turn the motion's starting hips to face as the game clip's do. */
+function yawBetween(nodes: GlbNode[], game: Channel[], motion: Channel[]): number {
+  const relative = qmul(worldRotationAtStart(nodes, game, "Hips"), qconj(worldRotationAtStart(nodes, motion, "Hips")));
+  // The relative turn is nearly about the vertical when both stand: its yaw, from where it takes a level vector.
+  const v = qrot(relative, [1, 0, 0]);
+  return (Math.atan2(-v[2], v[0]) * 180) / Math.PI;
+}
+
+/** Turns the hips' rotation and travel by degrees about the world's vertical, expressed in the hips' parent space. */
+function turnMotion(nodes: GlbNode[], channels: Channel[], degrees: number): void {
+  const half = (degrees * Math.PI) / 360;
+  const world = [0, Math.sin(half), 0, Math.cos(half)];
+  // The hips' parent (Root, under Armature) at the start: the turn in its space.
+  const parentIndex = nodes.findIndex((n) => (n.children ?? []).some((c) => nodes[c].name === "Hips"));
+  const parent = parentIndex >= 0 ? worldRotationAtStart(nodes, channels, nodes[parentIndex].name!) : [0, 0, 0, 1];
+  const local = qnorm(qmul(qmul(qconj(parent), world), parent));
+  for (let k = 0; k < channels.length; k++) {
+    const c = channels[k];
+    if (c.node !== "Hips") continue;
+    if (c.path === "rotation") channels[k] = { ...c, values: c.values.map((q) => qnorm(qmul(local, q))) };
+    else if (c.path === "translation") channels[k] = { ...c, values: c.values.map((t) => qrot(local, t)) };
+  }
 }
 
 const quatAngle = (a: number[], b: number[]) => (2 * Math.acos(Math.min(1, Math.abs(a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3]))) * 180) / Math.PI;
@@ -143,7 +199,15 @@ export function fitClip(motion: Glb, reference: Glb, name: string, options: FitO
     fromRest++;
   }
 
-  const gameLowest = lowestFoot(gj.nodes, channelsOf(reference));
+  // Facing (Animation Tools' first in-game run, 2026-11-22: the character turned away from V as the clip started).
+  // Uthana starts a motion facing its own way, 146 degrees from the game's in the first test; the game plays a
+  // clip from the character's own facing. So the whole motion turns about the vertical until its first frame's
+  // hips face as the game clip's do; any turning within the clip stays.
+  const refChannels = channelsOf(reference);
+  const facing = options.face === false ? 0 : yawBetween(gj.nodes, refChannels, channels);
+  if (Math.abs(facing) > 0.5) turnMotion(gj.nodes, channels, facing);
+
+  const gameLowest = lowestFoot(gj.nodes, refChannels);
   const motionLowest = lowestFoot(gj.nodes, channels);
   const lift = options.ground === false ? 0 : gameLowest - motionLowest;
   const hips = channels.findIndex((c) => c.node === "Hips" && c.path === "translation");
@@ -201,6 +265,7 @@ export function fitClip(motion: Glb, reference: Glb, name: string, options: FitO
       missingBones,
       restDifference,
       grounding: { motionLowest, gameLowest, lift },
+      facing,
     },
   };
 }

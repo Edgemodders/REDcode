@@ -76,6 +76,7 @@ let model = Models[0];
 let length = 5;
 let inPlace = true;
 let playWhenMade = true;
+let upperBodyOnly = false;
 let prompt = '';
 let name = '';
 let pickedClip = '';
@@ -207,9 +208,10 @@ ui.window({
     ui.row(spawnButton, removeButton),
     ui.heading('Make a clip'),
     promptInput,
+    ui.text('Say what the feet do when they move ("keeps his left foot planted and taps the right"). REDcode asks Uthana for feet that respect the ground: lifting a leg, stepping, running and jumping are fine; floating, sliding and shuffling are not.', { tone: 'dim' }),
     ui.row(modelPick, lengthPick),
     ui.row(nameInput),
-    ui.row(ui.toggle('In place', (on) => (inPlace = on), { checked: true }), ui.toggle('Play when made', (on) => (playWhenMade = on), { checked: true })),
+    ui.row(ui.toggle('In place', (on) => (inPlace = on), { checked: true }), ui.toggle('Play when made', (on) => (playWhenMade = on), { checked: true }), ui.toggle('Upper body only', (on) => (upperBodyOnly = on), { checked: false })),
     ui.row(generateButton),
     progress,
     why,
@@ -440,6 +442,7 @@ function generateClip() {
         length,
         model: model.value,
         inPlace,
+        upperBodyOnly,
         name: clipName,
         onStage: (s) => {
           setStage(s);
