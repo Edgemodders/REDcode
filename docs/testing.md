@@ -790,6 +790,8 @@ The REDnode pack in the game ([design](design/animation-tools.html#at3-as-built-
 | 10 | Optional: one more Generate there | The clip shows in REDcode's Project view under `animprobed\anims\<name>\` |
 | 11 | **Remove**, switch the app off | The character is gone |
 
+Run 1 (owner, 2026-11-22), in progress: at step 4, **Generate** showed nothing while it worked. Fixed the same day: while a Generate runs, the button is disabled and shows a spinner, the stage and the time so far ("◓ Uthana is making it… 0:42"); a progress bar under it steps through the 8 stages; a line under it says what each stage is doing, since REDnode's UI kit has no tooltips; Spawn, Remove, Play and Stop are off until it ends. Checked outside the game (`check.mjs`: the button disabled with the spinner and stages, then enabled with its price; the bar at 8 of 8). Installed again: switch the app off and on in the Mod Manager to load it.
+
 ## Keys (K4b)
 
 Built 2026-11-20 (REDcode issue #33, [design](design/keys.html#k4b-as-built-2026-11-20)). Checked before: 3 unit checks, and REDcode's key calls against REDbridge built from main on a scratch folder with test keys (see the design page). **Not run:** anything in VS Code. These steps use your real key store, `%APPDATA%\Edgemodders\keys`, which REDnode's in-game Keys view shares: use a test key you can remove, or note which keys are set first.

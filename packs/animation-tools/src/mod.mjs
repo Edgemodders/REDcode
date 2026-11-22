@@ -38,6 +38,32 @@ const Stages = {
   importing: 'Writing the clip into the project…',
   done: 'Made.',
 };
+/** Each stage's short name for the busy button, and how far along it is (of StageCount). */
+const StageSteps = {
+  key: [0, 'Asking for the key'],
+  'stand-in': [1, 'Stand-in'],
+  queued: [2, 'Queued at Uthana'],
+  running: [3, 'Uthana is making it'],
+  downloading: [4, 'Downloading'],
+  fitting: [5, 'Fitting'],
+  importing: [6, 'Writing the clip'],
+  playing: [7, 'Packing and playing'],
+  done: [8, 'Done'],
+};
+const StageCount = 8;
+/** What each stage is doing, in words, shown under the busy button. */
+const StageWhy = {
+  key: 'Getting your Uthana key from the shared store. The first time, REDnode asks you.',
+  'stand-in': "Uthana needs a character with the game's skeleton to put the motion on. It is uploaded once per rig, free.",
+  queued: 'Uthana has the words and is starting the job. Nothing is charged until it finishes.',
+  running: 'Uthana is making the motion from your words. This takes a minute or two.',
+  downloading: "Fetching the finished motion, already on the game's skeleton.",
+  fitting: "Turning it into the game's own clip format: every bone keyed, the feet on the floor.",
+  importing: 'REDbridge is writing the clip into the project, in its own set.',
+  playing: 'Packing the project, swapping it into the running game, and playing the clip.',
+};
+/** A spinner for the busy button: the overlay draws these from Windows' symbol fonts. */
+const Spinner = ['◐', '◓', '◑', '◒'];
 
 // ---- state --------------------------------------------------------------------------------------
 
@@ -112,7 +138,54 @@ const lengthPick = ui.select('Length', lengths(), {
   },
 });
 const generateButton = ui.button('Generate', () => void generateClip());
-const priceButton = () => generateButton.set({ label: `Generate, $${(Math.round(model.perSecond * length * 100) / 100).toFixed(2)}` });
+const priceLabel = () => `Generate, $${(Math.round(model.perSecond * length * 100) / 100).toFixed(2)}`;
+const priceButton = () => {
+  if (!generating) generateButton.set({ label: priceLabel() });
+};
+/** Under the button while it works: how far along, and what it is doing (the UI kit has no tooltips). */
+const progress = ui.progress(0, { max: StageCount, label: '' });
+const why = ui.text('Uthana charges only a finished job. The clip plays on the character when it is made.', { tone: 'dim' });
+
+// ---- busy: one action at a time, the buttons off while one runs ---------------------------------
+
+const spawnButton = ui.button('Spawn', () => void spawn());
+const removeButton = ui.button('Remove', () => void remove(), { variant: 'ghost' });
+const playButton = ui.button('Play', () => void play(pickedClip));
+const stopButton = ui.button('Stop', () => void stop(), { variant: 'ghost' });
+const actionButtons = [spawnButton, removeButton, playButton, stopButton, generateButton];
+const setButtons = (disabled) => actionButtons.forEach((b) => b.set({ disabled }));
+
+let generating = null; // { stage, started, timer, frame }
+const elapsed = (ms) => {
+  const s = Math.floor(ms / 1000);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+};
+const drawBusy = () => {
+  if (!generating) return;
+  const [at, short] = StageSteps[generating.stage] ?? [0, generating.stage];
+  generateButton.set({ label: `${Spinner[generating.frame++ % Spinner.length]} ${short}… ${elapsed(Date.now() - generating.started)}` });
+  progress.set({ value: at, label: `${short}, step ${Math.max(at, 1)} of ${StageCount}` });
+};
+/** The Generate button busy: disabled, a spinner, the stage and the time so far; the line under it says why. */
+function startGenerating() {
+  generating = { stage: 'key', started: Date.now(), frame: 0, timer: setInterval(drawBusy, 250) };
+  setStage('key');
+}
+function setStage(stage) {
+  if (!generating) return;
+  generating.stage = stage;
+  why.set({ text: StageWhy[stage] ?? '', tone: 'dim' });
+  drawBusy();
+}
+function stopGenerating(ok) {
+  if (!generating) return;
+  clearInterval(generating.timer);
+  const took = elapsed(Date.now() - generating.started);
+  generating = null;
+  progress.set({ value: ok ? StageCount : 0, label: ok ? `Done in ${took}` : '' });
+  why.set({ text: ok ? 'Uthana charges only a finished job. The clip plays on the character when it is made.' : 'Not made. Uthana charges only a finished job.', tone: 'dim' });
+  generateButton.set({ label: priceLabel() });
+}
 priceButton();
 
 const clipPick = ui.select('Clip', [], { placeholder: 'No made clips on this rig yet', onChange: (v) => (pickedClip = v) });
@@ -131,16 +204,18 @@ ui.window({
     ui.heading('Character'),
     characterPick,
     otherRow,
-    ui.row(ui.button('Spawn', () => void spawn()), ui.button('Remove', () => void remove(), { variant: 'ghost' })),
+    ui.row(spawnButton, removeButton),
     ui.heading('Make a clip'),
     promptInput,
     ui.row(modelPick, lengthPick),
     ui.row(nameInput),
     ui.row(ui.toggle('In place', (on) => (inPlace = on), { checked: true }), ui.toggle('Play when made', (on) => (playWhenMade = on), { checked: true })),
     ui.row(generateButton),
+    progress,
+    why,
     ui.heading('Custom animations'),
     clipPick,
-    ui.row(ui.button('Play', () => void play(pickedClip)), ui.button('Stop', () => void stop(), { variant: 'ghost' })),
+    ui.row(playButton, stopButton),
     status,
     log,
   ],
@@ -200,6 +275,8 @@ async function step(label, fn) {
     return;
   }
   busy = label;
+  // One action at a time: every action button is off until it ends.
+  setButtons(true);
   const started = performance.now();
   try {
     const note = await fn();
@@ -210,6 +287,7 @@ async function step(label, fn) {
     show(`${label} failed: ${message}`, 'danger');
   } finally {
     busy = '';
+    setButtons(false);
   }
 }
 
@@ -297,25 +375,28 @@ function remove() {
 }
 
 /** Plays a made clip on the character: the project swapped in, the rig's workspot written, the clip jumped to. */
+/** Plays a made clip on the character: the project swapped in when it changed, the rig's workspot written, the clip jumped to. */
+async function playClip(clip) {
+  if (!clip) throw new Error('Pick a clip');
+  if (!actor) throw new Error('Spawn a character first');
+  const rig = anim.Rigs[actor.rig];
+  show(`Packing and swapping ${clip} in…`);
+  say(`project: ${await swapProject()}`);
+  const workspot = await workspotFor(rig);
+  if (workspot !== actor.workspot || !actor.playing) {
+    // A new workspot spawns the character again carrying it, in the same place.
+    const r = await world.useWorkspot(actor.id, { workspot, entry: clip });
+    actor.id = r.id;
+    actor.workspot = workspot;
+    if (!r.started) throw new Error(`the workspot did not start: ${r.why ?? 'unknown'}`);
+    actor.playing = true;
+  } else if (!(await world.jumpWorkspot(actor.id, clip))) throw new Error(`${clip} is not in the workspot`);
+  show(`Playing ${clip}. A brief T pose the first time a workspot plays is the game's own.`, 'accent');
+  return `playing ${clip}`;
+}
+
 function play(clip) {
-  return step('Play', async () => {
-    if (!clip) throw new Error('Pick a clip');
-    if (!actor) throw new Error('Spawn a character first');
-    const rig = anim.Rigs[actor.rig];
-    show(`Packing and swapping ${clip} in…`);
-    say(`project: ${await swapProject()}`);
-    const workspot = await workspotFor(rig);
-    if (workspot !== actor.workspot || !actor.playing) {
-      // A new workspot spawns the character again carrying it, in the same place.
-      const r = await world.useWorkspot(actor.id, { workspot, entry: clip });
-      actor.id = r.id;
-      actor.workspot = workspot;
-      if (!r.started) throw new Error(`the workspot did not start: ${r.why ?? 'unknown'}`);
-      actor.playing = true;
-    } else if (!(await world.jumpWorkspot(actor.id, clip))) throw new Error(`${clip} is not in the workspot`);
-    show(`Playing ${clip}. A brief T pose the first time a workspot plays is the game's own.`, 'accent');
-    return `playing ${clip}`;
-  });
+  return step('Play', () => playClip(clip));
 }
 
 function stop() {
@@ -340,35 +421,45 @@ function generateClip() {
     if (!words) throw new Error('Say what the animation shows');
     const rig = rigOf();
     if (!rig) throw new Error('Pick a character on a man’s or woman’s rig');
-    const key = await secrets.askShared('uthana', { reason: 'Animation Tools makes animations from your words with Uthana, on your Uthana account ($0.10 a second with its 3.0 model).' });
-    if (!key) throw new Error('No Uthana key: set it in REDnode’s Keys window or REDcode’s Keys view (service uthana)');
-    const project = anim.projectAt(projectDir);
-    const clipName = freeName(project, anim.slug(name || anim.clipNameFor(words)));
-    show(`Making ${clipName}…`);
-    const made = await anim.generate({
-      bridge: await bridge(),
-      uthana: anim.uthana(key),
-      key,
-      rig,
-      project,
-      cacheDir,
-      prompt: words,
-      length,
-      model: model.value,
-      inPlace,
-      name: clipName,
-      onStage: (s) => show(Stages[s] ?? s),
-    });
-    say(`made ${made.clip} in ${made.set} ($${made.cost.toFixed(2)}), the hips lifted ${(made.report.grounding.lift * 100).toFixed(1)} cm`);
-    await refreshClips(made.clip);
-    nameInput.set({ value: '' });
-    name = '';
-    show(`Made ${made.clip}.${playWhenMade && actor ? ' Playing it…' : ' Pick it and Play.'}`, 'accent');
-    if (playWhenMade && actor && actor.rig === rig.id) {
-      busy = '';
-      await play(made.clip);
+    startGenerating();
+    let ok = false;
+    try {
+      const key = await secrets.askShared('uthana', { reason: 'Animation Tools makes animations from your words with Uthana, on your Uthana account ($0.10 a second with its 3.0 model).' });
+      if (!key) throw new Error('No Uthana key: set it in REDnode’s Keys window or REDcode’s Keys view (service uthana)');
+      const project = anim.projectAt(projectDir);
+      const clipName = freeName(project, anim.slug(name || anim.clipNameFor(words)));
+      show(`Making ${clipName}…`);
+      const made = await anim.generate({
+        bridge: await bridge(),
+        uthana: anim.uthana(key),
+        key,
+        rig,
+        project,
+        cacheDir,
+        prompt: words,
+        length,
+        model: model.value,
+        inPlace,
+        name: clipName,
+        onStage: (s) => {
+          setStage(s);
+          show(Stages[s] ?? s);
+        },
+      });
+      say(`made ${made.clip} in ${made.set} ($${made.cost.toFixed(2)}), the hips lifted ${(made.report.grounding.lift * 100).toFixed(1)} cm`);
+      await refreshClips(made.clip);
+      nameInput.set({ value: '' });
+      name = '';
+      show(`Made ${made.clip}.${playWhenMade && actor ? ' Playing it…' : ' Pick it and Play.'}`, 'accent');
+      if (playWhenMade && actor && actor.rig === rig.id) {
+        setStage('playing');
+        say(`Play: ${await playClip(made.clip)}`);
+      }
+      ok = true;
+      return `made ${made.clip}`;
+    } finally {
+      stopGenerating(ok);
     }
-    return `made ${made.clip}`;
   });
 }
 
