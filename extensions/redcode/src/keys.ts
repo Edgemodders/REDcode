@@ -39,6 +39,30 @@ export interface KeyValue {
   unreadable: boolean;
 }
 
+/** REDcodeApi.keys.status: what a caller can expect from get, asking nobody and never the key. */
+export interface KeyStatus {
+  service: string;
+  /** A key is there: in the store, or in the environment variable. */
+  set: boolean;
+  /** Where it comes from: the environment variable wins over the store's file. */
+  source: "env" | "file" | null;
+  /** The store's file is there but this Windows user cannot decrypt it (made by another user or PC). */
+  unreadable: boolean;
+  /** Whether this caller may read it: allowed, denied (the modder said Don't Allow), or not asked yet. */
+  access: "allowed" | "denied" | "unasked";
+}
+
+/** A key's status for one caller, from keys.info and the remembered answer. */
+export function keyStatus(info: KeyInfo, answer: "allow" | "deny" | undefined): KeyStatus {
+  return {
+    service: info.service,
+    set: info.set,
+    source: info.source,
+    unreadable: info.unreadable,
+    access: answer === "allow" ? "allowed" : answer === "deny" ? "denied" : "unasked",
+  };
+}
+
 /** The services every EDGE tool knows, in the order the Keys view lists them (REDbridge's keys.list does too). */
 export const KnownServices = ["anthropic", "gemini", "openai", "elevenlabs", "tripo", "uthana"];
 

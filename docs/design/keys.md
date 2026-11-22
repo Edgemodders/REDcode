@@ -71,5 +71,5 @@ Then Marketplace support said keywords trigger the rejection. EDGEhack 0.1.1, wh
 ## Open
 
 - **Linux:** DPAPI is Windows only. A Linux REDbridge needs another store (libsecret, or a file it encrypts). See REDbridge's docs/linux.md.
-- **A no reads as no key:** `get` answers `undefined` after Don't Allow, the same as for an unset key, so a tool that falls back to `ask` offers the password box again each time. Telling the two apart, by a reason or a separate call, would let a tool stay quiet after a no. Raised by EDGEwave while building K4c (2026-11-21); not needed for the pilot.
+- **A no reads as no key:** `get` answers `undefined` after Don't Allow, the same as for an unset key, so a tool that falls back to `ask` offers the password box again each time. Raised by EDGEwave while building K4c (2026-11-21) and by EDGEfab in its K4d test (2026-11-22). **Done 2026-11-22, with the owner's yes:** `keys.status(service, caller)` answers `set`, `source`, `unreadable` and `access` (`allowed`, `denied`, `unasked`), asking nobody and never the key; `get` is unchanged, so the K4d tools keep working as built. Opens Test's **Read a Key** says why there was no key.
 - **REDcode without REDbridge:** a modder who has not installed REDbridge yet. REDcode's Install REDbridge comes first; until then, `keys.get` answers that the key store needs REDbridge.

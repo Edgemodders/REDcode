@@ -5,7 +5,7 @@
 import * as fs from "node:fs";
 import * as vscode from "vscode";
 import type { BridgeClient } from "./bridgeClient";
-import { checkServiceId, consentKey, deleteKey, describeKey, getKey, keyInfo, keysFolder, listKeys, setKey, type KeyInfo } from "./keys";
+import { checkServiceId, consentKey, deleteKey, describeKey, getKey, keyInfo, keysFolder, keyStatus, listKeys, setKey, type KeyInfo, type KeyStatus } from "./keys";
 
 /** REDcodeApi.keys: how another EDGE extension gets an AI service key, with the modder's say. */
 export interface KeysApi {
@@ -22,6 +22,12 @@ export interface KeysApi {
    * it; undefined when they cancel. Allows the caller to read it from then on.
    */
   ask(service: string, caller: string): Promise<string | undefined>;
+  /**
+   * Whether a key is set and whether caller may read it (allowed, denied, or not asked yet), without asking
+   * the modder anything and without the key. For telling "no key" from "the modder said no" after get answers
+   * undefined, so a tool can stay quiet after a no. Throws as get does.
+   */
+  status(service: string, caller: string): Promise<KeyStatus>;
   /** A service's key was set, replaced or removed, here or by another tool (the store's folder changed). */
   readonly onDidChange: vscode.Event<string>;
 }
@@ -159,6 +165,10 @@ export function registerKeys(context: vscode.ExtensionContext, getBridge: () => 
       await remember(caller, service, "allow");
       const r = await getKey(getBridge(), service, caller);
       return r.key ?? undefined;
+    },
+    async status(service, caller) {
+      ({ service, caller } = checkArgs(service, caller));
+      return keyStatus(await keyInfo(getBridge(), service), consent()[consentKey(caller, service)]);
     },
     onDidChange: changed.event,
   };

@@ -43,7 +43,14 @@ exports.activate = (context) => {
       }
       try {
         const key = await api.keys.get("tripo", "Opens Test");
-        void vscode.window.showInformationMessage(key ? `Opens Test read the Tripo key: ...${key.slice(-4)}` : "Opens Test: no key (none set, or not allowed).");
+        if (key) {
+          void vscode.window.showInformationMessage(`Opens Test read the Tripo key: ...${key.slice(-4)}`);
+          return;
+        }
+        // keys.status (unreleased): why there is none, asking nothing.
+        const s = typeof api.keys.status === "function" ? await api.keys.status("tripo", "Opens Test") : undefined;
+        const why = !s ? "none set, or not allowed" : s.access === "denied" ? "you said Don't Allow" : !s.set ? "none set" : s.unreadable ? "the store's file can't be read here" : s.access === "unasked" ? "the question was dismissed" : "none";
+        void vscode.window.showInformationMessage(`Opens Test: no key (${why}). Status: ${s ? JSON.stringify(s) : "no status call"}`);
       } catch (e) {
         void vscode.window.showErrorMessage(`Opens Test: ${e instanceof Error ? e.message : String(e)}`);
       }

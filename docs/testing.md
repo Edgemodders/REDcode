@@ -814,6 +814,20 @@ Built 2026-11-20 (REDcode issue #33, [design](design/keys.html#k4b-as-built-2026
 
 Result 2026-11-21, reported by the owner: steps 1 to 8 pass, on REDbridge 0.18.0 through Update REDbridge. Step 9, the optional one, was not run; its message was checked against REDbridge 0.17.0 outside VS Code on 2026-11-20. **Keys (K4b) passes.** What is left for the key API is K4c, the pilot in EDGEwave (EDGEwave #12), MCP use included, before any REDcode release with it.
 
+### Key status
+
+Built 2026-11-22, from EDGEfab's K4d test (a tool could not tell "no key" from "you said no"; [design](design/keys.html#open)): `REDcodeApi.keys.status(service, caller)`, and Opens Test's **Read a Key** says why it got no key. Checked before: typecheck and the unit checks (76, one for `keyStatus`). **Not run:** anything in VS Code. It also checks what closing the question does, which EDGEfab's test left open.
+
+| # | Do | Expected |
+|---|---|---|
+| S1 | F5 with **Run REDcode with Opens Test (no other extensions)**. The Keys view's `...` menu: **Forget Tool Permissions for Keys**. Then **Opens Test: Read a Key**, and close the question with **Esc** | "no key (the question was dismissed)", with `"access":"unasked"`. Nothing is remembered |
+| S2 | **Read a Key** again, and close the question with its **X** (or **Cancel**) | The question came back; the same "dismissed" message |
+| S3 | **Read a Key** again, and **Don't Allow** | "no key (you said Don't Allow)", with `"access":"denied"` |
+| S4 | **Read a Key** again | No question; "you said Don't Allow" again |
+| S5 | **Forget Tool Permissions for Keys**, **Read a Key**, **Allow** | The key's last four characters, as before |
+
+If S1 or S2 says "you said Don't Allow", closing the question is saved as a no on this PC, and that is a bug to fix.
+
 ## Edit in Blender: skinned meshes
 
 A modder found that **Edit in Blender** opened nothing for a skinned mesh: Blender's glTF importer failed with "'Context' object has no attribute 'object'", since the script's context had no window after `read_factory_settings`. Fixed on 2026-11-20 (8624c65, from the REDnode session, with the modder's fix): the import, and the export on each save, run with a window and a 3D view in their context.

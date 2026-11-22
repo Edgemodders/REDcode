@@ -1041,6 +1041,16 @@ await check("keys: the view's lines say where a key comes from and who reads it,
   assert.match(k.describeKey({ ...base, set: true, source: "file", unreadable: true }).description, /can't be read/);
 });
 
+await check("keys: status tells no key from a no, and never holds the key", () => {
+  const k = require("../dist/keys.js");
+  const info = { service: "tripo", name: "Tripo", set: true, source: "file", env: "TRIPO_API_KEY", last4: "abcd", unreadable: false, usedBy: [] };
+  assert.deepEqual(k.keyStatus(info, "deny"), { service: "tripo", set: true, source: "file", unreadable: false, access: "denied" });
+  assert.equal(k.keyStatus(info, "allow").access, "allowed");
+  assert.equal(k.keyStatus({ ...info, set: false, source: null, last4: null }, undefined).access, "unasked");
+  assert.equal(k.keyStatus({ ...info, set: false, source: null }, undefined).set, false);
+  assert.ok(!("last4" in k.keyStatus(info, "allow")), "not even the last four characters");
+});
+
 await check("keys: only REDcode's own key code reaches keys.*; request() refuses them", async () => {
   const k = require("../dist/keys.js");
   const client = new k.BridgeClient({ exe: "none" });

@@ -115,7 +115,8 @@ export interface REDcodeApi {
   editInBlender(file: string): Promise<void>;
   /**
    * The AI service keys every EDGE tool shares (REDcode issue #33): get asks the modder before a tool first
-   * reads a key, ask asks for one and saves it for every tool, onDidChange follows the store. Needs REDbridge
+   * reads a key, ask asks for one and saves it for every tool, status tells no key from the modder's no
+   * without asking, onDidChange follows the store. Needs REDbridge
    * 0.18.0. Since 0.10.16; an older REDcode has no keys.
    */
   readonly keys: KeysApi;
