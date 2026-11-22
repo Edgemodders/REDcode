@@ -775,6 +775,15 @@ Making clips in REDcode ([design](design/animation-tools.html#at2-as-built-2026-
 
 Run 1 (owner, 2026-11-22), in progress: step 3 made the clip with Name empty, as meant (the name comes from the words). Found: nothing showed that Generate was working, and the panel's inputs could still be changed. Fixed the same day: while a make runs, every input in the panel is off, the button shows a spinner, the stage and the time so far (its tooltip says it is generating), a bar under it steps through the stages, and a notification shows each stage; a second make from any animation view is refused until it ends. Typecheck, build and unit checks pass; not run in VS Code yet.
 
+### The Project view after a reload
+
+Asked in AT2's run (the owner, 2026-11-22): after **Developer: Reload Window** the Project view came back with every folder shut. Built the same day: the view remembers the roots and folders opened or shut (workspace state `redcode.projectTreeOpen`) and opens them again. Collapse All is not seen by the extension, so folders shut that way open again after a reload until opened and shut by hand. Typecheck, build and unit checks pass; **not run** in VS Code.
+
+| # | Do | Expected |
+|---|---|---|
+| P1 | Open a few folders under Archive and Raw, shut the Packed root, then **Developer: Reload Window** | The same folders are open and Packed is shut |
+| P2 | Shut one of those folders, reload | It stays shut; the others stay open |
+
 ## Animation Tools pack (AT3)
 
 The REDnode pack in the game ([design](design/animation-tools.html#at3-as-built-2026-11-22); files in `packs/animation-tools/README.md`). Installed in the game's REDnode apps folder on 2026-11-22 (`node packs/animation-tools/build.mjs --install <game>`). Up to four Generates, about $2 on the owner's Uthana account. REDnode 0.68.0 or later, with REDbridge found by REDnode (its Mod Manager offers **Get REDbridge** when not).
