@@ -16,7 +16,7 @@ export interface RenderedMaterial {
   fidelity: "approximate" | "checked";
 }
 
-export interface EdgematApi {
+export interface EDGEmatApi {
   apiVersion: 1;
   /** Renderable materials for a mesh as one appearance shows it, keyed by material name. */
   renderMaterials(req: { mesh: string; appearance?: string; materials?: string[] }): Promise<Record<string, RenderedMaterial>>;
@@ -25,12 +25,12 @@ export interface EdgematApi {
 }
 
 /** EDGEmat's API, activating EDGEmat when it is installed but not yet running; undefined without it or with another apiVersion. Call it on a user's action, such as opening a mesh, not at startup. */
-export async function findEdgemat(): Promise<EdgematApi | undefined> {
-  const ext = vscode.extensions.getExtension<Partial<EdgematApi> | undefined>(EDGEmatId);
+export async function findEdgemat(): Promise<EDGEmatApi | undefined> {
+  const ext = vscode.extensions.getExtension<Partial<EDGEmatApi> | undefined>(EDGEmatId);
   if (!ext) return undefined;
   try {
     const api = ext.isActive ? ext.exports : await ext.activate();
-    return api && api.apiVersion === 1 && typeof api.renderMaterials === "function" ? (api as EdgematApi) : undefined;
+    return api && api.apiVersion === 1 && typeof api.renderMaterials === "function" ? (api as EDGEmatApi) : undefined;
   } catch {
     return undefined;
   }
