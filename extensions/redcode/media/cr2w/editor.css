@@ -260,3 +260,5 @@ input[type="checkbox"]:disabled { opacity: .5; cursor: default; }
 .animmake .makebarfill { height: 100%; width: 0; background: var(--accent); transition: width .4s ease; }
 .animmake.busy textarea, .animmake.busy input, .animmake.busy select { opacity: .6; }
 .animmake .makefrom { white-space: normal; font-size: 12px; }
+.animmake .maketarget { color: var(--accent); font-weight: 600; font-size: 13px; word-break: break-all; }
+.animmake .maketarget:empty { display: none; }

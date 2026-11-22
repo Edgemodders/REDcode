@@ -962,7 +962,9 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
 function makePanel(api: MakeApi, shown: () => string | undefined): { box: HTMLElement; refresh: () => void; stage: (stage: string, detail?: string) => void; focus: () => void } {
   const box = el("div", "animmake");
   box.hidden = true;
-  box.append(el("div", "label", "Make a clip"));
+  box.append(el("div", "label", "Make a Clip"));
+  // The clip picked in the list, in the accent colour: what Replace acts on.
+  const target = el("div", "maketarget", "");
   if (api.why) {
     box.append(el("div", "dim", api.why));
     return { box, refresh: () => undefined, stage: () => undefined, focus: () => undefined };
@@ -1023,8 +1025,8 @@ function makePanel(api: MakeApi, shown: () => string | undefined): { box: HTMLEl
     wrap.append(input, document.createTextNode(" "), text);
     return { wrap, input, text };
   };
-  const asNew = choice("As a new clip in the project", "A new clip in its own set in the project", true);
-  const asReplace = choice("Replace the clip shown", "In place of the clip picked in the list: a game clip is replaced in a copy of its set in the project", false);
+  const asNew = choice("New Clip", "A new clip, in its own set in the project", true);
+  const asReplace = choice("Replace", "In place of the clip picked in the list", false);
   const replacingNow = () => asReplace.input.checked;
 
   const generate = el("button", "on", "Generate");
@@ -1052,6 +1054,7 @@ function makePanel(api: MakeApi, shown: () => string | undefined): { box: HTMLEl
     upperBody.input.checked = from.upperBodyOnly === true;
     if (typeof from.inPlace === "boolean") inPlace.input.checked = from.inPlace;
   }
+  box.append(target);
   if (madeLine) box.append(madeLine);
   box.append(prompt, row(model, length, inPlace.wrap, upperBody.wrap, asWritten.wrap), row(asNew.wrap, asReplace.wrap), row(name), row(generate, fromGlb), bar, status);
   const inputs: (HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement)[] = [prompt, model, length, inPlace.input, upperBody.input, asWritten.input, name, asNew.input, asReplace.input, generate, fromGlb];
@@ -1064,7 +1067,9 @@ function makePanel(api: MakeApi, shown: () => string | undefined): { box: HTMLEl
   };
   const refresh = () => {
     const clip = shown();
-    asReplace.text.textContent = api.made ? `Make ${api.made} again` : clip ? `Replace ${clip}${api.game ? " (in a copy of this set in the project)" : ""}` : "Replace the clip picked in the list";
+    target.textContent = api.made ?? clip ?? "";
+    target.title = api.made ? "Replace makes this clip again, keeping its name and id" : clip ? `Replace puts the new motion in place of this clip${api.game ? ", in a copy of this game set in the project" : ""}` : "";
+    asReplace.wrap.title = api.made ? `Make ${api.made} again, keeping its name and id` : clip ? `In place of ${clip}${api.game ? ", in a copy of this game set in the project" : ""}` : "Pick a clip in the list first";
     if (!busy) asReplace.input.disabled = !clip && !api.made;
     if (asReplace.input.disabled && asReplace.input.checked) asNew.input.checked = true;
     generate.textContent = `Generate, $${price().toFixed(2)}`;
