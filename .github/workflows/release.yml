@@ -6,6 +6,9 @@
 #   REDnode HUD theme    extensions/rednode-hud-theme  .vsix (every platform)                 theme-v<version>
 #   redcode-mcp          packages/redcode-mcp          the npm package (.tgz)                 mcp-v<version>
 #   world-view           packages/world-view           the npm package (.tgz)                 world-view-v<version>
+#   Animation Tools      packs/animation-tools         the REDnode app's zip                  animation-tools-v<version>
+#                        (its version in pack.json, its notes in changelog.md, its Nexus page in its nexus/;
+#                        the zip is tools/release/pack-zip.mjs, a draft when not released)
 #
 #   Run workflow (Actions tab)                  builds it and keeps the files as the run's artifact, to
 #                                               install and test before a release; publishes nothing
@@ -20,10 +23,12 @@
 #                                               if README.md's status line and badge do not say the
 #                                               version (tools/release/readme-check.mjs; the README's
 #                                               status is REDcode's, so the theme and the npm packages skip it)
-#   npm run release / release:theme / release:mcp / release:world-view
+#   npm run release / release:theme / release:mcp / release:world-view / release:animation-tools
 #                                               the same as ticking the box, from a terminal
-#   ... and "Update Nexus Mods" ticked          REDcode only (npm run release:nexus): also, after the
-#   (REDcode only)                              GitHub release, uploads the Nexus zip to the page
+#   ... and "Update Nexus Mods" ticked          REDcode (npm run release:nexus) or Animation Tools
+#   (REDcode or Animation Tools)                (npm run release:animation-tools:nexus, its page in
+#                                               packs/animation-tools/nexus): also, after the
+#                                               GitHub release, uploads the Nexus zip to the page
 #                                               (nexus/nexus.json, 35421) as the main file's new
 #                                               version (the old one archived, Mod Manager Download
 #                                               off: an extension, not a game mod), adds its changelog
@@ -51,14 +56,14 @@ on:
       what:
         description: What to build
         type: choice
-        options: [REDcode, REDnode HUD theme, redcode-mcp, world-view]
+        options: [REDcode, REDnode HUD theme, redcode-mcp, world-view, Animation Tools]
         default: REDcode
       release:
         description: Make a release (publishes it and tags this commit). Only after every test has passed
         type: boolean
         default: false
       nexus:
-        description: Update Nexus Mods (REDcode, with Make a release) - upload the Nexus zip, its changelog and the page's description
+        description: Update Nexus Mods (REDcode or Animation Tools, with Make a release) - upload the zip, its changelog and the page's description
         type: boolean
         default: false
 
@@ -99,17 +104,21 @@ jobs:
             "REDnode HUD theme") dir=extensions/rednode-hud-theme; prefix=theme-v; kind=extension; target="" ;;
             redcode-mcp)         dir=packages/redcode-mcp;         prefix=mcp-v;   kind=npm;       target="" ;;
             world-view)          dir=packages/world-view;          prefix=world-view-v; kind=npm;  target="" ;;
+            "Animation Tools")   dir=packs/animation-tools;        prefix=animation-tools-v; kind=pack; target="" ;;
             *) echo "::error::Unknown package ${WHAT}"; exit 1 ;;
           esac
-          name=$(node -p "require('./${dir}/package.json').name")
-          version=$(node -p "require('./${dir}/package.json').version")
+          manifest=package.json
+          if [ "${kind}" = "pack" ]; then manifest=pack.json; fi
+          name=$(node -p "require('./${dir}/${manifest}').name")
+          version=$(node -p "require('./${dir}/${manifest}').version")
           {
             echo "DIR=${dir}"; echo "KIND=${kind}"; echo "TARGET=${target}"
             echo "NAME=${name}"; echo "VERSION=${version}"; echo "TAG=${prefix}${version}"
             echo "VSIX=${GITHUB_WORKSPACE}/dist/${name}-${version}.vsix"
+            echo "PACKZIP=${GITHUB_WORKSPACE}/dist/${name// /}-${version}.zip"
           } >> "$GITHUB_ENV"
-          if [ "${{ inputs.nexus }}" = "true" ] && [ "${WHAT}" != "REDcode" ]; then
-            echo "::error::Only REDcode has a Nexus page; untick Update Nexus Mods for ${WHAT}"
+          if [ "${{ inputs.nexus }}" = "true" ] && [ "${WHAT}" != "REDcode" ] && [ "${WHAT}" != "Animation Tools" ]; then
+            echo "::error::Only REDcode and Animation Tools have a Nexus page; untick Update Nexus Mods for ${WHAT}"
             exit 1
           fi
           if [ "${{ inputs.release }}" = "true" ]; then
@@ -148,12 +157,18 @@ jobs:
         if: inputs.release && inputs.nexus
         env:
           NEXUS_KEY: ${{ secrets.NEXUS_KEY }}
-        run: node "$RUNNER_TEMP/EDGErepo/tools/nexus/nexus.mjs" check --version "${VERSION}" --notes "${RUNNER_TEMP}/nexus-notes.txt"
+        run: |
+          if [ "${KIND}" = "pack" ]; then
+            node tools/check-bbcode.mjs "${DIR}/nexus/description.bbcode"
+            node "$RUNNER_TEMP/EDGErepo/tools/nexus/nexus.mjs" check "${DIR}/nexus" --version "${VERSION}" --notes "${RUNNER_TEMP}/nexus-notes.txt"
+          else
+            node "$RUNNER_TEMP/EDGErepo/tools/nexus/nexus.mjs" check --version "${VERSION}" --notes "${RUNNER_TEMP}/nexus-notes.txt"
+          fi
 
       - run: npm ci
 
       - name: Typecheck
-        if: env.DIR != 'extensions/rednode-hud-theme'
+        if: env.DIR != 'extensions/rednode-hud-theme' && env.KIND != 'pack'
         run: npm run typecheck --workspace "${DIR}"
 
       - name: Package the extension
@@ -179,6 +194,14 @@ jobs:
           mkdir -p dist
           npm pack --workspace "${DIR}" --pack-destination dist
 
+      # A REDnode app pack: built with its own build.mjs and zipped; a release build when released (its
+      # changelog checked), a draft otherwise.
+      - name: The pack's zip
+        if: env.KIND == 'pack'
+        run: |
+          id=$(basename "${DIR}")
+          if [ "${{ inputs.release }}" = "true" ]; then node tools/release/pack-zip.mjs "${id}"; else node tools/release/pack-zip.mjs "${id}" --draft; fi
+
       - uses: actions/upload-artifact@v7
         with:
           name: ${{ inputs.what }}
@@ -186,6 +209,7 @@ jobs:
             dist/*.vsix
             dist/*-nexus.zip
             dist/*.tgz
+            dist/AnimationTools-*.zip
           if-no-files-found: error
 
       - name: VS Code Marketplace
@@ -221,7 +245,7 @@ jobs:
 
       # Makes the tag too (--target: this commit). Only REDcode becomes the repository's Latest release.
       - name: GitHub release
-        if: ${{ inputs.release && !cancelled() && (env.KIND == 'npm' || steps.package.outcome == 'success') }}
+        if: ${{ inputs.release && !cancelled() && (env.KIND == 'npm' || env.KIND == 'pack' || steps.package.outcome == 'success') }}
         env:
           GH_TOKEN: ${{ github.token }}
           WHAT: ${{ inputs.what }}
@@ -232,6 +256,7 @@ jobs:
             REDcode)             files=("${VSIX}" "dist/REDcode-${VERSION}-nexus.zip"); latest="" ;;
             "REDnode HUD theme") files=("${VSIX}"); title="REDnode HUD" ;;
             world-view)          title="@edgemodders/world-view" ;;
+            "Animation Tools")   files=("${PACKZIP}") ;;
           esac
           gh release create "${TAG}" "${files[@]}" --target "${GITHUB_SHA}" --title "${title:-${WHAT}} ${VERSION}" --notes-file "${RUNNER_TEMP}/notes.md" ${latest}
 
@@ -241,4 +266,9 @@ jobs:
         if: inputs.release && inputs.nexus
         env:
           NEXUS_KEY: ${{ secrets.NEXUS_KEY }}
-        run: node "$RUNNER_TEMP/EDGErepo/tools/nexus/nexus.mjs" release --version "${VERSION}" --zip "dist/REDcode-${VERSION}-nexus.zip" --notes "${RUNNER_TEMP}/nexus-notes.txt"
+        run: |
+          if [ "${KIND}" = "pack" ]; then
+            node "$RUNNER_TEMP/EDGErepo/tools/nexus/nexus.mjs" release "${DIR}/nexus" --version "${VERSION}" --zip "${PACKZIP}" --notes "${RUNNER_TEMP}/nexus-notes.txt"
+          else
+            node "$RUNNER_TEMP/EDGErepo/tools/nexus/nexus.mjs" release --version "${VERSION}" --zip "dist/REDcode-${VERSION}-nexus.zip" --notes "${RUNNER_TEMP}/nexus-notes.txt"
+          fi

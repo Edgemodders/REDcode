@@ -22,6 +22,8 @@
     "release:theme": "gh workflow run release.yml --ref main -f \"what=REDnode HUD theme\" -f release=true",
     "release:mcp": "gh workflow run release.yml --ref main -f what=redcode-mcp -f release=true",
     "release:world-view": "gh workflow run release.yml --ref main -f what=world-view -f release=true",
+    "release:animation-tools": "gh workflow run release.yml --ref main -f \"what=Animation Tools\" -f release=true",
+    "release:animation-tools:nexus": "gh workflow run release.yml --ref main -f \"what=Animation Tools\" -f release=true -f nexus=true",
     "release:nexus": "gh workflow run release.yml --ref main -f what=REDcode -f release=true -f nexus=true",
     "nexus:pull": "node ../EDGErepo/tools/nexus/nexus.mjs pull",
     "nexus:status": "node ../EDGErepo/tools/nexus/nexus.mjs status",

@@ -15,4 +15,6 @@ In the game: pick a character and **Spawn** them in front of V, say what they sh
 
 How it plays a clip: each made clip has its own set (`<mod>\anims\<name>\<name>.anims`) and record (`<name>.edgefab.json`). For the picked character's rig, REDnode's `world.writeWorkspot` writes one workspot, `animtools_<rig>`, holding every made clip on that rig, which the character carries; **Play** jumps to the clip. The project is packed (REDcode's `packProject`) and swapped in (`archives.reload`) only when a file under its `source/archive` changed since the last swap.
 
-Not yet: V (REDnode #47), its release (a zip, a GitHub release `animation-tools-v<version>`, the Nexus page, which the owner makes), clips that move the character (Probe B).
+Its release: the release workflow's **Animation Tools** choice (`npm run release:animation-tools`, with Nexus `release:animation-tools:nexus`) builds `dist/AnimationTools-<version>.zip` (`tools/release/pack-zip.mjs`), makes the GitHub release `animation-tools-v<version>` and updates its Nexus page from `nexus/` (the owner makes the page first; see `nexus/README.md`). Release only after the in-game test (AT3) passes.
+
+Not yet: V (REDnode #47), clips that move the character (Probe B).

@@ -4,8 +4,9 @@
 // tools/release/notes.mjs).
 //
 //   node tools/release-notes.mjs <folder> [version] [--nexus] [--out <file>]
-//     <folder>   extensions/redcode, extensions/rednode-hud-theme or packages/redcode-mcp
-//     version    defaults to the folder's package.json version
+//     <folder>   extensions/redcode, extensions/rednode-hud-theme, packages/redcode-mcp, or a REDnode app
+//                pack such as packs/animation-tools (its pack.json and changelog.md)
+//     version    defaults to the folder's package.json (a pack's pack.json) version
 //     --nexus    the section's short Nexus summary (below), for Nexus's changelog field (the Nexus
 //                tool's release --notes, EDGErepo's tools/nexus/nexus.mjs); stops when there is none
 //     --out      writes the notes to a file (UTF-8)
@@ -24,9 +25,11 @@ if (!folder) {
   console.error("usage: node tools/release-notes.mjs <folder> [version] [--nexus] [--out <file>]");
   process.exit(2);
 }
-const version = given ?? JSON.parse(readFileSync(join(root, folder, "package.json"), "utf8")).version;
 const dir = folder.replace(/\\/g, "/").replace(/\/$/, "");
-const file = `${dir}/CHANGELOG.md`;
+// A REDnode app pack keeps its version in pack.json and its changelog in changelog.md, as REDnode's packs do.
+const isPack = dir.startsWith("packs/");
+const version = given ?? JSON.parse(readFileSync(join(root, folder, isPack ? "pack.json" : "package.json"), "utf8")).version;
+const file = `${dir}/${isPack ? "changelog.md" : "CHANGELOG.md"}`;
 const lines = readFileSync(join(root, file), "utf8").split(/\r?\n/);
 
 // "## 0.10.3" or "## 0.10.3 (2026-10-21)"

@@ -1,0 +1,11 @@
+{
+  "page": null,
+  "upload": {
+    "name": "Animation Tools",
+    "category": "main",
+    "primary": true,
+    "modManager": true,
+    "archivePrevious": true,
+    "description": "Animation Tools {version}: make animations from your words with Uthana and play them on a character in front of V. Needs REDnode 0.68.0 or later, Codeware and REDbridge, on game 2.5."
+  }
+}
