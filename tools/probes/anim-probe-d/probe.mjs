@@ -73,6 +73,48 @@ const readAccessor = ({ json, bin }, index) => {
   return Array.from({ length: A.count }, (_, i) => Array.from({ length: n }, (_, k) => bin.readFloatLE(off + i * stride + k * 4)));
 };
 
+/**
+ * The lowest the heels and toes go in a clip, in metres above the clip's origin (glTF Y up): forward kinematics
+ * over nodes with channels as [{ node: name, path, times, values }], sampled at each key of the first channel.
+ */
+function lowestFoot(nodes, channels) {
+  const compose = (t = [0, 0, 0], q = [0, 0, 0, 1]) => {
+    const [x, y, z, w] = q;
+    return [1 - 2 * (y * y + z * z), 2 * (x * y + z * w), 2 * (x * z - y * w), 0, 2 * (x * y - z * w), 1 - 2 * (x * x + z * z), 2 * (y * z + x * w), 0, 2 * (x * z + y * w), 2 * (y * z - x * w), 1 - 2 * (x * x + y * y), 0, t[0], t[1], t[2], 1];
+  };
+  const mul = (a, b) => {
+    const o = new Array(16).fill(0);
+    for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) for (let k = 0; k < 4; k++) o[c * 4 + r] += a[k * 4 + r] * b[c * 4 + k];
+    return o;
+  };
+  const parent = new Map();
+  nodes.forEach((n, i) => (n.children ?? []).forEach((c) => parent.set(c, i)));
+  const index = new Map(nodes.map((n, i) => [n.name, i]));
+  const track = new Map(channels.map((c) => [`${index.get(c.node)}/${c.path}`, c]));
+  const at = (c, t) => {
+    let i = 0;
+    while (i < c.times.length - 1 && c.times[i + 1] <= t) i++;
+    return c.values[i];
+  };
+  const feet = ["LeftHeel", "RightHeel", "LeftToeBase", "RightToeBase"].map((n) => index.get(n)).filter((i) => i !== undefined);
+  let low = Infinity;
+  for (const t of channels[0].times) {
+    const seen = new Map();
+    const world = (i) => {
+      if (seen.has(i)) return seen.get(i);
+      const n = nodes[i];
+      const tr = track.get(`${i}/translation`);
+      const ro = track.get(`${i}/rotation`);
+      const local = compose(tr ? at(tr, t) : n.translation, ro ? at(ro, t) : n.rotation);
+      const m = parent.has(i) ? mul(world(parent.get(i)), local) : local;
+      seen.set(i, m);
+      return m;
+    };
+    for (const i of feet) low = Math.min(low, world(i)[13]);
+  }
+  return low;
+}
+
 const state = () => (fs.existsSync(statePath) ? JSON.parse(fs.readFileSync(statePath, "utf8")) : {});
 const save = (s) => fs.writeFileSync(statePath, JSON.stringify(s, null, 2));
 
@@ -225,6 +267,16 @@ async function fit(name, variant = "inplace", replace = false) {
     fromRest++;
   }
   console.log(`  uthana channels: ${JSON.stringify(byPath)}; written ${channels.length} as the game clip has them, ${channels.length - fromRest} from Uthana, ${fromRest} held at the rest pose`);
+
+  // Grounding (run 2 in the game, 2026-11-22: the paramedic sank a little). Uthana puts the heel joints on its
+  // floor; the game's standing clips keep them a few centimetres up, as the sole is below the joint. So the hips
+  // are lifted until the clip's lowest heel or toe is as high as the game idle's.
+  const gameLow = lowestFoot(gj.nodes, gameClip.channels.map((c) => ({ node: gj.nodes[c.target.node].name, path: c.target.path, times: readAccessor(one, gameClip.samplers[c.sampler].input).map((v) => v[0]), values: readAccessor(one, gameClip.samplers[c.sampler].output) })));
+  const clipLow = lowestFoot(gj.nodes, channels);
+  const lift = gameLow - clipLow;
+  const hipsAt = channels.findIndex((c) => c.node === "Hips" && c.path === "translation");
+  channels[hipsAt] = { ...channels[hipsAt], values: channels[hipsAt].values.map(([x, y, z]) => [x, y + lift, z]) };
+  console.log(`  grounding: the lowest heel or toe is at ${(clipLow * 100).toFixed(1)} cm, the game idle's at ${(gameLow * 100).toFixed(1)} cm; the hips lifted ${(lift * 100).toFixed(1)} cm (now ${(lowestFoot(gj.nodes, channels) * 100).toFixed(1)} cm)`);
 
   // A new binary: the game clip's nodes need none of their own (the skin's joints list is kept without its
   // inverse bind matrices, as Probe A did), so only the new keys go in.
