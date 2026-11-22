@@ -1,0 +1,45 @@
+{
+  "name": "@edgemodders/anim-core",
+  "version": "0.1.0",
+  "description": "Made animations for Cyberpunk 2077: Uthana's text to motion onto a stand-in with the game's own skeleton, the fit onto a game rig as WolvenKit's import and the game want it, and adding or replacing a clip in a WolvenKit project through REDbridge. For REDcode, its MCP server and the Animation Tools pack.",
+  "license": "MIT",
+  "author": "Edgemodders",
+  "homepage": "https://edgemodders.github.io/REDcode/design/animation-tools.html",
+  "bugs": {
+    "url": "https://github.com/Edgemodders/REDcode/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Edgemodders/REDcode.git",
+    "directory": "packages/anim-core"
+  },
+  "keywords": [
+    "cyberpunk",
+    "cyberpunk2077",
+    "modding",
+    "animation",
+    "uthana",
+    "redbridge"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "node esbuild.mjs && tsc -p tsconfig.json --emitDeclarationOnly --declaration --noEmit false --outDir dist",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}

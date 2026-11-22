@@ -38,6 +38,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Keys (K4b)](#keys-k4b) | By hand | Requests | 2026-11-21 | Pass (owner), steps 1 to 8 on REDbridge 0.18.0; the optional step 9 not run |
 | [Animation Probe A](#animation-probe-a) | By hand, in the game | Research | 2026-11-21 | Pass (owner), run 2, once the clips' fallback frames were cleared |
 | [Animation Probe D](#animation-probe-d) | By hand, in the game | Research | 2026-11-22 | Pass (owner), run 2, once every bone's translation was keyed |
+| [anim-core check](#anim-core-check) | Automated, on the PC (game and Uthana key) | Animation Tools AT1 | 2026-11-22 | Pass, 18 of 18 |
 | [Replace with a WAV, titled models (#29), every window's project (#32)](#replace-with-a-wav-titled-models-29-and-every-windows-project-32) | By hand, in the game | Requests | 2026-11-20 | Pass (owner), with two fixes |
 | [Replace All](#replace-all) | By hand, in the game | Requests | 2026-11-20 | Pass (owner), with one fix |
 | [Sector view](#sector-view) | By hand | C5 | 2026-11-20 | Pass (owner), with two fixes and five changes, each retested |
@@ -736,6 +737,21 @@ If **added** waves but **replaced** shows the game's own idle, the game may stil
 Run 1 (owner, 2026-11-22): **kept** played (he stretched his arms), but on **Play** the paramedic sank about a foot into the ground. **added** and **replaced** were wild and scattered, the mesh warped; no wave. The cause: the fit wrote rotation on every bone but translation on `Hips` only, and the game reads a bone with no translation keys as not at its rest length, so the skeleton collapsed (REDcode's view falls back on the rest pose, so it looked right there). The game's clip keys translation and rotation on all 71 bones. Fixed the same day: the fit writes every channel the game clip has, Uthana's where it has them (rotation on every bone, translation on `Root` and `Hips`), the rig's rest value otherwise; read back, 71 translation and 71 rotation channels, every bone at its rig length. The sinking is not in the clip: the game's stretch clip holds `Hips` at 0.96 m throughout, as the idle does; where the workspot puts him is the likely cause (**unverified**). Next: run 2, Pack and Play again.
 
 Run 2 (owner, 2026-11-22), after Pack and Play of the refitted sets: **pass** ("It worked now"). **Animation Probe D passes:** a clip Uthana made from a text prompt, on the game's own skeleton, with no Blender and no retargeting of our own, plays in the game, both as a new clip and in place of a game clip, and the rewritten set's kept clip plays too. The paramedic still sank a little, less than in run 1 (the owner). Measured by forward kinematics on the written clips: Uthana puts the heel joints on its floor (the wave's lowest heel -0.9 cm, hips 90.5 cm), where the game's standing clips keep them about 3 cm up, the sole being below the joint (the stretch clip: heels 2.9 cm, toes 2.2 cm, hips 95.9 cm). Fixed the same day: the fit lifts the hips until the clip's lowest heel or toe is as high as the game idle's (3.1 cm here; heels now 2.2 and 3.0 cm, hips 93.8 cm). Uthana's toes stay a little higher than the game's (4 to 5 cm against 2.2 cm): its feet tip up slightly, a cleanup for later. Not yet seen in the game.
+
+## anim-core check
+
+`node packages/anim-core/scripts/check.mjs <REDbridge.exe> <game folder> <Probe D's project folder>` ([design](design/animation-tools.html#at1-as-built-2026-11-22)). It needs the game, the Uthana key in the shared store and Probe D's project; it starts no paid job and writes only into a scratch folder.
+
+| # | Checks |
+|---|---|
+| 1 | The probe's own fit and replace, into a fresh project from Probe D's downloaded motion |
+| 2 | The library's fit: every channel, on the game's own skeleton (rest pose within 0.04 degrees) |
+| 3 | The library's add and replace into another fresh project; both sets byte for byte the probe's; the replaced set keeps its 292 clips |
+| 4 | Uthana: the key works; the stand-in uploads to Probe D's character; a second ask uses the record; the record holds no key; the download matches the probe's file |
+| 5 | The woman's rig: her reference clip's 71 bones, all in her stand-in |
+| 6 | `rigFor`, clip names, costs |
+
+Run 2026-11-22 with REDbridge main (0.18.0 and the fallback frames fix): **pass, 18 of 18**, after two fixes found by the first run (the woman's reference clip, `-0` in rest translations).
 
 ## Keys (K4b)
 
