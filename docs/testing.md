@@ -758,7 +758,7 @@ Run 2026-11-22 with REDbridge main (0.18.0 and the fallback frames fix): **pass,
 
 ## Animation Tools AT2
 
-Making clips in REDcode ([design](design/animation-tools.html#at2-as-built-2026-11-22)): the Make panel in the animation view, the commands, and the first paid Generate through REDcode. Two Generates, about $1 on the owner's Uthana account; the rest is free. REDbridge 0.18.0 is enough; REDbridge main (4942dc3) also names Uthana in the Keys view.
+Making clips in REDcode ([design](design/animation-tools.html#at2-as-built-2026-11-22)): the Make panel in the animation view, the commands, and the first paid Generate through REDcode. Two Generates, about $1 on the owner's Uthana account; the rest is free. REDbridge 0.18.0 is enough, and is the release's minimum (2026-11-22: 0.18.0 reads any service id, and the fit clears fallback frames itself); on 0.18.0 step 1's row reads `uthana`, where REDbridge 0.19.0 names it Uthana.
 
 | # | Do | Expected |
 |---|---|---|
