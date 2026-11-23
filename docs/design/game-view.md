@@ -66,13 +66,26 @@ The helper must know where the tab is on the screen, and a webview does not know
 | One webview | Each webview is a `Document` element named by its page's `<title>`, inside a `webview-overlay-content` group. So the game tab's page gets a title of its own and the helper asks for that name |
 | Speed | Finding one webview by name: 8 to 17 ms. Reading its rectangle again from the found element: under 2 ms. Fast enough to follow a tab by polling |
 
-Still to do, both with the game running: check the rectangle by eye with the game docked on it, at 200% and at another scaling and zoom level; and the window region for a tab smaller than the game.
+### The loop, tried with the owner the same evening
+
+A scratch loop kept the game on a markdown preview tab: every 30 ms it read the webview's rectangle, moved the game there (centred when the tab is bigger), clipped it to the tab with a window region, and hid it when the tab was covered. The owner: it looks contained, follows a dragged divider, stays put when clicked, and the release key works.
+
+| Finding | Detail |
+|---|---|
+| A region set from outside | `SetWindowRgn` from another process works on the game's window; the cut is clean and the game runs on |
+| Never hide the window | After `ShowWindow` hide and show, the game put its window back in the middle of the screen on the next click. Hiding with an empty region instead cured it: no self-move in the run after |
+| Guard anyway | The loop compares the game's real position and style each tick and puts them back |
+| Keep the found element | Asking the kept element for its rectangle makes a tick 1 ms on average, against 95 ms when finding it again each time. Find again only when it answers with nothing |
+| One owner | The game follows the VS Code window that owns it. Behind another VS Code window it is covered with its owner, which is right |
+| Lighter | About 91 fps at 1920x1080 against about 32 at 3840x2160 on the owner's machine |
+
+Not tried: another display scaling or VS Code zoom level, a tab dragged to another window, and a second monitor with a different scaling.
 
 ## Plan
 
 | Stage | What | Needs |
 |---|---|---|
-| G0 | Finish Spike 2 with a test webview; check a window region on the game for a tab smaller than it | Nothing |
+| G0 | Spike 2 and the loop: **done 2026-11-22**, scripts kept in `tools/probes/game-view` | Nothing |
 | G1 | **Run beside the editor:** today's Run Game with a size and a place, no focus taken. The helper as a real program | A decision on where the helper lives |
 | G2 | **Run in Tab:** a `redcode.gameView` panel as the placeholder; the helper keeps the game over it on move, resize and split, hides it with the tab, and holds the release key. The size is set through REDnode | REDnode running; REDnode #56 for the overlay's cursor |
 | G3 | Without REDnode: write `UserSettings.json` before launch | G2 |
@@ -81,7 +94,7 @@ Run in Tab starts the game's exe directly: a Steam launch hides the process from
 
 ## Decisions (agreed with the owner, 2026-11-22)
 
-1. **The helper lives in REDbridge**, as a new `window.*` area: it is already the one native program REDcode installs and updates, and REDcode talks to it only over stdio. It needs a REDbridge release, asked of the REDnode session in a REDbridge issue.
+1. **The helper lives in REDbridge**, as a new `window.*` area: it is already the one native program REDcode installs and updates, and REDcode talks to it only over stdio. It needs a REDbridge release, asked in https://github.com/Edgemodders/REDbridge/issues/22 with the loop as it was proven.
 2. **The release key** is Ctrl+Alt+Backspace by default, with a setting. Pause/Break worked too, but some keyboards have none.
 3. **VS Code's own popups** (the command palette, menus, hovers) are hidden under the game where they overlap. Accepted for G2; if it proves a nuisance, the release key can also lower the game for a moment.
 4. **The game's saved settings:** Run in Tab changes the window mode and resolution, and puts the player's own values back when the tab closes or the game ends. Putting them back live worked in the spike (Borderless 3840x2160 through REDnode, saved by the game).
