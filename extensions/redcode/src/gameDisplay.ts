@@ -72,14 +72,23 @@ export const CommonSizes = ["1280x720", "1920x1080"];
  * The resolution for a tab of this many real pixels: the setting when it names a size, else the largest
  * common size that fits, else the smallest (the tab then shows a part of the game).
  */
-export function pickResolution(tab: { width: number; height: number } | undefined, setting = "auto"): string {
+export function pickResolution(tab: { width: number; height: number } | undefined, setting = "auto", sizes: string[] = CommonSizes): string {
   if (parseSize(setting)) return setting.replace(/\s+/g, "").toLowerCase();
-  if (!tab) return CommonSizes[CommonSizes.length - 1];
-  const fits = CommonSizes.filter((s) => {
+  // Smallest first, whatever order the game lists them in.
+  const list = sizes.filter((s) => parseSize(s)).sort((a, b) => parseSize(a)!.width - parseSize(b)!.width || parseSize(a)!.height - parseSize(b)!.height);
+  if (!list.length) return CommonSizes[0];
+  if (!tab) return list.includes("1920x1080") ? "1920x1080" : list[0];
+  const fits = list.filter((s) => {
     const size = parseSize(s)!;
     return size.width <= tab.width && size.height <= tab.height;
   });
-  return fits.length ? fits[fits.length - 1] : CommonSizes[0];
+  return fits.length ? fits[fits.length - 1] : list[0];
+}
+
+/** True when the game at this size shows whole in a tab of this many real pixels. */
+export function fitsTab(resolution: string, tab: { width: number; height: number } | undefined): boolean {
+  const size = parseSize(resolution);
+  return !!size && !!tab && size.width <= tab.width && size.height <= tab.height;
 }
 
 /** What Run Game in Tab changed, kept until the game has ended and the values are back. */

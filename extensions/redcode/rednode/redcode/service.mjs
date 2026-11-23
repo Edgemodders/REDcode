@@ -8,7 +8,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { service } from 'rednode';
+import { api, game, service } from 'rednode';
 
 /**
  * @event project-changed {{ name: string, modName: string, file: string, dir: string, archive: string, raw: string, resources: string, packed: string } | null} The project open in REDcode changed, or REDcode closed (null).
@@ -132,3 +132,102 @@ try {
   console.log(`Cannot watch ${windows}: ${e.message}. projects-changed comes from the 5-second check only.`);
 }
 setInterval(check, 5000).unref?.();
+
+// The game's window mode and resolution, for REDcode's Run Game in Tab (docs/design/game-view.md).
+// REDcode asks by writing display-request.json beside project.json; the answer goes to display.json.
+// It is a file, not a tool, so the click in VS Code is the player's say and the game asks nothing more.
+const displayRequest = path.join(dir, 'display-request.json');
+const displayAnswer = path.join(dir, 'display.json');
+
+async function displayVars() {
+  const settings = await api.GameInstance.GetSettingsSystem(game.instance);
+  const mode = await settings.GetVar('/video/display', 'WindowMode');
+  const size = await settings.GetVar('/video/display', 'Resolution');
+  if (!mode || !size) throw new Error('The game has no /video/display WindowMode and Resolution settings.');
+  return { settings, mode, size };
+}
+
+async function readDisplay(vars) {
+  const { mode, size } = vars ?? (await displayVars());
+  return {
+    windowMode: await mode.GetValue(),
+    resolution: await size.GetValue(),
+    windowModes: await mode.GetValues(),
+    resolutions: await size.GetValues(),
+  };
+}
+
+/**
+ * The game's window mode and resolution, with the lists the game offers for each on this monitor.
+ * Works in the main menu too.
+ * @tool
+ * @readonly
+ * @returns {{ windowMode: string, resolution: string, windowModes: string[], resolutions: string[] }} The display settings.
+ */
+export async function display() {
+  return readDisplay();
+}
+
+// Sets the window mode and the resolution, each only when asked and listed, and saves them as the
+// game's own Settings menu does. The game draws at the new size after about three seconds.
+async function setDisplay(want) {
+  const vars = await displayVars();
+  const now = await readDisplay(vars);
+  let changed = false;
+  for (const [v, value, list, name] of [
+    [vars.mode, want.windowMode, now.windowModes, 'window mode'],
+    [vars.size, want.resolution, now.resolutions, 'resolution'],
+  ]) {
+    if (typeof value !== 'string' || !value) continue;
+    const index = list.indexOf(value);
+    if (index < 0) throw new Error(`The game does not list the ${name} ${value}: ${list.join(', ')}`);
+    if ((await v.GetIndex()) !== index) {
+      await v.SetIndex(index);
+      changed = true;
+    }
+  }
+  if (changed) await vars.settings.ConfirmChanges();
+  return { ...(await readDisplay(vars)), changed };
+}
+
+let displayDone = '';
+let displayBusy = false;
+async function checkDisplay() {
+  if (displayBusy) return;
+  let want;
+  try {
+    want = JSON.parse(fs.readFileSync(displayRequest, 'utf8'));
+  } catch {
+    return; // none, or being written: the next change reads it
+  }
+  if (typeof want?.id !== 'string' || want.id === displayDone) return;
+  displayDone = want.id;
+  // Only a fresh request from a REDcode that still runs: an old file must not change a later game.
+  if (!Number.isInteger(want.pid) || !running(want.pid) || Math.abs(Date.now() - Date.parse(want.at)) > 30000) return;
+  displayBusy = true;
+  let answer;
+  try {
+    answer = { id: want.id, ok: true, ...(await setDisplay(want)) };
+    if (answer.changed) console.log(`REDcode set the game to ${answer.windowMode} ${answer.resolution}`);
+  } catch (e) {
+    answer = { id: want.id, ok: false, error: e.message };
+  }
+  displayBusy = false;
+  try {
+    const tmp = `${displayAnswer}.tmp`;
+    fs.writeFileSync(tmp, JSON.stringify({ ...answer, at: new Date().toISOString() }, null, 2));
+    fs.renameSync(tmp, displayAnswer);
+  } catch (e) {
+    console.log(`Cannot write ${displayAnswer}: ${e.message}`);
+  }
+  checkDisplay();
+}
+
+try {
+  fs.watch(dir, (_event, name) => {
+    if (!name || name.toLowerCase() === 'display-request.json') setTimeout(checkDisplay, 50);
+  });
+} catch {
+  // The 2-second check below still sees a request.
+}
+setInterval(checkDisplay, 2000).unref?.();

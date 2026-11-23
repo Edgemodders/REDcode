@@ -139,3 +139,44 @@ export function syncRednodePackage(source: string, gamePath: string): PackageRes
   for (const f of files) fs.copyFileSync(path.join(source, f), path.join(dir, f));
   return from ? { state: "updated", dir, version, from } : { state: "installed", dir, version };
 }
+
+/** The game's display settings as the package's service answers them (rednode/redcode/service.mjs). */
+export interface LiveDisplay {
+  windowMode: string;
+  resolution: string;
+  windowModes: string[];
+  resolutions: string[];
+  /** True when this request changed something. */
+  changed?: boolean;
+}
+
+/**
+ * Asks the package in the running game for its window mode and resolution, and to change them when
+ * `want` names any (docs/design/game-view.md). It writes display-request.json beside project.json and
+ * waits for display.json with the same id. Undefined when nothing answers in time: REDnode is not
+ * running, or the game has a package older than 0.3.0. Throws what the game refused.
+ */
+export async function requestDisplay(want: { windowMode?: string; resolution?: string } = {}, timeoutMs = 8000): Promise<LiveDisplay | undefined> {
+  const dir = path.dirname(projectStateFile());
+  const id = `${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const request = path.join(dir, "display-request.json");
+  const answer = path.join(dir, "display.json");
+  fs.mkdirSync(dir, { recursive: true });
+  const tmp = `${request}.${process.pid}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify({ id, pid: process.pid, at: new Date().toISOString(), ...want }, null, 2));
+  fs.renameSync(tmp, request);
+  const end = Date.now() + timeoutMs;
+  while (Date.now() < end) {
+    await new Promise((r) => setTimeout(r, 150));
+    let got: (Partial<LiveDisplay> & { id?: string; ok?: boolean; error?: string }) | undefined;
+    try {
+      got = JSON.parse(fs.readFileSync(answer, "utf8"));
+    } catch {
+      continue;
+    }
+    if (got?.id !== id) continue;
+    if (!got.ok) throw new Error(got.error ?? "The game refused the display change.");
+    return got as LiveDisplay;
+  }
+  return undefined;
+}

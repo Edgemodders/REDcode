@@ -798,7 +798,18 @@ await check("redcode service: every window's project, the last focused first; a 
     const pkg = path.join(tmp, "rnpkg");
     fs.mkdirSync(path.join(pkg, "node_modules", "rednode"), { recursive: true });
     fs.writeFileSync(path.join(pkg, "node_modules", "rednode", "package.json"), JSON.stringify({ name: "rednode", type: "module", main: "index.js" }));
-    fs.writeFileSync(path.join(pkg, "node_modules", "rednode", "index.js"), "export const service = { emit: (...a) => (globalThis.__emits ??= []).push(a) };");
+    // Its game API is a settings system with the two display lists, counting ConfirmChanges.
+    fs.writeFileSync(
+      path.join(pkg, "node_modules", "rednode", "index.js"),
+      [
+        "export const service = { emit: (...a) => (globalThis.__emits ??= []).push(a) };",
+        "export const game = { instance: {} };",
+        "const list = (values, index) => ({ values, index, GetValue: async function () { return this.values[this.index]; }, GetValues: async function () { return this.values; }, GetIndex: async function () { return this.index; }, SetIndex: async function (i) { this.index = i; } });",
+        "const vars = (globalThis.__display ??= { WindowMode: list(['Windowed', 'BorderlessWindowed', 'Fullscreen'], 1), Resolution: list(['1280x720', '1920x1080', '3840x2160'], 2), confirmed: 0 });",
+        "const settings = { GetVar: async (_group, name) => vars[name] ?? null, ConfirmChanges: async () => { vars.confirmed++; } };",
+        "export const api = { GameInstance: { GetSettingsSystem: async () => settings } };",
+      ].join("\n"),
+    );
     fs.writeFileSync(path.join(pkg, "package.json"), JSON.stringify({ type: "module" }));
     fs.copyFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "rednode", "redcode", "service.mjs"), path.join(pkg, "service.mjs"));
     const svc = await import(new URL(`file:///${path.join(pkg, "service.mjs").split(path.sep).join("/")}`).href);
@@ -813,6 +824,19 @@ await check("redcode service: every window's project, the last focused first; a 
     assert.equal(svc.project(), null);
     const manifest = JSON.parse(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "rednode", "redcode", "rednode-app.json"), "utf8"));
     assert.notEqual(manifest.version, "0.1.0", "service.mjs changed, so the package's version is raised and installed copies update");
+
+    // The game's display, asked through the request file (Run Game in Tab's size selector).
+    assert.deepEqual(await svc.display(), { windowMode: "BorderlessWindowed", resolution: "3840x2160", windowModes: ["Windowed", "BorderlessWindowed", "Fullscreen"], resolutions: ["1280x720", "1920x1080", "3840x2160"] });
+    const read = await rs.requestDisplay({}, 6000);
+    assert.equal(read.resolution, "3840x2160");
+    assert.equal(read.changed, false, "a request that names nothing changes nothing");
+    assert.equal(globalThis.__display.confirmed, 0);
+    const set = await rs.requestDisplay({ windowMode: "Windowed", resolution: "1920x1080" }, 6000);
+    assert.deepEqual([set.windowMode, set.resolution, set.changed], ["Windowed", "1920x1080", true]);
+    assert.equal(globalThis.__display.confirmed, 1, "both values, one confirm");
+    await assert.rejects(rs.requestDisplay({ resolution: "1000x700" }, 6000), /does not list the resolution 1000x700/);
+    assert.equal((await svc.display()).resolution, "1920x1080", "a size the game does not list changes nothing");
+    assert.equal(manifest.version, "0.3.0");
   } finally {
     if (before === undefined) delete process.env.LOCALAPPDATA;
     else process.env.LOCALAPPDATA = before;
@@ -1282,6 +1306,12 @@ await check("game display: the size for a tab", () => {
   assert.equal(gd.pickResolution({ width: 5000, height: 3000 }), "1920x1080");
   assert.equal(gd.pickResolution({ width: 900, height: 500 }, "2560 x 1440"), "2560x1440");
   assert.equal(gd.pickResolution(undefined), "1920x1080");
+  // With the game's own list, in any order, a bigger listed size is taken when it fits.
+  const listed = ["3840x2160", "1280x720", "1920x1080"];
+  assert.equal(gd.pickResolution({ width: 5000, height: 3000 }, "auto", listed), "3840x2160");
+  assert.equal(gd.pickResolution({ width: 2031, height: 1339 }, "auto", listed), "1920x1080");
+  assert.equal(gd.fitsTab("1920x1080", { width: 2031, height: 1079 }), false);
+  assert.equal(gd.fitsTab("1920x1080", { width: 1920, height: 1080 }), true);
 });
 
 fs.rmSync(tmp, { recursive: true, force: true });

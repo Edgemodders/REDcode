@@ -10,8 +10,9 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as vscode from "vscode";
-import { pickResolution, restoreDisplay, setWindowed, type DisplayRestore } from "./gameDisplay";
+import { fitsTab, pickResolution, restoreDisplay, setWindowed, userSettingsFile, WindowModes, type DisplayRestore } from "./gameDisplay";
 import { gameEnv, launchTarget } from "./install";
+import { requestDisplay, type LiveDisplay } from "./rednodeService";
 
 const RestoreKey = "redcode.gameView.restore";
 const GameExe = "Cyberpunk2077.exe";
@@ -76,6 +77,8 @@ function page(title: string, releaseKey: string, nonce: string): string {
   #status { color: var(--vscode-foreground); }
   button { background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground); border: 0; padding: 3px 10px; cursor: pointer; font: inherit; }
   button:hover { background: var(--vscode-button-secondaryHoverBackground); }
+  select { background: var(--vscode-dropdown-background); color: var(--vscode-dropdown-foreground); border: 1px solid var(--vscode-dropdown-border, transparent); font: inherit; padding: 2px 4px; }
+  select:disabled { opacity: 0.5; }
   kbd { border: 1px solid var(--vscode-widget-border, #555); border-radius: 3px; padding: 0 4px; }
 </style>
 </head>
@@ -83,7 +86,8 @@ function page(title: string, releaseKey: string, nonce: string): string {
 <div id="bar">
   <span id="status">Starting…</span>
   <button id="play" title="Give the game the mouse and keyboard">Play</button>
-  <button id="stop" title="Let the game go: it becomes an ordinary window again">Undock</button>
+  <select id="size" disabled title="The game's size. Needs REDnode running in the game."><option>Size</option></select>
+  <button id="stop" title="Let the game go: it becomes an ordinary window again, at your own size">Undock</button>
   <span><kbd>${releaseKey}</kbd> returns to VS Code</span>
 </div>
 <script nonce="${nonce}">
@@ -92,7 +96,17 @@ function page(title: string, releaseKey: string, nonce: string): string {
   addEventListener('resize', size); size();
   document.getElementById('play').addEventListener('click', () => vscode.postMessage({ type: 'play' }));
   document.getElementById('stop').addEventListener('click', () => vscode.postMessage({ type: 'stop' }));
-  addEventListener('message', (e) => { if (e.data.type === 'status') document.getElementById('status').textContent = e.data.text; });
+  const pick = document.getElementById('size');
+  pick.addEventListener('change', () => vscode.postMessage({ type: 'resolution', value: pick.value }));
+  addEventListener('message', (e) => {
+    if (e.data.type === 'status') document.getElementById('status').textContent = e.data.text;
+    if (e.data.type === 'sizes') {
+      pick.replaceChildren(...e.data.list.map((s) => { const o = document.createElement('option'); o.value = s; o.textContent = s; return o; }));
+      pick.value = e.data.current;
+      pick.disabled = false;
+      pick.title = "The game's size, changed in the running game through REDnode";
+    }
+  });
 </script>
 </body>
 </html>`;
@@ -137,7 +151,9 @@ async function runInTab(deps: GameViewDeps, extensionDir: string): Promise<void>
   let bar = 0;
   let sized: () => void = () => {};
   const firstSize = new Promise<void>((r) => (sized = r));
-  panel.webview.onDidReceiveMessage((m: { type: string; width?: number; height?: number; bar?: number }) => {
+  let resize: (resolution: string) => void = () => {};
+  panel.webview.onDidReceiveMessage((m: { type: string; width?: number; height?: number; bar?: number; value?: string }) => {
+    if (m.type === "resolution" && m.value) return resize(m.value);
     if (m.type === "size" && m.width && m.height) {
       bar = m.bar ?? 0;
       tab = { width: m.width, height: Math.max(1, m.height - bar) };
@@ -154,6 +170,16 @@ async function runInTab(deps: GameViewDeps, extensionDir: string): Promise<void>
       mine.helper?.kill();
       fs.rmSync(dir, { recursive: true, force: true });
     }, 3000);
+    // A game that runs on gets the player's own mode and size back now, through REDnode when it answers.
+    const back = deps.context.globalState.get<DisplayRestore>(RestoreKey);
+    if (back) {
+      setTimeout(() => {
+        void gameRunning()
+          .then((runs) => (runs ? requestDisplay({ windowMode: back.windowMode.value, resolution: back.resolution.value }) : undefined))
+          .then((got) => got && deps.log.appendLine(`Game in tab: the running game is back to ${got.windowMode} ${got.resolution}`))
+          .catch((e: Error) => deps.log.appendLine(`Game in tab: could not put the running game's size back: ${e.message}`));
+      }, 1000);
+    }
     if (session === mine) session = undefined;
     void restoreWhenGameEnds(deps);
   });
@@ -163,8 +189,9 @@ async function runInTab(deps: GameViewDeps, extensionDir: string): Promise<void>
   if (mine.ended) return;
 
   // The game: start it windowed at a size that fits, or take it as it runs.
-  if (await gameRunning()) {
-    status("The game is already running: docking it as it is. For a right fit, set Windowed and a size that fits the tab in its Video settings.");
+  const wasRunning = await gameRunning();
+  if (wasRunning) {
+    status("The game is already running: docking it…");
   } else {
     const resolution = pickResolution(tab, config.get<string>("gameView.resolution", "auto"));
     const pending = deps.context.globalState.get<DisplayRestore>(RestoreKey);
@@ -186,6 +213,48 @@ async function runInTab(deps: GameViewDeps, extensionDir: string): Promise<void>
     child.on("error", (e) => status(`Could not start the game: ${e.message}`));
     child.unref();
   }
+
+  // The running game's size, through the redcode package in REDnode: the list for the selector, a
+  // fitting size for a game docked as it ran, and the selector's changes.
+  const showSizes = (d: LiveDisplay) => void panel.webview.postMessage({ type: "sizes", list: d.resolutions, current: d.resolution });
+  const setSize = async (resolution: string, was?: LiveDisplay): Promise<void> => {
+    try {
+      if (was && !deps.context.globalState.get<DisplayRestore>(RestoreKey)) {
+        // The player's own values, for when the tab closes or the game ends.
+        await deps.context.globalState.update(RestoreKey, {
+          file: userSettingsFile(),
+          windowMode: { value: was.windowMode, index: was.windowModes.indexOf(was.windowMode) },
+          resolution: { value: was.resolution, index: was.resolutions.indexOf(was.resolution) },
+        } satisfies DisplayRestore);
+      }
+      status(`Changing the game to ${resolution}…`);
+      const got = await requestDisplay({ windowMode: WindowModes[0], resolution }, 15000);
+      if (mine.ended) return;
+      if (!got) return status("REDnode did not answer: the game keeps its size.");
+      showSizes(got);
+      status("Click the game to play.");
+    } catch (e) {
+      status((e as Error).message);
+    }
+  };
+  resize = (resolution) => void setSize(resolution);
+  let asked = false;
+  const askDisplay = async (): Promise<void> => {
+    if (asked) return;
+    asked = true;
+    // REDnode starts with the game and the package a little after: ask for two minutes.
+    for (let i = 0; i < 24 && !mine.ended; i++) {
+      const got = await requestDisplay({}, 5000).catch(() => undefined);
+      if (mine.ended) return;
+      if (!got) continue;
+      showSizes(got);
+      if (wasRunning && (got.windowMode !== WindowModes[0] || !fitsTab(got.resolution, tab))) {
+        await setSize(pickResolution(tab, config.get<string>("gameView.resolution", "auto"), got.resolutions), got);
+      }
+      return;
+    }
+    if (wasRunning) status("REDnode did not answer, so the game keeps its size. For a right fit, set Windowed and a size that fits the tab in its Video settings.");
+  };
 
   // The helper: follows the tab, clips the game to it, holds the release key.
   const args = ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script, "-title", title, "-dir", dir, "-releaseKey", releaseKey, "-codePid", String(process.ppid), "-reserve", String(bar)];
@@ -214,6 +283,7 @@ async function runInTab(deps: GameViewDeps, extensionDir: string): Promise<void>
           const game = Array.isArray(event.game) ? event.game : [];
           const cut = event.shown && game.length === 2 && (event.shown[0] < game[0] || event.shown[1] < game[1]);
           status(cut ? `The game is ${game[0]}x${game[1]}, bigger than this tab: a part of it shows.` : "Click the game to play.");
+          void askDisplay();
           break;
         }
         case "moved":
