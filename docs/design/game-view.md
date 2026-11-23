@@ -4,7 +4,7 @@ title: The game in an editor tab
 
 # The game in an editor tab
 
-Draft 0.1 for the owner, 2026-11-22. The owner asked whether REDcode can run the game inside an editor tab, for testing, without the game taking over the monitor. This page holds the research, the result of a first spike run against the game the same day, and a plan. Nothing is built in the repo yet.
+Draft 0.2, 2026-11-22, agreed with the owner the same day (the four decisions below). The owner asked whether REDcode can run the game inside an editor tab, for testing, without the game taking over the monitor. This page holds the research, the result of a first spike run against the game the same day, and a plan. Nothing is built in the repo yet.
 
 ## The answer
 
@@ -56,9 +56,17 @@ Scratch PowerShell scripts over user32, outside the repo. The game ran with REDn
 
 One oddity, unexplained: a window read back once at twice its size and place while the owner was switching tasks, and read right a moment later.
 
-## Spike 2: the tab's rectangle (half run)
+## Spike 2: the tab's rectangle (G0, run 2026-11-22)
 
-The helper must know where the tab is on the screen, and a webview does not know its own place. UI Automation on VS Code's window read its layout from outside in about 150 ms: each tab by name, with its rectangle in real pixels. Still to do: pick out the content area of one webview by a known title, and check it at other scalings and zoom levels.
+The helper must know where the tab is on the screen, and a webview does not know its own place. UI Automation on VS Code's window answers it from outside:
+
+| Check | Result |
+|---|---|
+| VS Code's layout | Readable: 6,401 elements in about 700 ms for the whole window, each with its DOM class and its rectangle in real pixels |
+| One webview | Each webview is a `Document` element named by its page's `<title>`, inside a `webview-overlay-content` group. So the game tab's page gets a title of its own and the helper asks for that name |
+| Speed | Finding one webview by name: 8 to 17 ms. Reading its rectangle again from the found element: under 2 ms. Fast enough to follow a tab by polling |
+
+Still to do, both with the game running: check the rectangle by eye with the game docked on it, at 200% and at another scaling and zoom level; and the window region for a tab smaller than the game.
 
 ## Plan
 
@@ -71,12 +79,12 @@ The helper must know where the tab is on the screen, and a webview does not know
 
 Run in Tab starts the game's exe directly: a Steam launch hides the process from REDcode.
 
-## Open decisions for the owner
+## Decisions (agreed with the owner, 2026-11-22)
 
-1. **Where the helper lives.** A new `window.*` area in REDbridge (one install, but GPL code REDcode already talks to only over stdio, and a REDbridge release), or a small exe of REDcode's own. Recommended: REDbridge, since it is already the one native program REDcode installs and updates.
-2. **The release key's default.** Pause/Break worked but some keyboards have none. Recommended: Ctrl+Alt+Backspace as the default, with a setting.
-3. **VS Code's own popups.** The command palette, menus and hovers are hidden under the game where they overlap. Recommended: accept it in G2, with the release key also lowering the game for a moment if it proves a nuisance.
-4. **The game's saved settings.** Run in Tab changes the window mode and resolution. Recommended: put the player's own values back when the tab closes or the game ends. Putting them back live worked in the spike (Borderless 3840x2160 through REDnode, saved by the game).
+1. **The helper lives in REDbridge**, as a new `window.*` area: it is already the one native program REDcode installs and updates, and REDcode talks to it only over stdio. It needs a REDbridge release, asked of the REDnode session in a REDbridge issue.
+2. **The release key** is Ctrl+Alt+Backspace by default, with a setting. Pause/Break worked too, but some keyboards have none.
+3. **VS Code's own popups** (the command palette, menus, hovers) are hidden under the game where they overlap. Accepted for G2; if it proves a nuisance, the release key can also lower the game for a moment.
+4. **The game's saved settings:** Run in Tab changes the window mode and resolution, and puts the player's own values back when the tab closes or the game ends. Putting them back live worked in the spike (Borderless 3840x2160 through REDnode, saved by the game).
 
 ## Later
 
