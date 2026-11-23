@@ -58,6 +58,8 @@ nav:
     url: /design/animation-tools.html
   - title: Lip Sync
     url: /design/lipsync.html
+  - title: Game in a tab
+    url: /design/game-view.html
   - title: Animation authoring
     url: /research/animation-authoring.html
   - title: MCP
