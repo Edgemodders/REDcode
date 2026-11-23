@@ -1209,7 +1209,18 @@ Use a test project. Have a small PNG ready, an icon for example.
 
 ## Run Game in Tab (G2, REDcode's side)
 
-Built 2026-11-22 ([design](design/game-view.html)) against the interim helper script `tools/probes/game-view/helper.ps1`, until REDbridge has `window.*` (REDbridge #22): `src/gameView.ts`, `src/gameDisplay.ts`, the command **REDcode: Run Game in Tab** (shown only when the helper script is found, so in a checkout), settings `redcode.gameView.resolution`, `releaseKey` and `helper`. Checked by script: `npm test` (the settings file read, patched and put back byte for byte, the size for a tab), and the helper's wait and error with no game. The helper's docking loop is as the spikes proved it but has not run in this form with the game. Not run by hand yet.
+Built 2026-11-22 ([design](design/game-view.html)) against the interim helper script `tools/probes/game-view/helper.ps1`, until REDbridge has `window.*` (REDbridge #22): `src/gameView.ts`, `src/gameDisplay.ts`, the command **REDcode: Run Game in Tab** (shown only when the helper script is found, so in a checkout), settings `redcode.gameView.resolution`, `releaseKey` and `helper`. Checked by script: `npm test` (the settings file read, patched and put back byte for byte, the size for a tab), and the helper's wait and error with no game. The helper's docking loop is as the spikes proved it but has not run in this form with the game.
+
+**Result (the owner, 2026-11-23): steps 1 to 8 pass**, step 2 included: the game started windowed at the size written into its settings file, so the game goes by the value. Three things came out of it:
+
+- **Play and Undock were under the game** when the tab was no taller than it. Fixed the same day: the game leaves the status line free (`-reserve`). Not retested.
+- **The release key did nothing while the game loaded, and in the main menu before a save was loaded.** A cause found in the script: while the game does not answer, the helper skipped the key, and Windows puts a stand-in window (class `Ghost`) in front, which the helper did not take for the game. Fixed the same day (the key is read first, and goes by the game's process); whether that is the whole cause in the main menu is unverified. Retest R1 below.
+- **A game already running keeps its size** (step 8, as written). The owner asks for a resolution selector in the status line; it needs REDnode for a running game. Not built.
+
+| # | Retest | Expected |
+|---|---|---|
+| R1 | Run Game in Tab, click the game while it loads, press Ctrl+Alt+Backspace; again in the main menu | VS Code has the focus and a free pointer both times. The REDcode log has a line "Game in tab: released" with what was in front |
+| R2 | A tab about as tall as the game | The status line with **Play** and **Undock** shows below the game |
 
 | # | Do | Expected |
 |---|---|---|

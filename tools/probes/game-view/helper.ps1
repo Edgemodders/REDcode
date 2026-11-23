@@ -132,6 +132,7 @@ $plain = [IntPtr]0x96000000L
 $e = $null; $owner = [IntPtr]::Zero; $last = ''; $shown = $true; $hidden = $false; $docked = $false
 $focused = $false; $stripped = $false; $hung = $false; $nextFind = 0; $m = New-Object GV+MSG
 $clock = [Diagnostics.Stopwatch]::StartNew()
+$gamePid = [uint32]0; [void][GV]::GetWindowThreadProcessId($game, [ref]$gamePid); $unclipUntil = 0
 
 function Hide-Game { if ($script:shown) { [void][GV]::SetWindowRgn($game, [GV]::CreateRectRgn(0, 0, 0, 0), $true); $script:shown = $false; $script:last = ''; Emit @{ event = 'hidden' } } }
 
@@ -141,6 +142,23 @@ try {
     if (Take 'stop') { break }
     # A game that stops answering (a long load, a crash) must not stay owned: window calls on it block, and
     # UI Automation on its owner blocks with them. Let it go until it answers again.
+    # The release key comes first, so that it also works while the game loads and does not answer. Then the
+    # foreground window is not the game's own but Windows' stand-in for it (class Ghost), so go by the process.
+    if ([GV]::PeekMessage([ref]$m, [IntPtr]::Zero, 0x312, 0x312, 1)) {
+      $fg = [GV]::GetForegroundWindow(); $fp = [uint32]0; [void][GV]::GetWindowThreadProcessId($fg, [ref]$fp)
+      $fc = New-Object Text.StringBuilder 64; [void][GV]::GetClassName($fg, $fc, 64)
+      if ($fg -eq $game -or $fp -eq $gamePid -or $fc.ToString() -eq 'Ghost' -or $fg -eq [IntPtr]::Zero) {
+        [void][GV]::ClipCursor([IntPtr]::Zero)
+        if ($owner -ne [IntPtr]::Zero) {
+          [GV]::keybd_event(0x12, 0, 0, [UIntPtr]::Zero); [GV]::keybd_event(0x12, 0, 2, [UIntPtr]::Zero)
+          [void][GV]::SetForegroundWindow($owner)
+        }
+        # the game may hold the pointer again on its next frames, before it sees it lost the focus
+        $unclipUntil = $clock.ElapsedMilliseconds + 1000
+        Emit @{ event = 'released'; from = $fc.ToString(); focus = ([GV]::GetForegroundWindow() -eq $owner) }
+      }
+    }
+    if ($clock.ElapsedMilliseconds -lt $unclipUntil -and [GV]::GetForegroundWindow() -ne $game) { [void][GV]::ClipCursor([IntPtr]::Zero) }
     if ([GV]::IsHungAppWindow($game)) {
       if (-not $hung) { $hung = $true; [void][GV]::SetWindowLongPtr($game, -8, [IntPtr]::Zero); Emit @{ event = 'hung' } }
       Start-Sleep -Milliseconds 250; continue
@@ -153,13 +171,6 @@ try {
       # a background process may not take the foreground; a tap of Alt lifts that lock
       [GV]::keybd_event(0x12, 0, 0, [UIntPtr]::Zero); [GV]::keybd_event(0x12, 0, 2, [UIntPtr]::Zero)
       [void][GV]::SetForegroundWindow($game)
-    }
-    if ([GV]::PeekMessage([ref]$m, [IntPtr]::Zero, 0x312, 0x312, 1)) {
-      if ([GV]::GetForegroundWindow() -eq $game) {
-        [void][GV]::ClipCursor([IntPtr]::Zero)
-        if ($owner -ne [IntPtr]::Zero) { [void][GV]::SetForegroundWindow($owner) }
-        Emit @{ event = 'released' }
-      }
     }
     $now = [GV]::GetForegroundWindow() -eq $game
     if ($now -ne $focused) { $focused = $now; Emit @{ event = 'focus'; game = $focused } }

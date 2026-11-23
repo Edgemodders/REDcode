@@ -226,7 +226,7 @@ async function runInTab(deps: GameViewDeps, extensionDir: string): Promise<void>
           status(event.game === true ? "Playing." : "Click the game to play.");
           break;
         case "released":
-          deps.log.appendLine("Game in tab: released");
+          deps.log.appendLine(`Game in tab: released ${line}`);
           break;
         case "hung":
           status("The game is not answering; it is let go until it does.");
