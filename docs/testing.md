@@ -1218,7 +1218,7 @@ Built 2026-11-22 ([design](design/game-view.html)) against the interim helper sc
 | 3 | Click the game, look around, then press Ctrl+Alt+Backspace | The game has the mouse and keyboard; the key gives them back to VS Code with a free pointer |
 | 4 | Drag the divider beside the tab; make the tab smaller than the game | The game follows; a smaller tab shows a part of the game, cut cleanly |
 | 5 | Click another tab in the group, then the game's tab again | The game vanishes and comes back, and stays put when clicked |
-| 6 | **Play** and **Undock** in the tab's status line | Play gives the game the focus. Undock closes the tab; the game stays open as an ordinary window with its title bar |
+| 6 | **Play** and **Undock** in the tab's status line, the strip at the tab's bottom that the game leaves free | Play gives the game the focus. Undock closes the tab; the game stays open as an ordinary window with its title bar |
 | 7 | Quit the game. Open the game's Video settings on the next normal start, or read `UserSettings.json` | Your own window mode and resolution are back (the REDcode log says so a few seconds after the game ends) |
 | 8 | With the game already running full screen, **Run Game in Tab** | It docks the game as it is and says to set Windowed and a size; nothing in the settings file changes |
 

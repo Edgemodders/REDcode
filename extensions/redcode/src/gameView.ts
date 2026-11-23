@@ -88,7 +88,7 @@ function page(title: string, releaseKey: string, nonce: string): string {
 </div>
 <script nonce="${nonce}">
   const vscode = acquireVsCodeApi();
-  const size = () => vscode.postMessage({ type: 'size', width: Math.round(innerWidth * devicePixelRatio), height: Math.round(innerHeight * devicePixelRatio) });
+  const size = () => vscode.postMessage({ type: 'size', width: Math.round(innerWidth * devicePixelRatio), height: Math.round(innerHeight * devicePixelRatio), bar: Math.ceil(document.getElementById('bar').offsetHeight * devicePixelRatio) });
   addEventListener('resize', size); size();
   document.getElementById('play').addEventListener('click', () => vscode.postMessage({ type: 'play' }));
   document.getElementById('stop').addEventListener('click', () => vscode.postMessage({ type: 'stop' }));
@@ -132,12 +132,15 @@ async function runInTab(deps: GameViewDeps, extensionDir: string): Promise<void>
   };
 
   // The tab's size in real pixels picks the game's size; the page posts it as soon as it runs.
+  // The status line at the tab's bottom is kept free of the game, so its height comes off.
   let tab: { width: number; height: number } | undefined;
+  let bar = 0;
   let sized: () => void = () => {};
   const firstSize = new Promise<void>((r) => (sized = r));
-  panel.webview.onDidReceiveMessage((m: { type: string; width?: number; height?: number }) => {
+  panel.webview.onDidReceiveMessage((m: { type: string; width?: number; height?: number; bar?: number }) => {
     if (m.type === "size" && m.width && m.height) {
-      tab = { width: m.width, height: m.height };
+      bar = m.bar ?? 0;
+      tab = { width: m.width, height: Math.max(1, m.height - bar) };
       sized();
     } else if (m.type === "play") signal("focus");
     else if (m.type === "stop") panel.dispose();
@@ -185,7 +188,7 @@ async function runInTab(deps: GameViewDeps, extensionDir: string): Promise<void>
   }
 
   // The helper: follows the tab, clips the game to it, holds the release key.
-  const args = ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script, "-title", title, "-dir", dir, "-releaseKey", releaseKey, "-codePid", String(process.ppid)];
+  const args = ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script, "-title", title, "-dir", dir, "-releaseKey", releaseKey, "-codePid", String(process.ppid), "-reserve", String(bar)];
   const helper = spawn("powershell", args, { windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
   mine.helper = helper;
   let buffer = "";

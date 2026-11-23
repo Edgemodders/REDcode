@@ -2,7 +2,7 @@
 # It keeps the game's window on one VS Code webview and holds the release key.
 #
 #   helper.ps1 -title <webview document name> -dir <command folder> [-codePid <VS Code main pid>]
-#              [-releaseKey ctrl+alt+backspace] [-waitSeconds 180]
+#              [-releaseKey ctrl+alt+backspace] [-waitSeconds 180] [-reserve <pixels>]
 #
 # Out: one JSON object per line on stdout: {"event":"waiting"|"docked"|"moved"|"put-back"|"hidden"|"focus"|"released"|"hung"|"answering"|"lost"|"stopped"|"error", ...}
 # Only ever point -class at the game: a stand-in test on Notepad left one of its windows hung (2026-11-22).
@@ -13,6 +13,8 @@ param(
   [int]$codePid = 0,
   [string]$releaseKey = 'ctrl+alt+backspace',
   [int]$waitSeconds = 180,
+  # pixels at the tab's bottom the game must leave free
+  [int]$reserve = 0,
   [string]$class = 'W2ViewportClass'
 )
 $ErrorActionPreference = 'Stop'
@@ -188,8 +190,10 @@ try {
         # which is the client size it had with the frame on
         [void][GV]::SetWindowLongPtr($game, -16, $plain); [void][GV]::SetWindowPos($game, [IntPtr]::Zero, 0, 0, $gw, $gh, 0x36); $stripped = $true; $last = ''
       } elseif ($gw -gt 0 -and $gh -gt 0) {
-        $w = [Math]::Min($gw, [int]$r.Width); $h = [Math]::Min($gh, [int]$r.Height)
-        $x = [int]$r.X + [Math]::Max(0, [int](($r.Width - $gw) / 2)); $y = [int]$r.Y + [Math]::Max(0, [int](($r.Height - $gh) / 2))
+        # the tab's own status line, at its bottom, stays free of the game
+        $ah = [Math]::Max(8, [int]$r.Height - $reserve)
+        $w = [Math]::Min($gw, [int]$r.Width); $h = [Math]::Min($gh, $ah)
+        $x = [int]$r.X + [Math]::Max(0, [int](($r.Width - $gw) / 2)); $y = [int]$r.Y + [Math]::Max(0, [int](($ah - $gh) / 2))
         $k = "$x,$y ${w}x$h ${gw}x$gh"
         $gr = New-Object GV+RECT; [void][GV]::GetWindowRect($game, [ref]$gr)
         if ($k -ne $last -or $gr.L -ne $x -or $gr.T -ne $y) {
