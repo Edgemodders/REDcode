@@ -94,7 +94,12 @@ The owner ran all eight steps on 2026-11-23 and they pass (`docs/testing.md`, Ru
 - **Before the start** REDcode writes Windowed and that size into `UserSettings.json` (`setWindowed`), since Run in Tab starts the game itself. The file keeps an index beside each value; the resolution's index is left as it was, and the game goes by the value (the hand test, 2026-11-23).
 - **After the end** the player's two values are put back (`restoreDisplay`), once the game's process is gone; what to put back is kept in global state, so a restart of VS Code still does it.
 - **The helper** is `tools/probes/game-view/helper.ps1` for now: JSON lines out (`docked`, `moved`, `hidden`, `focus`, `released`, `lost`), files dropped in a folder in (`stop`, `focus`, `hide`, `show`). The command shows only when the script is found, so not in a released build. REDbridge's `window.*` replaces it behind the same events.
-- **A game already running** is docked as it is. Setting its size through REDnode (a function in the `redcode` REDnode package) is the next step, with REDnode #56.
+- **A game already running** is docked, then set to Windowed at the largest listed size that fits the tab, through REDnode (built 2026-11-23, not run). Without REDnode it keeps its size and the status line says so.
+- **The size selector** (the owner, 2026-11-23; built the same day, not run): a **Size** list in the status line with the game's own sizes. It works on the running game through the `redcode` REDnode package (0.3.0).
+  - **The channel is a file, not a tool** (agreed with the owner): REDcode writes `display-request.json` in `%LOCALAPPDATA%\REDcode` with an id, its process id and the time; the package's `service.mjs` sets `/video/display` `WindowMode` and `Resolution` by their listed values, calls `ConfirmChanges()` and answers in `display.json`. So the click in VS Code is the player's say and the game asks nothing. The package takes only a request under 30 seconds old from a process that still runs, and only listed values. Anything that can write that file can change the game's size.
+  - **For assistants** the package has the read-only tool `display()` (`redcode__display`): the mode, the size and both lists.
+  - **On Undock or a closed tab** a game that runs on gets the player's own mode and size back through the same channel; the settings file is still put right after the game ends.
+- **From an assistant:** redcode-mcp's `game_start` asks for this tab through `game-tab-request.json`; the window in front takes it ([Game tests by an assistant](game-testing.html)).
 
 ## Plan
 

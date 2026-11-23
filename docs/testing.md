@@ -1222,6 +1222,30 @@ Built 2026-11-22 ([design](design/game-view.html)) against the interim helper sc
 | R1 | Run Game in Tab, click the game while it loads, press Ctrl+Alt+Backspace; again in the main menu | VS Code has the focus and a free pointer both times. The REDcode log has a line "Game in tab: released" with what was in front |
 | R2 | A tab about as tall as the game | The status line with **Play** and **Undock** shows below the game |
 
+### The size selector (built 2026-11-23, not run)
+
+A **Size** list in the status line, and a fitting size for a game docked as it ran, through the `redcode` REDnode package 0.3.0 (a request file in `%LOCALAPPDATA%\REDcode`, no ask in the game; `redcode__display` for assistants). Checked by script (`npm test`: the request and its answer against a stand-in game, a size the game does not list refused). Needs REDnode running in the game. The package updates itself when the F5 window starts with the game folder set.
+
+| # | Do | Expected |
+|---|---|---|
+| S1 | Run Game in Tab with the game closed; wait for the main menu | Within about a minute of the game docking, **Size** lists the game's sizes with the current one picked |
+| S2 | Pick 1280x720, then 1920x1080 | The status says "Changing the game to …"; the game draws at the new size after about three seconds, centred in the tab, with no ask in the game |
+| S3 | **Undock** with the game running | The game goes back to your own window mode and size (Borderless at the screen's size here) |
+| S4 | With the game running full screen, **Run Game in Tab** | It docks, then switches by itself to Windowed at the largest size that fits the tab |
+| S5 | Close the tab, quit the game, start it normally | Your own window mode and size |
+
+## The game tools for assistants (redcode-mcp `game_*`)
+
+Built 2026-11-23 ([design](design/game-testing.html)): `game_start`, `game_stop` and `game_status` in `packages/redcode-mcp` over `src/gameRun.ts`. Checked by script (`npm test`: a tab request taken by one window only, the player's values kept once and put back; `game_status` with no game answers `running: false`). Not run against the game: the tools start and stop it, so the first run is with the owner. Unverified: whether the game closes cleanly on `game_stop`'s first ask.
+
+| # | Do, from a Claude session with the workspace's redcode-mcp (`npm run mcp:build` first) | Expected |
+|---|---|---|
+| T1 | The game closed, no REDcode F5 window. Ask the session to start the game | It asks first, then `game_start` answers `started: true, tab: false`; the game comes up windowed at 1920x1080 |
+| T2 | Ask whether the game is ready | `game_status`: `running: true`, and `rednode: true` once the main menu shows |
+| T3 | Ask it to stop the game | It asks first unless it started it; the game closes; the answer names your own window mode and size as restored |
+| T4 | With the F5 window (Run REDcode) open, ask it to start the game | `tab: true`; the F5 window opens the game tab and the game docks in it |
+| T5 | Start the game normally afterwards | Your own window mode and size |
+
 | # | Do | Expected |
 |---|---|---|
 | 1 | The game closed. F5 with **Run REDcode**, then **REDcode: Run Game in Tab** | A tab **Cyberpunk 2077** opens, black, with a status line at the bottom: "Starting the game windowed at 1920x1080…" (or 1280x720 in a small tab) |

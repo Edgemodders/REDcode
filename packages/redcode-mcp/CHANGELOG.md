@@ -4,6 +4,10 @@ What changed in each redcode-mcp release. The release notes on GitHub come from 
 
 ## Unreleased
 
+**New**
+
+- `game_start`, `game_status` and `game_stop`: an assistant can start Cyberpunk 2077 for a test without it taking over the monitor (windowed at a small size, or in REDcode's game tab), wait until REDnode in it answers, and close it. Your own window mode and resolution are put back after the game ends.
+
 ## 0.6.0 (2026-11-22)
 
 Animations made from words with Uthana, from a GLB, or in place of a game clip. The Uthana key from the shared key store needs REDbridge 0.18.0; with an older REDbridge, set `UTHANA_API_KEY`.

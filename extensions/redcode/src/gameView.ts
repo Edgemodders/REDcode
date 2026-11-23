@@ -11,6 +11,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import * as vscode from "vscode";
 import { fitsTab, pickResolution, restoreDisplay, setWindowed, userSettingsFile, WindowModes, type DisplayRestore } from "./gameDisplay";
+import { finishRestore, watchTabRequests } from "./gameRun";
 import { gameEnv, launchTarget } from "./install";
 import { requestDisplay, type LiveDisplay } from "./rednodeService";
 
@@ -51,7 +52,14 @@ function gameRunning(): Promise<boolean> {
 /** Puts the player's window mode and resolution back once the game has ended; kept across restarts of VS Code. */
 async function restoreWhenGameEnds(deps: GameViewDeps): Promise<void> {
   const restore = deps.context.globalState.get<DisplayRestore>(RestoreKey);
-  if (!restore) return;
+  if (!restore) {
+    // A start by the MCP server's game_start keeps its own note of the player's values.
+    if (!(await gameRunning())) {
+      const back = finishRestore();
+      if (back) deps.log.appendLine(`Game in tab: the game's settings are back to ${back.windowMode.value} ${back.resolution.value}`);
+    }
+    return;
+  }
   // The game may write its settings when it ends, so wait for it.
   while (await gameRunning()) await new Promise((r) => setTimeout(r, 5000));
   if (!deps.context.globalState.get<DisplayRestore>(RestoreKey)) return;
@@ -330,5 +338,7 @@ export function registerGameView(deps: GameViewDeps, extensionDir: string, run: 
     vscode.commands.registerCommand("redcode.runInTab", () => run(() => runInTab(deps, extensionDir))),
     { dispose: () => session?.panel.dispose() },
   );
+  // An assistant's game_start (the MCP server) asks for the tab through a file; the window in front takes it.
+  if (available) deps.context.subscriptions.push(watchTabRequests(() => void vscode.commands.executeCommand("redcode.runInTab"), () => vscode.window.state.focused));
   void restoreWhenGameEnds(deps);
 }

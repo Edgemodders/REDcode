@@ -4,6 +4,10 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 ## Unreleased
 
+**New**
+
+- Assistants in the game can read the game's window mode and resolution, with the sizes it offers: `redcode__display`, in REDcode's REDnode package (0.3.0).
+
 ## 0.10.16 (2026-11-22)
 
 Keys for every EDGE tool, animations made from words with Uthana, and materials, a camera and selecting many things in the sector view. Needs REDbridge 0.18.0.

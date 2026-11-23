@@ -837,6 +837,18 @@ await check("redcode service: every window's project, the last focused first; a 
     await assert.rejects(rs.requestDisplay({ resolution: "1000x700" }, 6000), /does not list the resolution 1000x700/);
     assert.equal((await svc.display()).resolution, "1920x1080", "a size the game does not list changes nothing");
     assert.equal(manifest.version, "0.3.0");
+
+    // The MCP server's game tools: the tab asked for through a file, and the player's values kept.
+    const gr = require("../dist/gameRun.js");
+    assert.equal(await gr.askTab(600), false, "no REDcode window: the caller starts the game itself");
+    let ran = 0;
+    const first = gr.watchTabRequests(() => ran++, () => true);
+    const second = gr.watchTabRequests(() => ran++, () => false);
+    assert.equal(await gr.askTab(3000), true, "a window takes the request");
+    await new Promise((r) => setTimeout(r, 900));
+    assert.equal(ran, 1, "one window only, the focused one");
+    first.dispose();
+    second.dispose();
   } finally {
     if (before === undefined) delete process.env.LOCALAPPDATA;
     else process.env.LOCALAPPDATA = before;
@@ -1312,6 +1324,24 @@ await check("game display: the size for a tab", () => {
   assert.equal(gd.pickResolution({ width: 2031, height: 1339 }, "auto", listed), "1920x1080");
   assert.equal(gd.fitsTab("1920x1080", { width: 2031, height: 1079 }), false);
   assert.equal(gd.fitsTab("1920x1080", { width: 1920, height: 1080 }), true);
+});
+await check("game run: the player's values are kept once and put back", () => {
+  const local = path.join(tmp, "localappdata-run");
+  const before = process.env.LOCALAPPDATA;
+  process.env.LOCALAPPDATA = local;
+  try {
+    const gr = require("../dist/gameRun.js");
+    const settings = path.join(tmp, "UserSettings-run.json");
+    fs.writeFileSync(settings, settingsText);
+    gr.keepRestore(gd.setWindowed("1920x1080", settings));
+    gr.keepRestore({ file: settings, windowMode: { value: "Windowed", index: 0 }, resolution: { value: "1280x720", index: 0 } });
+    assert.equal(gr.finishRestore().resolution.value, "3840x2160", "the first kept values are the player's own");
+    assert.equal(fs.readFileSync(settings, "utf8"), settingsText);
+    assert.equal(gr.finishRestore(), undefined);
+  } finally {
+    if (before === undefined) delete process.env.LOCALAPPDATA;
+    else process.env.LOCALAPPDATA = before;
+  }
 });
 
 fs.rmSync(tmp, { recursive: true, force: true });

@@ -7,6 +7,7 @@ dist/**/*.map
 dist/bridgeClient.js
 dist/hotSwap.js
 dist/gameDisplay.js
+dist/gameRun.js
 *.vsix
 webview/**
 dist/opens.js

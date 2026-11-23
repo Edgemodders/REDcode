@@ -60,6 +60,8 @@ nav:
     url: /design/lipsync.html
   - title: Game in a tab
     url: /design/game-view.html
+  - title: Game tests by an assistant
+    url: /design/game-testing.html
   - title: Animation authoring
     url: /research/animation-authoring.html
   - title: MCP

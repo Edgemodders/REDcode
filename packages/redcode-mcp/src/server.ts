@@ -18,6 +18,7 @@ import { audioFormat, GameSoundIndex, opusSound, parseOpusInfo, wwiseHash, type 
 import { BridgeClient, KeyAccess } from "../../../extensions/redcode/src/bridgeClient";
 import * as anim from "../../anim-core/src/index";
 import { gameVersionOf, isInside, libraryFolders, planAsset, readLibraryRoot, suggestedLibraryRoot, writeAsset, writeLibraryRoot, type AssetSource } from "../../../extensions/redcode/src/library";
+import { gameStatus, startGame, stopGame } from "../../../extensions/redcode/src/gameRun";
 import { findProject, gamePathOf } from "../../../extensions/redcode/src/project";
 import type { PatchOp } from "../../../extensions/redcode/src/types";
 
@@ -261,6 +262,22 @@ tool("library_add", "Add a game file or a project's file to the EDGE Library, th
   if (plan.take.length > 500 && !a.allowLarge) throw new Error(`${plan.main} needs ${plan.take.length} files. Check with the modder, then pass allowLarge.`);
   return writeAsset(b, source, plan, { root, folder: a.folder, gamePathFolders: a.gamePathFolders, ifExists: a.ifExists, tool: `redcode-mcp ${Version}`, gameVersion: await gameVersionOf(info.gameDir), gameDir: info.gameDir });
 });
+
+// ---- the game itself, for a test an assistant runs (REDcode's docs/design/game-testing.md) ----
+
+tool("game_status", "Whether Cyberpunk 2077 is running, and whether REDnode in it answers yet (through REDcode's redcode package, 0.3.0 or later), with the game's window mode and resolution. Use it to wait after game_start: REDnode's own tools (game_state, game_image, api_read, logs) work once rednode is true, and game_state says whether a save is loaded. When the game has ended after a game_start, this also puts the player's own window mode and resolution back in the game's settings file. Changes nothing else.", {}, async () => gameStatus());
+
+tool("game_start", "Start Cyberpunk 2077 for a test, so it does not take over the player's monitor: windowed at a small size, or inside REDcode's game tab in VS Code when a REDcode window offers one (then at a size that fits the tab). The game's exe is started directly. It changes the window mode and resolution in the game's settings file and keeps the player's own values, which go back when the game has ended (game_stop, or game_status after it closed). It answers at once: ask game_status until rednode is true, about a minute. The game opens on its main menu; loading a save is the player's step until REDnode has a call for it. Ask the player before starting the game unless they asked for exactly that.", {
+  resolution: z.string().regex(/^\d{3,5}x\d{3,5}$/).optional().describe("The game's size when it is not in a tab, one of the sizes the game lists for the monitor. Default 1920x1080; 1280x720 is lighter."),
+  tab: z.boolean().optional().describe("False starts the game as a window of its own even when REDcode offers its tab. Default true."),
+  redmod: z.boolean().optional().describe("Start with REDmod mods (-modded). Default false."),
+}, async (a, b) => {
+  const info = await b.info();
+  if (!info.gameDir) throw new Error("REDbridge has no game folder: set REDCODE_GAME_PATH or start it with --game.");
+  return startGame(info.gameDir, { resolution: a.resolution, tab: a.tab, redmod: a.redmod });
+});
+
+tool("game_stop", "Close Cyberpunk 2077: asks its window to close and, when it has not gone after 15 seconds, ends its process. Progress since the last save is lost, so ask the player first unless this session started the game for a test. Afterwards the player's own window mode and resolution are back in the game's settings file, when game_start changed them.", {}, async () => stopGame());
 
 // ---- made animations (REDcode's docs/design/animation-tools.md, AT2), over @edgemodders/anim-core ----
 
