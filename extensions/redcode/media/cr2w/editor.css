@@ -253,7 +253,7 @@ input[type="checkbox"]:disabled { opacity: .5; cursor: default; }
 /* The sector view takes the keyboard when clicked (Ctrl+A, F, Esc): no focus ring round the whole view. */
 .meshview:focus { outline: none; }
 /* The Make panel while a make runs: a spinner in the button, a bar through the stages. */
-.animmake .makespin { display: inline-block; width: 10px; height: 10px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; vertical-align: -1px; animation: makespin .8s linear infinite; }
+.animmake .makespin, .meshview .makespin { display: inline-block; width: 10px; height: 10px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; vertical-align: -1px; animation: makespin .8s linear infinite; }
 @keyframes makespin { to { transform: rotate(360deg); } }
 .animmake .makebar { height: 3px; background: var(--line); overflow: hidden; }
 .animmake .makebar[hidden] { display: none; }

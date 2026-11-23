@@ -387,6 +387,9 @@
         // The selected list's actions for many things (docs/design/sector-selection.md).
         addMeshes: (meshes) => request("sectorAction", { action: "addMeshes", meshes }),
         copy: (text) => request("sectorAction", { action: "copy", text }),
+        // Sector scripts (docs/design/sector-scripts.md): the host's menu, and Stop.
+        scripts: (entries) => request("sectorScripts", { entries }),
+        stopScript: () => request("sectorScriptStop"),
         light: payload.light,
         onLight: (settings) => vscode.postMessage({ type: "light", settings }),
         sideWidth: payload.sideWidth,

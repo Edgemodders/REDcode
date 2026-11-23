@@ -1344,6 +1344,107 @@ await check("game run: the player's values are kept once and put back", () => {
   }
 });
 
+// ---- sector scripts (docs/design/sector-scripts.md) ----
+const sn = require("../dist/sectorNodes.js");
+const ss = require("../dist/sectorScripts.js");
+const cname = (v) => ({ $type: "CName", $storage: "string", $value: v });
+const depot = (v) => ({ DepotPath: { $type: "ResourcePath", $storage: v ? "string" : "uint64", $value: v || "0" }, Flags: "Default" });
+const entry = (nodeIdx, d, x) => ({ $type: "worldCompiledNodeInstanceSetupInfo", nodeIdx: String(nodeIdx), streamingDistance: d, transform: { $type: "Transform", position: { $type: "Vector4", X: x, Y: 2, Z: 3, W: 0 } } });
+const sectorJson = () => ({
+  Header: {},
+  Data: {
+    RootChunk: {
+      nodes: [
+        { HandleId: "0", Data: { $type: "worldStaticMeshNode", debugName: cname("crate"), mesh: depot("base\\props\\crate.mesh"), meshAppearance: cname("default") } },
+        { HandleId: "1", Data: { $type: "worldEntityNode", debugName: cname("None"), entityTemplate: depot("base\\gameplay\\token.ent"), appearanceName: cname("red"), spot: { HandleId: "2", Data: { $type: "AISpot", radius: 1 } } } },
+      ],
+      nodeData: { BufferId: "0", Data: [entry(0, 30, 1), entry(1, 120, 2), entry(0, 44.5, 3)] },
+    },
+  },
+});
+await check("sector scripts: a node joins its entry and its node, names as text", () => {
+  const nodes = sn.sectorNodes("s", sectorJson());
+  assert.equal(nodes.length, 3);
+  const [a, b, c] = nodes;
+  assert.equal(a.id, "s#0");
+  assert.equal(a.type, "worldStaticMeshNode");
+  assert.equal(a.mesh, "base\\props\\crate.mesh");
+  assert.equal(a.appearance, "default");
+  assert.equal(a.debugName, "crate");
+  assert.deepEqual(a.position, [1, 2, 3]);
+  assert.equal(b.mesh, null);
+  assert.equal(b.resource, "base\\gameplay\\token.ent");
+  assert.equal(b.debugName, null, "None is no name");
+  assert.equal(b.get("spot.radius"), 1, "a handle's Data is stepped into");
+  assert.equal(c.nodeIndex, 0);
+  assert.equal(a.get("streamingDistance"), 30, "the entry's own value");
+  assert.equal(a.get("meshAppearance"), "default", "the node's own value, as text");
+  assert.equal(a.get("nope"), undefined);
+});
+await check("sector scripts: set records document paths, in the old value's form, and undoes itself", () => {
+  const changes = new Map();
+  const [a, b] = sn.sectorNodes("s", sectorJson(), changes);
+  a.set("streamingDistance", 90);
+  a.set("meshAppearance", "rusty");
+  b.set("spot.radius", 2);
+  a.set("streamingDistance", 90); // the same again: no second change
+  const list = [...changes.values()];
+  assert.deepEqual(list.map((c) => c.path), ["nodeData.Data.0.streamingDistance", "nodes.0.Data.meshAppearance", "nodes.1.Data.spot.Data.radius"]);
+  assert.deepEqual(list[1].to, cname("rusty"));
+  assert.equal(a.get("meshAppearance"), "rusty", "a later get sees the change");
+  assert.deepEqual(sn.changeToOp(list[0]), { op: "replace", path: "nodeData.Data.0.streamingDistance", value: 90 });
+  a.set("streamingDistance", 30); // back to what it was: no change
+  assert.equal(changes.has("nodeData.Data.0.streamingDistance"), false);
+  assert.throws(() => a.set("nope", 1), /has no nope/);
+  // A path into an empty resource reference becomes text.
+  assert.deepEqual(sn.wrapValue(depot(""), "base\\x.mesh").DepotPath, { $type: "ResourcePath", $storage: "string", $value: "base\\x.mesh" });
+  assert.match(sn.describeChange(list[0]), /^#0: streamingDistance 30 → 90$/);
+});
+await check("sector scripts: names from the text, file names, the template lists", () => {
+  assert.deepEqual(ss.describeScript(`export default { name: "Short \\"ones\\"", description: 'Finds them', visit() {} }`, "x.mjs"), { name: 'Short "ones"', description: "Finds them" });
+  assert.deepEqual(ss.describeScript("export default { visit() {} }", "C:\\s\\my-script.mjs"), { name: "my-script", description: "" });
+  assert.equal(ss.scriptFileName("Short streaming distance!"), "short-streaming-distance.mjs");
+  const dir = path.join(tmp, "scripts");
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, "b.mjs"), ss.scriptTemplate("Beta"));
+  fs.writeFileSync(path.join(dir, "a.mjs"), ss.scriptTemplate("Alpha"));
+  fs.writeFileSync(path.join(dir, "notes.txt"), "");
+  const list = ss.listScripts([{ place: "mine", dir }, { place: "project", dir: path.join(tmp, "none") }]);
+  assert.deepEqual(list.map((s) => s.name), ["Alpha", "Beta"]);
+  assert.equal(list[0].place, "mine");
+});
+await check("sector scripts: a run in its own process selects, changes, calls REDcode and fails cleanly", async () => {
+  const json = write("scripts/sector.json", JSON.stringify(sectorJson()));
+  const runner = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "dist", "scriptRunner.js");
+  const script = write(
+    "scripts/raise.mjs",
+    `export default { name: "Raise", async visit(node, ctx) {
+      if (node.streamingDistance < 45) { ctx.select(node); node.set("streamingDistance", 90); }
+      if (node.entry === 1) ctx.log("token", (await ctx.game.read("base\\\\x.mesh")).answer);
+    } };`,
+  );
+  const logs = [];
+  const calls = [];
+  const r = await ss.runScript({ runner, script, sector: "s", json, onLog: (l) => logs.push(l), onCall: async (method, params) => (calls.push([method, params]), JSON.stringify({ Data: { RootChunk: { answer: 42 } } })) }).result;
+  assert.deepEqual(r.selected, [0, 2]);
+  assert.deepEqual(r.changes.map((c) => c.path), ["nodeData.Data.0.streamingDistance", "nodeData.Data.2.streamingDistance"]);
+  assert.equal(r.visited, 3);
+  assert.deepEqual(calls, [["read", { path: "base\\x.mesh" }]]);
+  assert.deepEqual(logs, ["token 42"]);
+  // On the selection, a script that selects nothing leaves the view's selection alone.
+  const quiet = write("scripts/quiet.mjs", `export default { visit(node, ctx) { ctx.log(node.id); } };`);
+  const q = await ss.runScript({ runner, script: quiet, sector: "s", json, only: [1] }).result;
+  assert.equal(q.selected, null);
+  assert.equal(q.visited, 1);
+  const bad = write("scripts/bad.mjs", `export default { visit(node) { if (node.entry === 1) throw new Error("broken here"); } };`);
+  await assert.rejects(ss.runScript({ runner, script: bad, sector: "s", json }).result, /broken here/);
+  // Stop ends a script that never ends.
+  const loop = write("scripts/loop.mjs", `export default { visit() { for (;;) {} } };`);
+  const run = ss.runScript({ runner, script: loop, sector: "s", json });
+  setTimeout(() => run.stop(), 300);
+  await assert.rejects(run.result, (e) => e instanceof ss.ScriptStopped);
+});
+
 fs.rmSync(tmp, { recursive: true, force: true });
 console.log(`${passed} passed${failures.length ? `, ${failures.length} failed` : ""}`);
 process.exit(failures.length ? 1 : 0);

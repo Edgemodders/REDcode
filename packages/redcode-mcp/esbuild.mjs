@@ -24,6 +24,10 @@ const result = await esbuild.build({
   banner: { js: "#!/usr/bin/env node" },
 });
 
+// The process a sector script runs in (script_run), and REDcode's example scripts beside it.
+await esbuild.build({ entryPoints: ["../../extensions/redcode/src/scriptRunner.ts"], outfile: "dist/scriptRunner.cjs", bundle: true, platform: "node", format: "cjs", target: "node20", logLevel: "info" });
+fs.cpSync(path.join(here, "..", "..", "extensions", "redcode", "media", "scripts"), path.join(here, "dist", "scripts"), { recursive: true });
+
 // The packages in the bundle: every input under a node_modules folder, by package root.
 const roots = new Map();
 for (const input of Object.keys(result.metafile.inputs)) {

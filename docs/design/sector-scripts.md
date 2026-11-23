@@ -4,7 +4,7 @@ title: Sector scripts
 
 # Sector scripts: small JavaScript tools over a sector's nodes
 
-Draft 0.1, 2026-11-22, for the owner. The owner asked for it on 2026-11-22. A sector has thousands of nodes, and a few may have wrong values, such as a streaming distance below 45. Nobody can find those by hand. A short script can: walk every node, or only the selected ones, and select the ones that match, change a value, or hand them to another EDGE tool or to an assistant. The owner also asked for MCP tools for sector editing, which assistants need either way.
+Draft 0.2. Agreed with the owner on 2026-11-23, with all four recommendations below. Built the same day (SC1 to SC4; see As built at the end), hand test pending. The owner asked for it on 2026-11-22. A sector has thousands of nodes, and a few may have wrong values, such as a streaming distance below 45. Nobody can find those by hand. A short script can: walk every node, or only the selected ones, and select the ones that match, change a value, or hand them to another EDGE tool or to an assistant. The owner also asked for MCP tools for sector editing, which assistants need either way.
 
 ## How it differs from the script runner dropped in October
 
@@ -18,12 +18,12 @@ The C5 design dropped a general script runner on 2026-10-14 (`docs/design/view.m
 
 | Where | What |
 |---|---|
-| The sector view's bar | A **Scripts** button with a dropdown menu: the scripts, each with **Run on All** and **Run on Selection**; then **New Script…**, **Edit**, **Remove**, **Debug** and **Open Scripts Folder** |
+| The sector view's bar | A **Scripts** button opens VS Code's own menu (a quick pick) of the scripts, grouped by where they live. Enter runs one on every node; its row buttons are **Run on Selection**, **Debug**, **Edit** and **Remove** (an example has **View** and **Copy to My Scripts**). Then **New Script…** and **Open Scripts Folder** |
 | While a script runs | The button shows a spinner and a count of nodes visited. **Stop** ends it. Nothing changes in the sector until it finishes |
 | When it finishes | A line under the view, such as "Short streaming distance: 312 selected, 0 changed, 0.4 s". The selection list shows what it picked. Its log goes to the REDcode output channel |
 | When it changes values | A preview first: "312 changes to `streamingDistance`" with the list, then **Apply** or **Cancel**. Apply is one edit, so one Ctrl+Z undoes all of it. Values change only in a project's copy of the sector; on a game file the preview offers **Add to Project** first |
 
-**New Script…** asks for a name and starts from a template, then opens the file in an editor tab. **Debug** runs the script under VS Code's own JavaScript debugger, stopped at its first line, so breakpoints, stepping and the Debug Console work.
+**New Script…** asks for a name and starts from a template, then opens the file in an editor tab. **Debug** runs the script under VS Code's own JavaScript debugger: it stops at the script's breakpoints, or at a `debugger;` line, and stepping and the Debug Console work.
 
 ## The script
 
@@ -100,7 +100,7 @@ In redcode-mcp, the server assistants already use. They work on files on disk th
 | SC3 Other tools and assistants | `tools.call`, `agent.request` and the request files | A script hands 10 nodes to Claude Code, which reads them through `request_get` |
 | SC4 MCP | The sector, script and request tools in redcode-mcp, released as its next version | An assistant finds and fixes the same nodes with no REDcode window open |
 
-## Decisions for the owner
+## Decisions (taken 2026-11-23: the owner took all four recommendations)
 
 | # | Question | Recommendation |
 |---|---|---|
@@ -108,6 +108,29 @@ In redcode-mcp, the server assistants already use. They work on files on disk th
 | 2 | What changing a game sector means | **Editing a project's copy of the sector**, which replaces the whole sector in the game, with the warning REDcode is to give anyway (it can undo EDGEbuilder's ArchiveXL deletions). Changing single nodes through ArchiveXL mutations, which leave the rest of the sector to the game and other mods, is EDGEbuilder's world editing and a later step |
 | 3 | Only sectors, or the whole CR2W editor | **Sectors first**, with the API shaped so `.ent`, `.app` and `.mesh` follow: a node is "an entry in this file", and `visit` walks whatever the file holds |
 | 4 | How an assistant receives a request | **The request files and MCP tools above.** The other choice is REDcode calling Claude's API itself with the Anthropic key in the Keys store. That would make REDcode an agent, which the owner set aside when C6 was dropped (2026-10-16) |
+
+## As built (2026-11-23)
+
+| Part | Where |
+|---|---|
+| The node model: one node per node data entry, `get` and `set` by path with handles stepped into, names and resource paths as text, changes as `cr2w.patch` paths | `extensions/redcode/src/sectorNodes.ts` (no VS Code imports) |
+| The process a script runs in: the start message, progress, log lines (`console.log` too), calls back (`read`, `tool`, `agent`), the result; Debug opens the inspector and waits for the debugger before loading the script | `src/scriptRunner.ts`, bundled to `dist/scriptRunner.js` |
+| The script list (names read from the text, never by running it), the template, a run with Stop | `src/sectorScripts.ts` (no VS Code imports) |
+| The menu, the first-run question, the run, the preview, Apply as one edit, Debug's attach, `tools.call`, `agent.request`'s request files | `src/sectorScriptsUi.ts` |
+| The snapshot a run reads: the saved file as JSON, or with unsaved edits a second session that replays them, saved to a scratch file, so the editor's own session keeps its file | `Cr2wDocument.snapshotJson` in `src/cr2wEditor.ts` |
+| The Scripts button, its spinner and count, Stop, the result line, the selection a script makes (an instanced node as each copy it draws) | `webview/sectorViewer.ts` |
+| Three examples: Short streaming distance, Raise short streaming distances, Every copy of these meshes (the "every copy of a mesh" request, as a script for now) | `media/scripts/` |
+| `sector_nodes`, `sector_node`, `sector_patch`, `script_list`, `script_run`, `request_get`, `request_done` | `packages/redcode-mcp/src/server.ts`; the runner and the examples ship beside it in `dist/` |
+
+Small choices made while building:
+
+- A path names the node's own property first, then the entry's; `entry.` or `node.` says which. `streamingDistance` and `transform` are the entry's.
+- A script that never calls `select` or `deselect` leaves the view's selection as it was, so a script that only logs does not clear it.
+- `tools.call` reaches only `edgemodders.*` extensions, and what comes back is what JSON can carry.
+- A script runs on this computer without a question when REDcode's New Script or Copy made it, or it is an example; any other runs only after **Run** in a question, with the script open beside, once per file.
+- MCP: the project is the one REDcode has open (`%LOCALAPPDATA%\REDcode\project.json`) unless `project` is given. A sector open in REDcode does not reload when `sector_patch` changes its file, so the tool says to save or close it there first. Reloading it is not built.
+
+Checked by script on 2026-11-23: `npm test` (the model on a made-up sector, the list, a run in its own process with a call back, Stop on a loop, a throwing script); the examples on `exterior_-22_7_0_0` (68 of 1,233 nodes under 45 m, the same as a direct read, in 0.14 s); every MCP tool through an MCP client against the game (the game's copy refused, 68 changes applied to a copy and read back); the page's button, running state and selection in the sector view harness over the real runner. Not run in VS Code: the menu, the question, the preview and Apply, Debug's attach, and the request prompt. That is the hand test (`docs/testing.md`, Sector scripts).
 
 ## Not in this design
 

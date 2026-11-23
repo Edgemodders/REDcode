@@ -12,6 +12,7 @@ import { gameUri, gamePathOfUri } from "./gameFs";
 import { meshGlbFor, meshPayload } from "./meshExport";
 import { animsClip, animsGlbFor, animsList, animsSkeleton, baseBodyFor, baseBodyGlb, entityBodyGlb, readAnimsGlb, type AnimsGlb, type BodyGlb } from "./animsGlb";
 import { listSet, memberGlb, newSetSession, placeSet, toMatrix, type SetMember } from "./animsSet";
+import { SectorScriptsUi, type ScriptHost } from "./sectorScriptsUi";
 import { appearanceOf, cachedGlb, createSectorLoader, meshMaterials, sectorsOver, texturedGlb, type SectorLoader, type SectorRef } from "../../../packages/world-view/src/host";
 import { bridgeOver, renderMaterials } from "@edgemodders/edgemat-core";
 import { gameCacheReady, stampFolder } from "./exportCache";
@@ -187,6 +188,28 @@ export class Cr2wDocument implements vscode.CustomDocument {
     });
   }
 
+  /**
+   * The document as it is now, unsaved edits included, as CR2W JSON in outJson (sector scripts). Edits are
+   * replayed on a second session, saved to scratch and converted, so this session keeps its own file.
+   */
+  snapshotJson(bridge: BridgeClient, outJson: string, scratch: string): Promise<void> {
+    return this.enqueue(async () => {
+      if (!this.log.length) {
+        if (this.gamePath) await bridge.toJson(this.gamePath, outJson);
+        else await bridge.fileToJson(this.uri.fsPath, outJson);
+        return;
+      }
+      const copy = await bridge.openDocument(this.gamePath ? { path: this.gamePath } : { file: this.uri.fsPath });
+      try {
+        await bridge.patch(copy.doc, this.log);
+        await bridge.saveDocument(copy.doc, scratch);
+      } finally {
+        await bridge.closeDocument(copy.doc).catch(() => undefined);
+      }
+      await bridge.fileToJson(scratch, outJson);
+    });
+  }
+
   revert(bridge: BridgeClient): Promise<void> {
     return this.enqueue(async () => {
       if (this.info && this.openedOn === bridge) {
@@ -215,6 +238,8 @@ export class Cr2wDocument implements vscode.CustomDocument {
 interface Request {
   type: string;
   id?: number;
+  /** sectorScripts: the sector view's selected node data entries. */
+  entries?: number[];
   path?: string;
   paths?: string[];
   /** An animation by its place in the file, for animClip. */
@@ -311,6 +336,11 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
   private readonly pendingSets = new Set<string>();
   /** A sector's node data entry to select once the editor page is ready, by URI (REDcodeApi.openSector). */
   private readonly pendingSectorEntries = new Map<string, number | number[]>();
+  /** Sector scripts (docs/design/sector-scripts.md), made when the Scripts button is first used. */
+  private scriptsUi: SectorScriptsUi | undefined;
+  private get scripts(): SectorScriptsUi {
+    return (this.scriptsUi ??= new SectorScriptsUi(this.context, this.log));
+  }
   private readonly saved = new vscode.EventEmitter<Cr2wDocument>();
   /** Generate, Add and Replace Clip in the animation view, when extension.ts gives them. */
   animMaker?: AnimMaker;
@@ -824,6 +854,29 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
             }
             return reply(m.id, { data: fs.readFileSync(glb).toString("base64"), appearance: look?.name, chunkMaterials: look?.chunkMaterials ?? [], edgemat: !!edgemat, ...(maps ? { maps } : {}), ...(mapsError ? { mapsError } : {}) });
           }
+          case "sectorScripts": {
+            // The Scripts button: the menu answers at once; a run tells the page how it goes (sectorScript).
+            const sector = meshGamePath();
+            if (!sector) throw new Error("A sector script needs the sector's game path: open the game's file, or a copy under the project's Archive folder");
+            const host: ScriptHost = {
+              document,
+              bridge: this.requireBridge(),
+              sector,
+              post,
+              changed: () => {
+                for (const w of this.pages.get(document) ?? []) void w.postMessage({ type: "changed", path: "" });
+              },
+            };
+            reply(m.id, null);
+            void this.scripts.menu(host, m.entries ?? []).catch((e) => {
+              this.log.appendLine(`script: ${e instanceof Error ? (e.stack ?? e.message) : String(e)}`);
+              void vscode.window.showErrorMessage(`Sector scripts: ${e instanceof Error ? e.message : String(e)}`);
+            });
+            return;
+          }
+          case "sectorScriptStop":
+            this.scripts.stop(document);
+            return reply(m.id, null);
           case "sectorAction": {
             // The selected list's own actions (docs/design/sector-selection.md), for many things at once.
             if (m.action === "copy") {
@@ -982,6 +1035,8 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
       materialWatch?.dispose();
       sectorLoader?.dispose();
       this.pages.get(document)?.delete(webview);
+      // The last page of the document is gone: a script running on it stops.
+      if (!this.pages.get(document)?.size) this.scriptsUi?.stop(document);
     });
   }
 

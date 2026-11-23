@@ -5,6 +5,8 @@
 // By material colours each copy by the materials its appearance names, and the Materials switch draws the
 // picked thing with its own materials, EDGEmat's when it is installed. Selection (docs/design/sector-selection.md):
 // Ctrl+click, Shift+drag and Volume select many, listed on the right, the current one followed by the panel.
+// Scripts (docs/design/sector-scripts.md): the host's menu runs a script on every node or the selection, and
+// the selection it makes comes back here.
 
 import * as THREE from "three";
 import { createWorldView, type CameraMove, type PageAppearance, type PageMarker, type PagePlacement, type WorldView } from "../../../packages/world-view/src/page";
@@ -16,7 +18,8 @@ export type SectorMessage =
   | { type: "sectorMarkers"; sector: string; markers: PageMarker[] }
   | { type: "sectorUnload"; sector: string }
   | { type: "sectorProgress"; phase?: "reading" | "exporting"; done: number; total: number; etaMs?: number; current?: string }
-  | { type: "sectorDone"; skipped: { id: string; why: string }[]; sectors: string[] };
+  | { type: "sectorDone"; skipped: { id: string; why: string }[]; sectors: string[] }
+  | { type: "sectorScript"; state: "running" | "done" | "applied"; name: string; done?: number; total?: number; note?: string; selected?: number[] | null; line?: string };
 
 export interface SectorSource {
   /** The opened sector's game path. */
@@ -43,6 +46,10 @@ export interface SectorSource {
   light?: Partial<LightSettings>;
   onLight?: (settings: LightSettings) => void;
   say?(message: string): void;
+  /** The Scripts button: the host's menu, given the selected node data entries of this sector. */
+  scripts?(entries: number[]): Promise<unknown>;
+  /** Stop: ends the running script. */
+  stopScript?(): Promise<unknown>;
 }
 
 export interface SectorView {
@@ -143,13 +150,16 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
   realButton.hidden = !source.render;
   const volumeButton = button("Volume", "Select with a box in the world: drag on the ground for its base, move the mouse for its height, and click. Its handles resize it, the round one above moves it; again to take it away");
   const touchingButton = button("Touching", "Boxes also take what only touches them, such as roads and walls whose middle is far off; off, a thing's middle must be inside");
+  const scriptsButton = button("Scripts", "Run a script on every node or on the selection: find nodes, select them, change values. New Script, Edit, Debug");
+  scriptsButton.hidden = !source.scripts;
   const stats = el("span", "dim mono", "");
-  bar.append(fit, coarser, culling, markerButton, colour, realButton, volumeButton, touchingButton, ...lightControls(view.lighting, source.onLight), stats);
+  bar.append(fit, coarser, culling, markerButton, colour, realButton, volumeButton, touchingButton, scriptsButton, ...lightControls(view.lighting, source.onLight), stats);
   const progress = el("span", "dim", "Reading the sector…");
   const pickedLine = el("span", "mono", "");
   const pickedMeta = el("span", "dim mono", "");
   const realNote = el("span", "dim", "");
   const hint = el("span", "dim", "");
+  const scriptLine = el("span", "dim", "");
   const toTree = button("Show in Tree", "Go to this node data entry in the tree");
   toTree.hidden = true;
   const openMesh = button("Open Mesh", "Open the mesh in REDcode's mesh view");
@@ -157,7 +167,7 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
   const addMesh = button("Add Mesh to Project", "Copy the mesh into the project. A change to it shows everywhere the game uses this mesh, not only here");
   const meshButtons = [openMesh, toEdgemat, addMesh];
   for (const b of meshButtons) b.hidden = true;
-  info.append(progress, hint, pickedLine, pickedMeta, toTree, ...meshButtons, realNote);
+  info.append(progress, hint, scriptLine, pickedLine, pickedMeta, toTree, ...meshButtons, realNote);
 
   // ---- the camera's row: each move while its button is held (Shift faster, Ctrl slower), as the keys do ----
   const group = (label: string, ...items: HTMLElement[]) => {
@@ -692,6 +702,54 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
     if (colour.value === "material") void nameMeshes();
   });
 
+  // ---- scripts: the host's menu; while one runs, the button stops it ----
+  let scriptRunning = false;
+  /** The selection's node data entries in this sector, each once. */
+  const selectedEntries = () => [
+    ...new Set(
+      selection
+        .map((id) => pathOf(id))
+        .filter((p): p is string => !!p)
+        .map((p) => Number(p.slice("nodeData.Data.".length))),
+    ),
+  ];
+  /** A node data entry's ids as drawn: itself, or each copy of an instanced mesh. */
+  const idsOfEntry = (n: number) => {
+    const own = `${source.sector}#${n}`;
+    if (drawnAs.has(own) || markerOf.has(own)) return [own];
+    const copies = [...drawnAs.keys()].filter((id) => id.startsWith(`${own}.`));
+    return copies.length ? copies : [own];
+  };
+  const showScript = (m: Extract<SectorMessage, { type: "sectorScript" }>) => {
+    scriptRunning = m.state === "running";
+    scriptsButton.classList.toggle("on", scriptRunning);
+    if (scriptRunning) {
+      const spin = el("span", "makespin");
+      const count = m.total ? ` ${(m.done ?? 0).toLocaleString()} of ${m.total.toLocaleString()}` : "";
+      scriptsButton.replaceChildren(spin, document.createTextNode(` Stop${count}`));
+      scriptsButton.title = `Stop "${m.name}"`;
+      scriptLine.textContent = m.note ?? `${m.name}…`;
+      return;
+    }
+    scriptsButton.replaceChildren(document.createTextNode("Scripts"));
+    scriptsButton.title = "Run a script on every node or on the selection: find nodes, select them, change values. New Script, Edit, Debug";
+    scriptLine.textContent = m.line ?? "";
+    scriptLine.title = m.line ?? "";
+    if (m.state === "done" && m.selected) {
+      const ids = m.selected.flatMap(idsOfEntry);
+      select(ids, ids[0] ?? null);
+      // An instanced node is listed once per copy it draws.
+      if (ids.length > m.selected.length) scriptLine.textContent = `${m.line ?? ""} (${ids.length.toLocaleString()} copies drawn)`;
+    }
+  };
+  scriptsButton.addEventListener("click", () => {
+    if (scriptRunning) {
+      source.stopScript?.().catch((e) => source.say?.(e instanceof Error ? e.message : String(e)));
+      return;
+    }
+    source.scripts?.(selectedEntries()).catch((e) => source.say?.(e instanceof Error ? e.message : String(e)));
+  });
+
   const pendingSelect = source.select;
   const selectEntry = (entry: number | number[]) => {
     // An instanced mesh's node is drawn as its copies: its first copy stands for it.
@@ -759,6 +817,9 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
             busy(m.done / m.total);
           } else progress.textContent = "";
           progress.title = m.current ?? "";
+          return;
+        case "sectorScript":
+          showScript(m);
           return;
         case "sectorDone":
           idle();

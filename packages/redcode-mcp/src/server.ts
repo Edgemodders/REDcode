@@ -21,6 +21,9 @@ import { gameVersionOf, isInside, libraryFolders, planAsset, readLibraryRoot, su
 import { gameStatus, startGame, stopGame } from "../../../extensions/redcode/src/gameRun";
 import { findProject, gamePathOf } from "../../../extensions/redcode/src/project";
 import type { PatchOp } from "../../../extensions/redcode/src/types";
+import { projectStateFile } from "../../../extensions/redcode/src/rednodeService";
+import { changeToOp, describeChange, sectorNodes, type NodeChange, type SectorNode } from "../../../extensions/redcode/src/sectorNodes";
+import { listScripts, myScriptsDir, projectScriptsDir, runScript, type ScriptPlace } from "../../../extensions/redcode/src/sectorScripts";
 
 // The package version, set by esbuild from package.json.
 declare const __VERSION__: string;
@@ -629,6 +632,246 @@ tool("cr2w_read", `Read values from a CR2W file in one call, without keeping a s
   } finally {
     await b.closeDocument(d.doc).catch(() => undefined);
   }
+});
+
+// ---- sectors, sector scripts and their requests (REDcode's docs/design/sector-scripts.md) ----------
+
+/** The project REDcode has open (the window focused last), or undefined. */
+function currentProjectDir(): string | undefined {
+  try {
+    const state = JSON.parse(fs.readFileSync(projectStateFile(), "utf8")) as { project?: { dir?: string } | null };
+    return state.project?.dir || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+const SectorSourceShape = {
+  file: z.string().optional().describe("A .streamingsector on disk, such as a project's copy under source\\archive."),
+  path: z.string().optional().describe("Or the sector's game path; the project's copy under source\\archive wins when there is one."),
+  project: z.string().optional().describe("The WolvenKit project's folder; by default the one REDcode has open."),
+};
+
+interface SectorRead {
+  sector: string;
+  /** The file read, or null for the game's copy. */
+  file: string | null;
+  nodes: SectorNode[];
+  changes: Map<string, NodeChange>;
+  json: string;
+}
+
+/** Where a sector is: a file on disk (a project's copy), or the game's. */
+function locateSector(a: { file?: string; path?: string; project?: string }): { sector: string; file: string | null } {
+  if (a.file) {
+    const file = path.resolve(a.file);
+    const m = /^(.*?)[\\/]source[\\/]archive[\\/]/i.exec(file);
+    const project = m ? findProject(m[1]) : undefined;
+    return { sector: (project && gamePathOf(project, path.normalize(file))) || path.basename(file), file };
+  }
+  if (!a.path) throw new Error("file or path is required");
+  const dir = a.project ?? currentProjectDir();
+  const own = dir ? path.join(dir, "source", "archive", ...a.path.split(/[\\/]/)) : undefined;
+  return { sector: a.path, file: own && fs.existsSync(own) ? own : null };
+}
+
+let lastSector: { key: string; json: string; text: string } | undefined;
+/** A sector's nodes as a script sees them, from its CR2W JSON (the last one read is kept while its file is unchanged). */
+async function readSector(b: BridgeClient, a: { file?: string; path?: string; project?: string }): Promise<SectorRead> {
+  const { sector, file } = locateSector(a);
+  const key = file ? `${file}|${fs.statSync(file).mtimeMs}` : `game|${sector.toLowerCase()}`;
+  if (lastSector?.key !== key) {
+    const dir = path.join(os.tmpdir(), "redcode-mcp");
+    fs.mkdirSync(dir, { recursive: true });
+    const json = path.join(dir, "sector.json");
+    if (file) await b.fileToJson(file, json);
+    else await b.toJson(sector, json);
+    lastSector = { key, json, text: fs.readFileSync(json, "utf8") };
+  }
+  const changes = new Map<string, NodeChange>();
+  return { sector, file, nodes: sectorNodes(sector, JSON.parse(lastSector.text), changes), changes, json: lastSector.json };
+}
+
+/** Writes changes into a project's copy of a sector through a document session, saved. */
+async function applyToSector(b: BridgeClient, read: SectorRead, changes: NodeChange[]): Promise<number> {
+  if (!read.file) throw new Error(`${read.sector} is the game's copy, which is read-only. Add it to the project first (archive_extract with outFile under the project's source\\archive, at the same game path), then change the copy.`);
+  if (!changes.length) return 0;
+  const d = await b.openDocument({ file: read.file });
+  try {
+    await b.patch(d.doc, changes.map(changeToOp));
+    await b.saveDocument(d.doc);
+  } finally {
+    await b.closeDocument(d.doc).catch(() => undefined);
+  }
+  lastSector = undefined;
+  return changes.length;
+}
+
+const NodeFacts = "Each node is one node data entry: id (<sector>#<entry>, as REDcode's sector view, ArchiveXL and REDnode name it), entry, type (the node's class), debugName, mesh, resource, appearance, position [x, y, z] in game axes (Z up), streamingDistance.";
+const PropertyPaths = `A property's path is dotted, as in WolvenKit's JSON, with "Data" under handles stepped into by itself; "entry.<path>" or "node.<path>" says which side, otherwise the node's own property is taken, then the entry's (streamingDistance, transform and the placing values are the entry's). Names and resource paths read and set as plain text.`;
+
+const compare = (v: unknown, op: string, want: unknown): boolean => {
+  if (op === "contains") return String(v ?? "").toLowerCase().includes(String(want).toLowerCase());
+  const [x, y] = typeof want === "number" ? [Number(v), want] : [String(v ?? ""), String(want)];
+  switch (op) {
+    case "<": return x < y;
+    case "<=": return x <= y;
+    case ">": return x > y;
+    case ">=": return x >= y;
+    case "!=": return x !== y;
+    default: return x === y;
+  }
+};
+
+tool("sector_nodes", `A .streamingsector's nodes, filtered, a page at a time. ${NodeFacts} Filters add up: type and mesh match a part of the text, where compares properties, box keeps what stands inside it. ${PropertyPaths}`, {
+  ...SectorSourceShape,
+  type: z.string().optional().describe("A part of the node's class, such as MeshNode."),
+  mesh: z.string().optional().describe("A part of the mesh's or resource's path."),
+  where: z.array(z.object({ path: z.string(), op: z.enum(["<", "<=", ">", ">=", "==", "!=", "contains"]), value: z.union([z.number(), z.string()]) })).optional().describe('Property tests, such as { path: "streamingDistance", op: "<", value: 45 }.'),
+  box: z.object({ min: z.array(z.number()).length(3), max: z.array(z.number()).length(3) }).optional().describe("A box in game axes: nodes whose position is inside."),
+  entries: z.array(z.number().int()).optional().describe("Only these node data entries."),
+  properties: z.array(z.string()).optional().describe("Property paths to read for each node, returned under properties."),
+  offset: z.number().int().min(0).default(0),
+  limit: z.number().int().min(1).max(2000).default(200),
+}, async (a, b) => {
+  const read = await readSector(b, a);
+  const only = a.entries ? new Set(a.entries) : undefined;
+  const matched = read.nodes.filter((n) => {
+    if (only && !only.has(n.entry)) return false;
+    if (a.type && !n.type.toLowerCase().includes(a.type.toLowerCase())) return false;
+    if (a.mesh && !(n.resource ?? "").toLowerCase().includes(a.mesh.toLowerCase())) return false;
+    if (a.box) {
+      const p = n.position;
+      for (let i = 0; i < 3; i++) if (p[i] < a.box.min[i] || p[i] > a.box.max[i]) return false;
+    }
+    return (a.where ?? []).every((w) => compare(n.get(w.path), w.op, w.value));
+  });
+  const page = matched.slice(a.offset, a.offset + a.limit);
+  return {
+    sector: read.sector,
+    file: read.file,
+    total: read.nodes.length,
+    matched: matched.length,
+    offset: a.offset,
+    nodes: page.map((n) => ({ ...(n.toJSON() as object), entry: n.entry, debugName: n.debugName, ...(a.properties?.length ? { properties: Object.fromEntries(a.properties.map((p) => [p, n.get(p)])) } : {}) })),
+  };
+});
+
+tool("sector_node", `One node of a .streamingsector in full: its node and its node data entry as WolvenKit JSON. ${NodeFacts} A collision or proxy node can be very large: read single values with sector_nodes' properties instead.`, {
+  ...SectorSourceShape,
+  entry: z.number().int().min(0).describe("The node data entry."),
+}, async (a, b) => {
+  const read = await readSector(b, a);
+  const n = read.nodes[a.entry];
+  if (!n) throw new Error(`${read.sector} has ${read.nodes.length} node data entries; there is no ${a.entry}`);
+  const out = { ...(n.toJSON() as object), entry: n.entry, debugName: n.debugName, nodeIndex: n.nodeIndex, json: n.json };
+  const text = JSON.stringify(out, null, 2);
+  if (text.length > 400_000) throw new Error(`Node ${a.entry} is ${(text.length / 1e6).toFixed(1)} MB as JSON (a ${n.type}). Read the values needed with sector_nodes' properties.`);
+  return text;
+});
+
+tool("sector_patch", `Changes values of nodes in a project's copy of a .streamingsector and saves it. Refuses the game's copy: add the sector to the project first. ${PropertyPaths} The project's sector then replaces the game's whole sector, which undoes what other mods change in it, such as EDGEbuilder's ArchiveXL deletions: tell the modder. If the sector is open in REDcode, ask the modder to save or close it there first: REDcode does not reload a file changed outside it.`, {
+  ...SectorSourceShape,
+  changes: z.array(z.object({ entry: z.number().int().min(0), property: z.string(), value: z.unknown() })).min(1).max(20000),
+}, async (a, b) => {
+  const read = await readSector(b, a);
+  for (const c of a.changes) {
+    const n = read.nodes[c.entry];
+    if (!n) throw new Error(`No node data entry ${c.entry}`);
+    n.set(c.property, c.value);
+  }
+  const changes = [...read.changes.values()];
+  const applied = await applyToSector(b, read, changes);
+  return { file: read.file, applied, changes: changes.slice(0, 500).map((c) => describeChange(c)) };
+});
+
+/** The examples shipped beside the server (dist/scripts), and the modder's and the project's own. */
+function scriptPlaces(project?: string): { place: ScriptPlace; dir: string }[] {
+  const dir = project ?? currentProjectDir();
+  return [...(dir ? [{ place: "project" as const, dir: projectScriptsDir(dir) }] : []), { place: "mine", dir: myScriptsDir() }, { place: "example", dir: path.join(__dirname, "scripts") }];
+}
+
+tool("script_list", "The modder's sector scripts, as REDcode's Scripts menu lists them: the project's own (.redcode\\scripts), the modder's own (%APPDATA%\\Edgemodders\\redcode\\scripts) and REDcode's examples. Each is an .mjs file whose default export has a name and visit(node, ctx) or run(ctx).", {
+  project: z.string().optional().describe("The WolvenKit project's folder; by default the one REDcode has open."),
+}, async (a) => listScripts(scriptPlaces(a.project)).map((s) => ({ name: s.name, description: s.description, place: s.place, file: s.file })));
+
+tool("script_run", `Runs one of the modder's sector scripts (script_list) on a .streamingsector, in its own process, and returns what it selected and the changes it would make. Changes are written only with apply: true, and only to a project's copy, as sector_patch does. game.read works; tools.call and agent.request work only in REDcode. A script runs as the modder: run only scripts the modder knows.`, {
+  ...SectorSourceShape,
+  script: z.string().describe("The script's name, as script_list gives it, or its .mjs file."),
+  entries: z.array(z.number().int()).optional().describe("Run on these node data entries only, as Run on Selection does."),
+  apply: z.boolean().default(false).describe("Write its changes to the project's copy and save it."),
+}, async (a, b) => {
+  const list = listScripts(scriptPlaces(a.project));
+  const s = list.find((x) => x.file.toLowerCase() === path.resolve(a.script).toLowerCase()) ?? list.find((x) => x.name.toLowerCase() === a.script.toLowerCase());
+  if (!s && !(path.isAbsolute(a.script) && fs.existsSync(a.script))) throw new Error(`No script ${a.script}. script_list names them: ${list.map((x) => x.name).join(", ")}`);
+  const file = s?.file ?? a.script;
+  const read = await readSector(b, a);
+  const logs: string[] = [];
+  const result = await runScript({
+    runner: path.join(__dirname, "scriptRunner.cjs"),
+    script: file,
+    sector: read.sector,
+    json: read.json,
+    only: a.entries,
+    onLog: (line) => logs.push(line),
+    onCall: async (method, params) => {
+      if (method !== "read") throw new Error(`${method} works only when the script runs in REDcode`);
+      const p = String((params as { path?: string }).path ?? "");
+      const own = locateSector({ path: p, project: a.project });
+      const r = own.file ? await b.fileToJson(own.file) : await b.toJson(p);
+      return r.json;
+    },
+  }).result;
+  const applied = a.apply ? await applyToSector(b, read, result.changes) : 0;
+  return {
+    script: s?.name ?? path.basename(file),
+    sector: read.sector,
+    file: read.file,
+    visited: result.visited,
+    total: result.total,
+    selected: result.selected,
+    changes: result.changes.length,
+    changeList: result.changes.slice(0, 500).map((c) => describeChange(c)),
+    applied,
+    log: logs.slice(0, 200),
+    ms: result.ms,
+  };
+});
+
+const requestsDir = (project?: string) => {
+  const dir = project ?? currentProjectDir();
+  if (!dir) throw new Error("No project: pass project, or open one in REDcode");
+  return path.join(dir, ".redcode", "requests");
+};
+
+tool("request_get", "The requests a sector script made for an assistant (agent.request in REDcode): without id, the list; with id, the request in full, with its text, the sector and the nodes it names. Do the work it asks with the sector_* tools, then call request_done.", {
+  id: z.number().int().min(1).optional(),
+  project: z.string().optional().describe("The WolvenKit project's folder; by default the one REDcode has open."),
+}, async (a) => {
+  const dir = requestsDir(a.project);
+  if (a.id !== undefined) {
+    const file = path.join(dir, `${a.id}.json`);
+    if (!fs.existsSync(file)) throw new Error(`No request ${a.id} in ${dir}`);
+    return fs.readFileSync(file, "utf8");
+  }
+  const files = fs.existsSync(dir) ? fs.readdirSync(dir).filter((n) => /^\d+\.json$/.test(n)) : [];
+  return files
+    .map((n) => JSON.parse(fs.readFileSync(path.join(dir, n), "utf8")) as { id: number; state: string; text: string; sector: string; created: string; nodes?: unknown[] })
+    .sort((x, y) => y.id - x.id)
+    .map((r) => ({ id: r.id, state: r.state, text: r.text, sector: r.sector, created: r.created, nodes: r.nodes?.length ?? 0 }));
+});
+
+tool("request_done", "Marks a sector script's request as done, with a short note of what was done, which REDcode's modder reads.", {
+  id: z.number().int().min(1),
+  note: z.string().optional(),
+  project: z.string().optional(),
+}, async (a) => {
+  const file = path.join(requestsDir(a.project), `${a.id}.json`);
+  if (!fs.existsSync(file)) throw new Error(`No request ${a.id}`);
+  const r = JSON.parse(fs.readFileSync(file, "utf8")) as Record<string, unknown>;
+  Object.assign(r, { state: "done", done: new Date().toISOString(), ...(a.note ? { note: a.note } : {}) });
+  fs.writeFileSync(file, JSON.stringify(r, null, 2) + "\n");
+  return { id: a.id, state: "done" };
 });
 
 // ---- start ------------------------------------------------------------------------------------

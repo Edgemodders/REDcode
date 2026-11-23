@@ -47,6 +47,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Sector materials (M1)](#sector-materials-m1) | By hand | C5 | 2026-11-21 | Pass (owner), all 10 steps, with one fix (retest pending) |
 | [Sector camera](#sector-camera) | By hand | C5 | 2026-11-21 | Not run (checked in Chrome over the real bridge) |
 | [Sector selection](#sector-selection) | By hand | C5 | 2026-11-21 | Not run (checked in Chrome over the real bridge) |
+| [Sector scripts](#sector-scripts) | By hand | Sector scripts | 2026-11-23 | Not run (checked by script and in Chrome over the real runner) |
 | [Library view (#23)](#library-view-23) | By hand | Requests | 2026-11-15 | Pass, two fixes |
 | [Run Game without ELECTRON_RUN_AS_NODE (#24)](#run-game-without-electron_run_as_node-24) | By hand, in the game | Requests | 2026-11-20 | Pass |
 | [New File](#new-file) | By hand | Requests | 2026-11-20 | Pass, steps 1 to 13, four fixes |
@@ -1233,6 +1234,29 @@ A **Size** list in the status line, and a fitting size for a game docked as it r
 | S3 | **Undock** with the game running | The game goes back to your own window mode and size (Borderless at the screen's size here) |
 | S4 | With the game running full screen, **Run Game in Tab** | It docks, then switches by itself to Windowed at the largest size that fits the tab |
 | S5 | Close the tab, quit the game, start it normally | Your own window mode and size |
+
+## Sector scripts
+
+Built 2026-11-23 ([design](design/sector-scripts.html), SC1 to SC4). Checked by script: `npm test` (the node model, the list, a run in its own process, Stop, a script that throws), the examples on `exterior_-22_7_0_0` (68 of 1,233 nodes under 45 m), every new redcode-mcp tool through an MCP client against the game, and the sector view's Scripts button in Chrome over the real runner (68 selected; one soda can in, both nodes with its mesh out). Not run in VS Code: the menu, the first-run question, the preview and Apply, Debug, the request prompt.
+
+F5 with **Run REDcode**, a project open (TestMod or any), and in Game Assets `base\worlds\03_night_city\_compiled\default\exterior_-22_7_0_0.streamingsector` opened on 3D.
+
+| # | Do | Expected |
+|---|---|---|
+| 1 | Click **Scripts** in the view's bar | VS Code's menu: Examples with three scripts, then **New Script…** and **Open Scripts Folder** |
+| 2 | Pick **Short streaming distance** (Enter) | The button shows a spinner and **Stop**, then the line under the view says "Short streaming distance: 68 selected, 0 changed, 1,233 nodes" (with the copies drawn when more); the list on the right holds them |
+| 3 | Click one soda can (`soda_can_f_trash.mesh`), **Scripts**, the filter button on **Every copy of these meshes** | Run on the selection: both of its nodes are selected (three copies drawn) |
+| 4 | **Raise short streaming distances** (Enter), on the game's copy | A question: 68 changes to `streamingDistance`; values change only in a project's copy; **Add to Project** |
+| 5 | **Add to Project**, open the project's copy from the Project view on 3D, run **Raise short streaming distances** there | The question with **Apply** and **Show List**; Show List opens the REDcode output with 68 lines such as `#21: streamingDistance 17.9695148 → 90`, then asks again |
+| 6 | **Apply**, then look at entry 21 in the tree (Show in Tree) | `streamingDistance` is 90; the tab shows unsaved changes |
+| 7 | Ctrl+Z once, then Ctrl+Y | One Undo takes all 68 back (entry 21 is 17.97 again); Redo puts them back |
+| 8 | Save, then **Scripts**, **Short streaming distance** | 0 selected |
+| 9 | **New Script…**, name "Big entities", **This Project**; in the file that opens, change the test to `node.type === "worldEntityNode"`, save, and run it | The project's `.redcode\scripts\big-entities.mjs` opened from the template; the run selects the 5 entity nodes |
+| 10 | In that script, add `ctx.log(node.resource)` inside the test and run it | Five lines `[Big entities] base\gameplay\...` in the REDcode output |
+| 11 | Put a breakpoint on the `ctx.log` line, **Scripts**, the debug button on Big entities, **Every Node** | VS Code's debugger attaches and stops on the line; hovering `node` shows it; Continue finishes the run |
+| 12 | Copy `big-entities.mjs` in Explorer to `copied.mjs` in the same folder (a file REDcode did not make), run it | A question "Run … It has not run on this computer before", with the script open beside; **Run** runs it; a second run asks nothing |
+| 13 | A script with `visit() { for (;;) {} }`, run it, then the **Stop** button | The run ends at once with "stopped"; VS Code stays responsive |
+| 14 | A script with `async visit(node, ctx) { if (node.entry === 21) await ctx.agent.request("Check this ambient area's distance", [node]) }`, run it | "Request 1 is saved, and its prompt is copied"; `.redcode\requests\1.json` holds the node; paste the prompt to Claude Code, which reads it with `request_get` (after `npm run mcp:build`) |
 
 ## The game tools for assistants (redcode-mcp `game_*`)
 

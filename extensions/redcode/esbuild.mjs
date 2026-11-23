@@ -54,6 +54,10 @@ const gameDisplay = { ...client, entryPoints: ["src/gameDisplay.ts"], outfile: "
 // Start, stop and status of the game for the MCP server, for scripts/unit.mjs.
 const gameRun = { ...client, entryPoints: ["src/gameRun.ts"], outfile: "dist/gameRun.js" };
 const rednodeService = { ...client, entryPoints: ["src/rednodeService.ts"], outfile: "dist/rednodeService.js" };
+// Sector scripts (docs/design/sector-scripts.md): the process a script runs in, and the list and run for unit checks.
+const scriptRunner = { ...client, entryPoints: ["src/scriptRunner.ts"], outfile: "dist/scriptRunner.js" };
+const sectorScripts = { ...client, entryPoints: ["src/sectorScripts.ts"], outfile: "dist/sectorScripts.js" };
+const sectorNodesBuild = { ...client, entryPoints: ["src/sectorNodes.ts"], outfile: "dist/sectorNodes.js" };
 // The world view's host half (packages/world-view), for scripts/unit.mjs and harnesses.
 const worldViewHost = { ...client, entryPoints: ["../../packages/world-view/src/host.ts"], outfile: "dist/worldViewHost.js" };
 
@@ -75,7 +79,7 @@ fs.mkdirSync("media/mesh", { recursive: true });
 // three's exports hide its package.json; its main entry sits in <package>/build/.
 fs.copyFileSync(path.join(path.dirname(require.resolve("three")), "..", "LICENSE"), "media/mesh/three.LICENSE.txt");
 
-const builds = [extension, client, hotSwap, exportCache, library, keysStore, opens, animsGlb, install, newFile, animsSet, rednodeService, gameDisplay, gameRun, worldViewHost, meshViewer];
+const builds = [extension, client, hotSwap, exportCache, library, keysStore, opens, animsGlb, install, newFile, animsSet, rednodeService, gameDisplay, gameRun, worldViewHost, scriptRunner, sectorScripts, sectorNodesBuild, meshViewer];
 if (watch) {
   const contexts = await Promise.all(builds.map((b) => esbuild.context(b)));
   await Promise.all(contexts.map((c) => c.watch()));

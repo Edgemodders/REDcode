@@ -29,6 +29,8 @@
   },
   "files": [
     "dist/server.cjs",
+    "dist/scriptRunner.cjs",
+    "dist/scripts/",
     "dist/ThirdPartyNotices.txt",
     "README.md",
     "CHANGELOG.md",
