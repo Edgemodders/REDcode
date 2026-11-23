@@ -6,6 +6,7 @@ node_modules/**
 dist/**/*.map
 dist/bridgeClient.js
 dist/hotSwap.js
+dist/gameDisplay.js
 *.vsix
 webview/**
 dist/opens.js

@@ -1207,6 +1207,21 @@ Use a test project. Have a small PNG ready, an icon for example.
 | 12 | **New File...**, **TweakXL**, **ArchiveXL** and **Redscript**, from any folder | `source\resources\r6\tweaks\<mod>\<mod>.yaml`, `source\resources\<mod>.archive.xl` and `source\resources\r6\scripts\<mod>\<mod>.reds`, each with one comment line, open in the text editor |
 | 13 | **REDcode: Pack** | A message says what was packed (files into the archive, ArchiveXL files, resource files), with **Show log**. The archive holds the new game files; `<mod>.archive.xl` is beside it in `archive\pc\mod`; the `.yaml` and `.reds` are under `r6` in `packed` |
 
+## Run Game in Tab (G2, REDcode's side)
+
+Built 2026-11-22 ([design](design/game-view.html)) against the interim helper script `tools/probes/game-view/helper.ps1`, until REDbridge has `window.*` (REDbridge #22): `src/gameView.ts`, `src/gameDisplay.ts`, the command **REDcode: Run Game in Tab** (shown only when the helper script is found, so in a checkout), settings `redcode.gameView.resolution`, `releaseKey` and `helper`. Checked by script: `npm test` (the settings file read, patched and put back byte for byte, the size for a tab), and the helper's wait and error with no game. The helper's docking loop is as the spikes proved it but has not run in this form with the game. Not run by hand yet.
+
+| # | Do | Expected |
+|---|---|---|
+| 1 | The game closed. F5 with **Run REDcode**, then **REDcode: Run Game in Tab** | A tab **Cyberpunk 2077** opens, black, with a status line at the bottom: "Starting the game windowed at 1920x1080…" (or 1280x720 in a small tab) |
+| 2 | Wait for the game | The game starts **windowed at that size** (not full screen), and its window lands inside the tab, centred, with no title bar. The status says "Click the game to play." **This is the unverified step:** the size's index in the game's settings file is not known, so the game may start at another size |
+| 3 | Click the game, look around, then press Ctrl+Alt+Backspace | The game has the mouse and keyboard; the key gives them back to VS Code with a free pointer |
+| 4 | Drag the divider beside the tab; make the tab smaller than the game | The game follows; a smaller tab shows a part of the game, cut cleanly |
+| 5 | Click another tab in the group, then the game's tab again | The game vanishes and comes back, and stays put when clicked |
+| 6 | **Play** and **Undock** in the tab's status line | Play gives the game the focus. Undock closes the tab; the game stays open as an ordinary window with its title bar |
+| 7 | Quit the game. Open the game's Video settings on the next normal start, or read `UserSettings.json` | Your own window mode and resolution are back (the REDcode log says so a few seconds after the game ends) |
+| 8 | With the game already running full screen, **Run Game in Tab** | It docks the game as it is and says to set Windowed and a size; nothing in the settings file changes |
+
 ## Never run
 
 | Test | Why |

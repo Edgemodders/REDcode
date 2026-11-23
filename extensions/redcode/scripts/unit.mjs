@@ -1219,6 +1219,71 @@ await check("new file: every type has what its kind needs, and the presets are c
   for (const p of nf.TexturePresets) for (const k of ["group", "compression", "rawFormat", "isGamma", "hasMipchain", "isStreamable"]) assert.ok(k in p.setup, `${p.id} sets ${k}`);
 });
 
+// Run Game in Tab: the game's window mode and resolution in UserSettings.json (dist/gameDisplay.js).
+const gd = require("../dist/gameDisplay.js");
+const settingsText = [
+  "{",
+  '    "version": 152,',
+  '    "data": [',
+  "        {",
+  '            "group_name": "/video/display",',
+  '            "options": [',
+  "                {",
+  '                    "name": "WindowMode",',
+  '                    "type": "string_list",',
+  '                    "is_dynamic": true,',
+  '                    "value": "BorderlessWindowed",',
+  '                    "index": 1',
+  "                },",
+  "                {",
+  '                    "name": "Resolution",',
+  '                    "type": "string_list",',
+  '                    "is_dynamic": true,',
+  '                    "value": "3840x2160",',
+  '                    "index": 2',
+  "                },",
+  "                {",
+  '                    "name": "HDRModes",',
+  '                    "type": "string_list",',
+  '                    "is_dynamic": true,',
+  '                    "value": "None",',
+  '                    "index": 0',
+  "                }",
+  "            ]",
+  "        }",
+  "    ]",
+  "}",
+].join("\r\n");
+await check("game display: reads the window mode and resolution", () => {
+  assert.deepEqual(gd.readDisplay(settingsText), { windowMode: { value: "BorderlessWindowed", index: 1 }, resolution: { value: "3840x2160", index: 2 } });
+  assert.equal(gd.readDisplay('{"data":[]}'), undefined);
+});
+await check("game display: a patch changes only the two options", () => {
+  const next = gd.patchDisplay(settingsText, { windowMode: { value: "Windowed", index: 0 }, resolution: { value: "1920x1080" } });
+  assert.deepEqual(gd.readDisplay(next), { windowMode: { value: "Windowed", index: 0 }, resolution: { value: "1920x1080", index: 2 } });
+  assert.equal(next.replace('"Windowed",\r\n                    "index": 0', '"BorderlessWindowed",\r\n                    "index": 1').replace("1920x1080", "3840x2160"), settingsText);
+  assert.ok(next.includes('"value": "None"'));
+  JSON.parse(next);
+});
+await check("game display: set windowed, then restore, gives the file back byte for byte", () => {
+  const f = path.join(tmp, "UserSettings.json");
+  fs.writeFileSync(f, settingsText);
+  const restore = gd.setWindowed("1920x1080", f);
+  assert.deepEqual(restore, { file: f, windowMode: { value: "BorderlessWindowed", index: 1 }, resolution: { value: "3840x2160", index: 2 } });
+  assert.equal(gd.readDisplay(fs.readFileSync(f, "utf8")).windowMode.value, "Windowed");
+  assert.equal(gd.restoreDisplay(restore), true);
+  assert.equal(fs.readFileSync(f, "utf8"), settingsText);
+  assert.equal(gd.setWindowed("1920x1080", path.join(tmp, "none.json")), undefined);
+});
+await check("game display: the size for a tab", () => {
+  assert.equal(gd.pickResolution({ width: 2031, height: 1339 }), "1920x1080");
+  assert.equal(gd.pickResolution({ width: 1815, height: 1339 }), "1280x720");
+  assert.equal(gd.pickResolution({ width: 900, height: 500 }), "1280x720");
+  assert.equal(gd.pickResolution({ width: 5000, height: 3000 }), "1920x1080");
+  assert.equal(gd.pickResolution({ width: 900, height: 500 }, "2560 x 1440"), "2560x1440");
+  assert.equal(gd.pickResolution(undefined), "1920x1080");
+});
+
 fs.rmSync(tmp, { recursive: true, force: true });
 console.log(`${passed} passed${failures.length ? `, ${failures.length} failed` : ""}`);
 process.exit(failures.length ? 1 : 0);

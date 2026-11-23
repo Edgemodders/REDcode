@@ -31,6 +31,7 @@ import { Cr2wEditorProvider, Cr2wPropertiesView, Cr2wViewType, cr2wViewTypeFor, 
 import { GameFileSystem, gameUri } from "./gameFs";
 import { compareJson, formatDifference, type JsonComparison } from "./jsonDiff";
 import { gameEnv, installDirect, launchTarget, planInstall, readRecord, recordSwapped, uninstallDirect, uninstallHot } from "./install";
+import { registerGameView } from "./gameView";
 import { callArchivesReload, installedNote, looseNote, looseNotInGame, readRednodeMcp, summarize, type ReloadResult } from "./hotSwap";
 import { isSoundWav, sourceFolderOf, targetsUnder } from "./modkit";
 import { compileFilter } from "./treeFilter";
@@ -281,6 +282,7 @@ export function activate(context: vscode.ExtensionContext): REDcodeApi | undefin
       }
     }),
   );
+  registerGameView({ context, log, gameFolder }, extensionDir, shipCommand);
 
   detectProject();
   syncRednodeService();

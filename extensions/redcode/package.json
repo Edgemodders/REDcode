@@ -466,6 +466,12 @@
         "icon": "$(play)"
       },
       {
+        "command": "redcode.runInTab",
+        "title": "Run Game in Tab",
+        "category": "REDcode",
+        "icon": "$(play-circle)"
+      },
+      {
         "command": "redcode.openGameFileAsJson",
         "title": "Open game file as JSON",
         "category": "REDcode"
@@ -1198,6 +1204,10 @@
       ],
       "commandPalette": [
         {
+          "command": "redcode.runInTab",
+          "when": "redcode.gameViewAvailable"
+        },
+        {
           "command": "redcode.newFile",
           "when": "redcode.projectOpen"
         },
@@ -1483,6 +1493,21 @@
           "type": "boolean",
           "default": true,
           "description": "Import from Raw keeps the settings of the file it replaces: a texture's group, format, compression and flags, a mesh's materials. WolvenKit's \"Use existing file\"."
+        },
+        "redcode.gameView.resolution": {
+          "type": "string",
+          "default": "auto",
+          "markdownDescription": "The game's size for **Run Game in Tab**: `auto` for the largest of 1280x720 and 1920x1080 that fits the tab, or a size from the game's own Video settings, such as `2560x1440`. The game is started in Windowed mode at this size, and your own window mode and resolution are put back after the game ends."
+        },
+        "redcode.gameView.releaseKey": {
+          "type": "string",
+          "default": "ctrl+alt+backspace",
+          "markdownDescription": "The key that takes the mouse and keyboard back from the game in a tab, such as `ctrl+alt+backspace` or `pause`. Not `escape`: the game uses it."
+        },
+        "redcode.gameView.helper": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "For development: the path of the window helper script (`tools/probes/game-view/helper.ps1` in REDcode's repository) for **Run Game in Tab**, until REDbridge does this itself."
         },
         "redcode.launch": {
           "type": "string",

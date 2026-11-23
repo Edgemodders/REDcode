@@ -81,6 +81,19 @@ A scratch loop kept the game on a markdown preview tab: every 30 ms it read the 
 
 Not tried: another display scaling or VS Code zoom level, a tab dragged to another window, and a second monitor with a different scaling.
 
+### A hung window (found 2026-11-22, by accident)
+
+A stand-in test of the helper left a Notepad window owned by VS Code with its thread hung. While it was owned, UI Automation on VS Code's window did not answer at all (over 60 s), and `SetWindowRgn` and `SetWindowPos` on the hung window blocked the caller. Clearing the owner still worked, and UI Automation answered again at once (277 ms). So the helper must expect a game that hangs or crashes while docked: do its window calls with a timeout or the async flag, and clear the owner first when the game stops answering (`IsHungAppWindow`). It must also find the game by its process and class, never by a class alone.
+
+## REDcode's side (G2, built 2026-11-22, hand test pending)
+
+- **The command** `redcode.runInTab` (**Run Game in Tab**) opens a `redcode.gameView` webview panel whose page has a title of its own, by which the helper finds it. The page is black with one status line: **Play**, **Undock** and the release key.
+- **The size** comes from the tab's real pixels (`pickResolution` in `src/gameDisplay.ts`: the largest of 1280x720 and 1920x1080 that fits, or `redcode.gameView.resolution`).
+- **Before the start** REDcode writes Windowed and that size into `UserSettings.json` (`setWindowed`), since Run in Tab starts the game itself. Unverified: the file keeps an index beside each value, the resolution's index depends on the monitor's list and is left as it was. If the game goes by the index, the size must be set through REDnode after the start.
+- **After the end** the player's two values are put back (`restoreDisplay`), once the game's process is gone; what to put back is kept in global state, so a restart of VS Code still does it.
+- **The helper** is `tools/probes/game-view/helper.ps1` for now: JSON lines out (`docked`, `moved`, `hidden`, `focus`, `released`, `lost`), files dropped in a folder in (`stop`, `focus`, `hide`, `show`). The command shows only when the script is found, so not in a released build. REDbridge's `window.*` replaces it behind the same events.
+- **A game already running** is docked as it is. Setting its size through REDnode (a function in the `redcode` REDnode package) is the next step, with REDnode #56.
+
 ## Plan
 
 | Stage | What | Needs |
