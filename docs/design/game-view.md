@@ -25,6 +25,12 @@ Yes, as a **docked window**: the game stays its own process and its own window, 
 - A **release key** gives focus back to VS Code and frees the pointer. It is a system hotkey, since VS Code cannot see keys while the game has focus. Not Esc, which the game uses. The spike used Pause/Break; the key is a setting.
 - While released, the game keeps running, so a modder can edit and watch.
 
+## Sizes (the owner, 2026-11-22)
+
+- **The game's listed sizes are enough.** The tab shows the game at one of them, one to one.
+- **VS Code's own window is never touched.** It stays resizable and can fill the desktop while the game runs at 1920x1080 in its tab. The helper only moves and shows the game's window.
+- **A tab smaller than the game.** The owner accepts a tab that cannot shrink below the game's size. An extension cannot stop a tab from shrinking, so the helper has to handle a smaller tab itself: drop to the next listed size when one fits, and otherwise show only the part of the game that fits the tab (a window region, unverified with the game's swap chain: a G0 check), with a line in the tab saying the game is cut off.
+
 ## Spike 1: window control (run 2026-11-22, with the owner)
 
 Scratch PowerShell scripts over user32, outside the repo. The game ran with REDnode 0.69.0 on a 3840x2160 screen at 200% scaling.
@@ -36,7 +42,7 @@ Scratch PowerShell scripts over user32, outside the repo. The game ran with REDn
 | Move and resize from outside | Works, without taking focus |
 | Above VS Code | Works by making VS Code's window the game's owner (`GWLP_HWNDPARENT`). Topmost was ignored by the game |
 | Runs without focus | Yes: no pause menu, animation carries on, the same frame rate |
-| Release key during mouse-look | Passed with the real key, twice (the owner). The game holds the pointer at the window's middle; the helper frees it and focus returns to VS Code |
+| Release key during mouse-look | Passed with the real key, twice (the owner), with Pause/Break; Ctrl+Alt+Backspace worked as well. The game holds the pointer at the window's middle; the helper frees it and focus returns to VS Code |
 | Release from the pause menu | The game does not hold the pointer in menus, so a click on VS Code leaves too |
 | The game's pointer and mouse-look | Right across the whole window, once the window is the game's own size (the owner) |
 | REDnode's overlay cursor | **Fails:** it looks frozen or off when the real pointer leaves the window. Asked of REDnode in https://github.com/Edgemodders/REDnode/issues/56 |
@@ -58,7 +64,7 @@ The helper must know where the tab is on the screen, and a webview does not know
 
 | Stage | What | Needs |
 |---|---|---|
-| G0 | Finish Spike 2 with a test webview | Nothing |
+| G0 | Finish Spike 2 with a test webview; check a window region on the game for a tab smaller than it | Nothing |
 | G1 | **Run beside the editor:** today's Run Game with a size and a place, no focus taken. The helper as a real program | A decision on where the helper lives |
 | G2 | **Run in Tab:** a `redcode.gameView` panel as the placeholder; the helper keeps the game over it on move, resize and split, hides it with the tab, and holds the release key. The size is set through REDnode | REDnode running; REDnode #56 for the overlay's cursor |
 | G3 | Without REDnode: write `UserSettings.json` before launch | G2 |
@@ -70,7 +76,7 @@ Run in Tab starts the game's exe directly: a Steam launch hides the process from
 1. **Where the helper lives.** A new `window.*` area in REDbridge (one install, but GPL code REDcode already talks to only over stdio, and a REDbridge release), or a small exe of REDcode's own. Recommended: REDbridge, since it is already the one native program REDcode installs and updates.
 2. **The release key's default.** Pause/Break worked but some keyboards have none. Recommended: Ctrl+Alt+Backspace as the default, with a setting.
 3. **VS Code's own popups.** The command palette, menus and hovers are hidden under the game where they overlap. Recommended: accept it in G2, with the release key also lowering the game for a moment if it proves a nuisance.
-4. **The game's saved settings.** Run in Tab changes the window mode and resolution. Recommended: put the player's own values back when the tab closes or the game ends.
+4. **The game's saved settings.** Run in Tab changes the window mode and resolution. Recommended: put the player's own values back when the tab closes or the game ends. Putting them back live worked in the spike (Borderless 3840x2160 through REDnode, saved by the game).
 
 ## Later
 
