@@ -104,7 +104,7 @@ The way back, from a definition or an inner record to its placements, is a tree 
 
 ## Requests to others
 
-To draft for the owner, posted on the owner's go:
+Filed on 2026-11-24 with the owner's go: [REDbridge #23](https://github.com/Edgemodders/REDbridge/issues/23) and [EDGEbuilder #11](https://github.com/Edgemodders/EDGEbuilder/issues/11).
 
 - **REDbridge:** each sector's variants by name with their node ranges (`sector.find` counts them now); sectors that mods register through ArchiveXL, as another source; perhaps steps 1 and 2 above in one call.
 - **EDGEbuilder:** the Open in REDcode buttons (L4); who owns assemblies (part 6), and what REDcode shows of them.
