@@ -6,6 +6,7 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 **New**
 
+- **Only** on a row of the sector view's selected list keeps just the selected things that draw its mesh.
 - Assistants in the game can read the game's window mode and resolution, with the sizes it offers: `redcode__display`, in REDcode's REDnode package (0.3.0).
 - Sector scripts: a **Scripts** button in a sector's 3D view runs a small JavaScript file on every node or on the selection, to find nodes (such as every streaming distance under 45 m), select them, or change their values. Changes are shown first and applied as one edit that one Undo takes back, and only in a project's copy of a sector. New Script, Edit, Remove and Debug (VS Code's own debugger) are in its menu, with three examples, among them selecting every copy of the selected meshes. A script can read other files, call another EDGE tool, and hand nodes to an assistant as a request (https://edgemodders.github.io/REDcode/design/sector-scripts.html).
 

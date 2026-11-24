@@ -398,6 +398,10 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
         setCurrent(id);
         source.showInTree(path);
       });
+    rowButton("Only", what ? "Keep only the selected things that draw this mesh" : "Keep only this one in the selection", () => {
+      const keep = what ? selection.filter((x) => drawnAs.get(x)?.mesh.toLowerCase() === what.mesh.toLowerCase()) : [id];
+      select(keep, id);
+    });
     if (what && source.action) {
       rowButton("Mesh", "Open Mesh: the mesh in REDcode's mesh view", () => runAction("openMesh", what));
       rowButton("EDGEmat", "Open in EDGEmat: the mesh on EDGEmat's Desk at this node's appearance", () => runAction("openInEdgemat", what));
