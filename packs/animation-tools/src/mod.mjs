@@ -338,20 +338,28 @@ async function inFront(metres) {
   return { position: { x: p.X + f.X * metres, y: p.Y + f.Y * metres, z: p.Z }, yaw };
 }
 
-/** The height a spawned character comes to stand at, once it stops changing (up to 3 s), or null when unread. */
-async function settledHeight(id, from) {
-  let last = from;
-  let still = 0;
-  for (let i = 0; i < 15; i++) {
-    await new Promise((r) => setTimeout(r, 200));
-    const e = await world.entity(id).catch(() => null);
-    const p = e ? await e.GetWorldPosition().catch(() => null) : null;
-    if (!p || typeof p.Z !== 'number') continue;
-    still = Math.abs(p.Z - last) < 0.005 ? still + 1 : 0;
-    last = p.Z;
-    if (still >= 2) return last;
+/**
+ * The ground's height under a point: a ray from 0.6 m above it (a step up, not a roof) to 3 m below, against the world's static
+ * collision and then the terrain's (the game's spatial queries, as REDnode's VATS spike casts them). Null when
+ * neither is hit.
+ */
+async function groundAt(p) {
+  let sqs = null;
+  try {
+    sqs = await api.GameInstance.GetSpatialQueriesSystem(game.instance);
+  } catch {
+    return null;
   }
-  return last === from ? null : last;
+  if (!sqs) return null;
+  const from = { X: p.x, Y: p.y, Z: p.z + 0.6, W: 1 };
+  const to = { X: p.x, Y: p.y, Z: p.z - 3, W: 1 };
+  let best = null;
+  for (const group of ['Static', 'Terrain']) {
+    const ray = await sqs.SyncRaycastByCollisionGroup(from, to, group, api.$out, false, false).catch(() => null);
+    const z = ray?.result === true ? ray.out?.result?.position?.Z : undefined;
+    if (typeof z === 'number' && (best === null || z > best)) best = z;
+  }
+  return best;
 }
 
 const bridge = async () => anim.asBridge(await kernel.bridge());
@@ -417,16 +425,13 @@ function spawn() {
     // With clips already made, the character carries the rig's workspot from the start.
     const workspot = clipsForRig().length ? await workspotFor(rig).catch(() => undefined) : undefined;
     const spot = await inFront(3);
-    let { id } = await world.spawn({ record, ...spot, ...(workspot ? { workspot } : {}) });
-    // The spot is at V's height; on a slope the game drops the character onto the ground, but a workspot plays
-    // where the character was put, so clips played in the air (AT3 run 2: 30 cm on a sidewalk sloping away). So
-    // the character is put again where they came to stand.
-    const ground = await settledHeight(id, spot.position.z);
-    if (ground !== null && Math.abs(ground - spot.position.z) > 0.03) {
-      say(`put at z ${spot.position.z.toFixed(2)}, stands at ${ground.toFixed(2)}: spawned again on the ground`);
-      await world.remove(id).catch(() => false);
-      ({ id } = await world.spawn({ record, ...spot, position: { ...spot.position, z: ground }, ...(workspot ? { workspot } : {}) }));
-    }
+    // The spot is at V's height. On a slope the character stands there in the air: the game's idle puts the feet
+    // on the ground, but a workspot plays from where the character is, so clips played 30 cm up (AT3 run 2, a
+    // sidewalk sloping away; the character's own position never moved). So the spot goes down onto the ground.
+    const ground = await groundAt(spot.position);
+    say(ground === null ? `no ground found under the spot (V at z ${spot.position.z.toFixed(2)}): spawned at V's height` : `the ground in front of V is at z ${ground.toFixed(2)}, V at z ${spot.position.z.toFixed(2)}`);
+    const position = ground === null ? spot.position : { ...spot.position, z: ground };
+    const { id } = await world.spawn({ record, ...spot, position, ...(workspot ? { workspot } : {}) });
     actor = { id, record, rig: rig.id, workspot, playing: false };
     show(`${character.value === 'other' ? record : character.label} stands 3 m in front of V.`);
     return `spawned ${record}`;

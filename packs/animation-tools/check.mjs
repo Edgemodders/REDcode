@@ -77,7 +77,12 @@ const respawnAs = (id, changes = {}) => {
 const writeWorkspotAnswer = (name, o) => (events.push(`writeWorkspot ${name} rig ${o.rig.split("\\").pop()}: ${o.clips.map((c) => `${c.name}@${c.set}`).join(" ")}`), { path: `rednode\\workspots\\animation-tools\\${name}.workspot`, entries: o.clips.map((c, i) => ({ name: c.name, entry: i })) });
 const node = (kind, props) => ({ kind, ...props, set(p) { Object.assign(this, p); } });
 globalThis.__rednode = {
-  api: { GetPlayer: async () => ({ GetWorldPosition: async () => ({ X: 10, Y: 20, Z: 5 }), GetWorldForward: async () => ({ X: 0, Y: 1, Z: 0 }) }) },
+  api: {
+    GetPlayer: async () => ({ GetWorldPosition: async () => ({ X: 10, Y: 20, Z: 5 }), GetWorldForward: async () => ({ X: 0, Y: 1, Z: 0 }) }),
+    $out: {},
+    // The ground in front of V is 30 cm lower than V (a slope); the static collision is hit, the terrain not.
+    GameInstance: { GetSpatialQueriesSystem: async () => ({ SyncRaycastByCollisionGroup: async (from, to, group) => (events.push(`ray ${group} from z ${from.Z.toFixed(1)} to ${to.Z.toFixed(1)}`), group === "Static" ? { result: true, out: { result: { position: { X: from.X, Y: from.Y, Z: 4.7, W: 1 } } } } : { result: false }) }) },
+  },
   game: { instance: {} },
   pkg: { dataDir: path.join(root, "data"), dir: root },
   kernel: { bridge: async () => ({ call: (m, p) => b.request(m, p) }) },
