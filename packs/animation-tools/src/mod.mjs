@@ -338,6 +338,22 @@ async function inFront(metres) {
   return { position: { x: p.X + f.X * metres, y: p.Y + f.Y * metres, z: p.Z }, yaw };
 }
 
+/** The height a spawned character comes to stand at, once it stops changing (up to 3 s), or null when unread. */
+async function settledHeight(id, from) {
+  let last = from;
+  let still = 0;
+  for (let i = 0; i < 15; i++) {
+    await new Promise((r) => setTimeout(r, 200));
+    const e = await world.entity(id).catch(() => null);
+    const p = e ? await e.GetWorldPosition().catch(() => null) : null;
+    if (!p || typeof p.Z !== 'number') continue;
+    still = Math.abs(p.Z - last) < 0.005 ? still + 1 : 0;
+    last = p.Z;
+    if (still >= 2) return last;
+  }
+  return last === from ? null : last;
+}
+
 const bridge = async () => anim.asBridge(await kernel.bridge());
 
 /** The newest change under the project's archive folder: what a pack would carry. */
@@ -400,7 +416,17 @@ function spawn() {
     actor = null;
     // With clips already made, the character carries the rig's workspot from the start.
     const workspot = clipsForRig().length ? await workspotFor(rig).catch(() => undefined) : undefined;
-    const { id } = await world.spawn({ record, ...(await inFront(3)), ...(workspot ? { workspot } : {}) });
+    const spot = await inFront(3);
+    let { id } = await world.spawn({ record, ...spot, ...(workspot ? { workspot } : {}) });
+    // The spot is at V's height; on a slope the game drops the character onto the ground, but a workspot plays
+    // where the character was put, so clips played in the air (AT3 run 2: 30 cm on a sidewalk sloping away). So
+    // the character is put again where they came to stand.
+    const ground = await settledHeight(id, spot.position.z);
+    if (ground !== null && Math.abs(ground - spot.position.z) > 0.03) {
+      say(`put at z ${spot.position.z.toFixed(2)}, stands at ${ground.toFixed(2)}: spawned again on the ground`);
+      await world.remove(id).catch(() => false);
+      ({ id } = await world.spawn({ record, ...spot, position: { ...spot.position, z: ground }, ...(workspot ? { workspot } : {}) }));
+    }
     actor = { id, record, rig: rig.id, workspot, playing: false };
     show(`${character.value === 'other' ? record : character.label} stands 3 m in front of V.`);
     return `spawned ${record}`;

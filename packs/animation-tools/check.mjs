@@ -91,6 +91,8 @@ globalThis.__rednode = {
       return { id };
     },
     remove: async (id) => (events.push(`remove ${id}`), live.delete(id)),
+    // The ground in front of V is 30 cm lower than V (a slope): a spawn at V's height comes to stand on it.
+    entity: async (id) => (live.has(id) ? { GetWorldPosition: async () => ({ X: live.get(id).options.position.x, Y: live.get(id).options.position.y, Z: Math.min(live.get(id).options.position.z, 4.7) }) } : null),
     // A swap of a workspot a spawn carries spawns it again with a new id a little later, as REDnode's refresh does.
     writeWorkspot: async (name, o) => {
       const written = writeWorkspotAnswer(name, o);
