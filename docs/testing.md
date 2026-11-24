@@ -845,7 +845,7 @@ In the game, with the Animation Tools pack on its own project (the project line 
 
 From a modder's report (2026-11-24): in `exterior_-11_11_0_1.streamingsector`, `nodeData.Data.1441` has `nodeIdx` 179 and `instanceIndex` 541, but node 179's `buffer` showed only `Data WolvenKit.RED4.Types.worldInstancedMeshNodeBuffer`, and the two numbers had to be followed by hand. Found: REDbridge answers these buffers' `Data` as one value and refuses paths below it. Fixed in REDcode (`src/cr2wValues.ts`: such values open as a read-only tree, read below from the value, kept per document), and the nodeData entry now shows what it points at (the suggestion in the report). Checked in Chrome over REDbridge 0.19.0 with the editor page: the buffer opens (InnerNodes and TransformRanges, 570 each, 200 at a time), and nodeData.Data.1441 shows nodes[179] and InnerNodes[541] (`wat_kab_building_f_ceiling_w300_ab.mesh`) with its 5 transforms from [2223]. A unit check covers the tree and the paths below. **Not run:** in VS Code.
 
-F5 with **Run REDcode**; in Game Assets open `base\worlds_night_city\_compiled\default\exterior_-11_11_0_1.streamingsector`, then **Tree**.
+F5 with **Run REDcode**; in Game Assets open `base\worlds\03_night_city\_compiled\default\exterior_-11_11_0_1.streamingsector`, then **Tree**.
 
 | # | Do | Expected |
 |---|---|---|
