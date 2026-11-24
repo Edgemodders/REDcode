@@ -114,6 +114,12 @@ try {
     const off = (i) => Math.hypot(k[i][0] - p[i][0], k[i][1] - p[i][1], k[i][2] - p[i][2]);
     const worst = Math.max(...times.map((t, i) => Math.abs(off(i) - Math.abs(sway(t)))));
     const tr = kept.report.travel;
+    // The Root holds still, as in the game's own clips (AT3 run 2: a keyed Root turned the feet with the hips, and
+    // the character rose in the game).
+    const keptGlb = core.readGlb(kept.glb);
+    const ka = keptGlb.json.animations[0];
+    const rootKeys = ka.channels.filter((c) => keptGlb.json.nodes[c.target.node].name === "Root").flatMap((c) => core.readAccessor(keptGlb, ka.samplers[c.sampler].output));
+    check(rootKeys.length > 0 && rootKeys.every((v) => (v.length === 4 ? Math.abs(v[3]) > 0.99999 : Math.hypot(...v) < 1e-6)), `in place: the Root holds still, its ${tr.turn.toFixed(0)} degree turn moved onto the hips`);
     check(worst < 0.002 && off(0) < 0.002 && off(times.length - 1) < 0.002 && Math.abs(tr.net - 0.5) < 0.01 && Math.abs(tr.kept - 0.15) < 0.01,
       `in place: a 50 cm drift taken out (${(tr.net * 100).toFixed(1)} cm), the 15 cm sway kept on the hips (${(tr.kept * 100).toFixed(1)} cm; the heel within ${(worst * 1000).toFixed(1)} mm of it)`);
   }

@@ -35,8 +35,9 @@ export interface FitReport {
   /**
    * Metres, with inPlace: how far the motion travelled from its first frame to its last (taken out), and the
    * largest sway or step kept on the hips. A large net means the motion walks somewhere: in place, its feet slide.
+   * turn: the largest turn of the Root, in degrees, moved onto the hips.
    */
-  travel?: { net: number; kept: number };
+  travel?: { net: number; kept: number; turn: number };
 }
 
 export interface FitOptions {
@@ -107,15 +108,19 @@ function turnMotion(nodes: GlbNode[], channels: Channel[], degrees: number): voi
 }
 
 /**
- * In place (FitOptions.inPlace): the Root's travel across the floor, less a straight line from its first frame to
- * its last, moved onto the hips; the Root keeps only its height. The hips' world place is Root.t + Root.r * Hips.t,
- * so the hips get Root.r⁻¹ * what is kept.
+ * In place (FitOptions.inPlace): the Root's turn and travel moved onto the hips, so the Root holds still as in the
+ * game's own clips (a single identity key there; the game plays a keyed Root otherwise than the glTF does: AT3 run 2
+ * saw the feet turn with the hips where the file keeps them still), and the hips' travel across the floor taken out
+ * as a straight line from the first frame to the last, the rest, the body's sway and steps, kept. The hips' world
+ * place and turn are Root.t + Root.r * Hips.t and Root.r * Hips.r; with the Root still, those are the hips' own.
  */
-function travelInPlace(nodes: GlbNode[], channels: Channel[]): { net: number; kept: number } | undefined {
-  const rootT = channels.findIndex((c) => c.node === "Root" && c.path === "translation");
-  const hipsT = channels.findIndex((c) => c.node === "Hips" && c.path === "translation");
-  if (rootT < 0 || hipsT < 0) return undefined;
-  const rootR = channels.find((c) => c.node === "Root" && c.path === "rotation");
+function travelInPlace(nodes: GlbNode[], channels: Channel[]): { net: number; kept: number; turn: number } | undefined {
+  const find = (node: string, p: string) => channels.findIndex((c) => c.node === node && c.path === p);
+  const rootT = find("Root", "translation");
+  const rootR = find("Root", "rotation");
+  const hipsT = find("Hips", "translation");
+  const hipsR = find("Hips", "rotation");
+  if (hipsT < 0 || hipsR < 0 || (rootT < 0 && rootR < 0)) return undefined;
   const rootIndex = nodes.findIndex((n) => n.name === "Root");
   const parentIndex = nodes.findIndex((n) => (n.children ?? []).includes(rootIndex));
   // The world's up (glTF Y) in the Root's parent space.
@@ -125,38 +130,48 @@ function travelInPlace(nodes: GlbNode[], channels: Channel[]): { net: number; ke
     const d = v[0] * up[0] + v[1] * up[1] + v[2] * up[2];
     return [v[0] - d * up[0], v[1] - d * up[1], v[2] - d * up[2]];
   };
-  const r = channels[rootT];
-  const h = channels[hipsT];
-  const n = r.values.length;
-  if (n < 2) return { net: 0, kept: 0 };
-  const sample = (c: Channel | undefined, i: number, rest: number[]) => (c ? c.values[Math.min(c.values.length - 1, Math.round((i * (c.values.length - 1)) / (n - 1)))] : rest);
-  const start = level(r.values[0]);
-  const end = level(r.values[n - 1]);
-  const t0 = r.times[0];
-  const span = r.times[n - 1] - t0 || 1;
-  let kept = 0;
-  const rootValues: number[][] = [];
-  const keptAt: number[][] = [];
+  const ht = channels[hipsT];
+  const hr = channels[hipsR];
+  const n = ht.values.length;
+  if (n < 2) return { net: 0, kept: 0, turn: 0 };
+  const sample = (k: number, i: number, rest: number[]) => {
+    if (k < 0) return rest;
+    const v = channels[k].values;
+    return v[Math.min(v.length - 1, Math.round((i * (v.length - 1)) / (n - 1)))];
+  };
+  const rootNode = nodes[rootIndex];
+  const place: number[][] = [];
+  const turnAt: number[][] = [];
+  let turn = 0;
   for (let i = 0; i < n; i++) {
-    const f = (r.times[i] - t0) / span;
-    const flat = level(r.values[i]);
-    const rest = flat.map((v, k) => v - (start[k] + (end[k] - start[k]) * f));
-    kept = Math.max(kept, Math.hypot(rest[0], rest[1], rest[2]));
-    rootValues.push(r.values[i].map((v, k) => v - flat[k]));
-    keptAt.push(rest);
+    const rr = qnorm(sample(rootR, i, rootNode?.rotation ?? [0, 0, 0, 1]));
+    const rt = sample(rootT, i, rootNode?.translation ?? [0, 0, 0]);
+    const add = qrot(rr, ht.values[i]);
+    place.push([rt[0] + add[0], rt[1] + add[1], rt[2] + add[2]]);
+    turnAt.push(qnorm(qmul(rr, sample(hipsR, i, [0, 0, 0, 1]))));
+    turn = Math.max(turn, quatAngle(rr, [0, 0, 0, 1]));
   }
-  const rootRest = nodes[rootIndex]?.rotation ?? [0, 0, 0, 1];
-  const hipsValues = h.values.map((v, j) => {
-    const i = Math.min(n - 1, Math.round((j * (n - 1)) / Math.max(1, h.values.length - 1)));
-    const add = qrot(qconj(qnorm(sample(rootR, i, rootRest))), keptAt[i]);
-    return [v[0] + add[0], v[1] + add[1], v[2] + add[2]];
+  const start = level(place[0]);
+  const end = level(place[n - 1]);
+  const t0 = ht.times[0];
+  const span = ht.times[n - 1] - t0 || 1;
+  let kept = 0;
+  const hipsValues = place.map((p, i) => {
+    const f = (ht.times[i] - t0) / span;
+    const line = start.map((v, k) => v + (end[k] - v) * f);
+    const out = p.map((v, k) => v - line[k]);
+    const flat = level(out);
+    kept = Math.max(kept, Math.hypot(flat[0], flat[1], flat[2]));
+    return out;
   });
-  channels[rootT] = { ...r, values: rootValues };
-  channels[hipsT] = { ...h, values: hipsValues };
-  return { net: Math.hypot(end[0] - start[0], end[1] - start[1], end[2] - start[2]), kept };
+  channels[hipsT] = { ...ht, values: hipsValues };
+  channels[hipsR] = { ...hr, values: hr.values.length === n ? turnAt : hr.values.map((_, j) => turnAt[Math.min(n - 1, Math.round((j * (n - 1)) / Math.max(1, hr.values.length - 1)))]) };
+  if (rootT >= 0) channels[rootT] = { ...channels[rootT], values: channels[rootT].values.map(() => [0, 0, 0]) };
+  if (rootR >= 0) channels[rootR] = { ...channels[rootR], values: channels[rootR].values.map(() => [0, 0, 0, 1]) };
+  return { net: Math.hypot(end[0] - start[0], end[1] - start[1], end[2] - start[2]), kept, turn };
 }
 
-const quatAngle =(a: number[], b: number[]) => (2 * Math.acos(Math.min(1, Math.abs(a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3]))) * 180) / Math.PI;
+const quatAngle = (a: number[], b: number[]) => (2 * Math.acos(Math.min(1, Math.abs(a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3]))) * 180) / Math.PI;
 
 /**
  * The lowest the heels and toes go, in metres above the clip's origin (glTF Y up): forward kinematics over the
