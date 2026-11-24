@@ -88,7 +88,7 @@ The way back, from a definition or an inner record to its placements, is a tree 
 | From | How |
 |---|---|
 | **The game** | The `redcode` REDnode package gets `openSector({ sector, entry })`. It writes `open-request.json` beside `project.json`, and the REDcode window that is open on a project (or the one used last) opens the sector at that entry. Game tabs and the size selector already work this way. EDGEbuilder adds **Open in REDcode** to its Sector drawer and to Picked in the world (its Sector Tools page lists it as missing) |
-| **REDcode** | **Open Sector Here** asks the package where V stands, through a request file answered as `display()` is. REDcode finds the sector there with `sector.find`: the interior sector when V is inside one, else the level 0 exterior. It opens it with the nearest thing picked. EDGEbuilder's camera place goes through EDGEbuilder's own button, since it knows its camera |
+| **REDcode** | **EDGEworld: Open Sector Here** (the sector view's commands take the category EDGEworld, the owner's name for it, 2026-11-24) asks the package where V stands, through a request file answered as `display()` is. REDcode finds the sector there with `sector.find`: the interior sector when V is inside one, else the level 0 exterior. It opens it with the nearest thing picked. EDGEbuilder's camera place goes through EDGEbuilder's own button, since it knows its camera |
 
 **Probe (P2):** which REDnode call gives V's position and facing inside a package, and whether the camera's place is readable too.
 
