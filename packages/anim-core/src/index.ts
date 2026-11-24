@@ -8,3 +8,4 @@ export * from "./uthana";
 export * from "./fit";
 export * from "./game";
 export * from "./generate";
+export * from "./edit";

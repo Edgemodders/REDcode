@@ -158,6 +158,78 @@ try {
   const names = await core.clipsIn(bridge, path.join(project.archiveDir, ...rig.referenceSet.split("\\")));
   check(names.length === 292 && names.includes("stand__2h_on_sides__01__stretch_arms__01"), `the replaced set keeps its ${names.length} clips`);
 
+  // 1b. The Animation Editor's steps (AE1, docs/design/animation-editor.md), on the made clip "wave_hello".
+  {
+    const clip = core.readGlb(fs.readFileSync(madeOne.glb));
+    const before = core.framesOf(clip);
+    const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+    // Normalised first: the clips' quaternions are stored a little off unit length, which reads as a degree or two apart.
+    const unit = (q) => { const n = Math.hypot(...q) || 1; return q.map((x) => x / n); };
+    const angle = (a, b) => { const x = unit(a); const y = unit(b); return (2 * Math.acos(Math.min(1, Math.abs(x[0] * y[0] + x[1] * y[1] + x[2] * y[2] + x[3] * y[3]))) * 180) / Math.PI; };
+    const contacts = core.footContacts(clip);
+    console.log(`     feet: ${contacts.map((c) => `${c.bone} ${c.from.toFixed(2)}-${c.to.toFixed(2)} s slides ${(c.slide * 100).toFixed(1)} cm`).join("; ") || "no contact"}`);
+    check(contacts.length > 0, `the feet report finds where the feet rest (${contacts.length} contacts)`);
+    // Pin: the left foot held from 1 s to 3 s, within 1 mm, its turn kept.
+    const pinned = await core.applyEdits(clip, [{ step: "pin", bone: "LeftFoot", from: 1, to: 3 }]);
+    const path0 = core.worldPath(pinned.frames, "LeftFoot");
+    const held = path0.slice(30, 91);
+    const drift = Math.max(...held.map((p) => dist(p.position, held[0].position)));
+    const turnDrift = Math.max(...held.map((p) => angle(p.rotation, held[0].rotation)));
+    check(drift < 0.001 && turnDrift < 0.5, `pin: the left foot holds within ${(drift * 1000).toFixed(2)} mm and ${turnDrift.toFixed(2)} degrees from 1 s to 3 s`);
+    // Key: the head turned 30 degrees about the character's up at 2 s, exactly there, nothing far from it changed.
+    const keyed = await core.applyEdits(clip, [{ step: "key", bone: "Head", at: 2, turn: { yaw: 30 }, blend: 0.5 }]);
+    const headBefore = core.worldPath(before, "Head");
+    const headAfter = core.worldPath(keyed.frames, "Head");
+    const at2 = angle(headBefore[60].rotation, headAfter[60].rotation);
+    const far = angle(headBefore[0].rotation, headAfter[0].rotation);
+    check(Math.abs(at2 - 30) < 0.5 && far < 0.01, `key: the head turned ${at2.toFixed(1)} degrees at 2 s, ${far.toFixed(3)} at 0 s`);
+    // Layer: the game's idle on the right hand from 1 s; the other bones untouched.
+    const layered = await core.applyEdits(clip, [{ step: "layer", source: { file: "reference" }, group: "rightHand", at: 1 }], { layer: async () => reference });
+    const hand = core.bonesOf("rightHand", [...before.rot.keys()]);
+    let others = 0;
+    let moved = 0;
+    for (const [bone, frames] of before.rot) {
+      for (const i of [45, 75]) {
+        const d = angle(frames[i], layered.frames.rot.get(bone)[i]);
+        if (hand.includes(bone)) moved = Math.max(moved, d);
+        else others = Math.max(others, d);
+      }
+    }
+    check(hand.length >= 15 && moved > 1 && others < 0.02, `layer: ${hand.length} right hand bones change (up to ${moved.toFixed(1)} degrees), the other bones not at all`);
+    // Trim and loop: 0.5 s to 3.5 s, and the last frame back at the first.
+    const looped = await core.applyEdits(clip, [{ step: "trim", from: 0.5, to: 3.5 }, { step: "loop", blend: 0.5 }]);
+    const lf = looped.frames;
+    const ends = Math.max(...[...lf.rot.values()].map((v) => angle(v[0], v[lf.count - 1])));
+    check(Math.abs(looped.report.seconds - 3) < 1e-9 && ends < 0.01, `trim and loop: ${looped.report.seconds} s, the last frame within ${ends.toFixed(3)} degrees of the first`);
+    // Suggested pins for every sliding contact.
+    const suggested = core.suggestPins(contacts, 0);
+    check(suggested.length === contacts.length && suggested.every((s) => s.step === "pin"), `the feet report suggests ${suggested.length} pin(s)`);
+
+    // The edit list on the made clip: imported, recorded, the same clip again from the same list, and back to as made.
+    const steps = [{ step: "pin", bone: "LeftFoot", from: 1, to: 3 }, { step: "key", bone: "Head", at: 2, turn: { yaw: 20 } }];
+    const e1 = await core.editClip(bridge, project, "wave_hello", steps, { cacheDir });
+    const glb1 = fs.readFileSync(madeOne.glb);
+    const e2 = await core.editClip(bridge, project, "wave_hello", steps, { cacheDir });
+    const glb2 = fs.readFileSync(madeOne.glb);
+    const rec = core.recordOf(project, "wave_hello");
+    const base = madeOne.glb.replace(/\.glb$/, ".base.glb");
+    console.log(`     editClip: id ${e1.record.id === own.record.id}, edits ${rec.edits?.length}, edited ${!!rec.edited}, base ${fs.existsSync(base)}, same ${glb1.equals(glb2)}, imported ${JSON.stringify({ added: e2.added, updated: e2.updated })}`);
+    check(e1.record.id === own.record.id && rec.edits?.length === 2 && !!rec.edited && core.hasEdits(rec) && fs.existsSync(base) && glb1.equals(glb2) && e2.updated.concat(e2.added).includes("wave_hello"),
+      `editClip: imported, the record keeps its id with 2 edits, the base kept, and the same list makes the same clip (${glb1.length.toLocaleString()} bytes)`);
+    let refusedEdited = false;
+    try {
+      await core.addClip(bridge, project, rig, "wave_hello", fitted.glb, { seconds: r.duration });
+    } catch (e) {
+      refusedEdited = e instanceof core.EditedClipError && /pin, key/.test(e.message);
+    }
+    await core.editClip(bridge, project, "wave_hello", [], { cacheDir });
+    const rec0 = core.recordOf(project, "wave_hello");
+    const restored = core.framesOf(core.readGlb(fs.readFileSync(madeOne.glb)));
+    const apart = Math.max(...[...before.rot].map(([bone, v]) => Math.max(...v.map((q, i) => angle(q, restored.rot.get(bone)[i])))));
+    check(refusedEdited && !core.hasEdits(rec0) && !fs.existsSync(base) && restored.count === before.count && apart < 0.01 && rec0.anim.seconds === madeOne.anim.seconds,
+      `editClip: an edited clip is not made again silently (the message names its steps), and no steps puts the clip as made back (within ${apart.toFixed(4)} degrees)`);
+  }
+
   // 2. Uthana, free calls only.
   const k = await b[KeyAccess]("keys.get", { service: "uthana", tool: "anim-core-check" });
   if (!k?.key) check(false, "an Uthana key in the shared key store");

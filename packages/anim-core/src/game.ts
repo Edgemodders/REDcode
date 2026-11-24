@@ -4,7 +4,8 @@
 import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { clipOf, type Glb } from "./glb";
+import { applyEdits, type EditReport, type EditStep, type LayerSource } from "./edit";
+import { clipOf, readGlb, type Glb } from "./glb";
 import type { Uthana } from "./uthana";
 
 /** What anim-core needs of REDbridge: REDcode's BridgeClient has request; REDnode's kernel.bridge() has call. */
@@ -211,7 +212,10 @@ export interface AnimRecord {
   source?: Record<string, unknown>;
   /** Where the motion came from and on what terms, shaped like EDGEfab's prop records' license (EDGEfab #7). */
   license?: { source: string; plan?: string; terms?: string; note: string };
-  /** Set by EDGEfab when it edits the clip (EDGEfab #7): a clip with edits is not made again without asking. */
+  /**
+   * Set when the clip is edited, by REDcode's Animation Editor or EDGEfab (EDGEfab #7): the steps, run in order on
+   * the clip as made (<name>.base.glb). A clip with edits is not made again without asking.
+   */
   edited?: string;
   edits?: unknown[];
 }
@@ -222,7 +226,7 @@ export class EditedClipError extends Error {
     readonly clip: string,
     readonly record: AnimRecord,
   ) {
-    super(`${clip} has edits made in EDGEfab, which making it again would lose`);
+    super(`${clip} has edits (${(record.edits ?? []).map((e) => (e as { step?: string })?.step ?? "?").join(", ") || "edited"}), which making it again would lose`);
     this.name = "EditedClipError";
   }
 }
@@ -238,7 +242,7 @@ export function recordOf(project: Project, clip: string, set = addedSet(project,
   }
 }
 
-/** Whether a record carries EDGEfab's edits, which making the clip again would lose. */
+/** Whether a record carries edits (the Animation Editor's or EDGEfab's), which making the clip again would lose. */
 export const hasEdits = (r: AnimRecord | undefined) => !!r && (!!r.edited || (Array.isArray(r.edits) && r.edits.length > 0));
 
 /**
@@ -349,6 +353,8 @@ export async function addClip(
     ...(facts.license ? { license: facts.license } : {}),
   };
   fs.writeFileSync(path.join(dir, `${clip}.glb`), glb);
+  // Made again, the clip as made is this one: an older base for edits goes.
+  fs.rmSync(path.join(dir, `${clip}.base.glb`), { force: true });
   fs.writeFileSync(recordFile, JSON.stringify(record, null, 2));
   r.files.push(path.join(dir, `${clip}.glb`), recordFile);
   if (source?.motion) {
@@ -356,6 +362,60 @@ export async function addClip(
     r.files.push(path.join(dir, `${clip}.source.glb`));
   }
   return { ...r, record };
+}
+
+/**
+ * Edits a made clip (REDcode's Animation Editor, docs/design/animation-editor.md): the steps run in order on the
+ * clip as made, kept as <name>.base.glb from the first edit on, and the result imported over the clip's set, its
+ * .glb and its record (`edits`, `edited`, the new length and loop) updated; the id stays. No steps puts the clip
+ * as made back. A Layer reads a made clip of the project, a game clip (exported through REDbridge into cacheDir)
+ * or a .glb file.
+ */
+export async function editClip(
+  bridge: Bridge,
+  project: Project,
+  clip: string,
+  steps: EditStep[],
+  options: { cacheDir: string; set?: string },
+): Promise<ImportResult & { record: AnimRecord; report: EditReport }> {
+  const set = options.set ?? addedSet(project, clip);
+  const old = recordOf(project, clip, set);
+  if (!old) throw new Error(`${clip} is not a made clip in ${project.name}: no record`);
+  const rig = rigFor(old.anim.rig);
+  if (!rig) throw new Error(`${clip} is on ${old.anim.rig}; edits work on man_base and woman_base`);
+  const dir = path.dirname(path.join(project.rawDir, ...set.split(BS)));
+  const clipFile = path.join(dir, `${clip}.glb`);
+  const baseFile = path.join(dir, `${clip}.base.glb`);
+  if (!fs.existsSync(baseFile)) {
+    if (!fs.existsSync(clipFile)) throw new Error(`${clip}: its .glb is missing (${clipFile})`);
+    fs.copyFileSync(clipFile, baseFile);
+  }
+  const layer = async (src: LayerSource): Promise<Glb> => {
+    if ("made" in src) {
+      const other = path.join(path.dirname(path.join(project.rawDir, ...addedSet(project, src.made).split(BS))), `${src.made}.glb`);
+      if (!fs.existsSync(other)) throw new Error(`layer: no made clip ${src.made} in ${project.name}`);
+      return readGlb(fs.readFileSync(other));
+    }
+    if ("game" in src) return clipOf(await exportGame(bridge, options.cacheDir, src.game.set, ".anims.glb", {}, "anims"), src.game.clip);
+    return readGlb(fs.readFileSync(src.file));
+  };
+  const { glb, report } = await applyEdits(readGlb(fs.readFileSync(baseFile)), steps, { layer, name: clip });
+  fs.rmSync(path.join(project.archiveDir, ...set.split(BS)), { force: true });
+  const r = await importClip(bridge, project, set, clip, glb, { rig: rig.rig });
+  const edited = steps.length > 0;
+  const record: AnimRecord = { ...old, anim: { ...old.anim, seconds: Math.round(report.seconds * 1000) / 1000, loop: steps.some((x) => x.step === "loop") } };
+  if (edited) {
+    record.edited = new Date().toISOString();
+    record.edits = steps;
+  } else {
+    delete record.edited;
+    delete record.edits;
+  }
+  fs.writeFileSync(clipFile, glb);
+  fs.writeFileSync(path.join(dir, `${clip}.edgefab.json`), JSON.stringify(record, null, 2));
+  if (!edited) fs.rmSync(baseFile, { force: true });
+  r.files.push(clipFile, path.join(dir, `${clip}.edgefab.json`), ...(edited ? [baseFile] : []));
+  return { ...r, record, report };
 }
 
 /** The made clips in a project, found by their records (kind "anim") under source\raw, newest first. */

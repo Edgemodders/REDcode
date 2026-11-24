@@ -11,7 +11,8 @@
 
 import { readAccessor, writeGlb, type Glb, type GlbAccessor, type GlbBufferView, type GlbNode } from "./glb";
 
-interface Channel {
+/** One animated property of one bone: its key times (seconds) and values (a quaternion or a vector each). */
+export interface Channel {
   node: string;
   path: string;
   interpolation: string;
@@ -217,7 +218,8 @@ export function lowestFoot(nodes: GlbNode[], channels: Channel[]): number {
   return low;
 }
 
-const channelsOf = (g: Glb, index = 0): Channel[] => {
+/** The channels of a .glb's animation, by bone name. */
+export const channelsOf = (g: Glb, index = 0): Channel[] => {
   const a = g.json.animations?.[index];
   if (!a) throw new Error("No animation in the file");
   return a.channels.map((c) => {
@@ -231,6 +233,44 @@ const channelsOf = (g: Glb, index = 0): Channel[] => {
     };
   });
 };
+
+/**
+ * A one-clip .glb: the nodes, skin and scene of `base` (a game clip's export or a fitted clip), and the channels as
+ * the clip's keys, their times from `start`, with WolvenKit's extras.
+ */
+export function writeClipGlb(gj: Glb["json"], name: string, channels: Channel[], extras: Record<string, unknown>, start = 0): Buffer {
+  // A new binary with the keys only; the nodes and the skin's joint list are the reference's.
+  const parts: Buffer[] = [];
+  let length = 0;
+  const accessors: GlbAccessor[] = [];
+  const views: GlbBufferView[] = [];
+  const put = (rows: number[][], type: string) => {
+    const n = rows[0].length;
+    const buf = Buffer.alloc(rows.length * n * 4);
+    rows.forEach((r, i) => r.forEach((v, k) => buf.writeFloatLE(v, (i * n + k) * 4)));
+    views.push({ buffer: 0, byteOffset: length, byteLength: buf.length });
+    parts.push(buf);
+    length += buf.length;
+    const a: GlbAccessor = { bufferView: views.length - 1, componentType: 5126, count: rows.length, type };
+    if (type === "SCALAR") {
+      a.min = [Math.min(...rows.map((r) => r[0]))];
+      a.max = [Math.max(...rows.map((r) => r[0]))];
+    }
+    accessors.push(a);
+    return accessors.length - 1;
+  };
+  const nodeIndex = new Map(gj.nodes.map((n, i) => [n.name, i]));
+  const samplers = [];
+  const outChannels = [];
+  for (const c of channels) {
+    const input = put(c.times.map((t) => [t - start]), "SCALAR");
+    const output = put(c.values, c.path === "rotation" ? "VEC4" : "VEC3");
+    samplers.push({ input, output, interpolation: c.interpolation });
+    outChannels.push({ sampler: samplers.length - 1, target: { node: nodeIndex.get(c.node)!, path: c.path } });
+  }
+  const json = { ...gj, accessors, bufferViews: views, buffers: [{ byteLength: length }], animations: [{ name, channels: outChannels, samplers, extras }] };
+  return writeGlb(json, Buffer.concat(parts));
+}
 
 /**
  * The motion (its first animation) fitted onto the reference game clip's rig as a one-clip .glb for REDbridge's
@@ -292,35 +332,6 @@ export function fitClip(motion: Glb, reference: Glb, name: string, options: FitO
   const hips = channels.findIndex((c) => c.node === "Hips" && c.path === "translation");
   if (lift && hips >= 0) channels[hips] = { ...channels[hips], values: channels[hips].values.map(([x, y, z]) => [x, y + lift, z]) };
 
-  // A new binary with the keys only; the nodes and the skin's joint list are the reference's.
-  const parts: Buffer[] = [];
-  let length = 0;
-  const accessors: GlbAccessor[] = [];
-  const views: GlbBufferView[] = [];
-  const put = (rows: number[][], type: string) => {
-    const n = rows[0].length;
-    const buf = Buffer.alloc(rows.length * n * 4);
-    rows.forEach((r, i) => r.forEach((v, k) => buf.writeFloatLE(v, (i * n + k) * 4)));
-    views.push({ buffer: 0, byteOffset: length, byteLength: buf.length });
-    parts.push(buf);
-    length += buf.length;
-    const a: GlbAccessor = { bufferView: views.length - 1, componentType: 5126, count: rows.length, type };
-    if (type === "SCALAR") {
-      a.min = [Math.min(...rows.map((r) => r[0]))];
-      a.max = [Math.max(...rows.map((r) => r[0]))];
-    }
-    accessors.push(a);
-    return accessors.length - 1;
-  };
-  const nodeIndex = new Map(gj.nodes.map((n, i) => [n.name, i]));
-  const samplers = [];
-  const outChannels = [];
-  for (const c of channels) {
-    const input = put(c.times.map((t) => [t - base[0]]), "SCALAR");
-    const output = put(c.values, c.path === "rotation" ? "VEC4" : "VEC3");
-    samplers.push({ input, output, interpolation: c.interpolation });
-    outChannels.push({ sampler: samplers.length - 1, target: { node: nodeIndex.get(c.node)!, path: c.path } });
-  }
   const duration = Math.max(...channels.map((c) => c.times[c.times.length - 1] - base[0]));
 
   const extras = JSON.parse(JSON.stringify(gameClip.extras ?? {})) as Record<string, any>;
@@ -334,9 +345,8 @@ export function fitClip(motion: Glb, reference: Glb, name: string, options: FitO
   extras.fallbackFrameIndices = [];
   extras.animEvents = null;
 
-  const json = { ...gj, accessors, bufferViews: views, buffers: [{ byteLength: length }], animations: [{ name, channels: outChannels, samplers, extras }] };
   return {
-    glb: writeGlb(json, Buffer.concat(parts)),
+    glb: writeClipGlb(gj, name, channels, extras, base[0]),
     report: {
       duration,
       frames: base.length,
