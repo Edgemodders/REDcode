@@ -339,9 +339,9 @@ async function inFront(metres) {
 }
 
 /**
- * The ground's height under a point: a ray from 0.6 m above it (a step up, not a roof) to 3 m below, against the world's static
- * collision and then the terrain's (the game's spatial queries, as REDnode's VATS spike casts them). Null when
- * neither is hit.
+ * The ground's height under a point: a ray from 0.6 m above it (a step up, not a roof) to 3 m below, against each
+ * collision group a floor can be in, the nearest hit taken (EDGEbuilder's drop to floor asks the same groups). Logs
+ * what each group answered. Null when none is hit.
  */
 async function groundAt(p) {
   let sqs = null;
@@ -354,11 +354,14 @@ async function groundAt(p) {
   const from = { X: p.x, Y: p.y, Z: p.z + 0.6, W: 1 };
   const to = { X: p.x, Y: p.y, Z: p.z - 3, W: 1 };
   let best = null;
-  for (const group of ['Static', 'Terrain']) {
-    const ray = await sqs.SyncRaycastByCollisionGroup(from, to, group, api.$out, false, false).catch(() => null);
+  const tried = [];
+  for (const group of ['Static', 'Terrain', 'PlayerBlocker']) {
+    const ray = await sqs.SyncRaycastByCollisionGroup(from, to, group, api.$out, false, false).catch((e) => ({ error: e }));
     const z = ray?.result === true ? ray.out?.result?.position?.Z : undefined;
+    tried.push(`${group} ${typeof z === 'number' ? z.toFixed(2) : ray?.error ? 'failed' : 'miss'}`);
     if (typeof z === 'number' && (best === null || z > best)) best = z;
   }
+  say(`ground under the spot: ${tried.join(', ')}`);
   return best;
 }
 
