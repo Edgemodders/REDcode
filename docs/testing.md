@@ -39,16 +39,18 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Animation Probe A](#animation-probe-a) | By hand, in the game | Research | 2026-11-21 | Pass (owner), run 2, once the clips' fallback frames were cleared |
 | [Animation Probe D](#animation-probe-d) | By hand, in the game | Research | 2026-11-22 | Pass (owner), run 2, once every bone's translation was keyed |
 | [anim-core check](#anim-core-check) | Automated, on the PC (game and Uthana key) | Animation Tools AT1 | 2026-11-22 | Pass, 22 of 22 |
-| [Animation Tools AT2](#animation-tools-at2) | By hand, in REDcode and the game | Animation Tools AT2 | 2026-11-22 | Not run (checked offline: typecheck, unit 75, anim-core 22, the MCP tools over stdio) |
+| [Animation Tools AT2](#animation-tools-at2) | By hand, in REDcode and the game | Animation Tools AT2 | 2026-11-22 | Pass (owner), steps 1 to 9 with 3b, after fixes |
 | [Animation Tools pack (AT3)](#animation-tools-pack-at3) | By hand, in the game | Animation Tools AT3 | 2026-11-22 | **Passed** 2026-11-24 (run 2, with the fixes it raised) |
 | [Animation Editor (AE1)](#animation-editor-ae1) | Script, MCP client, and by hand in the game | Animation Editor AE1 | 2026-11-24 | Script and MCP passed; in the game not run |
 | [CR2W editor: buffers and nodeData](#cr2w-editor-buffers-and-nodedata) | By hand | A modder's report, 2026-11-24 | 2026-11-24 | **Passed** 2026-11-24 |
 | [Replace with a WAV, titled models (#29), every window's project (#32)](#replace-with-a-wav-titled-models-29-and-every-windows-project-32) | By hand, in the game | Requests | 2026-11-20 | Pass (owner), with two fixes |
 | [Replace All](#replace-all) | By hand, in the game | Requests | 2026-11-20 | Pass (owner), with one fix |
 | [Sector view](#sector-view) | By hand | C5 | 2026-11-20 | Pass (owner), with two fixes and five changes, each retested |
-| [Sector materials (M1)](#sector-materials-m1) | By hand | C5 | 2026-11-21 | Pass (owner), all 10 steps, with one fix (retest pending) |
-| [Sector camera](#sector-camera) | By hand | C5 | 2026-11-21 | Not run (checked in Chrome over the real bridge) |
-| [Sector selection](#sector-selection) | By hand | C5 | 2026-11-21 | Not run (checked in Chrome over the real bridge) |
+| [Sector materials (M1)](#sector-materials-m1) | By hand | C5 | 2026-11-21 | Pass (owner), all 10 steps; the fix's retest R1 to R3 passed 2026-11-22 |
+| [Sector camera](#sector-camera) | By hand | C5 | 2026-11-21 | Pass (owner, 2026-11-22), steps 1 to 10 |
+| [Sector selection](#sector-selection) | By hand | C5 | 2026-11-21 | Pass (owner, 2026-11-22), steps 1 to 12, two fixes |
+| [Run Game in Tab](#run-game-in-tab-g2-redcodes-side) | By hand, in the game | Game in a tab G2 | 2026-11-22 | Pass (owner, 2026-11-23), steps 1 to 8; retests R1 and R2 not run; the size selector S1 to S5 not run |
+| [The game tools for assistants](#the-game-tools-for-assistants-redcode-mcp-game_) | By hand, with a Claude session | Game tests | 2026-11-23 | Not run (checked by script) |
 | [Sector scripts](#sector-scripts) | By hand | Sector scripts | 2026-11-23 | Not run (checked by script and in Chrome over the real runner) |
 | [Sector layers (L1)](#sector-layers-l1) | By hand | Sector layers L1 | 2026-11-24 | Not run (checked by script and in Chrome over the real game) |
 | [Lip Sync L1](#lip-sync-l1-the-editor-in-redcode) | Scripts and an MCP client; by hand | Lip Sync L1 | 2026-11-24 | Partly run: steps 1 and 2 pass (scripts, MCP); steps 3 to 10 in VS Code not run |
