@@ -174,7 +174,10 @@ body.mesh-mode #props { display: flex; flex-direction: column; overflow: hidden;
 .meshview .camerahelp[hidden] { display: none; }
 .sectorside { display: flex; flex-direction: column; }
 .sectorside .selhead { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; padding: 4px 6px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--vscode-editor-background); }
-.sectorside .selhead .selcount { flex-basis: 100%; font-weight: 500; }
+.sectorside .selhead .selcount { flex: 1; min-width: 4em; font-weight: 500; white-space: nowrap; }
+.sectorside .selhead button.icon { display: inline-flex; align-items: center; justify-content: center; padding: 2px 3px; line-height: 0; }
+.sectorside .selhead button.icon svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; }
+.sectorside .selhead button.icon.on { border-color: var(--accent); color: var(--accent); }
 .sectorside .selhead button[hidden] { display: none; }
 .sectorside .selrows { overflow: auto; flex: 1; min-height: 0; }
 .sectorside .selrow { display: flex; gap: 6px; align-items: center; padding: 2px 6px; cursor: pointer; font-size: 12px; white-space: nowrap; border-left: 2px solid transparent; position: relative; }

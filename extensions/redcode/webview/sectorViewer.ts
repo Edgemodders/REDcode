@@ -12,6 +12,17 @@ import * as THREE from "three";
 import { createWorldView, type CameraMove, type PageAppearance, type PageMarker, type PagePlacement, type WorldView } from "../../../packages/world-view/src/page";
 import { cssColour, el, lightControls, sideSplitter, type LightSettings } from "./viewerKit";
 
+/** The selected list's icons, drawn on a 16 px grid (see iconButton). */
+const Icons = {
+  back: "path M10 3 5 8 10 13",
+  forward: "path M6 3 11 8 6 13",
+  frame: "path M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4",
+  isolate: "rect 2.5 2.5 11 11 dashed|circle 8 8 2.5 filled",
+  add: "rect 2.5 2.5 11 11|path M8 5v6M5 8h6",
+  copy: "rect 5.5 5.5 8 8|path M3 10.5V3.5a1 1 0 0 1 1-1h6.5",
+  clear: "path M4 4l8 8M12 4l-8 8",
+};
+
 /** What the host sends while a sector loads. */
 export type SectorMessage =
   | { type: "sectorMesh"; mesh: string; data: string; placements: PagePlacement[] }
@@ -133,6 +144,28 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
   const button = (label: string, title: string, on?: boolean) => {
     const b = el("button", on ? "on" : "", label);
     b.title = title;
+    return b;
+  };
+  /** A button drawn as a 16 px line icon in the text colour; the title names it and says what it does. */
+  const iconButton = (shapes: string, title: string) => {
+    const b = el("button", "icon");
+    b.title = title;
+    b.setAttribute("aria-label", title.split(":")[0]);
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 16 16");
+    svg.setAttribute("aria-hidden", "true");
+    // Each shape: "path d" or "circle cx cy r" or "rect x y w h", separated by "|".
+    for (const shape of shapes.split("|")) {
+      const [kind, ...v] = shape.trim().split(" ");
+      const e = document.createElementNS("http://www.w3.org/2000/svg", kind);
+      if (kind === "path") e.setAttribute("d", v.join(" "));
+      else if (kind === "circle") ["cx", "cy", "r"].forEach((k, i) => e.setAttribute(k, v[i]));
+      else if (kind === "rect") ["x", "y", "width", "height"].forEach((k, i) => e.setAttribute(k, v[i]));
+      if (v.includes("dashed")) e.setAttribute("stroke-dasharray", "2 1.6");
+      if (v.includes("filled")) e.setAttribute("fill", "currentColor");
+      svg.appendChild(e);
+    }
+    b.appendChild(svg);
     return b;
   };
   const fit = button("Frame", "Fit the view to the sector, or to the thing picked");
@@ -320,6 +353,7 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
     selection = [...new Set(ids)];
     const now = current && selection.includes(current) ? current : (selection[0] ?? null);
     picked = now;
+    if (!travelling) remember(selection, now);
     view.highlight(selection, now);
     if (isolated) {
       if (selection.length) applyIsolate();
@@ -333,6 +367,44 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
     renderList();
   };
   const choose = (id: string | null) => select(id ? [id] : [], id);
+
+  // ---- the selection's history: Back and Forward ----
+  type Step = { ids: string[]; current: string | null };
+  const MaxSteps = 100;
+  let steps: Step[] = [{ ids: [], current: null }];
+  let at = 0;
+  let travelling = false;
+  /** Changes this close together are one step: a volume dragged, a box redrawn. */
+  let joining: ReturnType<typeof setTimeout> | undefined;
+  const sameIds = (a: string[], b: string[]) => a.length === b.length && a.every((x, i) => x === b[i]);
+  function remember(ids: string[], current: string | null) {
+    if (sameIds(ids, steps[at].ids)) {
+      steps[at].current = current;
+      return;
+    }
+    if (joining && at > 0) steps[at] = { ids, current };
+    else {
+      steps = steps.slice(0, at + 1);
+      steps.push({ ids, current });
+      if (steps.length > MaxSteps) steps.shift();
+      at = steps.length - 1;
+    }
+    clearTimeout(joining);
+    joining = setTimeout(() => (joining = undefined), 400);
+  }
+  const travel = (by: number) => {
+    const to = at + by;
+    if (to < 0 || to >= steps.length) return;
+    clearTimeout(joining);
+    joining = undefined;
+    at = to;
+    travelling = true;
+    try {
+      select(steps[at].ids, steps[at].current);
+    } finally {
+      travelling = false;
+    }
+  };
   const setCurrent = (id: string) => {
     picked = id;
     view.highlight(selection, id);
@@ -351,12 +423,16 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
   // ---- the selected list ----
   const head = el("div", "selhead");
   const count = el("span", "selcount", "");
-  const frameAll = button("Frame All", "Fly to all of them");
-  const isolate = button("Isolate", "Ghost everything else, to see these alone; again to show it all");
-  const addAll = button("Add Meshes to Project", "Copy each of their meshes into the project once. A change to one shows everywhere the game uses it");
-  const copyAll = button("Copy", "Copy their ids and meshes, one per line, for an issue or an assistant");
-  const clearAll = button("Clear", "Select nothing (Esc)");
-  head.append(count, frameAll, isolate, addAll, copyAll, clearAll);
+  const back = iconButton(Icons.back, "Back: the selection before this one");
+  const forward = iconButton(Icons.forward, "Forward: the selection after this one");
+  const frameAll = iconButton(Icons.frame, "Frame All: fly to all of them");
+  const isolate = iconButton(Icons.isolate, "Isolate: ghost everything else, to see these alone; again to show it all");
+  const addAll = iconButton(Icons.add, "Add Meshes to Project: copy each of their meshes into the project once. A change to one shows everywhere the game uses it");
+  const copyAll = iconButton(Icons.copy, "Copy: their ids and meshes, one per line, for an issue or an assistant");
+  const clearAll = iconButton(Icons.clear, "Clear: select nothing (Esc). Back brings it back");
+  head.append(back, forward, count, frameAll, isolate, addAll, copyAll, clearAll);
+  back.addEventListener("click", () => travel(-1));
+  forward.addEventListener("click", () => travel(1));
   const rows = el("div", "selrows");
   const empty = el("div", "dim selempty", "Nothing selected. Click a thing to select it, Ctrl+click to add or take out, Shift+drag for a box on the screen, or Volume for a box in the world.");
   side.append(head, rows, empty);
@@ -418,13 +494,17 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
   };
   const renderList = () => {
     const any = selection.length > 0;
-    head.hidden = !any;
+    back.disabled = at <= 0;
+    forward.disabled = at >= steps.length - 1;
+    head.hidden = !any && back.disabled && forward.disabled;
+    for (const b of [frameAll, isolate, copyAll, clearAll]) b.hidden = !any;
     empty.hidden = any;
+    count.textContent = any ? `${selection.length.toLocaleString()} selected` : "";
     if (!any) {
+      addAll.hidden = true;
       rows.replaceChildren();
       return;
     }
-    count.textContent = `${selection.length.toLocaleString()} selected`;
     const sorted = [...selection].sort((a, b) => labelOf(a).name.localeCompare(labelOf(b).name) || a.localeCompare(b, undefined, { numeric: true }));
     const more = sorted.length - MaxRows;
     rows.replaceChildren(...sorted.slice(0, MaxRows).map(rowFor), ...(more > 0 ? [el("div", "dim selmore", `and ${more.toLocaleString()} more`)] : []));
