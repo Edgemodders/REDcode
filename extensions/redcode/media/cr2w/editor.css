@@ -220,7 +220,8 @@ body.mesh-mode #props { display: flex; flex-direction: column; overflow: hidden;
 .sectorside .selrow .selentry { flex: none; }
 .sectorside .selrow .selacts { display: none; gap: 2px; position: absolute; right: 4px; top: 50%; transform: translateY(-50%); background: var(--vscode-list-hoverBackground); padding-left: 4px; }
 .sectorside .selrow:hover .selacts { display: inline-flex; }
-.sectorside .selrow .selacts button { font-size: 11px; padding: 0 4px; }
+.sectorside .selrow .selacts button.icon { display: inline-flex; align-items: center; justify-content: center; padding: 1px 2px; line-height: 0; }
+.sectorside .selrow .selacts button.icon svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; }
 .sectorside .selmore { padding: 4px 8px; font-size: 12px; }
 .sectorside .selhead[hidden], .sectorside .selempty[hidden] { display: none; }
 .sectorside .selempty { padding: 8px; font-size: 12px; white-space: normal; }

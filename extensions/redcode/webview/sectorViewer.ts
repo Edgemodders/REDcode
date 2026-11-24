@@ -22,6 +22,12 @@ const Icons = {
   copy: "rect 5.5 5.5 8 8|path M3 10.5V3.5a1 1 0 0 1 1-1h6.5",
   clear: "path M4 4l8 8M12 4l-8 8",
   open: "path M9 2.5h4.5V7M13.5 2.5 7.5 8.5M12 9.5v3.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-8a.5.5 0 0 1 .5-.5H7",
+  // A selected row's own buttons (the owner, 2026-11-24: their words covered the row).
+  flyTo: "circle 8 8 4.5|path M8 1.5v3M8 11.5v3M1.5 8h3M11.5 8h3",
+  tree: "path M3 3.5h3M4.5 3.5v9M4.5 8h3M4.5 12.5h3|rect 8.5 6.5 5 3|rect 8.5 11 5 3",
+  only: "path M2.5 3h11l-4.25 5v5l-2.5 1.2V8Z",
+  mesh: "path M8 1.8 13.5 4.9v6.2L8 14.2l-5.5-3.1V4.9Z|path M2.5 4.9 8 8l5.5-3.1M8 8v6.2",
+  material: "circle 8 8 5.5|path M5.2 6.4a3.2 3.2 0 0 1 2.6-1.9",
 };
 
 /** What the host sends while a sector loads. */
@@ -641,34 +647,34 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
     row.title = `${id}${what ? `\n${what.mesh}${what.appearance ? ` · ${what.appearance}` : ""}` : ""}\nClick: fly to it. Ctrl+click: take it out`;
     row.append(el("span", "dim selkind", kind), el("span", "selname", name), el("span", "dim mono selentry", entryOf(id)));
     const acts = el("span", "selacts");
-    const rowButton = (label: string, title: string, run: () => void) => {
-      const b = button(label, title);
+    const rowButton = (icon: string, title: string, run: () => void) => {
+      const b = iconButton(icon, title);
       b.addEventListener("click", (e) => {
         e.stopPropagation();
         run();
       });
       acts.appendChild(b);
     };
-    rowButton("Fly To", "Fly the camera to it", () => {
+    rowButton(Icons.flyTo, "Fly To: the camera to it", () => {
       setCurrent(id);
       view.flyTo([id]);
     });
     const path = pathOf(id);
     if (path)
-      rowButton("Tree", "Show in Tree: its node data entry", () => {
+      rowButton(Icons.tree, "Show in Tree: its node data entry", () => {
         setCurrent(id);
         source.showInTree(path);
       });
-    rowButton("Only", what ? "Keep only the selected things that draw this mesh" : "Keep only this one in the selection", () => {
+    rowButton(Icons.only, what ? "Only: keep only the selected things that draw this mesh" : "Only: keep only this one in the selection", () => {
       const keep = what ? selection.filter((x) => drawnAs.get(x)?.mesh.toLowerCase() === what.mesh.toLowerCase()) : [id];
       select(keep, id);
     });
     if (what && source.action) {
-      rowButton("Mesh", "Open Mesh: the mesh in REDcode's mesh view", () => runAction("openMesh", what));
-      rowButton("EDGEmat", "Open in EDGEmat: the mesh on EDGEmat's Desk at this node's appearance", () => runAction("openInEdgemat", what));
-      rowButton("Add", "Add Mesh to Project: a change to it shows everywhere the game uses this mesh", () => runAction("addMesh", what));
+      rowButton(Icons.mesh, "Open Mesh: the mesh in REDcode's mesh view", () => runAction("openMesh", what));
+      rowButton(Icons.material, "Open in EDGEmat: the mesh on EDGEmat's Desk at this node's appearance", () => runAction("openInEdgemat", what));
+      rowButton(Icons.add, "Add Mesh to Project: a change to it shows everywhere the game uses this mesh", () => runAction("addMesh", what));
     }
-    rowButton("×", "Take it out of the selection", () => toggle(id));
+    rowButton(Icons.clear, "Take Out: of the selection", () => toggle(id));
     row.appendChild(acts);
     row.addEventListener("click", (e) => {
       if (e.ctrlKey || e.metaKey) return toggle(id);
