@@ -122,18 +122,35 @@ export class SectorNode {
     return typeof n === "string" && n !== "None" ? n : null;
   }
 
+  /**
+   * A cooked node's inner node that this entry places, or undefined. Cooked nodes (worldInstancedMeshNode,
+   * worldCookedStaticMeshNode, ...) keep their meshes in inner nodes in their buffer, picked by the entry's
+   * instanceIndex (none: the first), as REDbridge's sector.nodes reads them.
+   */
+  get inner(): Json | undefined {
+    const list = (((this.nodeJson?.buffer as Json | undefined)?.Data as Json | undefined)?.InnerNodes ?? undefined) as Json[] | undefined;
+    if (!Array.isArray(list) || !list.length) return undefined;
+    const i = Number(plainValue(this.entryJson.instanceIndex) ?? 0xffffffff);
+    return list[Number.isInteger(i) && i >= 0 && i < list.length ? i : 0];
+  }
+
+  /** What names its resources: the inner node for a cooked node, else the node. */
+  private get shows(): Json | undefined {
+    return this.inner ?? this.nodeJson;
+  }
+
   /** The mesh it draws, by game path, or null. */
   get mesh(): string | null {
-    return resourceIn(this.nodeJson, ["mesh", "staticMesh"], /\.mesh$/i);
+    return resourceIn(this.shows, ["mesh", "staticMesh"], /\.mesh$/i);
   }
 
   /** The mesh, entity or other resource it places, or null. */
   get resource(): string | null {
-    return this.mesh ?? resourceIn(this.nodeJson, ["entityTemplate", "material", "effect", "resource"]);
+    return this.mesh ?? resourceIn(this.shows, ["entityTemplate", "material", "effect", "resource"]);
   }
 
   get appearance(): string | null {
-    const a = plainValue(this.nodeJson?.meshAppearance ?? this.nodeJson?.appearanceName);
+    const a = plainValue(this.shows?.meshAppearance ?? this.shows?.appearanceName);
     return typeof a === "string" && a !== "None" ? a : null;
   }
 

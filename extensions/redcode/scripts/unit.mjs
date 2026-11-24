@@ -1445,6 +1445,19 @@ await check("sector scripts: a run in its own process selects, changes, calls RE
   assert.deepEqual(said, ["1 mesh"]);
   const none = await ss.runScript({ runner, script: example, sector: "s", json }).result;
   assert.equal(none.selected, null, "with nothing selected it says so and selects nothing");
+  // A cooked node keeps its meshes in inner nodes, picked by each entry's instanceIndex.
+  const cooked = sectorJson();
+  const inner = (m) => ({ $type: "worldInstancedMeshInnerNode", mesh: depot(m), meshAppearance: cname("default") });
+  cooked.Data.RootChunk.nodes.push({ HandleId: "3", Data: { $type: "worldInstancedMeshNode", debugName: cname("None"), buffer: { BufferId: "1", Data: { InnerNodes: [inner("base\\props\\rail.mesh"), inner("base\\props\\crate.mesh")] } } } });
+  const at = (k) => ({ ...entry(2, 50, 9), instanceIndex: k });
+  cooked.Data.RootChunk.nodeData.Data.push(at(4294967295), at(1));
+  const cn = sn.sectorNodes("s", cooked);
+  assert.equal(cn[3].mesh, "base\\props\\rail.mesh", "no instanceIndex: the first inner node");
+  assert.equal(cn[4].mesh, "base\\props\\crate.mesh");
+  assert.equal(cn[4].appearance, "default");
+  const cookedJson = write("scripts/cooked.json", JSON.stringify(cooked));
+  const ce = await ss.runScript({ runner, script: example, sector: "s", json: cookedJson, selection: [4] }).result;
+  assert.deepEqual(ce.selected, [0, 2, 4], "the crates on their own nodes and the one inside the cooked node");
   const bad = write("scripts/bad.mjs", `export default { visit(node) { if (node.entry === 1) throw new Error("broken here"); } };`);
   await assert.rejects(ss.runScript({ runner, script: bad, sector: "s", json }).result, /broken here/);
   // Stop ends a script that never ends.

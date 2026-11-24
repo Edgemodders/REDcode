@@ -77,7 +77,7 @@ export function scriptTemplate(name: string): string {
 // Run it from the Scripts button in a sector's 3D view: on all nodes, or on the selected ones.
 //
 // node: id, entry, type, debugName, mesh, resource, appearance, position [x, y, z], streamingDistance,
-//       get(path), set(path, value), json { node, entry }
+//       get(path), set(path, value), json { node, entry }, inner (a cooked node's inner node)
 // ctx:  select(node), deselect(node), log(...), nodes(), selected(), sector,
 //       game.read(path), tools.call(extension, method, ...args), agent.request(text, nodes)
 //

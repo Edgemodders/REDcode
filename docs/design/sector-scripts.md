@@ -47,7 +47,8 @@ export default {
 |---|---|
 | `id`, `entry` | The node data entry's id (`<sector>#<entry>`), as the sector view, ArchiveXL and REDnode name it |
 | `type` | The node's class, such as `worldMeshNode` |
-| `mesh`, `appearance`, `position`, `streamingDistance` | The usual facts, read from the node and its node data entry |
+| `mesh`, `appearance`, `position`, `streamingDistance` | The usual facts, read from the node and its node data entry. A cooked node (`worldInstancedMeshNode`, `worldCookedStaticMeshNode`, ...) names its mesh in an inner node, picked by the entry's `instanceIndex`, as REDbridge's `sector.nodes` does |
+| `inner` | That inner node's JSON for a cooked node, else undefined |
 | `get(path)`, `set(path, value)` | Any property, by its path in the node's JSON. `set` records a change for the preview |
 | `json` | The node's JSON, read-only, for anything else |
 
