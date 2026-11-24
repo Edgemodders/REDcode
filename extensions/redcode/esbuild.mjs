@@ -74,12 +74,15 @@ const meshViewer = {
   logLevel: "info",
 };
 
+// The Lip Sync tab's head (docs/design/lipsync.md): three.js and lipsync-core's face solver for the tab's page.
+const lipsyncHead = { ...meshViewer, entryPoints: ["webview/lipsyncHead.ts"], outfile: "media/lipsync/head.js" };
+
 // three.js is MIT: its licence text ships beside the bundle that contains it.
 fs.mkdirSync("media/mesh", { recursive: true });
 // three's exports hide its package.json; its main entry sits in <package>/build/.
 fs.copyFileSync(path.join(path.dirname(require.resolve("three")), "..", "LICENSE"), "media/mesh/three.LICENSE.txt");
 
-const builds = [extension, client, hotSwap, exportCache, library, keysStore, opens, animsGlb, install, newFile, animsSet, rednodeService, gameDisplay, gameRun, worldViewHost, scriptRunner, sectorScripts, sectorNodesBuild, meshViewer];
+const builds = [extension, client, hotSwap, exportCache, library, keysStore, opens, animsGlb, install, newFile, animsSet, rednodeService, gameDisplay, gameRun, worldViewHost, scriptRunner, sectorScripts, sectorNodesBuild, meshViewer, lipsyncHead];
 if (watch) {
   const contexts = await Promise.all(builds.map((b) => esbuild.context(b)));
   await Promise.all(contexts.map((c) => c.watch()));

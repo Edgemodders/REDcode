@@ -45,7 +45,8 @@
   "main": "./dist/extension.js",
   "activationEvents": [
     "onStartupFinished",
-    "workspaceContains:**/*.cpmodproj"
+    "workspaceContains:**/*.cpmodproj",
+    "onWebviewPanel:redcode.lipsync"
   ],
   "contributes": {
     "languages": [
@@ -608,6 +609,12 @@
         "title": "Add to Library...",
         "category": "REDcode",
         "icon": "$(library)"
+      },
+      {
+        "command": "redcode.openLipSync",
+        "title": "Open Lip Sync",
+        "category": "REDcode",
+        "icon": "$(comment-discussion)"
       },
       {
         "command": "redcode.newFile",

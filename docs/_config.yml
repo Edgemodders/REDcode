@@ -66,6 +66,10 @@ nav:
     url: /design/game-testing.html
   - title: Animation authoring
     url: /research/animation-authoring.html
+  - title: Made lip sync
+    url: /research/lipsync.html
+  - title: NPC faces
+    url: /research/faces.html
   - title: MCP
     url: /mcp.html
   - title: Extension API

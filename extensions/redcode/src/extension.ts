@@ -50,6 +50,7 @@ import { createApi, projectRef, type AnimationOptions, type ImportResult, type R
 import { publishProject, syncRednodePackage, withdrawProject } from "./rednodeService";
 import { registerKeys, type KeysApi } from "./keysView";
 import { registerAnimCommands } from "./animCommands";
+import { registerLipSync, type LipSync } from "./lipsync";
 import { uthanaKeyFor } from "./animMake";
 import { shortType, tweakYaml, type TweakMode } from "./tweakYaml";
 import { createProject, findProject, gamePathOf, ProjectFolders, projectPathFor, type ProjectInfo } from "./project";
@@ -92,6 +93,8 @@ let tweakPanel: TweakRecordPanel;
 let locTree: LocTree;
 /** The Keys view and REDcodeApi.keys (REDcode issue #33). */
 let keys: { api: KeysApi; refresh: () => void } | undefined;
+/** The Lip Sync editor (docs/design/lipsync.md), once activate() has registered it. */
+let lipSync: LipSync | undefined;
 /** Fires when the open project changes, for REDcodeApi.onDidChangeProject. */
 const projectChanged = new vscode.EventEmitter<ProjectInfo | undefined>();
 let textures: TextureViewer;
@@ -188,7 +191,7 @@ export function activate(context: vscode.ExtensionContext): REDcodeApi | undefin
     cr2w.register(),
     new Cr2wPropertiesView(cr2w).register(),
     (meshViewer = new MeshViewer(context.extensionUri, log, context.workspaceState)).register(),
-    new AudioPlayer(context.extensionUri, path.join(storage.fsPath, "cache", "audio"), () => bridge, log, () => (project ? replaceSoundWithWav : undefined)).register(),
+    new AudioPlayer(context.extensionUri, path.join(storage.fsPath, "cache", "audio"), () => bridge, log, () => (project ? replaceSoundWithWav : undefined), () => lipSync, (file) => (project ? gamePathOf(project, file) : undefined)).register(),
     (tweakView = tweakTree.view = vscode.window.createTreeView("redcode.tweakdb", { treeDataProvider: tweakTree, showCollapseAll: true })),
     vscode.languages.registerHoverProvider([{ language: "yaml" }, { language: "tweak" }], new TweakHover(tweakDb)),
     vscode.commands.registerCommand("redcode.openTweakRecord", (arg?: string | TweakNode) => openTweakRecord(arg)),
@@ -309,7 +312,19 @@ export function activate(context: vscode.ExtensionContext): REDcodeApi | undefin
     keyFor: async (caller) => (await keys?.api.get("uthana", caller)) ?? (await keys?.api.ask("uthana", caller)),
   });
   cr2w.animMaker = anims.maker;
-  return createApi({
+  // The Lip Sync editor (docs/design/lipsync.md, L1): the command, the tab, and the ways in from other views.
+  lipSync = registerLipSync(context, {
+    bridge: () => {
+      if (!bridge?.running) throw new Error('The REDbridge process is not running. Run "REDcode: Restart REDbridge".');
+      return bridge;
+    },
+    sound: (gamePath) => api.sound({ path: gamePath }),
+    log,
+    storageDir: storage.fsPath,
+    extensionDir,
+  });
+  cr2w.lipSync = lipSync;
+  const api = createApi({
     keys: keys.api,
     version: String((context.extension.packageJSON as { version?: string }).version ?? "0.0.0"),
     getBridge: () => bridge,
@@ -338,7 +353,11 @@ export function activate(context: vscode.ExtensionContext): REDcodeApi | undefin
       if (typeof caller !== "string" || !caller.trim()) return Promise.reject(new Error("generateAnimation: name the tool that asks (caller)"));
       return anims.generateAnimation(options, caller.trim());
     },
+    openLipSync: async (character?: string, clip?: string) => {
+      await lipSync?.open(typeof character === "string" && character ? character : undefined, typeof clip === "string" && clip ? clip : undefined);
+    },
   });
+  return api;
 }
 
 export function deactivate(): void {

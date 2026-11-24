@@ -6,6 +6,10 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 **New**
 
+- **Lip Sync:** **REDcode: Open Lip Sync** asks for a character and opens a tab with every lip synced line the game has for them, scene by scene. Pick a line to hear it and see it spoken on the head it was made for, in 3D, with what the game's clip moves as curves under the voice: jaw, lips, tongue, brows, blinks. Drag the marker along the curves, step by frames, turn the head. The tab comes back after a window reload. Made in EDGEfab and moved to REDcode ([Lip Sync](https://edgemodders.github.io/REDcode/design/lipsync.html)).
+- **Lip Sync: add a line.** Type a new line for the character and press Enter: EDGEwave speaks it in the character's voice (ElevenLabs, your own key), and REDcode makes the lip sync from the words and the voice's timing and plays both on the head. **New Take** speaks it again. It stays in the tab for now: writing it into a mod comes later. Needs EDGEwave 0.3.0 or later.
+- A **Lip Sync** button in the audio player on a voice line the game has lip sync for, and **Open in Lip Sync** in the animation view of a lip sync set: both open the Lip Sync tab at that line.
+- For other tools: `REDcodeApi.openLipSync(character?, clip?)` ([API](https://edgemodders.github.io/REDcode/api.html)).
 - **Overlaps** beside the selected list in the sector view: the sectors whose things reach into the opened one, in groups, each a layer you turn Off, Ghost (see-through) or Shown, and pick and select in. The first look at a place takes about a minute; after that, a second.
 - **Only** on a row of the sector view's selected list keeps just the selected things that draw its mesh.
 - **Back** and **Forward** above the sector view's selected list return to the selection before or after, also after Clear or a script; the list's buttons are icons now, named in their tooltips.

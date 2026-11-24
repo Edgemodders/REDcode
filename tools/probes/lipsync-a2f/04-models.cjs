@@ -1,7 +1,7 @@
 // A2F spike: the models compared on the points the owner watches. For each line and each model's CSV
 // (a2f_<model>\animation_frames.csv): how round the lips get where the game rounds them, how closed where the
 // game closes them, and how the jaw follows. Usage: node 04-models.cjs <lines folder>
-const core = require("e:/Modding/Cyberpunk 2077/EDGEfab/extensions/edgefab/dist/core.js");
+const core = require("../../../packages/lipsync-core/scripts/bridge.cjs");
 const fs = require("fs");
 const path = require("path");
 const root = process.argv[2];

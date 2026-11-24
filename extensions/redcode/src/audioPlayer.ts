@@ -10,6 +10,7 @@ import { audioFormat, opusSound, opusToWav, parseOpusInfo, wemOggFor, type OpusI
 import type { BridgeClient } from "./bridgeClient";
 import type { ExportSource } from "./exportCache";
 import { openInEdgeWave } from "./edgewave";
+import type { LipSync } from "./lipsync";
 import { gamePathOfUri } from "./gameFs";
 
 export const AudioViewType = "redcode.audio";
@@ -38,6 +39,10 @@ export class AudioPlayer implements vscode.CustomReadonlyEditorProvider {
     private readonly log: vscode.OutputChannel,
     /** Replace with a WAV: a game sound effect by hash, replaced in the open project; undefined without one. */
     private readonly replaceSound?: () => ((hash: number, event?: { name: string; hashes: number[] }) => Promise<void>) | undefined,
+    /** The Lip Sync editor (docs/design/lipsync.md): a voice line with a lip sync clip gets a Lip Sync button. */
+    private readonly lipSync?: () => LipSync | undefined,
+    /** A project file's game path, so a voice line copied into the project finds the game's lip sync too. */
+    private readonly gamePathOfFile?: (file: string) => string | undefined,
   ) {}
 
   register(): vscode.Disposable {
@@ -92,6 +97,16 @@ export class AudioPlayer implements vscode.CustomReadonlyEditorProvider {
       }
       playing = { bytes, name: saveName };
       void webview.postMessage({ type: "audio", title: name, subtitle, ...(await playable(bytes)) });
+      void offerLipSync();
+    };
+
+    // A voice line the game has a lip sync clip for: the Lip Sync button shows once that is known.
+    const voicePath = source.gamePath ?? this.gamePathOfFile?.(uri.fsPath);
+    const offerLipSync = async () => {
+      const lipSync = this.lipSync?.();
+      if (!lipSync || !voicePath || !lipSync.isVoice(voicePath)) return;
+      const place = await lipSync.ofVoice(voicePath).catch(() => undefined);
+      if (place) void webview.postMessage({ type: "lipsync", character: place.character.voiceTag });
     };
 
     const sendSounds = async () => {
@@ -158,6 +173,9 @@ export class AudioPlayer implements vscode.CustomReadonlyEditorProvider {
             await replace(index.hashes[m.index], hashes.length > 1 ? { name: typeof m.event === "string" ? m.event : "This event", hashes } : undefined);
             return;
           }
+          case "lipsync":
+            if (voicePath && !(await this.lipSync?.()?.openVoice(voicePath))) void vscode.window.showInformationMessage("The game has no lip sync clip for this line.");
+            return;
           case "edgewave":
             // A sound effect by hash from the sound list; else this file, by game path or URI.
             if (isIndex) {
@@ -195,7 +213,7 @@ export class AudioPlayer implements vscode.CustomReadonlyEditorProvider {
 <title>${name}</title>
 </head>
 <body>
-<header><span class="name" id="title">${name}</span><span class="meta" id="meta"></span><span class="spacer"></span><button id="copy" hidden title="Copy the hash of the sound now playing">Copy Hash</button><button id="replace" hidden title="Replace this sound in the game with a WAV of yours: it goes into the project's Raw folder under the sound's hash and is imported at once">Replace…</button><button id="save" disabled title="Save the sound now playing to a file">Save…</button><button id="edgewave" disabled title="Edit, mix or re-voice this sound in EDGEwave, the EDGE sound studio">Open in EDGEwave</button></header>
+<header><span class="name" id="title">${name}</span><span class="meta" id="meta"></span><span class="spacer"></span><button id="copy" hidden title="Copy the hash of the sound now playing">Copy Hash</button><button id="replace" hidden title="Replace this sound in the game with a WAV of yours: it goes into the project's Raw folder under the sound's hash and is imported at once">Replace…</button><button id="save" disabled title="Save the sound now playing to a file">Save…</button><button id="lipsync" hidden title="See this line's lip sync in the Lip Sync editor: its curves, on the head it was made for">Lip Sync</button><button id="edgewave" disabled title="Edit, mix or re-voice this sound in EDGEwave, the EDGE sound studio">Open in EDGEwave</button></header>
 <section class="player">
   <div class="wave"><canvas id="wave"></canvas><div class="note" id="waveNote">Loading…</div></div>
   <div class="toolbar"><button id="play">▶ Play</button><button id="loop" title="Play again from the start at the end">Loop</button><span id="time" class="dim">0:00.0 / 0:00.0</span><span id="playing"></span><span class="spacer"></span><span id="info" class="dim"></span></div>

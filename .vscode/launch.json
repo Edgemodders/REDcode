@@ -60,6 +60,19 @@
       ],
       "outFiles": ["${workspaceFolder}/extensions/redcode/dist/**/*.js", "${workspaceFolder}/../EDGEdeck/dist/**/*.js"],
       "preLaunchTask": "build redcode"
+    },
+    {
+      "name": "Run REDcode and EDGEwave (no other extensions)",
+      "type": "extensionHost",
+      "request": "launch",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}/extensions/redcode",
+        "--extensionDevelopmentPath=${workspaceFolder}/extensions/rednode-hud-theme",
+        "--extensionDevelopmentPath=${workspaceFolder}/../EDGEwave",
+        "--disable-extensions"
+      ],
+      "outFiles": ["${workspaceFolder}/extensions/redcode/dist/**/*.js", "${workspaceFolder}/../EDGEwave/dist/**/*.js"],
+      "preLaunchTask": "build redcode"
     }
   ]
 }

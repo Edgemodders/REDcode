@@ -51,6 +51,8 @@ export interface AnimsSource {
   onSideWidth?: (width: number | undefined) => void;
   /** Making clips (docs/design/animation-tools.md, AT2). Without it, no Make panel. */
   make?: MakeApi;
+  /** A lip sync set (docs/design/lipsync.md): opens the Lip Sync editor at the shown clip's line. */
+  lipSync?: (clip: string | undefined) => void;
 }
 
 /** What the Make panel asks of the host. */
@@ -560,6 +562,12 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
   // A3: the picked clip's synced set, when it has one.
   const setBox = el("div", "animset");
   setBox.hidden = true;
+  if (source.lipSync) {
+    const lipSyncButton = el("button", "", "Open in Lip Sync");
+    lipSyncButton.title = "See this character's lip synced lines in the Lip Sync editor, at the line shown here: its voice, its curves and the head it was made for";
+    lipSyncButton.addEventListener("click", () => source.lipSync!(info()?.name));
+    bar.insertBefore(lipSyncButton, bar.firstChild);
+  }
   // AT2: the Make panel above the list, shown by the bar's Make button.
   const make = source.make ? makePanel(source.make, () => info()?.name) : undefined;
   if (make) {

@@ -1,5 +1,5 @@
-// Spike LS2 (docs/lipsync.md, "Live lip sync"): whole mouth shapes from few numbers.
-// Needs the test archive made by `npm run lipsync:shapes --workspace extensions/edgefab -- <outFolder>` in the
+// Spike LS2 (docs/research/lipsync.md, "Live lip sync"): whole mouth shapes from few numbers.
+// Needs the test archive made by `node tools/probes/lipsync-live/build-shapes.mjs <outFolder>` in the
 // game. It adds core's mouth shapes to the women's face graph: each shape is one number in the anim feature
 // `edgefab_mouth`, eased inside the graph (or used as sent, with Raw), and spread over the shape's lip sync
 // tracks. One ApplyFeature carries every shape, so a change costs the same whatever the shape.
@@ -9,7 +9,7 @@
 //   3 Steps    every shape in turn, 4 or 8 a second: do they flow into each other?
 //   4 A line   "Hello there, how are you" as a hand-timed sequence of shapes, no sound: does it read as speech?
 //
-// The shapes and the feature's fields are core's (extensions/edgefab/src/core/lipsync/shapes.ts), copied here
+// The shapes and the feature's fields are lipsync-core's (packages/lipsync-core/src/shapes.ts), copied here
 // in the same order: change both together.
 
 import { api, game, kernel, ui, world } from 'rednode';

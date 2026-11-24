@@ -6,6 +6,7 @@ What changed in each redcode-mcp release. The release notes on GitHub come from 
 
 **New**
 
+- Lip sync: `lipsync_lines` (the characters with lip sync, and a character's lip synced lines scene by scene, each with its words, voice file and clip), `lipsync_line` (one line's clip as curves: every track that moves, with its keys) and `lipsync_make` (a spoken line into mouth shapes and the game's lip sync tracks, from when each letter is spoken, as EDGEwave's `voice_speak_line` gives it). They were EDGEfab's `fab_lipsync_*` tools; the Lip Sync editor is REDcode's now.
 - `game_start`, `game_status` and `game_stop`: an assistant can start Cyberpunk 2077 for a test without it taking over the monitor (windowed at a small size, or in REDcode's game tab), wait until REDnode in it answers, and close it. Your own window mode and resolution are put back after the game ends.
 - Sector tools: `sector_nodes` (a sector's nodes, filtered by class, mesh, property tests or a box), `sector_node` (one in full) and `sector_patch` (change values in a project's copy). `script_list` and `script_run` run the modder's sector scripts, and `request_get` and `request_done` answer the requests those scripts make for an assistant.
 

@@ -1,7 +1,7 @@
 // A2F spike, steps 4 to 5: Audio2Face's CSV for each exported line, beside the game's own clip for the same line.
 // Prints how its shapes move, how well its jaw follows the game's jaw (and at what lag and scale), and writes
 // a2f.json (the captured shapes as a lip sync clip) next to each line.
-const core = require("e:/Modding/Cyberpunk 2077/EDGEfab/extensions/edgefab/dist/core.js");
+const core = require("../../../packages/lipsync-core/scripts/bridge.cjs");
 const fs = require("fs");
 const path = require("path");
 const root = path.join(__dirname, "lines");

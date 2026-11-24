@@ -1,12 +1,12 @@
-// The head in the Lip Sync tab (docs/lipsync.md, "R-face"): the character's head meshes, posed each frame by
-// EDGEfab's face solver from the clip's tracks at the playhead. Bundled for the browser on its own
-// (dist/webview/lipsyncHead.js) and loaded by the tab's page, which calls `window.lipsyncHead`.
+// The head in the Lip Sync tab (docs/research/lipsync.md, "R-face"): the character's head meshes, posed each frame by
+// lipsync-core's face solver from the clip's tracks at the playhead. Bundled for the browser on its own
+// (media/lipsync/head.js) and loaded by the tab's page, which calls `window.lipsyncHead`.
 // The meshes come without materials, so each kind gets a plain colour: the shape of the mouth is what is shown.
 
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { clipValues, faceSolver, type ClipTracks, type FaceSetup } from "../core/lipsync/faceSolve";
+import { clipValues, faceSolver, type ClipTracks, type FaceSetup } from "../../../packages/lipsync-core/src/faceSolve";
 
 interface HeadMessage {
   /** Each mesh as a GLB the page may fetch; its skin's joints are the rig's bones in order. */

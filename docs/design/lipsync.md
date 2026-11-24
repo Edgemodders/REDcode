@@ -4,9 +4,11 @@ title: Lip Sync
 
 # Lip Sync: the Lip Sync editor in REDcode
 
-Draft 0.1, 2026-11-22, for the owner. On 2026-11-22 the owner moved the Lip Sync editor from EDGEfab to REDcode. EDGEfab now covers props and clothing only. EDGEfab's session pushed the editor, as EDGEfab had it, to the branch `lipsync` (6303a5b), all in one folder, `lipsync/`. Nothing there is wired into REDcode yet. The owner's plan is to merge the branch into `main` after the REDcode release now being tested, and then keep building it here.
+Agreed with the owner on 2026-11-24, all four decisions as recommended (draft 0.1 was of 2026-11-22). **L1 is built (2026-11-24); its hand test in VS Code is pending** ([L1 as built](#l1-as-built), [Tests](../testing.html#lip-sync)).
 
-This page says where each part goes in REDcode, how a modder reaches it, and what comes after the merge. The editor itself is described in its research page, `lipsync/docs/lipsync.md` on the branch (docs/research/lipsync.md after the merge). `lipsync/README.md` lists what each file is, and `lipsync/wiring.md` holds EDGEfab's wiring as extracts.
+On 2026-11-22 the owner moved the Lip Sync editor from EDGEfab to REDcode. EDGEfab now covers props and clothing only. EDGEfab's session pushed the editor, as EDGEfab had it, to the branch `lipsync` (6303a5b), all in one folder, `lipsync/`. The branch was merged into `main` after REDcode 0.10.16 (deb45a2), and L1 moved each file to its place and wired it in.
+
+This page says where each part goes in REDcode, how a modder reaches it, and what comes after. The editor itself is described in its research page, [Made lip sync](../research/lipsync.html), with [NPC faces](../research/faces.html) before it.
 
 ## The rule this follows
 
@@ -28,9 +30,11 @@ REDcode takes over editors that make sense for it (the owner, 2026-11-22), each 
 
 None of it was ever released.
 
-## Decisions for the owner
+## Decisions
 
-| # | Question | Recommendation |
+Agreed by the owner on 2026-11-24, each as recommended.
+
+| # | Question | Agreed |
 |---|---|---|
 | 1 | Where does the core live? | **A package, `packages/lipsync-core`** (`@edgemodders/lipsync-core`, not published), as `anim-core` is. It is pure Node already. The extension, redcode-mcp and a future REDnode pack for live lip sync can then all use it, and the pack works without VS Code, as Animation Tools does. The other choice is `extensions/redcode/src/lipsync/`, which only the extension and the MCP server could use |
 | 2 | How does a modder open it? | **Open Lip Sync**, a command and a Lip Sync tab, plus links from what they already open (below). No sidebar view of its own: the character picker inside the tab is enough |
@@ -68,7 +72,7 @@ The ThirdPartyNotices need no new entry: three.js is already in them, and the co
 
 | Phase | What | Needs |
 |---|---|---|
-| **L1: merge and wire** | After this REDcode release: merge `lipsync`, move each file to its place (above), wire the command, the tab, the two links and the MCP tools. The checks without VS Code run again from their new places. Then the tab's first hand test in VS Code, which never ran in EDGEfab: see, the head, Add a Line | REDbridge 0.16.0 for the head (REDcode's minimum is 0.18.0 already). EDGEwave with `speakLine` for Add a Line (EDGEwave #13: on its main, released with EDGEwave 0.3.0?, **unverified**) |
+| **L1: merge and wire** | **Built 2026-11-24, hand test pending.** Merge `lipsync`, move each file to its place (above), wire the command, the tab, the two links and the MCP tools. The checks without VS Code run again from their new places (they pass). Then the tab's first hand test in VS Code, which never ran in EDGEfab: see, the head, Add a Line | REDbridge 0.16.0 for the head (REDcode's minimum is 0.18.0 already). EDGEwave 0.3.0 for Add a Line: it has `speakLine` (EDGEwave #13, checked in its `v0.3.0` tag on 2026-11-24) |
 | L2: write a made line into a project | Add a Line's clip as the game's lip sync `.anims`, named and registered like the game's, so it plays in the game. Probably through `anim-core`'s `addClip` | REDbridge's `.anims` import keeping float tracks (REDbridge #14, open; whether its float track part is on main or released is **unverified**). Its own short design page |
 | L3: Audio2Face as a choice | The A2F version as a way to make a line's lip sync, beside the letter timing | A local Docker container and the modder's NVIDIA NGC key (a key store service, `ngc`?). Its own page; it may stay a power-user path |
 | L4: live lip sync | LS2 in the game, then perhaps a REDnode pack that speaks a made line on a spawned NPC, as Animation Tools plays a made clip | LS2's run in the game first |
@@ -78,10 +82,36 @@ Open from EDGEfab's notes, for L2 and after:
 - How the fit gets timings for the game's own lines without uploading them: a local aligner, shipped fitted numbers, or no alignment.
 - V's female head with a Change Head button, the scene's actor for minor characters' heads, the head's textures, eyes and hair, and the mood under a line.
 
+## L1 as built
+
+Built on 2026-11-24. The reading, head and speech checks pass against the game from their new places, and the three MCP tools answer through an MCP client. The tab itself has not run in VS Code yet: that is the hand test ([Tests](../testing.html#lip-sync-l1-the-editor-in-redcode)).
+
+| Part | Where | Notes |
+|---|---|---|
+| The core | `packages/lipsync-core` (`@edgemodders/lipsync-core` 0.1.0, not published), built as `anim-core` is | Its files are `lines.ts` (the reading, EDGEfab's `index.ts`), `face.ts`, `faceSolve.ts`, `speech.ts`, `shapes.ts`, `arkit.ts` |
+| The bridge | `callOf(client)` | The core keeps its one call function (`BridgeCall`) and `callOf` makes one from REDcode's `BridgeClient` or REDnode's `kernel.bridge()`. This is in place of anim-core's `Bridge` type, so the package depends on nothing and the code moved unchanged |
+| The cache | `setLipsyncCacheDir(dir)` | REDcode gives `<global storage>\cache\lipsync`; the MCP server `%LOCALAPPDATA%\REDcode\mcp-cache\lipsync`. EDGEfab's `versions` folder is moved over once, at the first start |
+| The command | `redcode.openLipSync`, **REDcode: Open Lip Sync** | Takes a character and a clip as arguments too |
+| The tab | `src/lipsyncTab.ts`, `src/lipsyncPage.ts`, panel type `redcode.lipsync` | Wired in `src/lipsync.ts`. It comes back after a window reload on its character and line, waiting up to half a minute for REDbridge to start |
+| The head viewer | `webview/lipsyncHead.ts`, bundled to `media/lipsync/head.js` | Its own browser script, on the three.js REDcode bundles already |
+| The voice | REDcode's own `sound()` | No second REDbridge and no other tool |
+| Add a Line | EDGEwave's `speakLine`, called with `by: "REDcode"` | Found with `extensions.getExtension("edgemodders.edgewave")`; without EDGEwave the tab says so |
+| From the audio player | A **Lip Sync** button | New in the core: `lipsyncOfVoice`. The voice file's name starts with the voice tag and ends with the line's id; the line's subtitle file is named after its scene, which leads to the set and the clip. A few milliseconds once the game's lists are read. The button shows only when the game has a clip for the line; a voice line copied into the project finds it too |
+| From the animation view | **Open in Lip Sync** in the bar of a lip sync set | New in the core: `lipsyncSetLanguage` (a set is known by its path) and `lipsyncOfSet` (the game's lip sync map names each set beside its voice tag). Opens at the picked clip's line |
+| The API | `REDcodeApi.openLipSync(character?, clip?)` | New in the core: `lipsyncOfClip`, which finds the line's scene so the tab lists it |
+| MCP | `lipsync_lines`, `lipsync_line`, `lipsync_make` in redcode-mcp | Unreleased. `lipsync_make` reads no game, so it starts no REDbridge |
+| Opening at a line | The scene filter | The tab lists a character's scenes a page at a time, so a line is opened by setting the scene filter to its scene. The filter box shows it and can be cleared |
+
+Found on the way:
+
+- EDGEfab's MCP server on this PC still lists `fab_lipsync_*` (seen 2026-11-24). Whether that is an older installed EDGEfab is **unverified**.
+- The lip sync cache is not stamped with the game's version as REDcode's export cache is, so heads and clips exported before a game patch stay until the folder is cleared. To do with L2.
+- A character with more than 400 scenes (V has 487) is not searched whole when a line's subtitle file does not lead to its scene. No such line was met.
+
 ## Left on the owner's PC from EDGEfab
 
 | What | Where | When to remove it |
 |---|---|---|
 | The LS2 test archive and app | `edgefab_ls2_shapes.archive` in `archive\pc\mod`, and the app `edgefab-ls2-shapes` in REDnode's apps folder | Both replace the women's face graph. Remove them once LS2 has run, or before playing normally |
 | The Audio2Face container | Docker: container `a2f-nim`, network `a2f`, volume `a2f-cache`, client image `edgefab-a2f-client` | Keep it for L3; it holds the owner's NGC key, never printed |
-| EDGEfab's cache | `%LOCALAPPDATA%\EDGEfab\cache\lipsync` | After L1 has moved the A2F versions over (decision 3) |
+| EDGEfab's cache | `%LOCALAPPDATA%\EDGEfab\cache\lipsync` | REDcode moves its `versions` folder over at its first start with L1 (decision 3). The rest (heads, clips) can be deleted after that |

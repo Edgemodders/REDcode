@@ -1,12 +1,31 @@
-// Lip sync, the reading half (docs/lipsync.md, FL1 See): which characters have lip synced lines, a character's
+// Lip sync, the reading half (docs/research/lipsync.md, FL1 See): which characters have lip synced lines, a character's
 // lines by scene with their words and voice file, and one line's clip as curves. Its own folder, as rigs and
-// animation get, so it can move out later. No VS Code imports. Every game read goes through REDbridge, passed in
-// as one call function (docs/tools-together.md, rule 4). Needs REDbridge 0.14.0 (anims.info, options.animations).
+// animation get. No VS Code imports. Every game read goes through REDbridge, passed in as one call function
+// (callOf makes one from REDcode's BridgeClient or REDnode's kernel.bridge()). Needs REDbridge 0.14.0 (anims.info,
+// options.animations).
 
 import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
-import type { BridgeCall } from "@edgemodders/edgemat-core";
-import { dataDir } from "../config";
+
+/** A REDbridge call: the method and its parameters in, the result out. */
+export type BridgeCall = (method: string, params?: Record<string, unknown>) => Promise<any>;
+
+const calls = new WeakMap<object, BridgeCall>();
+
+/** Either kind of REDbridge client (REDcode's BridgeClient has request, REDnode's kernel.bridge() has call) as
+ *  a BridgeCall. The same client gives the same function, since the game's lists are kept per call function. */
+export function callOf(client: object): BridgeCall {
+  let call = calls.get(client);
+  if (!call) {
+    const b = client as { request?: unknown; call?: unknown };
+    const fn = typeof b.request === "function" ? b.request : typeof b.call === "function" ? b.call : undefined;
+    if (!fn) throw new Error("Not a REDbridge client: it has neither request nor call");
+    call = (method, params) => (fn as BridgeCall).call(client, method, params);
+    calls.set(client, call);
+  }
+  return call;
+}
 
 export class LipsyncError extends Error {}
 
@@ -181,6 +200,107 @@ export async function lipsyncCharacter(call: BridgeCall, character: string, lang
   throw new LipsyncError(`"${character}" fits ${close.length} characters: ${close.slice(0, 12).map((c) => c.voiceTag).join(", ")}${close.length > 12 ? ", ..." : ""}. Name one.`);
 }
 
+const sceneCache = new WeakMap<BridgeCall, Map<string, Promise<string>>>();
+
+/** A scene's game path from its hash, or the hash when the game's names don't have it. Kept per bridge: V's
+ *  scenes are hundreds, asked for again at every page. */
+function sceneOf(call: BridgeCall, hash: string): Promise<string> {
+  let known = sceneCache.get(call);
+  if (!known) sceneCache.set(call, (known = new Map()));
+  let scene = known.get(hash);
+  if (!scene) {
+    scene = (call("hash.resolve", { hash }) as Promise<{ path?: string; known?: boolean }>).then(
+      (r) => (r?.known && r.path ? r.path : hash),
+      () => hash,
+    );
+    known.set(hash, scene);
+  }
+  return scene;
+}
+
+/** Where a line's lip sync is: whose it is, the scene and the clip set, and the clip when one line was asked for. */
+export interface LipsyncPlace {
+  character: LipsyncCharacter;
+  language: string;
+  /** The scene's game path, or its hash when the name is not known. */
+  scene: string;
+  set: string;
+  clip?: string;
+}
+
+/** The language of a lip sync set, from its game path (`base\localization\en-us\lipsync\...anims`); undefined
+ *  for any other file. */
+export function lipsyncSetLanguage(gamePath: string): string | undefined {
+  return /(?:^|\\)localization\\([a-z]{2}-[a-z]{2})\\lipsync\\.+\.anims$/i.exec(gamePath.replace(/\//g, "\\"))?.[1].toLowerCase();
+}
+
+/** The line a voice file speaks, from its game path (`ep1\localization\en-us\vo\judy_q307_f_2e66c436233bc000.wem`):
+ *  the language, the clip its lip sync has, and the name's start, which begins with the voice tag. Undefined for
+ *  a file named otherwise. */
+export function lineOfVoice(gamePath: string): { language: string; gender: "female" | "male"; hex: string; lineId: string; clip: string; name: string } | undefined {
+  const m = /(?:^|\\)localization\\([a-z]{2}-[a-z]{2})\\vo[a-z_]*\\([^\\]+)_([fm])_([0-9a-f]{16})\.wem$/i.exec(gamePath.replace(/\//g, "\\"));
+  if (!m) return undefined;
+  const line = lineOfClip(`${m[3]}_${m[4]}`)!;
+  return { language: m[1].toLowerCase(), ...line, clip: `${m[3].toLowerCase()}_${line.hex}`, name: m[2].toLowerCase() };
+}
+
+/** Whose lip sync set a game path is, and for which scene: the game's lip sync map names each set beside its
+ *  voice tag. Undefined when the map of that language does not have the set. */
+export async function lipsyncOfSet(call: BridgeCall, set: string, language = lipsyncSetLanguage(set) ?? DefaultLanguage): Promise<LipsyncPlace | undefined> {
+  const want = set.replace(/\//g, "\\").toLowerCase();
+  const [all, map] = await Promise.all([lipsyncCharacters(call, { language }), lipsyncMap(call, language)]);
+  for (const e of map) {
+    const i = e.sets.findIndex((s) => s.toLowerCase() === want);
+    const character = i < 0 ? undefined : all.find((c) => c.id === e.voiceTags[i]);
+    if (character) return { character, language, scene: await sceneOf(call, e.sceneHash), set: e.sets[i] };
+  }
+  return undefined;
+}
+
+/**
+ * The lip sync of a voice file: the character from the file name's start, the scene from the line's subtitle
+ * file (named as its scene), then the clip in that scene's set. A character with up to 400 scenes is searched
+ * whole when the scene's name does not lead there. Undefined when the game has no clip for the line.
+ */
+export async function lipsyncOfVoice(call: BridgeCall, voice: string): Promise<LipsyncPlace | undefined> {
+  const v = lineOfVoice(voice);
+  if (!v) return undefined;
+  const all = await lipsyncCharacters(call, { language: v.language });
+  // The longest voice tag the name starts with: `judy_scene_judy_default` is judy's, `v_q302` is V's.
+  const fits = all.filter((c) => v.name === c.voiceTag || v.name.startsWith(`${c.voiceTag}_`)).sort((a, b) => b.voiceTag.length - a.voiceTag.length);
+  return placeOfLine(call, fits.slice(0, 3), v.clip, v.lineId, v.language);
+}
+
+/** The scene and set of one of a character's lines, by its clip's name (`f_2CE9C077837E0000`). Undefined when
+ *  the game has no such clip for them. */
+export async function lipsyncOfClip(call: BridgeCall, character: string, clip: string, language = DefaultLanguage): Promise<LipsyncPlace | undefined> {
+  const line = lineOfClip(clip);
+  if (!line) return undefined;
+  return placeOfLine(call, [await lipsyncCharacter(call, character, language)], `${line.gender === "female" ? "f" : "m"}_${line.hex}`, line.lineId, language);
+}
+
+/** Finds a line's clip among the scenes of the characters it may be (the likeliest first): by the scene its
+ *  subtitle file is named after, then, for a character with up to 400 scenes, in all of them. */
+async function placeOfLine(call: BridgeCall, fits: LipsyncCharacter[], clip: string, lineId: string, language: string): Promise<LipsyncPlace | undefined> {
+  if (!fits.length) return undefined;
+  const details = ((await call("loc.lines", { stringIds: [lineId], language }).catch(() => [])) as { file?: string }[]) ?? [];
+  const file = details[0]?.file ?? "";
+  const sceneName = file.slice(file.lastIndexOf("\\") + 1).replace(/\.json$/i, "");
+  const find = async (character: LipsyncCharacter, scene: string | undefined): Promise<LipsyncPlace | undefined> => {
+    for (let offset = 0; ; offset += 200) {
+      const page = await lipsyncLines(call, { character: character.id, language, scene, offset, limit: 200 });
+      const found = page.scenes.find((s) => s.lines.some((l) => l.clip === clip));
+      if (found) return { character, language, scene: found.scene, set: found.set, clip };
+      if (offset + page.scenes.length >= page.total || !page.scenes.length) return undefined;
+    }
+  };
+  for (const character of fits) {
+    const place = sceneName ? await find(character, sceneName) : undefined;
+    if (place) return place;
+  }
+  return fits[0].scenes <= 400 ? find(fits[0], undefined) : undefined;
+}
+
 /** The line a clip is for, from its name (`f_2CE9C077837E0000`); undefined for a clip named otherwise. */
 export function lineOfClip(clip: string): { gender: "female" | "male"; hex: string; lineId: string } | undefined {
   const m = /^([fm])_([0-9a-f]{1,16})$/i.exec(clip);
@@ -203,16 +323,7 @@ export async function lipsyncLines(
     // A scene can list a character more than once, each time with its own set.
     return e.voiceTags.flatMap((id, i) => (id === character.id && e.sets[i] ? [{ sceneHash: e.sceneHash, set: e.sets[i] }] : []));
   });
-  const named = await Promise.all(
-    entries.map(async (e) => {
-      try {
-        const r = (await call("hash.resolve", { hash: e.sceneHash })) as { path?: string; known?: boolean };
-        return { ...e, scene: r?.known && r.path ? r.path : e.sceneHash };
-      } catch {
-        return { ...e, scene: e.sceneHash };
-      }
-    }),
-  );
+  const named = await Promise.all(entries.map(async (e) => ({ ...e, scene: await sceneOf(call, e.sceneHash) })));
   const filter = request.scene?.trim().toLowerCase().replace(/\//g, "\\");
   const kept = (filter ? named.filter((e) => e.scene.toLowerCase().includes(filter) || e.set.toLowerCase().includes(filter)) : named).sort((a, b) => a.scene.localeCompare(b.scene));
   const offset = Math.max(0, request.offset ?? 0);
@@ -279,9 +390,17 @@ function glbJson(file: string): any {
   return JSON.parse(b.subarray(20, 20 + b.readUInt32LE(12)).toString("utf8"));
 }
 
-/** Where exported clips are kept: game data, so on the modder's PC only, outside any project. */
+let cacheDir: string | undefined;
+
+/** Sets where exports are kept: REDcode gives a folder under its global storage. */
+export function setLipsyncCacheDir(dir: string): void {
+  cacheDir = dir;
+}
+
+/** Where exported clips and heads are kept: game data, so on the modder's PC only, outside any project. The
+ *  folder the caller set, else LIPSYNC_CACHE, else `%LOCALAPPDATA%\REDcode\cache\lipsync`. */
 export function lipsyncCacheDir(): string {
-  return path.join(dataDir(), "cache", "lipsync");
+  return cacheDir ?? process.env.LIPSYNC_CACHE ?? path.join(process.env.LOCALAPPDATA ?? os.tmpdir(), "REDcode", "cache", "lipsync");
 }
 
 /**

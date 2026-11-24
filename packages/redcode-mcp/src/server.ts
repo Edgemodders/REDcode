@@ -17,6 +17,7 @@ import { z, type ZodRawShape } from "zod";
 import { audioFormat, GameSoundIndex, opusSound, parseOpusInfo, wwiseHash, type OpusIndex } from "../../../extensions/redcode/src/audio";
 import { BridgeClient, KeyAccess } from "../../../extensions/redcode/src/bridgeClient";
 import * as anim from "../../anim-core/src/index";
+import * as lipsync from "../../lipsync-core/src/index";
 import { gameVersionOf, isInside, libraryFolders, planAsset, readLibraryRoot, suggestedLibraryRoot, writeAsset, writeLibraryRoot, type AssetSource } from "../../../extensions/redcode/src/library";
 import { gameStatus, startGame, stopGame } from "../../../extensions/redcode/src/gameRun";
 import { findProject, gamePathOf } from "../../../extensions/redcode/src/project";
@@ -400,6 +401,86 @@ tool("anim_replace_clip", "Replace one of the game's own clips with a made one, 
 tool("anim_made_clips", "The made animations in a WolvenKit project, newest first, found by their records (<name>.edgefab.json, kind anim): each one's name, id, rig, length, set and how it was made (a prompt, a file).", {
   project: ProjectSchema,
 }, async (a) => anim.madeClips(animProject(a.project)).map((m) => ({ name: m.name, id: m.id, rig: m.anim.rig, seconds: m.anim.seconds, set: m.set, madeBy: m.madeBy, made: m.made, source: m.source, edited: anim.hasEdits(m) })));
+
+// ---- lip sync (REDcode's docs/design/lipsync.md, L1), over @edgemodders/lipsync-core: the twins of the Lip Sync tab ----
+
+lipsync.setLipsyncCacheDir(path.join(process.env.LOCALAPPDATA ?? os.tmpdir(), "REDcode", "mcp-cache", "lipsync"));
+
+tool("lipsync_lines", "Lip sync, reading the game (REDcode's Lip Sync editor): a character's lip synced lines, scene by scene, each with its clip name (f_<HEX> or m_<HEX>, from the line's string id), words, voice file (.wem game path), length and the clip set it is in. " +
+  "The game keys lip sync by voice tag (judy, panam, angelica_whelan), not by head: one clip plays on any head. Without character it lists the characters that have lip sync, most scenes first; find narrows them by name. " +
+  "Scenes come a page at a time (V has hundreds): offset and limit, with total. Voice sets (gameplay barks) are scenes too. lipsync_line then reads one line's clip as curves.", {
+  character: z.string().optional().describe("The voice tag's name or id; a part of a name works when only one character has it."),
+  find: z.string().optional().describe("Without character: only the characters whose voice tag contains this."),
+  scene: z.string().optional().describe("Only the scenes whose path contains this, such as mq306 or vset_."),
+  language: z.string().default(lipsync.DefaultLanguage).describe("The voice language, as the game names it: en-us, pl-pl, jp-jp, ..."),
+  offset: z.number().int().min(0).default(0),
+  limit: z.number().int().min(1).max(200).default(20).describe("Scenes per call (characters: this many names)."),
+}, async ({ character, find, scene, language, offset, limit }, b) => {
+  const call = lipsync.callOf(b);
+  if (!character) {
+    const all = await lipsync.lipsyncCharacters(call, { language, find });
+    return { language, total: all.length, offset, characters: all.slice(offset, offset + limit) };
+  }
+  return lipsync.lipsyncLines(call, { character, language, scene, offset, limit });
+});
+
+tool("lipsync_line", "Lip sync, reading the game: one line's clip as curves (what REDcode's Lip Sync editor draws). Give the set and clip from lipsync_lines. Answers the clip's length and, for every track that moves, its name, group, face part, " +
+  "number of keys, lowest and highest value and when it peaks. Groups: 'lipsync' (<pose>LipsyncPoseOutput, what the clip drives, 0 to about 1: the mouth, and also brows, blinks and the throat; part says which), 'override' (<pose>AnimOverrideWeight, mostly the negative of its lipsync track: " +
+  "it mutes other face animation), 'control' (lipSyncEnvelope, jaliJaw, jaliLips, muzzleLips, upperFace, ...), 'pose' (eyes, head and neck riding along) and 'wrinkle'. " +
+  "tracks: names to get in full, as [seconds, value] keys; every: also each of those sampled at that many frames a second (30 is the game's), for comparing clips. About a third of a second a clip.", {
+  set: z.string().describe("The clip set's game path (.anims), as lipsync_lines gives it."),
+  clip: z.string().describe("The clip's name in the set, such as f_2CE9C077837E0000."),
+  tracks: z.array(z.string()).optional().describe("Track names to return with their keys, such as jaw_mid_openLipsyncPoseOutput; 'lipsync', 'control', 'override' or 'pose' for a whole group."),
+  every: z.number().positive().max(120).optional().describe("Also sample the asked tracks at this many frames a second."),
+}, async ({ set, clip, tracks, every }, b) => {
+  const c = await lipsync.lipsyncClip(lipsync.callOf(b), { set, clip });
+  const want = new Set((tracks ?? []).map((t) => t.toLowerCase()));
+  return {
+    set: c.set, clip: c.clip, rig: c.rig, seconds: c.seconds, fps: c.fps, frames: c.frames, trackCount: c.trackCount,
+    moving: c.tracks.map((t) => {
+      let peak = 0;
+      for (let i = 0; i < t.keys.length; i += 2) if (Math.abs(t.keys[i + 1]) > Math.abs(t.keys[peak + 1] ?? 0)) peak = i;
+      const full = want.has(t.name.toLowerCase()) || want.has(t.group);
+      const samples = full && every ? Array.from({ length: Math.floor(c.seconds * every) + 1 }, (_, i) => +lipsync.sampleTrack(t, i / every).toFixed(4)) : undefined;
+      const keys = full ? Array.from({ length: t.keys.length / 2 }, (_, i) => [t.keys[i * 2], t.keys[i * 2 + 1]]) : undefined;
+      return { name: t.name, group: t.group, part: t.part, keys: t.keys.length / 2, min: t.min, max: t.max, peakAt: t.keys[peak], values: keys, samples };
+    }),
+    held: c.held,
+  };
+});
+
+// No game is read: registered apart from tool(), which starts REDbridge first.
+server.registerTool("lipsync_make", {
+  description: "Lip sync, making it: a spoken line into mouth shapes and the game's lip sync tracks, from when each letter is spoken (what Add a Line does in REDcode's Lip Sync editor). " +
+    "Give the timings as EDGEwave's voice_speak_line returns them (characters, starts and ends in seconds from the audio's start, and spoken, which marks letters that are not said), or timingsFile, the file it keeps beside the WAV. " +
+    "Answers the shapes in time (aa, eh, ee, oh, oo, mbp, fv, th, tdn, kg, sz, sh, r) and each lip sync track's keys; out writes the whole clip as JSON, in the shape of a game clip read by lipsync_line. " +
+    "No game, no network. The sounds come from spelling rules and a short word list, version 0: judge it on the head in the Lip Sync editor. Writing it into a project as an .anims comes later.",
+  inputSchema: {
+    timings: z.object({ characters: z.array(z.string()), starts: z.array(z.number()), ends: z.array(z.number()), spoken: z.array(z.boolean()).optional() }).optional().describe("When each character is spoken."),
+    timingsFile: z.string().optional().describe("A timings file from EDGEwave (<take>.timings.json), in place of timings."),
+    seconds: z.number().positive().optional().describe("The audio's length, so the clip is as long."),
+    out: z.string().optional().describe("A file to write the clip to, as JSON."),
+  },
+}, async ({ timings, timingsFile, seconds, out }): Promise<CallToolResult> => {
+  try {
+    const read = timingsFile ? (JSON.parse(fs.readFileSync(timingsFile, "utf8")) as { timings?: lipsync.LineTimings } & lipsync.LineTimings) : undefined;
+    const t: lipsync.LineTimings | undefined = timings ?? read?.timings ?? read;
+    if (!t || !Array.isArray(t.characters) || t.characters.length !== t.starts?.length || t.characters.length !== t.ends?.length) throw new Error("Give timings (characters, starts and ends, the same number of each) or a timingsFile.");
+    const clip = lipsync.speechClip(t, { seconds });
+    if (out) fs.writeFileSync(out, JSON.stringify(clip));
+    const result = {
+      seconds: clip.seconds,
+      shapes: clip.events.map((e) => ({ shape: e.shape, start: +e.start.toFixed(3), end: +e.end.toFixed(3), letters: e.letters })),
+      tracks: clip.tracks.map((k) => ({ name: k.name, keys: k.keys.length / 2, max: k.max })),
+      out,
+    };
+    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    log(`lipsync_make: ${message}`);
+    return { isError: true, content: [{ type: "text", text: message }] };
+  }
+});
 
 tool("project_pack", "Pack a folder (a project's source/archive) into <modName>.archive in outDir through WolvenKit's packer. Returns the archive path, size, file count and warnings for paths with capital letters or spaces. Bridge 0.6.1.", {
   dir: z.string().describe("The folder to pack, laid out as game paths (base/..., ep1/...)."),

@@ -1,6 +1,6 @@
-// Spike LS1 (docs/lipsync.md, "Live lip sync"): can a script move a live NPC's jaw?
+// Spike LS1 (docs/research/lipsync.md, "Live lip sync"): can a script move a live NPC's jaw?
 // Through REDnode's `api` and `world` only. Needs the test archive made by
-// `npm run lipsync:jaw --workspace extensions/edgefab -- <outFolder>` in the game: it adds float inputs to
+// `node tools/probes/lipsync-live/build-jaw.mjs <outFolder>` in the game: it adds float inputs to
 // the women's face graph (woman_average_sermo.animgraph), each added to one lip sync track before the pose
 // solver. Without the archive every button here does nothing to the face, which is the control.
 //

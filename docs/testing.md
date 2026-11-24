@@ -49,6 +49,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Sector selection](#sector-selection) | By hand | C5 | 2026-11-21 | Not run (checked in Chrome over the real bridge) |
 | [Sector scripts](#sector-scripts) | By hand | Sector scripts | 2026-11-23 | Not run (checked by script and in Chrome over the real runner) |
 | [Sector layers (L1)](#sector-layers-l1) | By hand | Sector layers L1 | 2026-11-24 | Not run (checked by script and in Chrome over the real game) |
+| [Lip Sync L1](#lip-sync-l1-the-editor-in-redcode) | Scripts and an MCP client; by hand | Lip Sync L1 | 2026-11-24 | Partly run: steps 1 and 2 pass (scripts, MCP); steps 3 to 10 in VS Code not run |
 | [Library view (#23)](#library-view-23) | By hand | Requests | 2026-11-15 | Pass, two fixes |
 | [Run Game without ELECTRON_RUN_AS_NODE (#24)](#run-game-without-electron_run_as_node-24) | By hand, in the game | Requests | 2026-11-20 | Pass |
 | [New File](#new-file) | By hand | Requests | 2026-11-20 | Pass, steps 1 to 13, four fixes |
@@ -1323,3 +1324,135 @@ Built 2026-11-23 ([design](design/game-testing.html)): `game_start`, `game_stop`
 | A custom sound from a REDmod pack, or a sound override, in game | Not tried in the game |
 | A new mesh from a template with a different submesh count | Step 2 of the 0.10.0 test used the GLB's own mesh |
 | Blender found by the search into an empty `redcode.blenderPath` in VS Code | The owner set the path by hand before the fix; the search itself finds the Steam copy when run outside VS Code |
+
+## Lip Sync
+
+The Lip Sync editor ([Lip Sync](design/lipsync.html), research in [Made lip sync](research/lipsync.html)), moved from EDGEfab on 2026-11-22 and wired into REDcode as L1 on 2026-11-24. The first test below is REDcode's own. The six after it are EDGEfab's, moved here with every run: their steps now name REDcode's commands and paths, and their dated results stand as they were written, so a result may name EDGEfab's commands of the day. Nothing here is a test of a released build.
+
+### Lip Sync L1: the editor in REDcode
+
+Needs the game (2.5), REDbridge 0.16.0 or later, and for step 9 EDGEwave 0.3.0 or later with an ElevenLabs key.
+
+Without VS Code:
+
+1. `npm run build --workspace extensions/redcode` and `npm run build --workspace packages/lipsync-core`, then in `packages/lipsync-core`: `node scripts/check-lines.mjs`, `node scripts/check-face.mjs`, `node scripts/check-speech.mjs`. They find REDbridge and the game as the MCP server does (`REDBRIDGE_EXE` and `REDCODE_GAME_PATH`, else VS Code's settings). **Expected:** every line `ok`, then `ok`, three times.
+2. The MCP server (`npm run mcp:build`), through an MCP client: `lipsync_lines` with `find: "judy"`, then with `character: "angelica_whelan", scene: "mq306_04b"`; `lipsync_line` on its first line with `tracks: ["jaw_mid_openLipsyncPoseOutput"]`; `lipsync_make` with six letters' timings, and with nothing. **Expected:** judy; 9 lines, the first "There you are."; 99 moving tracks, the jaw with its keys; three mouth shapes and their tracks; a refusal in plain words.
+
+In VS Code (F5 with **Run REDcode**, or **Run REDcode and EDGEwave (no other extensions)** for step 9, with the clone at `../EDGEwave`):
+
+3. Command Palette: **REDcode: Open Lip Sync**. **Expected:** a pick list of characters, the ones with the most scenes first (V, Johnny, Panam), with a filter. Pick Judy. A **Lip Sync: Judy** tab opens with her scenes and lines on the left.
+4. Pick a line. **Expected:** the words, the voice as a waveform, the curves in lanes (jaw, lips, tongue, brows, eyes) and, within a few seconds, Judy's own head in place of the mouth sketch. **Play** (or Space) plays the voice with the marker over the curves and the head speaking. Drag the head to turn it; drag the marker; the arrow keys step a frame; the volume slider works.
+5. Type `mq` in the scene filter, then **Show More Scenes**, then **Change Character** and pick Panam. **Expected:** the scenes narrow, more are listed, and Panam's lines and her own head show.
+6. With a line open, run **Developer: Reload Window**. **Expected:** the tab comes back on the same character and line (the scene filter holds the line's scene).
+7. In Game Assets or Search game files, open a voice line, such as `ep1\localization\en-us\vo\angelica_whelan_mq306_f_2ce9c077837e0000.wem`. **Expected:** the audio player shows a **Lip Sync** button a moment after the sound loads. It opens the Lip Sync tab on Angelica Whelan, with "There you are." open. A sound that is no voice line (any `.wem` under `base\sound\soundbanks`) shows no such button.
+8. Open a lip sync set, such as `base\localization\en-us\lipsync\ep1\quest\minor_quests\mq306\scenes\mq306_04b_angie_meeting\angelica_whelan.anims` (the tab's line shows each line's set under the words). **Expected:** it opens in the animation view as before, with **Open in Lip Sync** in its bar; pick a clip in the list and press it: the Lip Sync tab shows that line. An `.anims` that is no lip sync set (any under `base\animations`) has no such button.
+9. With EDGEwave: in the tab, type a short line and press Enter. **Expected:** EDGEwave asks once whether REDcode may spend credits; then the line plays in the character's voice on the head, with **New Take** beside Speak. Without EDGEwave installed the tab says so in plain words. Say how well the mouth matches the voice.
+10. From another extension, or the Opens Test's console: `api.openLipSync("panam")`, then `api.openLipSync("angelica_whelan", "f_2CE9C077837E0000")`. **Expected:** the tab on Panam; then on Angelica Whelan with "There you are." open.
+
+| Run | Result |
+|---|---|
+| 2026-11-24, REDbridge 0.17.0 (the checkout's build), game 2.5 | Steps 1 and 2 **pass**. Step 1: `check-lines` with the checks EDGEfab had and five new ones (a voice file to its clip in 7 ms once the lists are read, one of V's male lines, a sound that is no voice line, a set to its character, a set known by its path); 806 characters, the lines in 3.0 s the first time, a clip in 0.3 s; `check-face` and `check-speech` as in EDGEfab. Step 2 as expected. The extension and its two webview bundles build and type-check. **Steps 3 to 10: not run** (the tab has never run in VS Code, in EDGEfab or here) |
+
+### FL1: lip sync, reading the game (without VS Code)
+
+For the Lip Sync tab's first slice ([Made lip sync](research/lipsync.html), "Review, and what is built"). Needs the game (2.5) and REDbridge 0.14.0 or later. Not a test of a released build.
+
+1. `npm run build --workspace packages/lipsync-core`, then `node packages/lipsync-core/scripts/check-lines.mjs`. It starts REDbridge, lists the characters, reads Angie's lines in `mq306_04b_angie_meeting`, reads the clip of "There you are." and V's first three scenes. **Expected:** every line `ok`, then `ok`.
+2. The MCP server: `lipsync_lines` with `find: "jud"`, then with `character: "angelica_whelan", scene: "mq306_04b"`; `lipsync_line` on its first line with `tracks: ["jaw_mid_openLipsyncPoseOutput"], every: 30`. **Expected:** judy; 9 lines, the first "There you are."; 99 moving tracks, the jaw with its keys and 49 samples.
+3. The page, in a browser: the tab's HTML with the clip from step 1 (an `<outFolder>` after it writes `lines.json` and `clip.json`) sent to it as the extension would. **Expected:** the lines listed, the curves in lanes, the track table with Track names, the value under the pointer.
+4. **In VS Code (not run):** **REDcode: Open Lip Sync**, pick a character, pick a line. **Expected:** the voice as a waveform, Play plays it with the playhead over the curves, Change Character, Show More Scenes, the scene filter.
+
+| Run | Result |
+|---|---|
+| 2026-11-17, REDbridge 0.14.0, game 2.5 | Steps 1 to 3 **pass**. Step 1: 806 characters, all named (v 487, johnny 301, panam 84); lines in 2.6 s (the game's line index loads once), a clip in 0.24 s, again in 0.11 s; 99 of 414 tracks move (lipsync 44, override 30, control 7, pose 18). Found and fixed: a scene can list a character twice (V), so the lines missed a set the count had. Step 3: Play in the browser was not timed (a background tab). Step 4 not run |
+
+### Spike LS1: the jaw on command
+
+The key spike of live lip sync ([Made lip sync](research/lipsync.html#live-lip-sync-a-line-made-while-the-game-runs)): can a script move a live NPC's jaw? It decides whether the live course goes on. Needs the game (2.5), REDbridge, REDnode with Codeware. Not a test of a released build.
+
+**What is tested.** A test archive replaces the women's face graph (`woman_average_sermo.animgraph`) with a copy that has six new nodes before the pose solver (`Sermo`): each adds a number to one track. At rest every number is 0, so the face should look as it always does.
+
+| Track | Set with `SetInputFloat` | Or through the anim feature `edgefab_lipsync` (the game's `AnimFeature_Bump` class) |
+|---|---|---|
+| `jaw_mid_openLipsyncPoseOutput` | `edgefab_jaw` | `direction` |
+| `lipSyncEnvelope` | `edgefab_envelope` | `source` |
+| `jaw_mid_openAnimOverrideWeight` | `edgefab_override` | `intensity` |
+
+1. `npm run build --workspace packages/lipsync-core`, then `node tools/probes/lipsync-live/build-jaw.mjs <outFolder>` (a folder outside the repo). **Expected:** every line `ok`, then `ok`; `<outFolder>\tests\edgefab_ls1_jaw.archive` (about 20 KB).
+2. Put `edgefab_ls1_jaw.archive` in the game's `archive\pc\mod` folder (with the game closed). In REDnode's Settings add `tools\probes\lipsync-live\ls1-jaw` of this repo as a development folder. Start the game, load a save, stand somewhere quiet. Start REDnode's Test timer.
+3. **The control:** look at women in the street. **Expected:** faces as always (talking, blinking). A crash on load or frozen faces means the changed graph is at fault: remove the archive and say so.
+4. Switch on **EDGEfab spike LS1** in the Mod Manager. **Spawn the person**. **Expected:** a woman stands facing V; the log says her `face_rig` was found.
+5. **Say it** (the bark). Say whether her lips move with the line.
+6. Under **3. Inputs**: **jaw 1**, then **jaw 0**. If nothing moves: **envelope 1**, then **jaw 1** again; then **override 1**, then **jaw 1**. Say what the mouth does at each press.
+7. If step 6 moved nothing: **All to 0**, then the same presses under **4. The same through an anim feature**.
+8. With a way that moved the jaw: **10 a second**, then **30 a second**, then **Stop the wave**. Say whether the jaw opens and closes smoothly; the log gives the time per change.
+9. **Remove**, switch the app off, close the game and take the archive out.
+
+**Passes when** the jaw follows the number (step 6 or 7) and the wave is smooth at 30 a second (step 8). If nothing moves the jaw, the spike's next tries are in the plan (the input placed elsewhere in the graph, then a workspot of mouth-shape clips).
+
+| Run | Result |
+|---|---|
+| 2026-11-17, REDbridge 0.14.0, game 2.5 | Step 1 **passes**: the graph reads as JSON, takes 12 new nodes (475 to 487) and a declared feature, writes back (56,552 bytes), reads back with the new nodes wired as written, and packs (20,480 bytes). The test app is written from REDnode's Animation test and the game's type dump and **has not run in the game**. Steps 2 to 9 not run |
+| 2026-11-20, in the game (the owner; REDbridge 0.16.0's archive from the run above, the app from REDnode's apps folder; the app's log read by Claude) | **Pass.** The app ran first time. **Say it:** she spoke a line and her lips read it, so the game's lip sync runs on a spawned NPC outside a scene. **`SetInputFloat` moved nothing**, with the envelope and the override at 1 too. **The anim feature moved the jaw:** 1 an open mouth (not a yawn), 0.5 about half, 0 closed; the envelope made no difference seen (the override not tried this way). **The wave** (through the feature, after the app's wave buttons were changed to use it: 0.2.0) opened and closed at 10, 20 and 30 asked changes a second; 10 a little choppy, 30 better, fine for the most part. **The cost: 46 to 51 ms a change** (making the feature and applying it are two calls, each answered a frame or two later), so 20 asked gave about 13 a second and 30 asked about 13 too (187 of 467 skipped). The control (street faces as always) was not reported either way |
+
+### Spike LS2: mouth shapes
+
+After LS1 ([Made lip sync](research/lipsync.html#live-lip-sync-a-line-made-while-the-game-runs)): can a whole mouth shape, many tracks, be shown from one number, and do shapes in a row read as speech? Needs the game (2.5), REDbridge, REDnode with Codeware. Not a test of a released build.
+
+**What is tested.** The test archive replaces the women's face graph with a copy that holds 13 mouth shapes made by hand (lipsync-core `packages/lipsync-core/src/shapes.ts`, version 0: aa, eh, ee, oh, oo, mbp, fv, th, tdn, kg, sz, sh, r). Each shape is one number in the anim feature `edgefab_mouth` (the game's `AnimFeature_FPPCamera` class, for its many floats); the graph eases the number (a damp node, 14 units a second) and adds it, times a weight, to each of the shape's lip sync tracks (56 weights in all). One call carries every shape. It replaces the same game file as LS1's archive, so only one of the two is in the game at a time.
+
+1. `npm run build --workspace packages/lipsync-core`, then `node tools/probes/lipsync-live/build-shapes.mjs <outFolder>` (a folder outside the repo). **Expected:** every line `ok`, then `ok`; `<outFolder>\tests\edgefab_ls2_shapes.archive`.
+2. With the game closed: take `edgefab_ls1_jaw.archive` out of the game's `archive\pc\mod` and put `edgefab_ls2_shapes.archive` in; the app `tools\probes\lipsync-live\ls2-shapes` into REDnode's apps folder as `edgefab-ls2-shapes` (or as a development folder). Start the game, load a save.
+3. **The control:** women in the street. **Expected:** faces as always.
+4. Switch on **EDGEfab spike LS2**, **Spawn the person**.
+5. Press each shape's button in turn, then **Rest**. For each, say whether the mouth looks like the sound on the button (and which look wrong, too strong or too weak).
+6. Switch on **As sent** and press a few shapes: say whether the change is a snap now, and a glide with it off.
+7. **4 a second**, then **8 a second**, then **Stop**. Say whether the shapes flow into each other.
+8. **Say it** ("Hello there, how are you", no sound), then **At half speed**. Say whether it reads as someone speaking.
+9. **Remove**, switch the app off.
+
+**Passes when** most shapes look like their sounds, the easing shows, and the line reads as speech. The shapes are a first guess: which ones are wrong is the result that matters.
+
+| Run | Result |
+|---|---|
+| 2026-11-20, REDbridge 0.16.0, game 2.5 | Step 1 **passes**: 13 shapes, 56 pose weights, 298 new nodes (475 to 773), the graph 79,225 bytes, the archive 24,576. Found: a new node's `$type` must be its first key or WolvenKit's reader refuses the file; a value used in several places is written once and pointed at (13 damp nodes, not 56). The damp and math nodes are new to this graph (none to copy), so their fields are from the type dump: **untried in the game**. The app has not run. Steps 2 to 9 not run |
+
+### The head in the Lip Sync tab (without VS Code)
+
+For the talking head ([Made lip sync](research/lipsync.html#r-face-the-head-in-the-tab-sized-2026-11-20)): a head read and exported from the game, lipsync-core's own face solver, and the head in the tab's page. Needs the game (2.5) and REDbridge 0.16.0 or later.
+
+1. `npm run build --workspace packages/lipsync-core`, then `node packages/lipsync-core/scripts/check-face.mjs`. It reads a crowd woman's head (parts, facial setup, meshes as glTF on the face rig), runs the solver on numbers, solves every frame of "There you are." and reads a man's head. **Expected:** every line `ok`, then `ok`.
+2. The page, in a browser: the tab's own HTML with the head viewer's script, the clip of "There you are." and the head its lip sync set's rig belongs to, sent as the extension would. **Expected:** the head shows in place of the mouth sketch; with the playhead in the middle of the line the mouth is open.
+3. **In VS Code (not run):** **REDcode: Open Lip Sync**, pick a character and a line. **Expected:** the head shows beside the curves within a few seconds, moves with the voice on Play, turns when dragged; another character's line brings that character's head.
+
+| Run | Result |
+|---|---|
+| 2026-11-20, REDbridge 0.16.0, game 2.5 | Steps 1 and 2 **pass**. Step 1, 24 checks: 344 bones and 414 tracks; face 121 poses and 255 correctives, tongue 18, eyes 12; the jaw's lip sync output at 1 turns the jaw bone 20.0 degrees, 9.4 at 0.5 (the half-open in-between), 4.7 at 0.25; the upper and lower face, the override weights and the correctives act as the rules say; 0.04 ms a solve; the jaw opens up to 9.4 degrees in "There you are."; a head 1 s the first time, 0.6 s from the cache; the man's head has the same tracks. Before it, by eye: `jaw_mid_open` on the exported head is an open mouth, front and side. Step 2: the clip names the rig of the head it was made on (`h0_019_wa_c__young`), and that head's meshes and setup are found from the rig's folder; at 0.93 s the mouth is open with the teeth showing and the brows raised. The head's message to the page is 2 MB. Meshes are plain colours (no textures), the eyes are white shells, no hair. Step 3 not run |
+
+### Add a Line in the Lip Sync tab
+
+The editor's main use ([Made lip sync](research/lipsync.html)): type a new line, EDGEwave voices it through ElevenLabs, and the audio and its lip sync play on the head. REDcode's part is the lip sync, made from the words and when each letter is spoken (lipsync-core `packages/lipsync-core/src/speech.ts`, version 0: spelling rules and a short list of common words, 13 hand-made mouth shapes).
+
+1. `npm run build --workspace packages/lipsync-core`, then `node packages/lipsync-core/scripts/check-speech.mjs`. Words with evenly spaced letter timings become mouth shapes and a clip; no game, no service. **Expected:** every line `ok`, then `ok`. With words after it, it prints their shapes in time.
+2. The page, in a browser: a line typed into the box, made with evenly spaced timings, sent to the page as the extension would. **Expected:** the words, the shapes in the line under them, curves for the jaw, lips and tongue, and the head moving with the marker.
+3. **In VS Code, with EDGEwave 0.3.0 or later (its #13):** EDGEwave 0.3.0 or later installed, or F5 with **Run REDcode and EDGEwave (no other extensions)**; **REDcode: Open Lip Sync**, pick a character, type a line, press Enter. **Expected:** EDGEwave asks once before REDcode first spends credits; then the line plays in the character's voice with the head speaking it. **New Take** speaks it again. Say how well the mouth matches the voice, and which sounds look wrong.
+
+| Run | Result |
+|---|---|
+| 2026-11-20 | Steps 1 and 2 **pass**. Step 1, 23 checks: "mama" is closed, open, closed, open; "the", "you" from the word list; "time" leaves its e silent; "city" starts with an s; letters marked not spoken (a direction in brackets) move nothing; on an m the lips are together and the jaw shut; the mouth starts before the sound. Found and fixed: lips that close must snap (45 ms), or a short vowel beside them never opens; at 14 letters a second a vowel between two closed lips opens to about two thirds. Step 2: "Hello there, how are you my friend?" gave 19 shapes and 16 tracks, and the head moved. Step 3 not run: **the real voice and real timings have not been through it** |
+| 2026-11-21, step 3 (the owner; EDGEwave's main beside EDGEfab's) | **It works, with two faults.** A typed line for Panam came back voiced and played on her head. (1) **The voice "very clearly did not sound like Panam"**: EDGEwave's side, told to its session (which voice it used; a clone from a dozen of her lines). (2) **The mouth was "very exaggerated and unnatural"**: EDGEfab's shapes, version 0. Measured after it, over 95 lines of five main characters: the game's jaw peaks at about 0.45 in a line (0.63 at most), lip poses at 0.15 to 0.3, only "lips together" at 1, and the jaw turns about 4.4 times a second; version 0 went to 0.7 and 1 and turned with every letter. **Shapes version 1** takes the game's range and poses: vowels open the jaw, consonants only shut it by their own amount, and the jaw is averaged over about 0.12 s. Step 1 again: 25 checks pass, no pose past 0.59, the jaw turning 5.5 times a second on a fast sentence. **Not seen by the owner again yet.** First try the same day: the test window had loaded the installed EDGEwave of 4 November (no Speak a Line); the message now names which EDGEwave answered |
+
+### Spike A2F: Audio2Face against the game's clip
+
+Can lip movement made from a line's audio alone read better than the game's own on the words the owner finds stiff ([Made lip sync](research/lipsync.html#a2f-finer-mouth-movement-from-audio-sized-2026-11-21))? On the owner's PC only: NVIDIA's Audio2Face-3D container on the RTX 4090, the game's voice lines never leaving it. The setup was recorded in EDGEfab's `docs/dev-setup.md` (Audio2Face); it moves to REDcode's [Development setup](dev-setup.html) when L3 starts.
+
+1. Start the container: `docker run -d --name a2f-nim --network a2f --gpus all -e NGC_API_KEY -v a2f-cache:/opt/nim/.cache -p 52000:52000 -p 8000:8000 nvcr.io/nim/nvidia/audio2face-3d:2.0` (the key from the owner's own environment). **Expected:** `http://127.0.0.1:8000/v1/health/ready` says ready within a few minutes.
+2. A line's voice as a WAV (mono, 16-bit, 16 kHz), through NVIDIA's sample client: `a2f_3d.py run_inference voice.wav config/config_claire.yml -u a2f-nim:52000`. **Expected:** `SUCCESS`, and `output_000001\animation_frames.csv` with one row a frame.
+3. The CSV through core `arkitClip` (`src/core/lipsync/arkit.ts`) into a clip, written under the lip sync cache as `versions\<clip name>\<version>.json`.
+4. **In VS Code (the owner):** open Lip Sync on the character and the line. **Expected:** a row "Lip sync: The game's | Audio2Face | Audio2Face, full strength" under the words; each plays on the same voice and head. Say, for the words agreed, which reads better.
+
+| Run | Result |
+|---|---|
+| 2026-11-21, the owner's PC (RTX 4090, Docker Desktop 29.9.3, driver 621.24), container 2.0 | Steps 1 to 3 **work**. The container (26.4 GB) was ready about a minute after its first start; the first try failed on its model cache (a Docker volume a non-root container can't write: `chmod 777` on it fixed that). The driver's CUDA 13.5 and Docker Desktop's WSL2 were no trouble. Four of Panam's lines (4.8 to 5.8 s), a few seconds each: **30.0 frames a second, the first frame at 0, 52 ARKit shapes and 16 tongue shapes** in columns `blendShapes.<name>`. **Against the game's own clips:** the jaw follows the game's with r 0.25 to 0.64 at no lag (within 33 ms): in time, and a different performance, not a copy. It is stronger than the game (jaw 0.54 to 0.77 against 0.27 to 0.52; `MouthPucker` up to 1.11 against the game's purse at 0.28), so the "Audio2Face" version is scaled to the game's range (0.65 overall, some poses less). **Its weak point, as feared: closed lips.** Where the game shuts the lips on a b, m or p (lips together at 1), Audio2Face often leaves `MouthClose` at 0 and only lowers the jaw. On stills of one line both look like speech; Audio2Face's mouth is more closed most of the time. **Step 4, the owner's judgement with the voice: not run** |
+| 2026-11-21, step 4 (the owner, two lines) | **"Audio2Face reads better."** Full strength is too extreme. One fault seen: on words like "you" and "go" the game's lips move outward as they should, and Audio2Face's stay where they are. **The data agrees:** where the game purses for "go" and "you" (about 0.25), that run had almost nothing (`MouthPucker` 0.06 and 0). **And that run was on the container's default model, James (a man's voice), with Claire's settings**: the model is chosen when the container starts (`NIM_MODEL_PROFILE`), not by the client's settings file. The four lines again on **Claire** and on the **newest model (`multi`, the diffusion one)**, scored against the game's clips (`tools/spikes/a2f/04-models.cjs`), averages: rounding where the game rounds, James 0.25, Claire 0.25, **newest 0.62** (the game 0.20; on "go" and "you" 0.67 against James's 0.06); closed lips where the game closes them, James 0.33, Claire 0.17, **newest 0.84**; the jaw follows the game's less (r 0.32 against 0.47 and 0.50), so it is more its own performance. The tab's versions are now one a model, scaled to the game's range (0.65, rounding kept at 0.6 of that): **Audio2Face 1, newest model**, **2, Claire**, **3, James**; full strength is gone. Each model started in 30 to 40 s. **The owner's look at the newest model: not run** |
+

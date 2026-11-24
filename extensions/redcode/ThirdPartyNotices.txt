@@ -16,7 +16,7 @@ THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ------------------------------------------------------------------------------
 
-three.js: see media/mesh/three.LICENSE.txt, beside the mesh viewer bundle that contains it.
+three.js: see media/mesh/three.LICENSE.txt, beside the mesh viewer bundle that contains it. The Lip Sync tab's head (media/lipsync/head.js) contains it too.
 
 ------------------------------------------------------------------------------
 

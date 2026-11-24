@@ -1,11 +1,11 @@
 // A head for the Lip Sync tab (docs/lipsync.md, "R-face"): which meshes, rig and facial setup make a character's
 // head, the setup read into the solver's shape (faceSolve.ts), and the meshes exported as glTF on the face rig.
-// Everything comes from the game through REDbridge and is kept in EDGEfab's cache, never in a project.
+// Everything comes from the game through REDbridge and is kept in the lip sync cache, never in a project.
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { BridgeCall } from "@edgemodders/edgemat-core";
-import { lipsyncCacheDir, LipsyncError } from "./index";
+import type { BridgeCall } from "./lines";
+import { lipsyncCacheDir, LipsyncError } from "./lines";
 import type { FaceChanges, FacePart, FaceSetup } from "./faceSolve";
 
 /** The heads the tab shows when it knows nothing better: a crowd woman's and a crowd man's, both plain. */

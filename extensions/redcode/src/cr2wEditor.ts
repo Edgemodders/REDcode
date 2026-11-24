@@ -17,6 +17,7 @@ import { appearanceOf, cachedGlb, createSectorLoader, findOverlaps, meshMaterial
 import { bridgeOver, renderMaterials } from "@edgemodders/edgemat-core";
 import { gameCacheReady, stampFolder } from "./exportCache";
 import { findEdgemat, mapsForWebview, openInEdgemat, type RenderedMaterial } from "./edgemat";
+import type { LipSync } from "./lipsync";
 import { ProjectFolders } from "./project";
 import type { TextureViewer } from "./textureViewer";
 import type { DocumentInfo, MeshItem, PatchOp, PatchResult } from "./types";
@@ -346,6 +347,8 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
   private readonly saved = new vscode.EventEmitter<Cr2wDocument>();
   /** Generate, Add and Replace Clip in the animation view, when extension.ts gives them. */
   animMaker?: AnimMaker;
+  /** The Lip Sync editor (docs/design/lipsync.md): a lip sync set's animation view gets Open in Lip Sync. */
+  lipSync?: LipSync;
   /** Fired after a document is saved, for views that read the file (the LocKeys view). */
   readonly onDidSave = this.saved.event;
 
@@ -708,6 +711,7 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
             const madeClip = document.gamePath ? undefined : this.animMaker?.madeClipOf(document.uri.fsPath);
             return reply(m.id, {
               make: { why: makeWhy, game: document.gamePath !== undefined, made: madeClip, from: madeClip ? this.animMaker?.madeFromOf(document.uri.fsPath) : undefined },
+              lipSync: !!this.lipSync?.isSet(this.lipSyncSetOf(document) ?? ""),
               skeleton: animsSkeleton(anims).toString("base64"),
               animations,
               rig,
@@ -732,6 +736,13 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
               animsMoving = readAnimsGlb(r.glb);
             }
             return reply(m.id, animsClip(moving ? animsMoving! : anims, m.index ?? -1).toString("base64"));
+          }
+          case "animsLipSync": {
+            // Open in Lip Sync, on a lip sync set: the tab at this set's character and scene, on the shown clip's line.
+            const set = this.lipSyncSetOf(document);
+            if (!set || !this.lipSync) return reply(m.id, null);
+            if (!(await this.lipSync.openSet(set, typeof m.clip === "string" ? m.clip : undefined))) void vscode.window.showInformationMessage("The game's lip sync map does not list this set, so the Lip Sync editor cannot show whose it is.");
+            return reply(m.id, null);
           }
           case "animsMake": {
             // Generate with Uthana, or a clip from a .glb, as a new clip or in place of the clip shown (AT2).
@@ -1259,6 +1270,12 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
     const node = await bridge.getNode(document.doc, "rig", 0, 1);
     const rig = (node.value as { DepotPath?: { $value?: unknown } } | undefined)?.DepotPath?.$value;
     return typeof rig === "string" ? rig : "";
+  }
+
+  /** The game path of a document that may be a lip sync set: the game file's, or a project copy's place under
+   *  the project's archive folder. */
+  private lipSyncSetOf(document: Cr2wDocument): string | undefined {
+    return document.gamePath ?? archiveGamePathOf(document.uri.fsPath);
   }
 
   /**

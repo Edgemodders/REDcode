@@ -1,7 +1,7 @@
-// Test of the head for the Lip Sync tab (docs/lipsync.md, "R-face") against the game, without VS Code: a head's
+// Test of the head for the Lip Sync tab (docs/research/lipsync.md, "R-face") against the game, without VS Code: a head's
 // parts, its facial setup read into the solver's shape, the meshes exported on the face rig, and the solver on
 // numbers. Needs the game and REDbridge 0.16.0 or later.
-// Usage (after npm run build): npm run lipsync:face --workspace extensions/edgefab [-- <outFolder>]
+// Usage (after npm run build --workspace packages/lipsync-core): node scripts/check-face.mjs [<outFolder>]
 // With outFolder it also writes the head's GLBs posed at one frame of a real line (game data: keep it out of the repo).
 import { createRequire } from "node:module";
 import * as fs from "node:fs";
@@ -9,8 +9,8 @@ import * as os from "node:os";
 import * as path from "node:path";
 
 const require = createRequire(import.meta.url);
-process.env.EDGEFAB_DATA ??= fs.mkdtempSync(path.join(os.tmpdir(), "edgefab-face-"));
-const core = require("../dist/core.js");
+process.env.LIPSYNC_CACHE ??= fs.mkdtempSync(path.join(os.tmpdir(), "lipsync-face-"));
+const core = require("./bridge.cjs");
 const out = process.argv[2];
 
 const failed = [];
@@ -31,7 +31,7 @@ const turned = (face, pose, bone) => {
   return (2 * Math.acos(Math.min(1, dot)) * 180) / Math.PI;
 };
 
-const { client, call } = await core.startBridge(() => undefined);
+const { client, call } = await core.startBridge();
 try {
   const head = await timed("the woman's head", () => core.headModel(call, { app: core.DefaultHeads.woman }));
   const face = head.face;

@@ -46,6 +46,10 @@
       load(m, { title: m.title });
       return;
     }
+    if (m.type === "lipsync") {
+      $("lipsync").hidden = false;
+      return;
+    }
     if (m.type === "sounds") return showSounds(m);
   });
 
@@ -251,6 +255,8 @@
   // With the event's other sounds, so the host can offer to replace them all (one is picked at random).
   $("replace").addEventListener("click", () => current?.hash !== undefined && vscode.postMessage({ type: "replace", index: current.index, variations: current.variations, event: current.title }));
   $("edgewave").addEventListener("click", () => vscode.postMessage({ type: "edgewave", index: current?.index, eventHash: current?.eventHash }));
+  // A voice line the game has lip sync for (the host says so): its line in the Lip Sync editor.
+  $("lipsync").addEventListener("click", () => vscode.postMessage({ type: "lipsync" }));
 
   // Click or drag on the waveform to seek.
   const seek = (e) => {

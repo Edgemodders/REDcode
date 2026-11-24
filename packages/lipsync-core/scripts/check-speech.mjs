@@ -1,11 +1,11 @@
-// Test of a spoken line into lip sync (docs/lipsync.md, LS4 and Add a Line), without the game, VS Code or any
+// Test of a spoken line into lip sync (docs/research/lipsync.md, LS4 and Add a Line), without the game, VS Code or any
 // service: words with made-up letter timings become mouth shapes and a clip. The timings here are evenly spaced,
 // as a stand-in for ElevenLabs' (EDGEwave's speakLine gives the real ones).
-// Usage (after npm run build): npm run lipsync:speech --workspace extensions/edgefab [-- "<words>"]
+// Usage (after npm run build --workspace packages/lipsync-core): node scripts/check-speech.mjs ["<words>"]
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-const core = require("../dist/core.js");
+const core = require("./bridge.cjs");
 
 const failed = [];
 const check = (ok, what) => {

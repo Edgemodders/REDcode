@@ -1,8 +1,8 @@
-// Spike LS1 (docs/lipsync.md, "Live lip sync"): builds the test archive that asks whether a script can move a
+// Spike LS1 (docs/research/lipsync.md, "Live lip sync"): builds the test archive that asks whether a script can move a
 // live NPC's jaw. It reads the women's face graph from the game, adds float inputs wired to three lip sync
 // tracks just before the Sermo node, and packs the changed graph. Nothing here is a release build.
 // Needs the game and REDbridge (found as the MCP server finds them).
-// Usage (after npm run build): npm run lipsync:jaw --workspace extensions/edgefab -- <outFolder>
+// Usage (after npm run build --workspace packages/lipsync-core): node tools/probes/lipsync-live/build-jaw.mjs <outFolder>
 // Writes <outFolder>/source/archive/<the graph's game path> and <outFolder>/tests/edgefab_ls1_jaw.archive.
 // Both hold game data: keep outFolder out of the repo. The archive replaces a game file while it is installed.
 import { createRequire } from "node:module";
@@ -10,10 +10,10 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 const require = createRequire(import.meta.url);
-const core = require("../dist/core.js");
+const core = require("../../../packages/lipsync-core/scripts/bridge.cjs");
 const out = process.argv[2];
 if (!out) {
-  console.error("Usage: npm run lipsync:jaw --workspace extensions/edgefab -- <outFolder>");
+  console.error("Usage: node tools/probes/lipsync-live/build-jaw.mjs <outFolder>");
   process.exit(1);
 }
 
@@ -47,7 +47,7 @@ function handles(root) {
   return byId;
 }
 
-const { client, call } = await core.startBridge(() => undefined);
+const { client, call } = await core.startBridge();
 try {
   const read = await call("cr2w.toJson", { path: Graph });
   const original = typeof read.json === "string" ? read.json : JSON.stringify(read.json);

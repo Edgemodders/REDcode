@@ -4,6 +4,8 @@ title: NPC faces
 
 # NPC faces: expressions and lip sync
 
+**Moved from EDGEfab to REDcode on 2026-11-22**, with the Lip Sync editor ([Lip Sync](../design/lipsync.html)). The page stands as EDGEfab wrote it.
+
 **Status: research.** Asked for by the owner on 2026-11-17, for EDGEfab's animation work and for the tools that use faces: EDGEquest (playing conversations) and EDGEdir (directing NPCs on a timeline). Read from the game's files (2.5 with Phantom Liberty; `Cyberpunk2077.exe` product version 2.5, file version 3.0.5813403; 57 archives, 592,071 files) through the `redcode` server (REDbridge 0.12.1, WolvenKit 10.0.0) on 2026-11-17. The running game was not used (the `rednode` server was not connected), so nothing here was watched in the game. Facts read from files are stated plainly; what is inferred from them is marked **inferred**, and what was not checked is marked **unverified**.
 
 ## The short answer
@@ -158,7 +160,7 @@ Plus look-at (`scnLookAtEvent`, 26 in the sample scene) for eyes and head. The a
 - A facial clip is a float-track clip on a head rig. EDGEfab's import, change and convert steps (F7b) must keep float tracks, not only bones. WolvenKit's glTF export keeps them: a lip sync clip's 414 tracks come out as `trackKeys` in the animation's extras (checked 2026-11-17, [Made lip sync](lipsync.html)). Import through REDbridge is not checked (REDbridge #14).
 - Trim, loop and speed apply to facial clips as they are. Mirror needs the left and right pose pairs swapped (`eye_l_...` with `eye_r_...`), not bones mirrored.
 - **Made lip sync** (from a new voice line, or a video of someone saying it) means writing the head rig's lip sync tracks. The track names are in the head rig (`trackNames`, 414); the routes, the services and the long pole are in [Made lip sync](lipsync.html).
-- **A new head that speaks** (the UE5 faces question) needs its own `.facialsetup`. The poses are baked binary buffers in that file; whether any tool can author one is **unverified**. A borrowed game head stays the practical path ([UE5 assets](ue-assets.html), "Faces").
+- **A new head that speaks** (the UE5 faces question) needs its own `.facialsetup`. The poses are baked binary buffers in that file; whether any tool can author one is **unverified**. A borrowed game head stays the practical path ([UE5 assets](https://edgemodders.github.io/EDGEfab/ue-assets.html), "Faces").
 
 ## Open questions
 

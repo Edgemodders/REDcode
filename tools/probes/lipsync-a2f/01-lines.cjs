@@ -1,13 +1,13 @@
 // A2F spike, step 3: a few of a character's game lines, their voice exported for Audio2Face and their own
 // lip sync clip kept beside it. Output: scratchpad/a2f/lines/<n>/{line.json, clip.json, voice.*}. Game data: stays here.
-const core = require("e:/Modding/Cyberpunk 2077/EDGEfab/extensions/edgefab/dist/core.js");
+const core = require("../../../packages/lipsync-core/scripts/bridge.cjs");
 const fs = require("fs");
 const path = require("path");
-process.env.EDGEFAB_DATA = path.join(__dirname, "data");
+process.env.LIPSYNC_CACHE = path.join(__dirname, "data", "cache", "lipsync");
 const who = process.argv[2] ?? "panam";
 const want = Number(process.argv[3] ?? 4);
 (async () => {
-  const { client, call } = await core.startBridge(() => undefined);
+  const { client, call } = await core.startBridge();
   try {
     const lines = await core.lipsyncLines(call, { character: who, limit: 8 });
     const picked = [];

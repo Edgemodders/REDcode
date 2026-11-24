@@ -1,7 +1,7 @@
 // A2F spike, step 6: each line's Audio2Face results as versions the Lip Sync tab offers beside the game's clip
-// (EDGEfab's cache, versions\<clip name>\<version>.json), one a model the line was run through
+// (the lip sync cache, versions\<clip name>\<version>.json), one a model the line was run through
 // (a2f_<model>\animation_frames.csv, made by run-model.ps1). Usage: node 03-versions.cjs <lines folder> [out folder]
-const core = require("e:/Modding/Cyberpunk 2077/EDGEfab/extensions/edgefab/dist/core.js");
+const core = require("../../../packages/lipsync-core/scripts/bridge.cjs");
 const fs = require("fs");
 const path = require("path");
 const root = process.argv[2];

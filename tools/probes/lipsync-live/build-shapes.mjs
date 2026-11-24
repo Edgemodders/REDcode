@@ -1,9 +1,9 @@
-// Spike LS2 (docs/lipsync.md, "Live lip sync"): builds the test archive for whole mouth shapes from few numbers.
+// Spike LS2 (docs/research/lipsync.md, "Live lip sync"): builds the test archive for whole mouth shapes from few numbers.
 // It reads the women's face graph from the game and adds, before the Sermo node, core's mouth shapes
 // (src/core/lipsync/shapes.ts): each shape is one number in an anim feature, eased inside the graph by a damp
 // node (or used as sent, by the feature's raw switch), and added to the shape's lip sync tracks by its weights.
 // Needs the game and REDbridge (found as the MCP server finds them). Not a release build.
-// Usage (after npm run build): npm run lipsync:shapes --workspace extensions/edgefab -- <outFolder> [speed]
+// Usage (after npm run build --workspace packages/lipsync-core): node tools/probes/lipsync-live/build-shapes.mjs <outFolder> [speed]
 //   speed: how fast the graph eases a number, in units a second (default 14: 0 to 1 in about 70 ms)
 // Writes <outFolder>/source/archive/<the graph's game path> and <outFolder>/tests/edgefab_ls2_shapes.archive.
 // Both hold game data: keep outFolder out of the repo. The archive replaces a game file while it is installed,
@@ -13,11 +13,11 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 const require = createRequire(import.meta.url);
-const core = require("../dist/core.js");
+const core = require("../../../packages/lipsync-core/scripts/bridge.cjs");
 const out = process.argv[2];
 const speed = Number(process.argv[3] ?? 14);
 if (!out || !(speed > 0)) {
-  console.error("Usage: npm run lipsync:shapes --workspace extensions/edgefab -- <outFolder> [speed]");
+  console.error("Usage: node tools/probes/lipsync-live/build-shapes.mjs <outFolder> [speed]");
   process.exit(1);
 }
 
@@ -43,7 +43,7 @@ function handles(root) {
   return byId;
 }
 
-const { client, call } = await core.startBridge(() => undefined);
+const { client, call } = await core.startBridge();
 try {
   const read = await call("cr2w.toJson", { path: Graph });
   const file = JSON.parse(typeof read.json === "string" ? read.json : JSON.stringify(read.json));

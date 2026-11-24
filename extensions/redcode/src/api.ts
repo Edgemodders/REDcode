@@ -169,6 +169,13 @@ export interface REDcodeApi {
    * Unreleased (docs/design/animation-tools.md, AT2): check that the member is there before calling it.
    */
   generateAnimation(options: GenerateAnimationOptions, caller: string): Promise<MadeAnimation>;
+  /**
+   * Opens REDcode's Lip Sync editor: a character's lip synced lines by scene, each played on its head with its
+   * curves. character is a voice tag's name or id (judy, panam, angelica_whelan); without one the modder picks.
+   * clip is one of their lines by its clip's name (f_2CE9C077837E0000), opened when the game has it.
+   * Unreleased (docs/design/lipsync.md, L1): check that the member is there before calling it.
+   */
+  openLipSync(character?: string, clip?: string): Promise<void>;
 }
 
 /** What generateAnimation answers. */
@@ -217,6 +224,7 @@ export interface ApiHost {
   closeModel(fileOrFolder: string): number;
   openSector(path: string, options?: { select?: number | number[] }): Promise<void>;
   generateAnimation(options: GenerateAnimationOptions, caller: string): Promise<MadeAnimation>;
+  openLipSync(character?: string, clip?: string): Promise<void>;
 }
 
 /** What REDcodeApi.openAnimation plays an animation on (since 0.10.12). */
@@ -336,5 +344,6 @@ export function createApi(host: ApiHost): REDcodeApi {
     closeModel: host.closeModel,
     openSector: host.openSector,
     generateAnimation: host.generateAnimation,
+    openLipSync: host.openLipSync,
   };
 }

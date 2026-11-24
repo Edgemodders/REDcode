@@ -4,6 +4,18 @@ title: Made lip sync
 
 # Made lip sync: from a talking video (or a voice) to the game's lip sync clips
 
+**Moved from EDGEfab to REDcode on 2026-11-22**, with the Lip Sync editor it describes; REDcode's plan for it is [Lip Sync](../design/lipsync.html). The page stands as EDGEfab wrote it, so it names EDGEfab's files and commands of the day. In REDcode they are:
+
+| On this page | In REDcode |
+|---|---|
+| Core `src/core/lipsync` | `packages/lipsync-core/src` (`@edgemodders/lipsync-core`) |
+| **EDGEfab: Open Lip Sync** | **REDcode: Open Lip Sync** |
+| MCP `fab_lipsync_lines`, `fab_lipsync_line`, `fab_lipsync_make` | redcode-mcp's `lipsync_lines`, `lipsync_line`, `lipsync_make` |
+| `npm run lipsync`, `lipsync:face`, `lipsync:speech` | `node packages/lipsync-core/scripts/check-lines.mjs`, `check-face.mjs`, `check-speech.mjs` |
+| `npm run lipsync:jaw`, `lipsync:shapes`, `tools\spikes` | `tools\probes\lipsync-live` (`build-jaw.mjs`, `build-shapes.mjs`, `ls1-jaw`, `ls2-shapes`) and `tools\probes\lipsync-a2f` |
+| The cache `%LOCALAPPDATA%\EDGEfab\cache\lipsync` | REDcode's global storage, `cache\lipsync` |
+| The build plan, `docs/tools-together.md`, `docs/ue-assets.md` | EDGEfab's own pages, linked there |
+
 **Status: research, with a proposal** ([the Lip Sync tab](#the-lip-sync-tab-a-proposal), 2026-11-17; where it goes in the build plan is the EDGEfab build session's call). Asked for by the owner on 2026-11-17: can a generated video of a person speaking a line be turned into the game's own lip sync clip, by one service built for it or by several steps put together? It decides where the long pole is for new voiced lines. Follows [NPC faces](faces.html). The game side was read from game 2.5 through the `redcode` server on 2026-11-17; the services from their own pages and reviews the same day (sources at the end). Nothing here was tried in the game. **Reviewed by the EDGEfab build session on 2026-11-17** ([Review](#review-and-what-is-built), below; and [Live lip sync](#live-lip-sync-a-line-made-while-the-game-runs), the owner's ask the same day, with the spikes that decide it), which checked the reading half against game 2.5 and built it (on the `lipsync` branch, merged into main on 2026-11-19). **Inferred** and **unverified** mark what was not checked.
 
 ## The short answer
@@ -38,7 +50,7 @@ Registering is solved too. WolvenKit's Scene Editor has **Generate vanilla lipsy
 |---|---|---|---|
 | **A. Audio, by sounds** | Audio + text, forced alignment, a per-sound mouth table learned from the game's lines (Lipsync Animator) | Mouth and blinks. Scores against CDPR's clips 0.01 to 0.85 per part; lip closing 0.85 with the aligner | Free, MIT, local. English only (others need a pronunciation dictionary) |
 | **B. Audio, by a speech-to-face model** | Audio, NVIDIA **Audio2Face-3D** (open source since 2025), ARKit's 52 blendshapes plus 16 tongue shapes | Mouth, jaw, tongue, some emotion | Free, local; SDK MIT; models under NVIDIA's own licence (read before shipping); needs an NVIDIA GPU (CUDA 12.8+, TensorRT 10.13+, 4 GB+), Windows or Linux. Audio2Emotion may be used only inside Audio2Face |
-| B'. The same, Unreal | Audio, **MetaHuman Animator** audio-driven solve (UE 5.6), MetaHuman's face controls | Mouth, head movement | Free with Unreal Engine; needs UE (FA's Unreal path, [UE5 assets](ue-assets.html)) |
+| B'. The same, Unreal | Audio, **MetaHuman Animator** audio-driven solve (UE 5.6), MetaHuman's face controls | Mouth, head movement | Free with Unreal Engine; needs UE (FA's Unreal path, [UE5 assets](https://edgemodders.github.io/EDGEfab/ue-assets.html)) |
 | B''. The same, licensed | Audio, **JALI** or **Speech Graphics SGX** | The game's own method (JALI) or its peer | Quote only; JALI offers evaluations and C++ libraries. No hosted API found |
 | **C. Video (the owner's route)** | 1. The line's voice. 2. A talking head **driven by that audio**. 3. Face capture from the video. 4. Translate. 5. Write. 6. Register | Mouth, plus brows, eyes and head from the video's performance | Per second of video (below), plus a free capture step |
 | D. A real performance | The modder films themselves saying the line (webcam), then C3 to C6 | The modder's own acting | Free |
@@ -103,7 +115,7 @@ Proposed by the owner on 2026-11-17: a command in EDGEfab opens a **Lip Sync** t
 
 | Part | Owner | Why |
 |---|---|---|
-| The tab, the made clip, the translation into the game's tracks | **EDGEfab** | A lip sync clip is one clip ([plan.md](plan.html), the split with EDGEdir, 2026-11-16) |
+| The tab, the made clip, the translation into the game's tracks | **EDGEfab** | A lip sync clip is one clip ([plan.md](https://edgemodders.github.io/EDGEfab/plan.html), the split with EDGEdir, 2026-11-16) |
 | The voice: cloned voice, speaking a line, re-voicing, the `.wem` | **EDGEwave** | It already does this through **ElevenLabs** (voice cloning and speech, with the modder's key), and has a Voice Lines contract with EDGEquest keyed by the line's decimal ruid. Its `.wem` route goes through the modder's own Wwise (spiked offline 2026-10-23, not finished) |
 | The line in a scene: its id, the screenplay line's clip names, voice map, subtitles, the mod `.lipmap` and its ArchiveXL entry | **EDGEquest** | It owns scenes |
 | Lip sync on a timeline: the face's lip sync lane, moods and gestures beside it | **EDGEdir** | It puts clips together; it asks EDGEfab for a line's clip |
@@ -147,7 +159,7 @@ So the modder types, listens and approves. Everything else can run by itself. A 
 
 ### Lip sync as a service for other tools
 
-Asked by the owner on 2026-11-17: another tool must be able to run the whole pipeline. EDGEdir's example: on its timeline the modder asks a character to say a line; under the hood EDGEdir hands the words to EDGEfab and gets back a voiced line with its clip, which it places on its lanes. The tab is then one caller of the pipeline among others, not the only way in. Proposed shape, following [Tools working together](tools-together.html):
+Asked by the owner on 2026-11-17: another tool must be able to run the whole pipeline. EDGEdir's example: on its timeline the modder asks a character to say a line; under the hood EDGEdir hands the words to EDGEfab and gets back a voiced line with its clip, which it places on its lanes. The tab is then one caller of the pipeline among others, not the only way in. Proposed shape, following [Tools working together](https://edgemodders.github.io/EDGEfab/tools-together.html):
 
 | Caller | Calls | Rule |
 |---|---|---|
@@ -240,7 +252,7 @@ Reviewed on 2026-11-17 by the EDGEfab build session, with REDbridge 0.14.0 (Wolv
 | The reading: characters, a character's lines by scene, one clip as curves | Core `src/core/lipsync` (`lipsyncCharacters`, `lipsyncLines`, `lipsyncClip`); exported clips are kept under `%LOCALAPPDATA%\EDGEfab\cache\lipsync` |
 | **EDGEfab: Open Lip Sync** | The command asks for a character; the tab lists its lines by scene (12 scenes a page, a scene filter), and a line shows its words, the voice as a waveform (through REDcode's `sound()`), the clip as curves in lanes (jaw, lips, tongue, brows, eyes, throat, controls, head and eye direction, overrides), a playhead, the value under the pointer, the game's track names one click away, and a mouth sketch from the jaw and lip tracks |
 | For assistants | MCP `fab_lipsync_lines`, `fab_lipsync_line` |
-| Tested | The reading against the game and the MCP tools, automated; the page in a browser with a real clip ([Tests](testing.html)). **Not yet opened in VS Code; the voice not yet heard** |
+| Tested | The reading against the game and the MCP tools, automated; the page in a browser with a real clip ([Tests](../testing.html)). **Not yet opened in VS Code; the voice not yet heard** |
 | Not built yet from FL1 | Opening from a scene's speaker or an `.anims`; the API for EDGEdir and EDGEquest; other languages in the tab (the core takes `language`) |
 
 ## Live lip sync: a line made while the game runs
@@ -316,9 +328,9 @@ Smallest first within each; LS1 decides the path. LS3 and LS4 need no game and c
 | LS4 Words to a shape schedule (no game) | Does text and timings give a believable sequence? | In core: words to speech sounds (CMUdict, BSD, with rules for unknown words), spread over each word's span, mapped to about 15 shapes made by hand from the track names, with the lead and blends; shown in the Lip Sync tab's lanes and mouth sketch under LS3's audio | The sketch reads as the line when played with the audio |
 | **LS5 An NPC says a typed line** (in the game; the phase test) | The whole path | A REDnode test app: type a line; ElevenLabs speaks it; `audio.play`; LS4's schedule drives LS2's inputs on a spawned NPC | The owner sees the mouth move in time with a line that did not exist before, and judges the delay and the look |
 
-**Built for LS1, 2026-11-17 (not run in the game):** the test archive's builder (`npm run lipsync:jaw --workspace extensions/edgefab -- <outFolder>`: the women's face graph with three numbers added to the jaw's lip sync track, the lip sync envelope and the jaw's override weight, each settable by `SetInputFloat` and through an anim feature) and a REDnode test app (`tools/spikes/ls1-jaw`: spawn, bark, the numbers, a wave at 10 and 30 changes a second). Found while building: the graph round trips through REDbridge's JSON with new nodes; a graph's inputs with a group read an **anim feature** declared in the graph (name and class), so the second way in uses a game class with three floats under a new feature name. The steps are on the [Tests](testing.html#spike-ls1-the-jaw-on-command) page.
+**Built for LS1, 2026-11-17 (not run in the game):** the test archive's builder (`npm run lipsync:jaw --workspace extensions/edgefab -- <outFolder>`: the women's face graph with three numbers added to the jaw's lip sync track, the lip sync envelope and the jaw's override weight, each settable by `SetInputFloat` and through an anim feature) and a REDnode test app (`tools/spikes/ls1-jaw`: spawn, bark, the numbers, a wave at 10 and 30 changes a second). Found while building: the graph round trips through REDbridge's JSON with new nodes; a graph's inputs with a group read an **anim feature** declared in the graph (name and class), so the second way in uses a game class with three floats under a new feature name. The steps are on the [Tests](../testing.html#spike-ls1-the-jaw-on-command) page.
 
-**LS1 passed in the game on 2026-11-20** ([Tests](testing.html#spike-ls1-the-jaw-on-command)). What it settles:
+**LS1 passed in the game on 2026-11-20** ([Tests](../testing.html#spike-ls1-the-jaw-on-command)). What it settles:
 
 | Finding | Meaning |
 |---|---|
@@ -332,7 +344,7 @@ Smallest first within each; LS1 decides the path. LS3 and LS4 need no game and c
 
 **The bar is above the game's barks (owner, 2026-11-20).** Watching the bark again, the owner found some of the game's own lip sync a poor match for what an English speaker's lips do, and hopes made lines can do better. A fit copies its examples, so numbers fitted on every line would land at the game's average. Proposed: the shapes come from how each sound is formed (closed lips for p, b, m; teeth on lip for f, v; rounded for oo, w), checked against the game's best lines (main characters in main quests) and not its crowd barks; the fit gives the timing behaviour only. LS4's test is then judged against the sound, not against the game's clip. **Unverified:** that main characters' lines are better than barks; the tab can show both side by side.
 
-**Built for LS2, 2026-11-20 (not run in the game):** 13 mouth shapes made by hand in core (`src/core/lipsync/shapes.ts`, with the feature's slots), the archive's builder (`npm run lipsync:shapes --workspace extensions/edgefab -- <outFolder> [speed]`) and the test app `tools/spikes/ls2-shapes` (each shape, every shape in turn, and "Hello there, how are you" as a hand-timed sequence without sound). One feature carries all 13 numbers, eased in the graph. Steps on the [Tests](testing.html#spike-ls2-mouth-shapes) page.
+**Built for LS2, 2026-11-20 (not run in the game):** 13 mouth shapes made by hand in core (`src/core/lipsync/shapes.ts`, with the feature's slots), the archive's builder (`npm run lipsync:shapes --workspace extensions/edgefab -- <outFolder> [speed]`) and the test app `tools/spikes/ls2-shapes` (each shape, every shape in turn, and "Hello there, how are you" as a hand-timed sequence without sound). One feature carries all 13 numbers, eased in the graph. Steps on the [Tests](../testing.html#spike-ls2-mouth-shapes) page.
 
 **Order:** LS1 steps 1 to 3 first. LS3 and LS4 beside it. LS2 and LS5 only after LS1 passes.
 
@@ -391,7 +403,7 @@ The owner asked on 2026-11-20 whether the tab will show the character's head spe
 | The solver: 414 track values in, the bones out | Core `src/core/lipsync/faceSolve.ts`, EDGEfab's own, written from the rules above in plain words; no GPL code was read into it. Pure, so the tab's page runs the same file. Left out for now: the left and right lip sync envelopes, `faceEnvelope`, `antiStretch`, pose scales, levels of detail. Limits and the kinds of influence are as described, not checked against the game |
 | A head from the game | Core `src/core/lipsync/face.ts`: `headModel` by the face rig a lip sync set names (the head's folder holds its meshes and setup) or by appearance; the setup in the solver's shape; each mesh as a GLB on the face rig, without materials; kept under `%LOCALAPPDATA%\EDGEfab\cache\lipsync\heads` |
 | The head in the tab | `src/webview/lipsyncHead.ts` (three.js, bundled to `dist/webview/lipsyncHead.js`, 585 KB): the head in place of the mouth sketch, posed at the playhead every frame, turned by dragging. A line shows the head it was made on |
-| Tested | The reading and the solver against the game; the page in a browser with a real line ([Tests](testing.html#the-head-in-the-lip-sync-tab-without-vs-code)) |
+| Tested | The reading and the solver against the game; the page in a browser with a real line ([Tests](../testing.html#the-head-in-the-lip-sync-tab-without-vs-code)) |
 | Not yet | Textures and eyes that look like eyes, hair, the mood under a line, the clip's own bone keys (head and neck), wrinkles; a head by character when no line is open |
 
 **Add a Line, built 2026-11-20 (first version; the real voice not yet through it):** a box in the tab takes the words; EDGEwave's `speakLine` ([EDGEwave #13](https://github.com/Edgemodders/EDGEwave/issues/13), on its main) gives the WAV and when each letter is spoken; core `speech.ts` turns the letters into mouth shapes by spelling rules and a short list of common words (each letter has its own time, so no pronouncing dictionary and no aligner), then into the game's lip sync tracks as a clip the head plays. **New Take** asks again. MCP `fab_lipsync_make` does the same from timings. Nothing is written into a project yet. Version 0: the shapes and rules are by hand, to be judged on the head.
@@ -435,7 +447,7 @@ The owner's question (2026-11-20): can a service give more detailed lip movement
 
 **A quicker first look, if the owner accepts a sign-up:** the hosted service on a line voiced through Add a Line (the modder's own audio), beside today's letter-based version of the same line. About two hours, no Docker. It answers "better than letters", not "better than the game".
 
-**Run 2026-11-21: it works on the owner's PC** ([Tests](testing.html#spike-a2f-audio2face-against-the-games-clip)). The container starts in about a minute; a line takes seconds; the output is a CSV, 30 frames a second from 0, columns `blendShapes.<name>`. Core `src/core/lipsync/arkit.ts` maps it by hand to the game's tracks, and the tab now offers **other versions of a line's lip sync** beside the game's (clips under the cache's `versions\<clip name>\`), on the same voice and head. Four of Panam's lines are there as "Audio2Face" (scaled to the game's range) and "Audio2Face, full strength". In numbers it is in time with the game's clip and a different performance (jaw r 0.25 to 0.64), stronger than the game, and weak on closed lips. **Whether it reads better is the owner's look, not yet had.**
+**Run 2026-11-21: it works on the owner's PC** ([Tests](../testing.html#spike-a2f-audio2face-against-the-games-clip)). The container starts in about a minute; a line takes seconds; the output is a CSV, 30 frames a second from 0, columns `blendShapes.<name>`. Core `src/core/lipsync/arkit.ts` maps it by hand to the game's tracks, and the tab now offers **other versions of a line's lip sync** beside the game's (clips under the cache's `versions\<clip name>\`), on the same voice and head. Four of Panam's lines are there as "Audio2Face" (scaled to the game's range) and "Audio2Face, full strength". In numbers it is in time with the game's clip and a different performance (jaw r 0.25 to 0.64), stronger than the game, and weak on closed lips. **Whether it reads better is the owner's look, not yet had.**
 
 **What could make it fail:** the container under WSL2 (undocumented for 2.0); the driver reports CUDA 13.5 where the pages ask for below 13.0; closed lips wrong until `MouthClose` is tuned; amplitudes solved for NVIDIA's own faces; it hears sound only, so it may smear consonants the game's clips hit. **Not verified:** the hosted service's terms on uploaded audio, its price, the CSV's columns, whether the container runs with no network after its first start.
 

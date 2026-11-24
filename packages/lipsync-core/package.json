@@ -1,0 +1,43 @@
+{
+  "name": "@edgemodders/lipsync-core",
+  "version": "0.1.0",
+  "description": "Lip sync for Cyberpunk 2077: a character's lip synced lines read from the game through REDbridge, one line's clip as curves, a head and its face solver to play it on, and lip sync made from when each letter of a line is spoken. For REDcode and its MCP server.",
+  "license": "MIT",
+  "author": "Edgemodders",
+  "homepage": "https://edgemodders.github.io/REDcode/design/lipsync.html",
+  "bugs": {
+    "url": "https://github.com/Edgemodders/REDcode/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Edgemodders/REDcode.git",
+    "directory": "packages/lipsync-core"
+  },
+  "keywords": [
+    "cyberpunk",
+    "cyberpunk2077",
+    "modding",
+    "lipsync",
+    "redbridge"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "node esbuild.mjs && tsc -p tsconfig.json --emitDeclarationOnly --declaration --noEmit false --outDir dist",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}

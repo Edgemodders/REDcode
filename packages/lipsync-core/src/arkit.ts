@@ -3,7 +3,7 @@
 // A spike's table, made by hand from the shapes' and the poses' names: the obvious and the plausible pairs
 // only. Nothing here is fitted, and none of it has been judged on the head yet. Pure: no Node, no VS Code.
 
-import type { LipsyncClip, LipsyncTrack } from "./index";
+import type { LipsyncClip, LipsyncTrack } from "./lines";
 
 /** One frame of face shapes: seconds from the audio's start, and each shape's weight by its ARKit name. */
 export interface ShapeFrame {

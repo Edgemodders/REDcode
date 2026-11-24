@@ -5,7 +5,7 @@
 // pronouncing dictionary: each letter already has its own time, so a letter's shape lands where it is spoken.
 // Not fitted on the game and not yet judged on the head by the owner. Pure: no Node, no VS Code.
 
-import type { LipsyncClip, LipsyncTrack } from "./index";
+import type { LipsyncClip, LipsyncTrack } from "./lines";
 import { MouthShapes } from "./shapes";
 
 /** When each character of a line is spoken, as ElevenLabs gives it (seconds from the audio's start). `spoken`

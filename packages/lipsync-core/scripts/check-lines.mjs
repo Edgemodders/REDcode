@@ -1,7 +1,7 @@
-// Test of the lip sync reading (docs/lipsync.md, FL1 See) against the game, without VS Code: the characters, one
+// Test of the lip sync reading (docs/research/lipsync.md, FL1 See) against the game, without VS Code: the characters, one
 // character's lines in one scene, and one line's clip as curves. Needs the game and REDbridge 0.14.0 or later
 // (found as the MCP server finds them: redcode.* in VS Code's settings, or PATH).
-// Usage (after npm run build): npm run lipsync --workspace extensions/edgefab [-- <outFolder>]
+// Usage (after npm run build --workspace packages/lipsync-core): node scripts/check-lines.mjs [<outFolder>]
 // With outFolder it also writes lines.json and clip.json there (game data: keep them out of the repo).
 import { createRequire } from "node:module";
 import * as fs from "node:fs";
@@ -9,8 +9,8 @@ import * as os from "node:os";
 import * as path from "node:path";
 
 const require = createRequire(import.meta.url);
-process.env.EDGEFAB_DATA ??= fs.mkdtempSync(path.join(os.tmpdir(), "edgefab-lipsync-"));
-const core = require("../dist/core.js");
+process.env.LIPSYNC_CACHE ??= fs.mkdtempSync(path.join(os.tmpdir(), "lipsync-lipsync-"));
+const core = require("./bridge.cjs");
 const out = process.argv[2];
 
 const failed = [];
@@ -25,7 +25,7 @@ const timed = async (what, run) => {
   return r;
 };
 
-const { client, call } = await core.startBridge(() => undefined);
+const { client, call } = await core.startBridge();
 try {
   const info = await call("bridge.info", {});
   console.log(`REDbridge ${info.version}, WolvenKit ${info.wolvenKit}, ${info.files} files`);
@@ -63,6 +63,17 @@ try {
 
   const v = await timed("V's first 3 scenes", () => core.lipsyncLines(call, { character: all[0].id, limit: 3 }));
   check(v.total === all[0].scenes && v.scenes.length === 3, `${all[0].voiceTag}: 3 of ${v.total} scenes a page`);
+
+  // The ways in from other views: a voice file to its line's lip sync, and a lip sync set to its character.
+  const voiced = await timed("a voice file's lip sync", () => core.lipsyncOfVoice(call, first.audio));
+  check(voiced?.character.voiceTag === "angelica_whelan" && voiced?.clip === first.clip && voiced?.set === scene.set, `Angie's voice file leads to her clip (${voiced?.character.voiceTag}, ${voiced?.clip})`);
+  const vLine = v.scenes.flatMap((s) => s.lines).find((l) => l.audio && l.gender === "male");
+  const vVoiced = vLine && (await timed("one of V's voice files", () => core.lipsyncOfVoice(call, vLine.audio)));
+  check(vVoiced?.character.voiceTag === "v" && vVoiced?.clip === vLine?.clip, `one of V's male lines leads to V's clip (${vLine?.audio}: ${vVoiced?.character.voiceTag}, ${vVoiced?.clip})`);
+  check((await core.lipsyncOfVoice(call, "base\\sound\\soundbanks\\1000.wem")) === undefined, "a sound that is no voice line has no lip sync");
+  const ofSet = await timed("a set's character", () => core.lipsyncOfSet(call, scene.set));
+  check(ofSet?.character.voiceTag === "angelica_whelan" && ofSet?.scene === scene.scene, `Angie's set leads to her and the scene (${ofSet?.character.voiceTag})`);
+  check(core.lipsyncSetLanguage(scene.set) === "en-us" && core.lipsyncSetLanguage("base\\animations\\npc\\generic.anims") === undefined, "a lip sync set is known by its path");
 
   let refused = "";
   try {

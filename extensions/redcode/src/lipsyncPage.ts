@@ -2,7 +2,7 @@
 // It only draws what the extension sends (src/lipsyncTab.ts) and asks for more; it reads nothing itself.
 // The script uses no template literals, so it can sit in one here.
 
-/** `headScript` is the head viewer's script (dist/webview/lipsyncHead.js) as a webview address; without it the
+/** `headScript` is the head viewer's script (media/lipsync/head.js) as a webview address; without it the
  *  tab shows the mouth sketch only. */
 export function lipsyncHtml(cspSource: string, headScript?: string): string {
   const nonce = Array.from({ length: 24 }, () => "abcdefghijklmnopqrstuvwxyz0123456789"[Math.floor(Math.random() * 36)]).join("");
@@ -259,7 +259,7 @@ ${headScript ? `<script nonce="${nonce}" src="${headScript}"></script>` : ""}
   }
 
   // A mouth from four numbers: how far the jaw opens, how wide the lips stretch, how far they purse, and whether
-  // they close. A sketch to read the curves by, until a real head shows in the tab (docs/lipsync.md, R-face).
+  // they close. A sketch to read the curves by, until a real head shows in the tab (docs/research/lipsync.md, R-face).
   function drawMouth() {
     // The real head, when one is loaded: posed by the face solver at the playhead.
     if (window.lipsyncHead && window.lipsyncHead.ready) { window.lipsyncHead.show(state.clip, state.at); return; }
@@ -384,12 +384,13 @@ ${headScript ? `<script nonce="${nonce}" src="${headScript}"></script>` : ""}
     $("meta").textContent = l.clip + " · " + l.seconds.toFixed(2) + " s, " + l.frames + " frames · line " + l.lineId + " · " + sc.set;
     $("audioNote").textContent = ""; $("readout").textContent = "Reading the clip"; $("tracks").hidden = true;
     var c = $("curves"); c.getContext("2d").clearRect(0, 0, c.width, c.height);
+    state.scene = sceneName(sc.scene);
     host.postMessage({ type: "open", set: sc.set, clip: l.clip, audio: l.audio });
     remember();
   }
 
   // What VS Code keeps for this tab over a window reload: the character, and the line that is open.
-  function remember() { if (host.setState) host.setState({ character: state.character, clip: state.line ? state.line.clip : undefined, volume: Number($("volume").value) }); }
+  function remember() { if (host.setState) host.setState({ character: state.character, clip: state.line && !state.line.made ? state.line.clip : undefined, scene: state.line && !state.line.made ? state.scene : undefined, volume: Number($("volume").value) }); }
 
   function setStatus(s, bad) { var e = $("status"); e.textContent = s; e.className = bad ? "bad" : ""; }
 
@@ -418,7 +419,7 @@ ${headScript ? `<script nonce="${nonce}" src="${headScript}"></script>` : ""}
       $("tag").textContent = "voice tag " + m.character.voiceTag + " · " + m.character.scenes + (m.character.scenes === 1 ? " scene" : " scenes") + " · " + m.language;
       state.twoVoices = /^v(_|$)/.test(m.character.voiceTag);
       state.character = m.character.voiceTag; state.reopen = m.reopen || null;
-      state.clip = null; state.line = null; $("detail").hidden = true; $("empty").hidden = false; $("filter").value = "";
+      state.clip = null; state.line = null; $("detail").hidden = true; $("empty").hidden = false; $("filter").value = m.scene || "";
       remember();
       $("say").placeholder = "Type a new line for " + m.character.name + ", then press Enter"; $("again").hidden = true; sayNote("");
     } else if (m.type === "made") {
