@@ -37,8 +37,8 @@ Plus the owner's idea: **open REDcode's sector view for the place you are in the
 Measured on `exterior_-22_7_0_0` on 2026-11-24 (REDbridge 0.19.0, `sector.find` and `sector.nodes`):
 
 - **A level 0 exterior sector is a grid cell about 64 m across.** 549 of its 571 placed things stand in cell -22, 7; the other 22 stand just over one edge. That a thing goes to the cell it stands in is a reading of these numbers, **unverified** across the city.
-- **What stands in the cell reaches much further.** The sector's own things fill a box about 268 m across, and none reaches past the sector's streaming box. So the neighbours' things reach into this cell the same way.
-- **Many sectors meet that box:** 105 other level 0 exteriors, 320 coarser exteriors (levels 1 to 6), 50 interiors, 10 navigation, 4 always loaded, and 2,789 quest sectors, many with very large boxes.
+- **The sector's streaming box is much larger than its things.** Its things fill a box about 63 × 51 × 22 m, close to the cell; its streaming box is about 268 m across, and none of its things reaches past it. Neighbours' things that stand near an edge can reach into this cell.
+- **Many sectors' streaming boxes meet that 268 m box:** 105 other level 0 exteriors, 320 coarser exteriors (levels 1 to 6), 50 interiors, 10 navigation, 4 always loaded, and 2,789 quest sectors, many with very large boxes.
 
 So a box that meets this one says only that a sector **might** reach in. The layer list narrows it to sectors with things that do.
 
@@ -61,7 +61,17 @@ So a box that meets this one says only that a sector **might** reach in. The lay
 2. **Narrowed by the things themselves.** For each candidate, `sector.nodes` with `bounds`, no mesh export. A sector stays on the list when at least one of its things' bounds meets that box; the count on its row is how many do. A thing with no bounds counts as reaching in when its position is inside the box, and is marked so.
 3. **Kept.** The narrowed list is cached per game build, so the tab opens at once the second time.
 
-**Probe first (P1):** how long step 2 takes on three busy sectors, quest sectors included. If it is slow, the Global group is narrowed only when opened, or REDbridge does steps 1 and 2 in one call (a request, below).
+**Probe P1 (2026-11-24, `exterior_-22_7_0_0`, REDbridge 0.19.0):** the box around the sector's own things is 63 × 51 × 22 m. Its candidates and what step 2 found:
+
+| Kind | Candidates | Reach in | First read |
+|---|---|---|---|
+| Exterior | 283 | 13 (295 things, 71 by position only) | 42 s, 148 ms each, slowest 1.4 s |
+| Interior | 20 | 0 | 0.3 s |
+| Quest | 2,789 | 0 | 14 s, 5 ms each |
+| Navigation | 9 | 0 | 2 s |
+| Always loaded | 4 | 0 | 5 s |
+
+So the narrowing is worth it (13 of 3,105 candidates), but about a minute the first time, and reading again costs nearly as much (200 sectors in 12 s): REDbridge keeps no bounds between calls. **As built in L1:** REDcode keeps each sector's things' boxes in a disk cache (`overlaps/`, per game build, beside the mesh cache), checks the candidates nearest first, and fills the list as it goes ("Checking 120 of 283…"), with the Global group last. A place is slow once. REDbridge's one-call narrowing (#23, item 3) is not needed for now.
 
 ## Selecting and changing across layers
 
