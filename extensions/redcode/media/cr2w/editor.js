@@ -84,6 +84,8 @@
     } else if (m.type && m.type.startsWith("sector") && m.type !== "sectorPayload") {
       // The sector view's meshes, markers and progress, streamed by the host while it loads.
       if (mode === "sector" && meshView?.receive) meshView.receive(m);
+      // A script's line for a view not up yet (a run applied to a project's copy, which opens with it): kept for it.
+      else if (m.type === "sectorScript") pendingScriptLine = m;
     } else if (m.type === "showSectorEntry") {
       // REDcodeApi.openSector's select: the node data entry, picked and framed; before the view is up, it waits.
       if (sidebar) return;
@@ -356,6 +358,7 @@
   // The sector in 3D, read-only (docs/design/sector-view.md): the host reads it with REDbridge's sector.nodes,
   // exports each mesh once and streams them over; a click on a thing selects its node data entry.
   let pendingSectorEntry = null;
+  let pendingScriptLine = null;
 
   function renderSector() {
     return mountOnce(buildSector);
@@ -403,6 +406,10 @@
         say: (message) => status(message, "error"),
       });
       meshShown = true;
+      if (pendingScriptLine && meshView?.receive) {
+        meshView.receive(pendingScriptLine);
+        pendingScriptLine = null;
+      }
       if (payload.dirty) status("Shows the saved file; save to see your edits");
     } catch (e) {
       grid.replaceChildren(el("div", "error", `Could not show the sector: ${e.message}`));
