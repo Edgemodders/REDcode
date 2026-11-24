@@ -1532,6 +1532,40 @@ await check("sector layers: findOverlaps keeps sectors whose things reach in, in
   assert.deepEqual(calls.filter((c) => c.startsWith("sector.nodes")), ["sector.nodes own.streamingsector"]);
 });
 
+await check("cr2wValues: a buffer REDbridge sends whole becomes a read-only tree, read below from the value", async () => {
+  const cv = require("../dist/cr2wValues.js");
+  const buffer = {
+    Data: null,
+    InnerNodes: Array.from({ length: 570 }, (_, i) => ({ $type: "worldInstancedMeshInnerNode", mesh: { DepotPath: { $type: "ResourcePath", $storage: "string", $value: `m${i}.mesh` }, Flags: "Soft" }, lodLevelScales: 4294967295 })),
+    TransformRanges: Array.from({ length: 570 }, (_, i) => ({ $type: "TransformRange", transformCount: 1, transformIndex: i })),
+  };
+  const calls = [];
+  // A stand-in REDbridge: the buffer node with its Data as one value, and nothing below it.
+  const fetch = async (p, offset, limit) => {
+    calls.push(p);
+    if (p === "nodes.179.Data.buffer") return { path: p, kind: "buffer", type: "DataBuffer", value: null, children: [{ name: "Data", kind: "value", type: "worldInstancedMeshNodeBuffer", preview: "WolvenKit.RED4.Types.worldInstancedMeshNodeBuffer", count: null, value: buffer }], total: null, offset: null };
+    if (p === "nodes.179.Data.buffer.Data") return { path: p, kind: "value", type: "worldInstancedMeshNodeBuffer", value: buffer, children: null, total: null, offset: null };
+    if (p.startsWith("nodes.179.Data.buffer.Data.")) throw new Error(`'${p}': 'InnerNodes' is below a value, which has no children`);
+    throw new Error(`no ${p}`);
+  };
+  const cache = new Map();
+  const b = await cv.readNode(fetch, cache, "nodes.179.Data.buffer");
+  assert.deepEqual([b.children[0].kind, b.children[0].type, b.children[0].value], ["class", "worldInstancedMeshNodeBuffer", null], "the Data child opens, without its big value");
+  const d = await cv.readNode(fetch, cache, "nodes.179.Data.buffer.Data");
+  assert.deepEqual(d.children.map((c) => [c.name, c.kind, c.count]), [["Data", "null", null], ["InnerNodes", "array", 570], ["TransformRanges", "array", 570]]);
+  assert.equal(d.readOnly, true);
+  const page = await cv.readNode(fetch, cache, "nodes.179.Data.buffer.Data.InnerNodes", 400, 200);
+  assert.deepEqual([page.kind, page.total, page.offset, page.children.length, page.children[0].name], ["array", 570, 400, 170, "400"]);
+  calls.length = 0;
+  const one = await cv.readNode(fetch, cache, "nodes.179.Data.buffer.Data.InnerNodes.541");
+  assert.equal(calls.length, 0, "below the value, read from the cache");
+  const mesh = one.children.find((c) => c.name === "mesh");
+  assert.deepEqual([one.type, mesh.kind, mesh.value?.DepotPath?.$value], ["worldInstancedMeshInnerNode", "class", "m541.mesh"], "a small struct carries its value inline");
+  const range = await cv.readNode(fetch, new Map(), "nodes.179.Data.buffer.Data.TransformRanges.541.transformIndex");
+  assert.deepEqual([range.kind, range.value], ["value", 541], "a path below the value, cold: found by going up to the value");
+  await assert.rejects(cv.readNode(fetch, cache, "nodes.179.Data.buffer.Data.InnerNodes.570"), /No item 570/);
+});
+
 fs.rmSync(tmp, { recursive: true, force: true });
 console.log(`${passed} passed${failures.length ? `, ${failures.length} failed` : ""}`);
 process.exit(failures.length ? 1 : 0);

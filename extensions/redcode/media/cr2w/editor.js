@@ -600,7 +600,8 @@
     let n;
     try { n = await fetchNode(selected); } catch (e) { if (seq === renderSeq) grid.replaceChildren(el("div", "error", e.message)); return; }
     if (seq !== renderSeq) return;
-    const readOnly = isCompiled(selected) || !!info?.readOnly;
+    // n.readOnly: read from a value REDbridge cannot walk into (src/cr2wValues.ts), so not editable here.
+    const readOnly = isCompiled(selected) || !!info?.readOnly || !!n.readOnly;
     if (info?.readOnly && selected === "") {
       rows.push(el("div", "banner", "This is the game's copy and is read-only. Add the file to the project to edit it."));
     } else if (isCompiled(selected)) {

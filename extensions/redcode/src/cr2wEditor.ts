@@ -4,6 +4,7 @@
 // document keeps the forward operations since the last save, so a backup is that log and a bridge
 // restart is survived by reopening the file and replaying it.
 
+import { readNode, type Cr2wNode } from "./cr2wValues";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as vscode from "vscode";
@@ -88,6 +89,20 @@ function archiveRootOf(file: string): string | undefined {
 function archiveGamePathOf(file: string): string | undefined {
   const dir = projectDirOf(file);
   return dir === undefined ? undefined : file.slice(dir.length + ProjectFolders.archive.length + 2).split(path.sep).join("\\");
+}
+
+/** Per document, the values REDbridge answers whole (src/cr2wValues.ts), by path; cleared when the document changes. */
+const valueCaches = new WeakMap<Cr2wDocument, Map<string, { value: unknown; type: string }>>();
+function valueCacheOf(document: Cr2wDocument): Map<string, { value: unknown; type: string }> {
+  let cache = valueCaches.get(document);
+  if (!cache) {
+    const made = new Map<string, { value: unknown; type: string }>();
+    cache = made;
+    valueCaches.set(document, made);
+    document.onDidChange(() => made.clear());
+    document.onDidReload(() => made.clear());
+  }
+  return cache;
 }
 
 export class Cr2wDocument implements vscode.CustomDocument {
@@ -647,8 +662,12 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
             }
             return;
           }
-          case "getNode":
-            return reply(m.id, await this.requireBridge().getNode(document.doc, m.path ?? "", m.offset ?? 0, m.limit ?? 200));
+          case "getNode": {
+            // Below a value REDbridge cannot walk into (a worldInstancedMeshNode's buffers), read from that value.
+            const bridge = this.requireBridge();
+            const fetch = (p: string, o: number, l: number) => bridge.getNode(document.doc, p, o, l) as Promise<Cr2wNode>;
+            return reply(m.id, await readNode(fetch, valueCacheOf(document), m.path ?? "", m.offset ?? 0, m.limit ?? 200));
+          }
           case "getNodes":
             return reply(m.id, await this.requireBridge().getNodes(document.doc, m.paths ?? [], m.limit ?? 200));
           case "search":
