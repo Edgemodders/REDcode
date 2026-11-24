@@ -24,7 +24,7 @@ import { findProject, gamePathOf } from "../../../extensions/redcode/src/project
 import type { PatchOp } from "../../../extensions/redcode/src/types";
 import { projectStateFile } from "../../../extensions/redcode/src/rednodeService";
 import { changeToOp, describeChange, sectorNodes, type NodeChange, type SectorNode } from "../../../extensions/redcode/src/sectorNodes";
-import { listScripts, myScriptsDir, projectScriptsDir, runScript, type ScriptPlace } from "../../../extensions/redcode/src/sectorScripts";
+import { listScripts, myScriptsDir, projectScriptsDir, runScript, ScriptApi, writeScript, type ScriptInfo, type ScriptPlace } from "../../../extensions/redcode/src/sectorScripts";
 
 // The package version, set by esbuild from package.json.
 declare const __VERSION__: string;
@@ -876,14 +876,41 @@ tool("script_list", "The modder's sector scripts, as REDcode's Scripts menu list
   project: z.string().optional().describe("The WolvenKit project's folder; by default the one REDcode has open."),
 }, async (a) => listScripts(scriptPlaces(a.project)).map((s) => ({ name: s.name, description: s.description, place: s.place, file: s.file })));
 
-tool("script_run", `Runs one of the modder's sector scripts (script_list) on a .streamingsector, in its own process, and returns what it selected and the changes it would make. Changes are written only with apply: true, and only to a project's copy, as sector_patch does. game.read works; tools.call and agent.request work only in REDcode. A script runs as the modder: run only scripts the modder knows.`, {
+/** A listed script by its name or its file. */
+const findScript = (list: ScriptInfo[], script: string) =>
+  list.find((x) => x.file.toLowerCase() === path.resolve(script).toLowerCase()) ?? list.find((x) => x.name.toLowerCase() === script.toLowerCase());
+
+tool("script_read", "The text of one of the modder's sector scripts (script_list), to learn from an example or to change a script: write the changed text back with script_write.", {
+  script: z.string().describe("The script's name, as script_list gives it, or its .mjs file."),
+  project: z.string().optional().describe("The WolvenKit project's folder; by default the one REDcode has open."),
+}, async (a) => {
+  const list = listScripts(scriptPlaces(a.project));
+  const s = findScript(list, a.script);
+  if (!s) throw new Error(`No script ${a.script}. script_list names them: ${list.map((x) => x.name).join(", ")}`);
+  return fs.readFileSync(s.file, "utf8");
+});
+
+tool("script_write", `Writes a new sector script, or replaces one, where REDcode's Scripts menu lists it at once (the Scripts button in a sector's 3D view) and script_run runs it. ${ScriptApi} The text is parsed, not run: try it with script_run without apply. The file is named after the script's name. In REDcode the modder is shown a script that has not run there before and asked before its first run. script_read on an example shows a whole script.`, {
+  source: z.string().describe("The script's whole text."),
+  place: z.enum(["project", "mine"]).optional().describe("project: the project's .redcode\\scripts, which travels with the project and is never packed. mine: the modder's own scripts, offered in every project. By default the project's when there is one."),
+  overwrite: z.boolean().default(false).describe("Replace a script of the same name in that place."),
+  project: z.string().optional().describe("The WolvenKit project's folder; by default the one REDcode has open."),
+}, async (a) => {
+  const project = a.project ?? currentProjectDir();
+  const place = a.place ?? (project ? "project" : "mine");
+  if (place === "project" && !project) throw new Error("No project: pass project, open one in REDcode, or use place: mine");
+  const s = writeScript(place === "project" ? projectScriptsDir(project!) : myScriptsDir(), place, a.source, a.overwrite);
+  return { name: s.name, description: s.description, place: s.place, file: s.file, replaced: s.replaced };
+});
+
+tool("script_run", `Runs one of the modder's sector scripts (script_list) on a .streamingsector, in its own process, and returns what it selected and the changes it would make. Changes are written only with apply: true, and only to a project's copy, as sector_patch does. game.read works; tools.call and agent.request work only in REDcode. A script runs as the modder: run only scripts the modder knows, or one written with script_write for what the modder asked.`, {
   ...SectorSourceShape,
   script: z.string().describe("The script's name, as script_list gives it, or its .mjs file."),
   entries: z.array(z.number().int()).optional().describe("Run on these node data entries only, as Run on Selection does."),
   apply: z.boolean().default(false).describe("Write its changes to the project's copy and save it."),
 }, async (a, b) => {
   const list = listScripts(scriptPlaces(a.project));
-  const s = list.find((x) => x.file.toLowerCase() === path.resolve(a.script).toLowerCase()) ?? list.find((x) => x.name.toLowerCase() === a.script.toLowerCase());
+  const s = findScript(list, a.script);
   if (!s && !(path.isAbsolute(a.script) && fs.existsSync(a.script))) throw new Error(`No script ${a.script}. script_list names them: ${list.map((x) => x.name).join(", ")}`);
   const file = s?.file ?? a.script;
   const read = await readSector(b, a);

@@ -1413,6 +1413,24 @@ await check("sector scripts: names from the text, file names, the template lists
   assert.deepEqual(list.map((s) => s.name), ["Alpha", "Beta"]);
   assert.equal(list[0].place, "mine");
 });
+await check("sector scripts: a written script is checked, named by its name, listed, and replaced only when asked", () => {
+  const dir = path.join(tmp, "written", ".redcode", "scripts");
+  const source = `export default { name: "Far Lights", description: "Finds lights", visit(node, ctx) { if (node.type.includes("Light")) ctx.select(node); } };`;
+  const s = ss.writeScript(dir, "project", source);
+  assert.equal(s.file, path.join(dir, "far-lights.mjs"));
+  assert.deepEqual([s.name, s.description, s.place, s.replaced], ["Far Lights", "Finds lights", "project", false]);
+  assert.deepEqual(ss.listScripts([{ place: "project", dir }]).map((x) => x.name), ["Far Lights"]);
+  assert.throws(() => ss.writeScript(dir, "project", source), /already/);
+  assert.equal(ss.writeScript(dir, "project", source, true).replaced, true);
+  assert.match(ss.checkScript(""), /empty/);
+  assert.match(ss.checkScript(`const x = { name: "A", visit() {} };`), /no default export/);
+  assert.match(ss.checkScript(`export default { name: "A" };`), /neither visit/);
+  assert.match(ss.checkScript(`export default { visit() {} };`), /no name/);
+  assert.match(ss.checkScript(`export default { name: "A", visit(node, ctx) { if ( } };`), /does not parse[\s\S]*SyntaxError/);
+  assert.equal(ss.checkScript(ss.scriptTemplate("Alpha")), undefined);
+  assert.throws(() => ss.writeScript(dir, "project", `export default { name: "B", visit() { ` ), /does not parse/);
+  assert.equal(fs.existsSync(path.join(dir, "b.mjs")), false);
+});
 await check("sector scripts: a run in its own process selects, changes, calls REDcode and fails cleanly", async () => {
   const json = write("scripts/sector.json", JSON.stringify(sectorJson()));
   const runner = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "dist", "scriptRunner.js");

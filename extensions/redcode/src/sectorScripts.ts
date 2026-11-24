@@ -1,7 +1,7 @@
 // Sector scripts (docs/design/sector-scripts.md): where the scripts are, what each is called, and a run in
 // its own process (dist/scriptRunner.js). No VS Code imports: the MCP server lists and runs scripts too.
 
-import { fork, type ChildProcess } from "node:child_process";
+import { fork, spawnSync, type ChildProcess } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -93,6 +93,60 @@ export default {
   },
 };
 `;
+}
+
+/** What a script is, for an assistant that writes one (the MCP tool script_write). */
+export const ScriptApi =
+  "A script is an ES module (.mjs, run by Node in its own process, so it may import node: modules) whose default export is " +
+  "{ name, description, visit(node, ctx) } or { name, description, run(ctx) }: name and description as plain string literals, which the Scripts menu shows. " +
+  "visit is called once for every node, or for the selected ones; run is called once and walks ctx.nodes() or ctx.selected() itself. Either may be async. " +
+  "node: id, entry, type, debugName, mesh, resource, appearance, position [x, y, z] (game axes), streamingDistance, get(path), set(path, value), json { node, entry }, inner (a cooked node's inner node). " +
+  "ctx: select(node), deselect(node), log(...), nodes(), selected(), sector, await game.read(path); tools.call(extension, method, ...args) and agent.request(text, nodes) work only in REDcode. " +
+  "node.set only records a change: nothing is written until the modder chooses Apply in REDcode, or script_run is called with apply: true.";
+
+/** The largest script script_write takes. */
+const MaxScriptBytes = 200_000;
+
+/** What is wrong with a script's text, or undefined. It is parsed by Node but never run. */
+export function checkScript(source: string): string | undefined {
+  if (!source.trim()) return "The script is empty";
+  if (Buffer.byteLength(source, "utf8") > MaxScriptBytes) return `The script is over ${MaxScriptBytes / 1000} KB`;
+  if (!/\bexport\s+default\b/.test(source)) return "The script has no default export: export default { name, description, visit(node, ctx) { ... } }";
+  if (!/\b(visit|run)\b/.test(source)) return "The script's default export has neither visit(node, ctx) nor run(ctx)";
+  if (!/\bname\s*:\s*["'`]/.test(source)) return 'The script\'s default export has no name: add name: "..." as a plain string, which the Scripts menu shows';
+  let dir: string | undefined;
+  try {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), "redcode-script-"));
+    const file = path.join(dir, "script.mjs");
+    fs.writeFileSync(file, source);
+    // --check parses and stops; ELECTRON_RUN_AS_NODE for when this runs inside VS Code.
+    const r = spawnSync(process.execPath, ["--check", file], { env: { ...process.env, ELECTRON_RUN_AS_NODE: "1" }, encoding: "utf8", windowsHide: true, timeout: 20_000 });
+    if (r.status !== 0 && r.stderr) {
+      const lines = r.stderr.split(/\r?\n/).filter((l) => l.trim() && !/^\s+at |^Node\.js v/.test(l));
+      return `The script does not parse:\n${lines.join("\n").split(file).join("script.mjs").replace(/file:\/\/\/\S*script\.mjs/g, "script.mjs")}`;
+    }
+  } catch {
+    // Not checked: the run says what is wrong.
+  } finally {
+    if (dir) fs.rmSync(dir, { recursive: true, force: true });
+  }
+  return undefined;
+}
+
+/**
+ * Writes a script into a scripts folder under the file name its name gives, where the Scripts menu finds it.
+ * A file already there is replaced only with overwrite.
+ */
+export function writeScript(dir: string, place: ScriptPlace, source: string, overwrite = false): ScriptInfo & { replaced: boolean } {
+  const problem = checkScript(source);
+  if (problem) throw new Error(problem);
+  const { name, description } = describeScript(source, "script.mjs");
+  const file = path.join(dir, scriptFileName(name));
+  const replaced = fs.existsSync(file);
+  if (replaced && !overwrite) throw new Error(`There is a script ${file} already. Pass overwrite to replace it, or give this one another name.`);
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(file, source.endsWith("\n") ? source : `${source}\n`);
+  return { file, place, name, description, replaced };
 }
 
 /** What a run gives back. */

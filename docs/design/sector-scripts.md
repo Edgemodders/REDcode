@@ -90,6 +90,7 @@ In redcode-mcp, the server assistants already use. They work on files on disk th
 | `sector_node` | One node and its node data entry, in full |
 | `sector_patch` | Changes to a project's copy of a sector, as JSON Patch on nodes and node data. Refuses a game file and says to add it to the project first |
 | `script_list`, `script_run` | The modder's scripts, run by name on a sector, returning what they selected and the changes they would make. Changes are applied only with `apply: true` |
+| `script_read`, `script_write` | Added 2026-11-24 (the owner): an assistant writes a script itself. `script_write` takes the whole text, parses it without running it (`node --check`), and writes it into the project's `.redcode\scripts` or the modder's own scripts under the file name its `name` gives; a script of that name is replaced only with `overwrite`. The Scripts menu reads the folders each time it opens, so the script is there at once, and REDcode's first-run question shows it to the modder before it runs there. `script_read` gives a script's text, an example's too |
 | `request_get`, `request_done` | The requests scripts made |
 
 ## Phases
@@ -121,7 +122,8 @@ In redcode-mcp, the server assistants already use. They work on files on disk th
 | The snapshot a run reads: the saved file as JSON, or with unsaved edits a second session that replays them, saved to a scratch file, so the editor's own session keeps its file | `Cr2wDocument.snapshotJson` in `src/cr2wEditor.ts` |
 | The Scripts button, its spinner and count, Stop, the result line, the selection a script makes (an instanced node as each copy it draws) | `webview/sectorViewer.ts` |
 | Three examples: Short streaming distance, Raise short streaming distances, Every copy of these meshes (the "every copy of a mesh" request, as a script for now) | `media/scripts/` |
-| `sector_nodes`, `sector_node`, `sector_patch`, `script_list`, `script_run`, `request_get`, `request_done` | `packages/redcode-mcp/src/server.ts`; the runner and the examples ship beside it in `dist/` |
+| `checkScript`, `writeScript` and `ScriptApi` (what a script is, as `script_write` tells an assistant) | `src/sectorScripts.ts` |
+| `sector_nodes`, `sector_node`, `sector_patch`, `script_list`, `script_read`, `script_write`, `script_run`, `request_get`, `request_done` | `packages/redcode-mcp/src/server.ts`; the runner and the examples ship beside it in `dist/` |
 
 Small choices made while building:
 
