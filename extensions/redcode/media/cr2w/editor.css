@@ -75,6 +75,9 @@ li.more { color: var(--cyan); cursor: pointer; }
 
 /* footer search */
 #search, #filter, #partsFilter { background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border, var(--line)); padding: 2px 8px; font: inherit; font-family: var(--mono); font-size: 12px; min-width: 220px; }
+/* Wide enough for a pasted path such as nodes.179.Data.buffer.Data.InnerNodes.541. */
+#search { flex: 0 1 560px; min-width: 260px; }
+#status { overflow: hidden; text-overflow: ellipsis; }
 #search:focus, #filter:focus, #partsFilter:focus { outline: 1px solid var(--accent); border-color: var(--accent); }
 /* Each hit is two lines: the path with its type at the right, then the preview. Both wrap, so nothing is cut off. */
 .results { display: flex; flex-direction: column; min-width: 0; }

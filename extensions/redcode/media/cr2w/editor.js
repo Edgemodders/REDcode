@@ -5,6 +5,8 @@
 (() => {
   const vscode = acquireVsCodeApi();
   const $ = (id) => document.getElementById(id);
+  // What the footer showed as the selected path, before the search box took its place (the Properties heading says it).
+  let shownPath = "";
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 
   // ---- extension messaging ------------------------------------------------------------------
@@ -55,10 +57,10 @@
       // Another page edited the document: refetch and redraw, keeping the selection and expansion.
       reloadAll("an edit elsewhere");
     } else if (m.type === "select") {
-      if (sidebar) { selected = m.path ?? ""; $("selected").textContent = selected || "(root)"; void renderGrid(); }
+      if (sidebar) { selected = m.path ?? ""; shownPath = selected || "(root)"; void renderGrid(); }
       // The table, atlas and 3D views fill the grid themselves: keep the selection for the tree, do not draw over them.
       // So do the first moments of opening, while the editor still works out which view the file gets.
-      else if (opening || isSpecial()) { selected = m.path ?? ""; $("selected").textContent = selected || "(root)"; }
+      else if (opening || isSpecial()) { selected = m.path ?? ""; shownPath = selected || "(root)"; }
       else { expandTo(m.path ?? ""); void select(m.path ?? "", true, true); }
     } else if (m.type === "attach") {
       nodes.clear();
@@ -72,7 +74,7 @@
       if (sidebar) return;
       selected = m.path ?? "";
       expandTo(selected);
-      if (opening) { revealing = true; $("selected").textContent = selected || "(root)"; }
+      if (opening) { revealing = true; shownPath = selected || "(root)"; }
       else { mode = "tree"; void render(true).then(() => revealInTree(selected)); }
     } else if (m.type === "showRow") {
       // The host asks for a table row (LocKeys: Add to Project Onscreens); before the table is up, it waits for it.
@@ -172,7 +174,7 @@
       table = null;
       atlas = null;
       selected = m.selected ?? "";
-      $("selected").textContent = selected || "(root)";
+      shownPath = selected || "(root)";
       await reloadAll("open");
       return;
     }
@@ -585,7 +587,7 @@
     for (const r of document.querySelectorAll("#tree .row.selected")) r.classList.remove("selected");
     const li = document.querySelector(`li[data-path="${CSS.escape(path)}"]`);
     li?.querySelector(":scope > .row")?.classList.add("selected");
-    $("selected").textContent = path || "(root)";
+    shownPath = path || "(root)";
     if (!silent) vscode.postMessage({ type: "selected", path });
     await renderGrid();
   }
@@ -1474,7 +1476,7 @@
     }
     if (seq !== renderSeq) return;
     if (!a.parts.some((p) => p.path === selected)) selected = a.parts[0]?.path ?? "";
-    $("selected").textContent = selected || "(root)";
+    shownPath = selected || "(root)";
     renderPartsList();
 
     // The stage: the texture with the overlay, or a note when there is nothing to draw.
@@ -1615,7 +1617,7 @@
   /** Selects a part in the list and on the image, and shows its form, without touching the rest of the page. */
   async function selectPart(path) {
     selected = path;
-    $("selected").textContent = path;
+    shownPath = path;
     vscode.postMessage({ type: "selected", path });
     for (const x of document.querySelectorAll("#partsList .part.selected, .stage svg g.selected")) x.classList.remove("selected");
     const row = document.querySelector(`#partsList .part[data-path="${CSS.escape(path)}"]`);
