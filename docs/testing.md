@@ -42,7 +42,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Animation Tools AT2](#animation-tools-at2) | By hand, in REDcode and the game | Animation Tools AT2 | 2026-11-22 | Not run (checked offline: typecheck, unit 75, anim-core 22, the MCP tools over stdio) |
 | [Animation Tools pack (AT3)](#animation-tools-pack-at3) | By hand, in the game | Animation Tools AT3 | 2026-11-22 | **Passed** 2026-11-24 (run 2, with the fixes it raised) |
 | [Animation Editor (AE1)](#animation-editor-ae1) | Script, MCP client, and by hand in the game | Animation Editor AE1 | 2026-11-24 | Script and MCP passed; in the game not run |
-| [CR2W editor: buffers and nodeData](#cr2w-editor-buffers-and-nodedata) | By hand | A modder's report, 2026-11-24 | 2026-11-24 | Not run (checked in Chrome over the real REDbridge) |
+| [CR2W editor: buffers and nodeData](#cr2w-editor-buffers-and-nodedata) | By hand | A modder's report, 2026-11-24 | 2026-11-24 | **Passed** 2026-11-24 |
 | [Replace with a WAV, titled models (#29), every window's project (#32)](#replace-with-a-wav-titled-models-29-and-every-windows-project-32) | By hand, in the game | Requests | 2026-11-20 | Pass (owner), with two fixes |
 | [Replace All](#replace-all) | By hand, in the game | Requests | 2026-11-20 | Pass (owner), with one fix |
 | [Sector view](#sector-view) | By hand | C5 | 2026-11-20 | Pass (owner), with two fixes and five changes, each retested |
@@ -854,6 +854,8 @@ F5 with **Run REDcode**; in Game Assets open `base\worlds\03_night_city\_compile
 | B3 | Select `nodeData` > `Data` > `1441` | Below its fields: **nodeIdx 179 → nodes[179]** with the node's fields, and **instanceIndex 541 → InnerNodes[541]** with the mesh `wat_kab_building_f_ceiling_w300_ab.mesh` and 5 transforms from [2223] |
 | B4 | **Show in tree** on either | The tree opens there and selects it |
 | B5 | Add the sector to a project, open its copy, select nodeData.Data.1441, change a field in the nodes[179] section | The edit lands on `nodes.179.Data` (Undo takes it back); the instance section stays read-only |
+
+Result 2026-11-24, reported by the owner: B1 to B5 pass, with the path box (the search box goes to a pasted path) moved to the left of the footer and widened, at the owner's ask. **Passes.**
 
 ## Keys (K4b)
 
