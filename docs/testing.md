@@ -41,6 +41,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [anim-core check](#anim-core-check) | Automated, on the PC (game and Uthana key) | Animation Tools AT1 | 2026-11-22 | Pass, 22 of 22 |
 | [Animation Tools AT2](#animation-tools-at2) | By hand, in REDcode and the game | Animation Tools AT2 | 2026-11-22 | Not run (checked offline: typecheck, unit 75, anim-core 22, the MCP tools over stdio) |
 | [Animation Tools pack (AT3)](#animation-tools-pack-at3) | By hand, in the game | Animation Tools AT3 | 2026-11-22 | **Passed** 2026-11-24 (run 2, with the fixes it raised) |
+| [Animation Editor (AE1)](#animation-editor-ae1) | Script, MCP client, and by hand in the game | Animation Editor AE1 | 2026-11-24 | Script and MCP passed; in the game not run |
 | [Replace with a WAV, titled models (#29), every window's project (#32)](#replace-with-a-wav-titled-models-29-and-every-windows-project-32) | By hand, in the game | Requests | 2026-11-20 | Pass (owner), with two fixes |
 | [Replace All](#replace-all) | By hand, in the game | Requests | 2026-11-20 | Pass (owner), with one fix |
 | [Sector view](#sector-view) | By hand | C5 | 2026-11-20 | Pass (owner), with two fixes and five changes, each retested |
@@ -826,6 +827,18 @@ Run 2, more (owner, 2026-11-24): much better, with two more: both clips **rise a
 Run 2, the rise (owner, 2026-11-24): with the Root still, he faces V the whole time and the feet barely turn (a slight slide at the start remains, likely the motion's own few cm of drift), but **the rise stayed**. Four test clips, each leaving one step of the fit out (the game's own idle through our import, the motion as Probe D played it, turned, no lift), **all rose**, so it was not the clips. Screenshots of the game window (PrintWindow, with the owner's go) showed the whole body about 30 cm up while a clip plays, the feet above their shadow. The cause: V stood on a sidewalk sloping away, the pack spawned the medic 3 m ahead **at V's height**, and while the game's idle puts the feet on the ground, a workspot plays from the person's own position, which never moved down (`GetWorldPosition` kept V's height). Probe D, on flat ground, did not rise. Fixed: the pack casts a ray down at the spot (`Static`, `Terrain`, `PlayerBlocker`, the nearest hit, as EDGEbuilder's drop to floor does) and spawns there; the log names each group's answer and both heights. **The owner confirmed in the game: he stays on the ground.** Asked of REDnode for every package that spawns a person for a workspot: https://github.com/Edgemodders/REDnode/issues/59. The four test clips were taken out of the pack's project.
 
 **Result 2026-11-24, reported by the owner: all 11 steps pass.** The owner did not close every VS Code window (too many open), but step 2 still showed the pack's own project, since no REDcode window with a project had the focus since the pack started; at step 9 a new window on AnimProbeD and the refresh icon moved the pack there, and the clip went into it. Found there, for later: the pack follows the REDcode window last focused with a project, which is fragile with many windows open; a picker of the open REDcode windows (the `redcode` REDnode package's `projects()`) is to come. **AT3 passes.** Next: AT3r, the pack's release (zip, GitHub release, its own Nexus page the owner makes), on the owner's go.
+
+## Animation Editor (AE1)
+
+Built 2026-11-24 ([design](design/animation-editor.html#ae1-as-built-2026-11-24)): the edit steps in anim-core and redcode-mcp's `anim_edit_info` and `anim_edit`. Checked: anim-core's `scripts/check.mjs` (all pass, 7 of them AE1's), and the two tools through an MCP client on a copy of the pack's project (the step 4 clip's left foot slid 3.5 cm; its suggested pin held it within 0.1 cm). **Not run:** an edited clip in the game.
+
+In the game, with the Animation Tools pack on its own project (the project line says so), the medic spawned:
+
+| # | Do | Expected |
+|---|---|---|
+| E1 | Ask the assistant to pin the feet of `man_stands_relaxed_crosses` (it uses `anim_edit` with the suggested pins), then **Play** it in the pack | Packed and swapped (the files changed); the feet stay planted, no slide, the tapping foot still taps |
+| E2 | Ask for a head turn: 30 degrees to his left at 2.5 s; **Play** | He looks to his left around 2.5 s, smoothly, and back |
+| E3 | Ask to clear the edits; **Play** | The clip as made again |
 
 ## Keys (K4b)
 

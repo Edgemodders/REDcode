@@ -402,6 +402,99 @@ tool("anim_made_clips", "The made animations in a WolvenKit project, newest firs
   project: ProjectSchema,
 }, async (a) => anim.madeClips(animProject(a.project)).map((m) => ({ name: m.name, id: m.id, rig: m.anim.rig, seconds: m.anim.seconds, set: m.set, madeBy: m.madeBy, made: m.made, source: m.source, edited: anim.hasEdits(m) })));
 
+// ---- the Animation Editor (REDcode's docs/design/animation-editor.md, AE1): a made clip's edit steps ----
+
+const Ease = z.enum(["linear", "in", "out", "smooth", "overshoot"]);
+const EditStepSchema = z.discriminatedUnion("step", [
+  z.object({ step: z.literal("trim"), from: z.number().optional().describe("Seconds; the start kept."), to: z.number().optional().describe("Seconds; the end kept.") }),
+  z.object({ step: z.literal("loop"), blend: z.number().optional().describe("Seconds at the end that flow back into the first frame (0.4).") }),
+  z.object({
+    step: z.literal("key"),
+    bone: z.string().describe("A bone by the rig's name: Head, Neck, Spine2, LeftArm, RightHand, LeftFoot…"),
+    at: z.number().describe("Seconds."),
+    turn: z.object({ yaw: z.number().optional(), pitch: z.number().optional(), roll: z.number().optional() }).optional().describe("Degrees about the character's up (yaw: + turns to the character's left), right (pitch) and forward (roll), on top of the motion."),
+    move: z.tuple([z.number(), z.number(), z.number()]).optional().describe("On LeftFoot, RightFoot, LeftHand or RightHand only: metres along the character's right, up and forward; the leg or arm bends to reach."),
+    ease: Ease.optional().describe("How the change runs into this key: linear, in, out, smooth (default), overshoot."),
+    blend: z.number().optional().describe("Seconds the change fades in before the first key and out after the last (0.3)."),
+  }),
+  z.object({
+    step: z.literal("pin"),
+    bone: z.enum(["LeftFoot", "RightFoot", "LeftHand", "RightHand"]),
+    from: z.number().describe("Seconds: where the foot or hand is held."),
+    to: z.number().describe("Seconds: held until here."),
+    blend: z.number().optional().describe("Seconds to ease in and out (0.15)."),
+    keepTurn: z.boolean().optional().describe("Hold its turn too (default true): a planted foot does not twist."),
+  }),
+  z.object({
+    step: z.literal("layer"),
+    source: z.union([
+      z.object({ made: z.string().describe("Another made clip in the project, by name.") }),
+      z.object({ game: z.object({ set: z.string().describe("A game .anims set on the same rig, by game path."), clip: z.string() }) }),
+      z.object({ file: z.string().describe("A .glb on the same rig.") }),
+    ]),
+    bones: z.array(z.string()).optional().describe("The bones the layer moves; or a group."),
+    group: z.enum(anim.BoneGroups as [anim.BoneGroup, ...anim.BoneGroup[]]).optional(),
+    at: z.number().optional().describe("Seconds in this clip where the layer's start lands (0)."),
+    blendIn: z.number().optional(),
+    blendOut: z.number().optional(),
+    weight: z.number().min(0).max(1).optional(),
+  }),
+]);
+
+/** A made clip's feet, for the assistant to see what to pin. */
+function feetOf(glb: anim.Glb) {
+  const contacts = anim.footContacts(glb);
+  return {
+    contacts: contacts.map((c) => ({ bone: c.bone, from: +c.from.toFixed(2), to: +c.to.toFixed(2), slideCm: +(c.slide * 100).toFixed(1) })),
+    suggestedPins: anim.suggestPins(contacts),
+  };
+}
+
+tool("anim_edit_info", "A made clip's edits (REDcode's Animation Editor): its length, the edit steps it has, the bone groups a layer can name, the bones a pin or a move works on, and its feet: where each rests on the ground, how far it slides there, and the pin steps that would hold the sliding ones. Free; reads only.", {
+  project: ProjectSchema,
+  clip: z.string().describe("The made clip, by name (anim_made_clips)."),
+}, async (a) => {
+  const project = animProject(a.project);
+  const made = anim.madeClips(project).find((m) => m.name === a.clip);
+  if (!made) throw new Error(`No made clip ${a.clip} in ${project.name}`);
+  const glb = anim.readGlb(fs.readFileSync(made.glb));
+  const names = glb.json.nodes.map((n) => n.name ?? "").filter(Boolean);
+  return {
+    clip: made.name,
+    seconds: made.anim.seconds,
+    loop: made.anim.loop,
+    steps: made.edits ?? [],
+    edited: made.edited,
+    boneGroups: Object.fromEntries(anim.BoneGroups.map((g) => [g, anim.bonesOf(g, names)])),
+    pinAndMoveBones: anim.IkBones,
+    feet: feetOf(glb),
+  };
+});
+
+tool("anim_edit", "Edit a made clip (REDcode's Animation Editor) and import it again: set the whole list of steps, add one, or remove one by its index. The steps always run on the clip as it was made, in order (trim, loop, key, pin, layer), so any can be changed or removed later, and an empty list puts the clip as made back. " +
+  "key turns a bone (yaw, pitch, roll in degrees about the character) or moves a foot or hand (metres right, up, forward) at a time, keys on one bone easing between them; pin holds a foot or hand where it is over a time range (the leg or arm bends); layer lays another clip's motion on chosen bones or a group (a fist from another clip on the right hand, say); trim cuts the ends; loop makes the end flow into the start. " +
+  "Free, changes the project's files (the clip's set, .glb and record; the clip as made is kept as <name>.base.glb). Answers what each step did, the new length, and the feet after.", {
+  project: ProjectSchema,
+  clip: z.string().describe("The made clip, by name."),
+  steps: z.array(EditStepSchema).optional().describe("The whole list, replacing the clip's steps."),
+  add: EditStepSchema.optional().describe("One step added at the end of the clip's steps."),
+  remove: z.number().int().min(0).optional().describe("The index of a step to take out."),
+}, async (a, b) => {
+  const project = animProject(a.project);
+  const made = anim.madeClips(project).find((m) => m.name === a.clip);
+  if (!made) throw new Error(`No made clip ${a.clip} in ${project.name}`);
+  if ([a.steps, a.add, a.remove].filter((x) => x !== undefined).length !== 1) throw new Error("Give one of steps, add or remove");
+  let steps = (made.edits ?? []) as anim.EditStep[];
+  if (a.steps) steps = a.steps as anim.EditStep[];
+  if (a.add) steps = [...steps, a.add as anim.EditStep];
+  if (a.remove !== undefined) {
+    if (a.remove >= steps.length) throw new Error(`${a.clip} has ${steps.length} step(s)`);
+    steps = steps.filter((_, i) => i !== a.remove);
+  }
+  const r = await anim.editClip(anim.asBridge(b), project, a.clip, steps, { cacheDir: animCache, set: made.set });
+  return { clip: a.clip, id: r.record.id, seconds: r.report.seconds, steps: r.record.edits ?? [], did: r.report.steps, set: r.set, feet: feetOf(anim.readGlb(fs.readFileSync(made.glb))) };
+});
+
 // ---- lip sync (REDcode's docs/design/lipsync.md, L1), over @edgemodders/lipsync-core: the twins of the Lip Sync tab ----
 
 lipsync.setLipsyncCacheDir(path.join(process.env.LOCALAPPDATA ?? os.tmpdir(), "REDcode", "mcp-cache", "lipsync"));

@@ -62,6 +62,14 @@ The order of steps matters and is the list's order: Trim first, then Layers and 
 
 AE1 alone already lets an assistant fix a clip ("pin the left foot from 1.2 s to 3 s, then lay a fist on the right hand from 2 s").
 
+## AE1 as built (2026-11-24)
+
+- **anim-core** `src/edit.ts`: a clip as whole frames at 30 fps (`framesOf`, `writeFrames`), forward kinematics, and two-bone IK that keeps the knee or elbow in the plane it bends in. The steps run in the list's order, keys on one bone together where the first of them stands. `turn` is yaw, pitch and roll about the character's up, right and forward, taken from the first frame (right from the left hip to the right). `footContacts` finds where each foot rests (its heel or toe within 3 cm of its lowest, moving under 0.3 m/s, for 0.25 s or more) and how far it slides; `suggestPins` turns the ones sliding over 1 cm into pin steps.
+- **`editClip`** in `src/game.ts`: the first edit keeps the clip as made as `<name>.base.glb`; each rebuild runs the whole list on it and imports the result over the clip's own set, with the record's `edits`, `edited`, length and loop updated and the id kept. No steps puts the clip as made back and drops the base. Making a clip again drops the base too, and is refused without asking while the record has edits, the message naming them.
+- **MCP:** `anim_edit_info` and `anim_edit` (redcode-mcp, unreleased).
+- **Checked:** anim-core's check gains 7 (a pin holds the foot within 0.15 mm, a 30 degree head key is exact at its frame and nothing at 0 s, a layer moves the right hand's 20 bones and no other, trim and loop, suggested pins, the same list rebuilds the same clip byte for byte, no steps puts it back); the two tools through an MCP client on a copy of the pack's project: the step 4 clip's left foot slid 3.5 cm, its suggested pin held it within 0.1 cm.
+- **Found:** the clips' quaternions are stored a little off unit length, so comparing them needs normalising first (the check read 1.3 degrees between a quaternion and itself).
+
 ## Decisions (agreed 2026-11-24)
 
 | # | Question | Agreed |
