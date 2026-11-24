@@ -4,7 +4,7 @@ title: Sector layers
 
 # Sector layers: what else is in this place
 
-Draft 0.1 for the owner, 2026-11-24. Nothing here is built.
+Draft 0.2. Agreed with the owner on 2026-11-24, with all five recommendations under Decisions; details may change in testing. Nothing here is built.
 
 A modder sent the owner a feature request for a world editor that understands data across sectors (the "EDGEkit World Editor" request, 2026-11-24). Its point: one sector on its own does not show what the player sees. Many sectors, from several kinds and levels, add to one place. This page is REDcode's first part of the answer: the sectors that reach into the one you opened, drawn as layers you switch on, select in and edit.
 
@@ -113,7 +113,7 @@ Filed on 2026-11-24 with the owner's go: [REDbridge #23](https://github.com/Edge
 
 The comparison (part 2, its own page next), copies that keep every field (4), assemblies (6), checks around a bake (7), and what the running game loaded (8). Also not here: a Set, ± and × panel for the selection's values; sector scripts cover batch edits for now.
 
-## Decisions for the owner
+## Decisions (taken 2026-11-24: the recommended one each time)
 
 1. **What "reaches in" means.** A thing whose bounds meet the box around the opened sector's own things. *Recommended:* this one. The other choice, the sector's streaming box, is a little larger and lists more.
 2. **Undo across sectors.** Each sector changed gets its own undo step in its own tab. *Recommended:* this one, since it uses what VS Code already does. One Undo for a change over several sectors is possible, but REDcode would keep its own undo for it.
