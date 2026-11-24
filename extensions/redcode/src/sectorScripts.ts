@@ -114,6 +114,8 @@ export interface RunOptions {
   /** The sector's CR2W JSON file. */
   json: string;
   only?: number[];
+  /** The view's selection at the start, for ctx.selected(); defaults to only. */
+  selection?: number[];
   debug?: boolean;
   onLog?(line: string): void;
   onProgress?(done: number, total: number): void;
@@ -202,7 +204,7 @@ export function runScript(o: RunOptions): ScriptRun {
     });
     child.on("error", (e) => finish(() => reject(e)));
     child.on("exit", (code, signal) => finish(() => reject(stopped ? new ScriptStopped() : new Error(`The script's process ended (${signal ?? `exit code ${code}`}) before it finished`))));
-    const start: StartMessage = { type: "start", script: o.script, sector: o.sector, json: o.json, ...(o.only ? { only: o.only } : {}), ...(o.debug ? { debug: true } : {}) };
+    const start: StartMessage = { type: "start", script: o.script, sector: o.sector, json: o.json, ...(o.only ? { only: o.only } : {}), ...(o.selection ? { selection: o.selection } : {}), ...(o.debug ? { debug: true } : {}) };
     child.send(start);
   });
   return {

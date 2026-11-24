@@ -19,8 +19,10 @@ export interface StartMessage {
   sector: string;
   /** The sector's CR2W JSON, written by REDbridge. */
   json: string;
-  /** Run on Selection: the node data entries selected. */
+  /** Run on Selection: visit only these node data entries. */
   only?: number[];
+  /** The entries selected in the view when the run started: ctx.selected(), however it runs. Defaults to only. */
+  selection?: number[];
   debug?: boolean;
 }
 
@@ -78,7 +80,9 @@ async function run(m: StartMessage): Promise<RunnerMessage> {
   const changes = new Map<string, NodeChange>();
   const all = sectorNodes(m.sector, JSON.parse(fs.readFileSync(m.json, "utf8")), changes);
   const only = m.only ? new Set(m.only) : undefined;
-  const selectedAtStart = only ? all.filter((n) => only.has(n.entry)) : [];
+  const chosen = new Set(m.selection ?? m.only ?? []);
+  const selectedAtStart = all.filter((n) => chosen.has(n.entry));
+  const visitList = only ? all.filter((n) => only.has(n.entry)) : all;
   // A script's own file, by URL: a Windows path is not an import specifier.
   const mod = (await import(pathToFileURL(m.script).href)) as { default?: Script } & Script;
   const script: Script = mod.default ?? mod;
@@ -122,7 +126,7 @@ async function run(m: StartMessage): Promise<RunnerMessage> {
     },
   };
 
-  const list = only ? selectedAtStart : all;
+  const list = visitList;
   let last = 0;
   if (typeof script.run === "function") await script.run(ctx);
   else {

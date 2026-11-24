@@ -145,13 +145,13 @@ export class SectorScriptsUi {
     if (!s) return;
     switch (how) {
       case "all":
-        return this.run(host, s);
+        return this.run(host, s, { selection });
       case "selection":
-        return this.run(host, s, { only: selection });
+        return this.run(host, s, { only: selection, selection });
       case "debug": {
         const on = n ? await this.debugOn(n) : "all";
         if (!on) return;
-        return this.run(host, s, { debug: true, ...(on === "selection" ? { only: selection } : {}) });
+        return this.run(host, s, { debug: true, selection, ...(on === "selection" ? { only: selection } : {}) });
       }
       case "edit":
         await vscode.window.showTextDocument(vscode.Uri.file(s.file), { preview: s.place === "example" });
@@ -251,8 +251,8 @@ export class SectorScriptsUi {
     return true;
   }
 
-  /** Runs a script on the sector: the selection when only is given, else every node. */
-  async run(host: ScriptHost, s: ScriptInfo, o: { only?: number[]; debug?: boolean } = {}): Promise<void> {
+  /** Runs a script on the sector: the entries in only when given, else every node; selection is what ctx.selected() gives. */
+  async run(host: ScriptHost, s: ScriptInfo, o: { only?: number[]; selection?: number[]; debug?: boolean } = {}): Promise<void> {
     if (!(await this.trusted(s))) return;
     const { document } = host;
     const only = o.only;
@@ -262,6 +262,7 @@ export class SectorScriptsUi {
     host.post({ type: "sectorScript", state: "running", name: s.name, done: 0, total: 0, note: "Reading the sector…" });
     this.log.appendLine(`script: ${s.name} on ${host.sector}${only ? `, ${only.length} selected` : ""}${o.debug ? ", under the debugger" : ""}`);
     let lastPost = 0;
+    let lastLog: string | undefined;
     let run: ScriptRun | undefined;
     let cancelled = false;
     // The slot is taken now, so a second Run waits for this one; Stop while the sector is read cancels it.
@@ -283,8 +284,12 @@ export class SectorScriptsUi {
         sector: host.sector,
         json,
         only,
+        selection: o.selection,
         debug: o.debug,
-        onLog: (line) => this.log.appendLine(`[${s.name}] ${line}`),
+        onLog: (line) => {
+          lastLog = line;
+          this.log.appendLine(`[${s.name}] ${line}`);
+        },
         onProgress: (done, total) => {
           const now = Date.now();
           if (now - lastPost < 150 && done < total) return;
@@ -297,7 +302,7 @@ export class SectorScriptsUi {
       const started = run;
       this.running.set(document, { result: started.result, stop: () => started.stop() });
       const result = await run.result;
-      await this.finish(host, s, result);
+      await this.finish(host, s, result, lastLog);
     } catch (e) {
       if (e instanceof ScriptStopped) {
         this.log.appendLine(`script: ${s.name} stopped`);
@@ -407,14 +412,15 @@ export class SectorScriptsUi {
     return { id, file };
   }
 
-  /** The result: the selection to the view, then the changes, previewed. */
-  private async finish(host: ScriptHost, s: ScriptInfo, r: ScriptResult): Promise<void> {
+  /** The result: the selection to the view, then the changes, previewed. The line under the view ends with the script's last ctx.log line, often its answer. */
+  private async finish(host: ScriptHost, s: ScriptInfo, r: ScriptResult, lastLog?: string): Promise<void> {
     const secs = `${(r.ms / 1000).toFixed(1)} s`;
     const on = r.visited < r.total ? `${r.visited.toLocaleString()} of ${r.total.toLocaleString()} nodes` : `${r.total.toLocaleString()} nodes`;
     const picked = r.selected === null ? "" : `${r.selected.length.toLocaleString()} selected, `;
     const line = `${s.name}: ${picked}${r.changes.length.toLocaleString()} changed, ${on}, ${secs}`;
     this.log.appendLine(`script: ${line}`);
-    host.post({ type: "sectorScript", state: "done", name: s.name, selected: r.selected, line });
+    const said = lastLog ? ` · ${lastLog.length > 160 ? `${lastLog.slice(0, 157)}…` : lastLog}` : "";
+    host.post({ type: "sectorScript", state: "done", name: s.name, selected: r.selected, line: `${line}${said}` });
     if (r.changes.length) await this.preview(host, s, r.changes);
   }
 

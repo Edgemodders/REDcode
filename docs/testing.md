@@ -1245,7 +1245,7 @@ F5 with **Run REDcode**, a project open (TestMod or any), and in Game Assets `ba
 |---|---|---|
 | 1 | Click **Scripts** in the view's bar | VS Code's menu: Examples with three scripts, then **New Script…** and **Open Scripts Folder** |
 | 2 | Pick **Short streaming distance** (Enter) | The button shows a spinner and **Stop**, then the line under the view says "Short streaming distance: 68 selected, 0 changed, 1,233 nodes" (with the copies drawn when more); the list on the right holds them |
-| 3 | Click one soda can (`soda_can_f_trash.mesh`), **Scripts**; in the menu, hover the example script **Every copy of these meshes** and press its funnel button (Run on Selection) | Run on the selection: both of its nodes are selected (three copies drawn) |
+| 3 | Click one soda can (`soda_can_f_trash.mesh`), **Scripts**, then the example script **Every copy of these meshes** (Enter, or its funnel button) | Both of its nodes are selected and in the list (three copies drawn); the line under the view ends "· 1 mesh". With nothing selected, the line ends "· Select one or more meshes in the view first, then run it." |
 | 4 | **Raise short streaming distances** (Enter), on the game's copy | A question: 68 changes to `streamingDistance`; values change only in a project's copy; **Add to Project** |
 | 5 | **Add to Project**, open the project's copy from the Project view on 3D, run **Raise short streaming distances** there | The question with **Apply** and **Show List**; Show List opens the REDcode output with 68 lines such as `#21: streamingDistance 17.9695148 → 90`, then asks again |
 | 6 | **Apply**, then look at entry 21 in the tree (Show in Tree) | `streamingDistance` is 90; the tab shows unsaved changes |
@@ -1257,6 +1257,8 @@ F5 with **Run REDcode**, a project open (TestMod or any), and in Game Assets `ba
 | 12 | Copy `big-entities.mjs` in Explorer to `copied.mjs` in the same folder (a file REDcode did not make), run it | A question "Run … It has not run on this computer before", with the script open beside; **Run** runs it; a second run asks nothing |
 | 13 | A script with `visit() { for (;;) {} }`, run it, then the **Stop** button | The run ends at once with "stopped"; VS Code stays responsive |
 | 14 | A script with `async visit(node, ctx) { if (node.entry === 21) await ctx.agent.request("Check this ambient area's distance", [node]) }`, run it | "Request 1 is saved, and its prompt is copied"; `.redcode\requests\1.json` holds the node; paste the prompt to Claude Code, which reads it with `request_get` (after `npm run mcp:build`) |
+
+Run 1 (owner, 2026-11-24), in progress: step 3 changed nothing in the selection list: run with Enter, a script saw no selection (`ctx.selected()` held the selection only on Run on Selection), and the example's "select a mesh first" went to the REDcode output only. Fixed the same day: `ctx.selected()` is the view's selection however a script runs, and the line under the view ends with the script's last `ctx.log` line. Unit checks pass (the example on every node with one crate selected gives both crates); step 3 again in VS Code.
 
 ## The game tools for assistants (redcode-mcp `game_*`)
 

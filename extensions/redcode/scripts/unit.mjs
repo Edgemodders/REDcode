@@ -1436,6 +1436,15 @@ await check("sector scripts: a run in its own process selects, changes, calls RE
   const q = await ss.runScript({ runner, script: quiet, sector: "s", json, only: [1] }).result;
   assert.equal(q.selected, null);
   assert.equal(q.visited, 1);
+  // The view's selection reaches ctx.selected() however a script runs: the shipped example, run on every node.
+  const example = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "media", "scripts", "every-copy-of-a-mesh.mjs");
+  const said = [];
+  const e = await ss.runScript({ runner, script: example, sector: "s", json, selection: [0], onLog: (l) => said.push(l) }).result;
+  assert.deepEqual(e.selected, [0, 2], "both entries that draw the crate");
+  assert.equal(e.visited, 3);
+  assert.deepEqual(said, ["1 mesh"]);
+  const none = await ss.runScript({ runner, script: example, sector: "s", json }).result;
+  assert.equal(none.selected, null, "with nothing selected it says so and selects nothing");
   const bad = write("scripts/bad.mjs", `export default { visit(node) { if (node.entry === 1) throw new Error("broken here"); } };`);
   await assert.rejects(ss.runScript({ runner, script: bad, sector: "s", json }).result, /broken here/);
   // Stop ends a script that never ends.

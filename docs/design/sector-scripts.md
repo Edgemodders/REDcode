@@ -53,7 +53,7 @@ export default {
 
 | `ctx` | What it does |
 |---|---|
-| `nodes()`, `selected()` | Every node, or the ones selected when it ran (`run` uses these) |
+| `nodes()`, `selected()` | Every node, and the ones selected in the view when it ran, however it runs: on every node or on the selection (`run` uses these) |
 | `select(node)`, `deselect(node)` | Builds the selection the view shows when the script ends |
 | `log(...)` | A line in REDcode's output channel |
 | `game.read(path)` | Another game or project file as JSON, such as a node's mesh |
