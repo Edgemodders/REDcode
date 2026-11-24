@@ -88,6 +88,39 @@ const workspots = new Map();
 let swapped = "";
 let busy = '';
 
+/** Respawns the pack waits for, by the old id's hash. */
+const respawnWaiters = new Map();
+const hashOf = (id) => (id && typeof id === 'object' ? String(id.hash) : String(id ?? ''));
+
+// A swap that changes a file the character uses (its workspot) makes REDnode spawn them again with
+// a new id: follow it, and play anew, since the new character is not in the workspot yet.
+world.onRespawn((before, after) => {
+  if (actor && hashOf(actor.id) === hashOf(before)) {
+    actor.id = after;
+    actor.playing = false;
+    say(`the character was spawned again (${hashOf(before)} is now ${hashOf(after)})`);
+  }
+  respawnWaiters.get(hashOf(before))?.();
+});
+
+/**
+ * After a swap: when REDnode is spawning the character again because of it, waits until that is
+ * done (up to 10 s), so the next call uses the new id. `was` is the character's id hash before it.
+ */
+async function settleAfterSwap(result, was) {
+  if (!was || !result?.world?.some((e) => e.how === 'respawn' && String(e.entity) === was)) return;
+  if (actor && hashOf(actor.id) !== was) return; // already followed
+  await new Promise((resolve) => {
+    const timer = setTimeout(done, 10000);
+    function done() {
+      clearTimeout(timer);
+      respawnWaiters.delete(was);
+      resolve();
+    }
+    respawnWaiters.set(was, done);
+  });
+}
+
 const cacheDir = path.join(pkg.dataDir, 'cache');
 const ownProject = () => path.join(os.homedir(), 'Documents', 'REDnode', 'Animation Tools');
 
@@ -334,8 +367,10 @@ async function swapProject() {
   const b = await kernel.bridge();
   const summary = await packProject({ pack: (dir, outDir, modName) => b.call('project.pack', { dir, outDir, modName }) }, project, { clean: true, redmod: false }, (line) => console.log(line));
   if (!summary.archive) throw new Error('The project has nothing to pack');
+  const was = actor ? hashOf(actor.id) : '';
   const r = await archives.reload([summary.archive]);
   if (r.failed?.length) throw new Error(`The swap failed: ${JSON.stringify(r.failed).slice(0, 200)}`);
+  await settleAfterSwap(r, was);
   swapped = stamp;
   return `packed and swapped ${path.basename(summary.archive)} in ${r.ms} ms`;
 }
@@ -347,9 +382,12 @@ async function workspotFor(rig) {
   const key = clips.map((c) => `${c.set}|${c.name}`).sort().join(';');
   const known = workspots.get(rig.id);
   if (known?.key === key) return known.path;
+  const was = actor ? hashOf(actor.id) : '';
   const written = await world.writeWorkspot(`animtools_${rig.id}`, { clips: clips.map((c) => ({ set: c.set, anim: c.name, name: c.name })), rig: rig.rig });
   workspots.set(rig.id, { key, path: written.path });
   say(`workspot ${written.path}: ${written.entries.length} clip(s)`);
+  // The character carrying this workspot is spawned again by its swap, with the new clips.
+  await settleAfterSwap(written.swap, was);
   return written.path;
 }
 
@@ -387,14 +425,18 @@ async function playClip(clip) {
   show(`Packing and swapping ${clip} in…`);
   say(`project: ${await swapProject()}`);
   const workspot = await workspotFor(rig);
-  if (workspot !== actor.workspot || !actor.playing) {
+  // Already playing this workspot: jump to the clip. A character that left it (spawned again, or the
+  // game took them out) starts it anew.
+  if (workspot === actor.workspot && actor.playing && (await world.jumpWorkspot(actor.id, clip))) {
+    // jumped
+  } else {
     // A new workspot spawns the character again carrying it, in the same place.
     const r = await world.useWorkspot(actor.id, { workspot, entry: clip });
     actor.id = r.id;
     actor.workspot = workspot;
     if (!r.started) throw new Error(`the workspot did not start: ${r.why ?? 'unknown'}`);
     actor.playing = true;
-  } else if (!(await world.jumpWorkspot(actor.id, clip))) throw new Error(`${clip} is not in the workspot`);
+  }
   show(`Playing ${clip}. A brief T pose the first time a workspot plays is the game's own.`, 'accent');
   return `playing ${clip}`;
 }

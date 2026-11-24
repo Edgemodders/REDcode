@@ -61,6 +61,20 @@ await b.info();
 process.env.LOCALAPPDATA = local;
 const events = [];
 let windowSpec;
+// The world as REDnode keeps it: each spawn's options and whether it is in its workspot.
+const live = new Map();
+let nextId = 1;
+const respawnHandlers = [];
+const respawnAs = (id, changes = {}) => {
+  const e = live.get(id);
+  live.delete(id);
+  const after = `npc${nextId++}`;
+  live.set(after, { options: { ...e.options, ...changes }, inWorkspot: false });
+  events.push(`spawned again: ${id} is now ${after}`);
+  for (const h of respawnHandlers) h(id, after);
+  return after;
+};
+const writeWorkspotAnswer = (name, o) => (events.push(`writeWorkspot ${name} rig ${o.rig.split("\\").pop()}: ${o.clips.map((c) => `${c.name}@${c.set}`).join(" ")}`), { path: `rednode\\workspots\\animation-tools\\${name}.workspot`, entries: o.clips.map((c, i) => ({ name: c.name, entry: i })) });
 const node = (kind, props) => ({ kind, ...props, set(p) { Object.assign(this, p); } });
 globalThis.__rednode = {
   api: { GetPlayer: async () => ({ GetWorldPosition: async () => ({ X: 10, Y: 20, Z: 5 }), GetWorldForward: async () => ({ X: 0, Y: 1, Z: 0 }) }) },
@@ -70,12 +84,34 @@ globalThis.__rednode = {
   secrets: { askShared: async (service) => (events.push(`askShared ${service}`), "fake-uthana-key") },
   archives: { reload: async (files) => (events.push(`reload ${files.map((f) => path.basename(f)).join(",")}`), { reloaded: files, failed: [], ms: 5 }) },
   world: {
-    spawn: async (o) => (events.push(`spawn ${o.record} at ${o.position.x.toFixed(1)},${o.position.y.toFixed(1)} yaw ${o.yaw.toFixed(0)}${o.workspot ? ` with ${o.workspot}` : ""}`), { id: "npc1" }),
-    remove: async (id) => (events.push(`remove ${id}`), true),
-    writeWorkspot: async (name, o) => (events.push(`writeWorkspot ${name} rig ${o.rig.split("\\").pop()}: ${o.clips.map((c) => `${c.name}@${c.set}`).join(" ")}`), { path: `rednode\\workspots\\animation-tools\\${name}.workspot`, entries: o.clips.map((c, i) => ({ name: c.name, entry: i })) }),
-    useWorkspot: async (id, o) => (events.push(`useWorkspot ${id} ${o.workspot?.split("\\").pop()} entry ${o.entry}`), { id: "npc2", started: true }),
-    jumpWorkspot: async (id, to) => (events.push(`jumpWorkspot ${id} ${to}`), true),
-    stopWorkspot: async (id) => (events.push(`stopWorkspot ${id}`), true),
+    spawn: async (o) => {
+      const id = `npc${nextId++}`;
+      live.set(id, { options: { ...o }, inWorkspot: false });
+      events.push(`spawn ${id} ${o.record} at ${o.position.x.toFixed(1)},${o.position.y.toFixed(1)} yaw ${o.yaw.toFixed(0)}${o.workspot ? ` with ${o.workspot}` : ""}`);
+      return { id };
+    },
+    remove: async (id) => (events.push(`remove ${id}`), live.delete(id)),
+    // A swap of a workspot a spawn carries spawns it again with a new id a little later, as REDnode's refresh does.
+    writeWorkspot: async (name, o) => {
+      const written = writeWorkspotAnswer(name, o);
+      const users = [...live].filter(([, e]) => e.options.workspot === written.path).map(([id]) => id);
+      setTimeout(() => users.forEach((id) => live.has(id) && respawnAs(id)), 300);
+      return { ...written, swap: { reloaded: [], failed: [], ms: 5, world: users.map((entity) => ({ entity, how: "respawn" })) } };
+    },
+    useWorkspot: async (id, o) => {
+      if (!live.has(id)) throw new Error("world.useWorkspot plays on a person this package spawned with world.spawn");
+      const now = o.workspot && o.workspot !== live.get(id).options.workspot ? respawnAs(id, { workspot: o.workspot }) : id;
+      live.get(now).inWorkspot = true;
+      events.push(`useWorkspot ${now} ${o.workspot?.split("\\").pop()} entry ${o.entry}`);
+      return { id: now, started: true };
+    },
+    jumpWorkspot: async (id, to) => {
+      const ok = !!live.get(id)?.inWorkspot;
+      events.push(`jumpWorkspot ${id} ${to}${ok ? "" : " (not in a workspot: false)"}`);
+      return ok;
+    },
+    stopWorkspot: async (id) => (events.push(`stopWorkspot ${id}`), live.get(id) && (live.get(id).inWorkspot = false), true),
+    onRespawn: (h) => (respawnHandlers.push(h), () => {}),
   },
   ui: {
     text: (text, o) => node("text", { text, ...o }),
@@ -145,7 +181,15 @@ console.log("clips now:", clipPick.options.map((o) => o.value).join(", "));
 // 4. Play the first, then Stop; then the woman's rig has none.
 clipPick.onChange(clipPick.options[clipPick.options.length - 1].value);
 await press("Play");
+// Then the newest (a jump in the same workspot), Stop, and the first again (the workspot started anew).
+clipPick.onChange(clipPick.options[0].value);
+await press("Play");
 await press("Stop");
+clipPick.onChange(clipPick.options[clipPick.options.length - 1].value);
+await press("Play");
+await press("Stop");
+const failed = logNode.lines.filter((l) => / failed/.test(l));
+console.log(failed.length ? `FAILED steps:\n  ${failed.join("\n  ")}` : "no step failed");
 find("select", (n) => n.label === "Character").onChange("Character.LightCrowd_corpoplaza_wa");
 await wait(50);
 console.log("woman's clips:", JSON.stringify(clipPick.options), clipPick.placeholder);
