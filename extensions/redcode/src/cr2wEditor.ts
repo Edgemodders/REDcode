@@ -354,10 +354,12 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
   private readonly pendingSets = new Set<string>();
   /** A sector's node data entry to select once the editor page is ready, by URI (REDcodeApi.openSector). */
   private readonly pendingSectorEntries = new Map<string, number | number[]>();
+  /** A sector script's line to show under the view once the editor page is ready, by URI (a run applied to a project's copy). */
+  private readonly pendingScriptLines = new Map<string, { name: string; line: string }>();
   /** Sector scripts (docs/design/sector-scripts.md), made when the Scripts button is first used. */
   private scriptsUi: SectorScriptsUi | undefined;
   private get scripts(): SectorScriptsUi {
-    return (this.scriptsUi ??= new SectorScriptsUi(this.context, this.log));
+    return (this.scriptsUi ??= new SectorScriptsUi(this.context, this.log, (file, ops, label, entries, line) => this.applyToCopy(file, ops, label, entries, line)));
   }
   private readonly saved = new vscode.EventEmitter<Cr2wDocument>();
   /** Generate, Add and Replace Clip in the animation view, when extension.ts gives them. */
@@ -428,6 +430,34 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
       return;
     }
     for (const w of pages) void w.postMessage({ type: "showSectorEntry", entry });
+  }
+
+  /**
+   * A sector script run on the game's copy, applied to the project's copy (docs/design/sector-scripts.md, the
+   * owner, 2026-11-24): the copy opens in its editor (or comes to the front), its changed entries selected, and
+   * the changes go in as one edit, unsaved, that one Undo takes back; the line under its view says so.
+   */
+  async applyToCopy(file: string, ops: PatchOp[], label: string, entries: number[], line: { name: string; line: string }): Promise<void> {
+    const uri = vscode.Uri.file(file);
+    const key = uri.toString();
+    const wasOpen = this.documents.get(key);
+    const ready = wasOpen && (this.pages.get(wasOpen)?.size ?? 0) > 0;
+    if (!ready) this.pendingScriptLines.set(key, line);
+    if (entries.length) this.showSectorEntry(uri, entries);
+    await vscode.commands.executeCommand("vscode.openWith", uri, cr2wViewTypeFor(file));
+    // The editor opens its document first, then its page: wait for both (a large sector takes a few seconds).
+    let document: Cr2wDocument | undefined;
+    for (let i = 0; i < 600; i++) {
+      document = this.documents.get(key);
+      if (document && (this.pages.get(document)?.size ?? 0) > 0) break;
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    if (!document) throw new Error(`${path.basename(file)} did not open`);
+    await document.edit(this.requireBridge(), ops, label);
+    for (const w of this.pages.get(document) ?? []) {
+      void w.postMessage({ type: "changed", path: "" });
+      if (ready) void w.postMessage({ type: "sectorScript", state: "applied", ...line });
+    }
   }
 
   /** The open document for an editor tab's URI, for the Properties view. */
@@ -653,6 +683,11 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
             if (sectorEntry !== undefined) {
               this.pendingSectorEntries.delete(key);
               post({ type: "showSectorEntry", entry: sectorEntry });
+            }
+            const scriptLine = this.pendingScriptLines.get(key);
+            if (scriptLine !== undefined) {
+              this.pendingScriptLines.delete(key);
+              post({ type: "sectorScript", state: "applied", ...scriptLine });
             }
             const animation = this.pendingAnimations.get(key);
             if (animation !== undefined) {

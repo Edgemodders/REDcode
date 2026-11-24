@@ -228,6 +228,8 @@ export function activate(context: vscode.ExtensionContext): REDcodeApi | undefin
     vscode.commands.registerCommand("redcode.openAssetAsJson", (node: AssetNode) => withBridge((b) => openAssetAsJson(b, node))),
     vscode.commands.registerCommand("redcode.addToProject", (node: AssetNode, options?: { replace?: boolean; files?: GameFileInfo[] }) => withBridge((b) => addToProject(b, node, Array.isArray(options) ? {} : options))),
     vscode.commands.registerCommand("redcode.extractTo", (node: AssetNode) => withBridge((b) => extractTo(b, node))),
+    // For REDcode's own code (a sector script applied to a project's copy): a file shown in the Project view.
+    vscode.commands.registerCommand("redcode.revealInProject", (file: string) => revealInProject(file)),
     vscode.commands.registerCommand("redcode.addToLibrary", (node: AssetNode | ProjectNode) => withBridge((b) => addNodeToLibrary(b, node, context))),
     libraryChanged,
     libraryChanged.event(() => libraryTree.refresh()),

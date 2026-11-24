@@ -8,7 +8,8 @@ import * as path from "node:path";
 import * as vscode from "vscode";
 import type { BridgeClient } from "./bridgeClient";
 import type { Cr2wDocument } from "./cr2wEditor";
-import { findProject, ProjectFolders } from "./project";
+import { findProject, ProjectFolders, projectPathFor } from "./project";
+import type { PatchOp } from "./types";
 import { changeToOp, describeChange, type NodeChange } from "./sectorNodes";
 import { listScripts, myScriptsDir, projectScriptsDir, runScript, scriptFileName, scriptTemplate, ScriptStopped, type ScriptInfo, type ScriptPlace, type ScriptResult, type ScriptRun } from "./sectorScripts";
 
@@ -42,7 +43,66 @@ export class SectorScriptsUi {
   constructor(
     private readonly context: vscode.ExtensionContext,
     private readonly log: vscode.OutputChannel,
+    /** The editor's: opens a project's copy of a sector and applies a run's changes there as one edit. */
+    private readonly applyToCopy: (file: string, ops: PatchOp[], label: string, entries: number[], line: { name: string; line: string }) => Promise<void>,
   ) {}
+
+  /**
+   * A run on the game's copy, which cannot change (the owner, 2026-11-24): one question, then the whole job. The
+   * sector is added to the project (or its copy found), shown in the Project view, opened in its own tab with the
+   * changed nodes selected, and the changes applied there as one unsaved edit.
+   */
+  private async applyInProject(host: ScriptHost, s: ScriptInfo, changes: NodeChange[], title: string): Promise<void> {
+    const gamePath = host.document.gamePath!;
+    const dir = this.projectDir(host.document);
+    const project = dir ? findProject(dir) : undefined;
+    if (!project) {
+      void vscode.window.showInformationMessage(`${title} Values change only in a project's copy of a sector: open or make a project first. The list is in the REDcode output.`);
+      return;
+    }
+    const copy = projectPathFor(project, gamePath);
+    const there = fs.existsSync(copy);
+    const go = there ? "Open the Project's Copy and Apply" : "Add to Project and Apply";
+    for (;;) {
+      const pick = await vscode.window.showInformationMessage(
+        title,
+        {
+          modal: true,
+          detail:
+            (there
+              ? `The game's copy cannot change. ${project.name} has its own copy of this sector: REDcode opens it and makes the changes there, unsaved; one Undo takes them all back.`
+              : `The game's copy cannot change. REDcode adds this sector to ${project.name}, opens the copy, and makes the changes there, unsaved; one Undo takes them all back.`) +
+            "\n\nPacked, a project's copy replaces the game's whole sector, which undoes what other mods change in it, such as EDGEbuilder's ArchiveXL deletions.",
+        },
+        go,
+        "Show List",
+      );
+      if (pick === "Show List") {
+        this.log.show(true);
+        continue;
+      }
+      if (pick !== go) {
+        this.log.appendLine(`script: ${s.name}: not applied`);
+        return;
+      }
+      break;
+    }
+    if (!there) {
+      // REDcode's own Add to Project: it extracts the file and shows it in the Project view.
+      await vscode.commands.executeCommand("redcode.addToProject", { kind: "file", file: { name: gamePath } });
+      if (!fs.existsSync(copy)) {
+        this.log.appendLine(`script: ${s.name}: the sector was not added to ${project.name}`);
+        return;
+      }
+    } else {
+      await vscode.commands.executeCommand("redcode.revealInProject", copy);
+    }
+    const entries = [...new Set(changes.map((c) => c.entry))];
+    const line = `${s.name}: ${changes.length.toLocaleString()} value${changes.length === 1 ? "" : "s"} changed in ${project.name}'s copy (unsaved) · Ctrl+Z takes them back`;
+    await this.applyToCopy(copy, changes.map(changeToOp), `Script: ${s.name}`, entries, { name: s.name, line });
+    this.log.appendLine(`script: ${s.name}: ${changes.length} change(s) applied to ${copy}`);
+    host.post({ type: "sectorScript", state: "applied", name: s.name, line: `${s.name}: applied in ${project.name}'s copy, opened in its own tab` });
+  }
 
   /** The project a document belongs to: the one it is in, or the workspace's. */
   private projectDir(document: Cr2wDocument): string | undefined {
@@ -434,15 +494,7 @@ export class SectorScriptsUi {
     const what = [...counts].map(([p, k]) => `${p} on ${k.toLocaleString()} node${k === 1 ? "" : "s"}`).join(", ");
     const title = `"${s.name}" would change ${changes.length.toLocaleString()} value${changes.length === 1 ? "" : "s"}: ${what}.`;
     const { document } = host;
-    if (document.gamePath) {
-      const pick = await vscode.window.showInformationMessage(
-        title,
-        { modal: true, detail: "Values change only in a project's copy of a sector. Add this sector to the project, open the copy, and run the script there. The list is in the REDcode output." },
-        "Add to Project",
-      );
-      if (pick) await vscode.commands.executeCommand("redcode.addToProject", { kind: "file", file: { name: document.gamePath } });
-      return;
-    }
+    if (document.gamePath) return this.applyInProject(host, s, changes, title);
     for (;;) {
       const pick = await vscode.window.showInformationMessage(
         title,
