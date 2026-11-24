@@ -42,6 +42,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Animation Tools AT2](#animation-tools-at2) | By hand, in REDcode and the game | Animation Tools AT2 | 2026-11-22 | Not run (checked offline: typecheck, unit 75, anim-core 22, the MCP tools over stdio) |
 | [Animation Tools pack (AT3)](#animation-tools-pack-at3) | By hand, in the game | Animation Tools AT3 | 2026-11-22 | **Passed** 2026-11-24 (run 2, with the fixes it raised) |
 | [Animation Editor (AE1)](#animation-editor-ae1) | Script, MCP client, and by hand in the game | Animation Editor AE1 | 2026-11-24 | Script and MCP passed; in the game not run |
+| [CR2W editor: buffers and nodeData](#cr2w-editor-buffers-and-nodedata) | By hand | A modder's report, 2026-11-24 | 2026-11-24 | Not run (checked in Chrome over the real REDbridge) |
 | [Replace with a WAV, titled models (#29), every window's project (#32)](#replace-with-a-wav-titled-models-29-and-every-windows-project-32) | By hand, in the game | Requests | 2026-11-20 | Pass (owner), with two fixes |
 | [Replace All](#replace-all) | By hand, in the game | Requests | 2026-11-20 | Pass (owner), with one fix |
 | [Sector view](#sector-view) | By hand | C5 | 2026-11-20 | Pass (owner), with two fixes and five changes, each retested |
@@ -839,6 +840,20 @@ In the game, with the Animation Tools pack on its own project (the project line 
 | E1 | Ask the assistant to pin the feet of `man_stands_relaxed_crosses` (it uses `anim_edit` with the suggested pins), then **Play** it in the pack | Packed and swapped (the files changed); the feet stay planted, no slide, the tapping foot still taps |
 | E2 | Ask for a head turn: 30 degrees to his left at 2.5 s; **Play** | He looks to his left around 2.5 s, smoothly, and back |
 | E3 | Ask to clear the edits; **Play** | The clip as made again |
+
+## CR2W editor: buffers and nodeData
+
+From a modder's report (2026-11-24): in `exterior_-11_11_0_1.streamingsector`, `nodeData.Data.1441` has `nodeIdx` 179 and `instanceIndex` 541, but node 179's `buffer` showed only `Data WolvenKit.RED4.Types.worldInstancedMeshNodeBuffer`, and the two numbers had to be followed by hand. Found: REDbridge answers these buffers' `Data` as one value and refuses paths below it. Fixed in REDcode (`src/cr2wValues.ts`: such values open as a read-only tree, read below from the value, kept per document), and the nodeData entry now shows what it points at (the suggestion in the report). Checked in Chrome over REDbridge 0.19.0 with the editor page: the buffer opens (InnerNodes and TransformRanges, 570 each, 200 at a time), and nodeData.Data.1441 shows nodes[179] and InnerNodes[541] (`wat_kab_building_f_ceiling_w300_ab.mesh`) with its 5 transforms from [2223]. A unit check covers the tree and the paths below. **Not run:** in VS Code.
+
+F5 with **Run REDcode**; in Game Assets open `base\worlds_night_city\_compiled\default\exterior_-11_11_0_1.streamingsector`, then **Tree**.
+
+| # | Do | Expected |
+|---|---|---|
+| B1 | Open `nodes` > `179` > `Data` > `buffer` > `Data` | `InnerNodes` and `TransformRanges`, 570 items each; open one: its fields (read-only) |
+| B2 | Open `cookedWorldTransformsBuffer` > `Data` > `Transforms` | 2,314 items, 200 at a time with Load more |
+| B3 | Select `nodeData` > `Data` > `1441` | Below its fields: **nodeIdx 179 → nodes[179]** with the node's fields, and **instanceIndex 541 → InnerNodes[541]** with the mesh `wat_kab_building_f_ceiling_w300_ab.mesh` and 5 transforms from [2223] |
+| B4 | **Show in tree** on either | The tree opens there and selects it |
+| B5 | Add the sector to a project, open its copy, select nodeData.Data.1441, change a field in the nodes[179] section | The edit lands on `nodes.179.Data` (Undo takes it back); the instance section stays read-only |
 
 ## Keys (K4b)
 

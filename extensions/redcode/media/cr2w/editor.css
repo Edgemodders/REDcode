@@ -55,6 +55,10 @@ li.more { color: var(--cyan); cursor: pointer; }
 .pvalue { min-width: 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .tools { display: flex; gap: 4px; }
 .struct { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; width: 100%; }
+/* A nodeData entry's node and instance, below its own fields (worldStreamingSector). */
+.refsection { margin: 16px 0 4px; padding-left: 12px; border-left: 2px solid var(--accent); }
+.refhead { display: flex; gap: 10px; align-items: baseline; margin: 0 0 6px; }
+.refhead .reftitle { color: var(--accent); font-weight: 600; }
 .srow { display: contents; }
 .sname { font-family: var(--mono); font-size: 12px; color: var(--dim); padding-top: 3px; }
 .leaf input[type=text], .leaf select { width: 100%; min-width: 120px; box-sizing: border-box; background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border, var(--line)); padding: 2px 6px; font: inherit; font-family: var(--mono); font-size: 12px; }

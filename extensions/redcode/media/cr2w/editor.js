@@ -638,6 +638,11 @@
         rows.push(row);
       }
     }
+    // A sector's nodeData entry: what its nodeIdx and instanceIndex point at, below its own fields (a modder's ask,
+    // 2026-11-24: no scrolling between nodeData and nodes).
+    if (info?.type === "worldStreamingSector" && n.kind === "class" && /^nodeData\.Data\.\d+$/.test(selected)) {
+      rows.push(...(await nodeDataRefs(n)));
+    }
     } catch (e) {
       // A child fetch failed (the bridge went away, for instance): say so instead of an empty grid.
       rows.push(el("div", "error", e.message));
@@ -685,6 +690,115 @@
       stage.replaceChildren(img);
     }).catch((e) => stage.replaceChildren(el("div", "note", `Could not convert the texture: ${e.message}`)));
     return wrap;
+  }
+
+  /** A titled, indented block of rows that points elsewhere in the file, with Show in Tree. */
+  function refSection(title, type, path, body) {
+    const box = el("div", "refsection");
+    const head = el("div", "refhead");
+    head.append(el("span", "reftitle", title), el("span", "ptype", type ?? ""));
+    if (path) {
+      const show = el("button", "link", "Show in tree");
+      show.title = path;
+      show.addEventListener("click", async () => { await revealInTree(path); void select(path); });
+      head.appendChild(show);
+    }
+    box.append(head, ...body);
+    return box;
+  }
+
+  /** A number a node's child holds, plain or wrapped. */
+  const numberOf = (n, name) => {
+    const v = n.children?.find((x) => x.name === name)?.value;
+    const shown = v !== null && typeof v === "object" && "$value" in v ? v.$value : v;
+    const x = Number(shown);
+    return shown === null || shown === undefined || Number.isNaN(x) ? null : x;
+  };
+
+  /**
+   * The node a nodeData entry's nodeIdx names (its fields, editable as anywhere), and the instance its
+   * instanceIndex names in that node's buffer: InnerNodes[i] (the mesh and its settings), and for instanced
+   * meshes TransformRanges[i]'s transforms from cookedWorldTransformsBuffer.
+   */
+  async function nodeDataRefs(entry) {
+    const nodeIdx = numberOf(entry, "nodeIdx");
+    const inst = numberOf(entry, "instanceIndex");
+    if (nodeIdx === null) return [];
+    const nodePath = `nodes.${nodeIdx}.Data`;
+    const out = [];
+    let node;
+    try {
+      node = await fetchNode(nodePath);
+    } catch (e) {
+      return [refSection(`nodeIdx ${nodeIdx}`, "", null, [el("div", "error", e.message)])];
+    }
+    const desc = await typeOf(node.type).catch(() => null);
+    const nodeRows = [];
+    for (const c of node.children ?? []) nodeRows.push(await propertyRow(nodePath, c, desc?.properties?.find((p) => p.name === c.name), !!info?.readOnly || !!node.readOnly));
+    out.push(refSection(`nodeIdx ${nodeIdx} → nodes[${nodeIdx}]`, node.type, nodePath, nodeRows));
+    if (inst === null || inst === 4294967295) return out;
+    const title = `instanceIndex ${inst}`;
+    if (!node.children?.some((c) => c.name === "buffer" && c.kind === "buffer")) {
+      out.push(refSection(title, "", null, [el("div", "note", `A ${node.type} keeps no instances in a buffer; instanceIndex has nothing here to point at.`)]));
+      return out;
+    }
+    try {
+      const bufPath = `${nodePath}.buffer.Data`;
+      const buf = await fetchNode(bufPath);
+      const count = buf.children?.find((c) => c.name === "InnerNodes")?.count ?? 0;
+      if (!count) {
+        out.push(refSection(title, "", null, [el("div", "note", "The node's buffer has no inner nodes.")]));
+        return out;
+      }
+      // The game's rule (as REDbridge's sector.nodes reads it): an index past the inner nodes is the first.
+      const i = inst < count ? inst : 0;
+      const innerPath = `${bufPath}.InnerNodes.${i}`;
+      const inner = await fetchNode(innerPath);
+      const body = [];
+      if (i !== inst) body.push(el("div", "note", `${inst} is past the ${count} inner nodes, so the first is used.`));
+      for (const c of inner.children ?? []) body.push(await propertyRow(innerPath, c, null, true));
+      if (buf.children.some((c) => c.name === "TransformRanges") && node.children.some((c) => c.name === "cookedWorldTransformsBuffer")) {
+        const range = await fetchNode(`${bufPath}.TransformRanges.${i}`);
+        const from = numberOf(range, "transformIndex");
+        const n = numberOf(range, "transformCount");
+        if (from !== null && n) body.push(...(await transformRows(`${nodePath}.cookedWorldTransformsBuffer.Data.Transforms`, from, n)));
+      }
+      out.push(refSection(`${title} → InnerNodes[${i}]`, inner.type, innerPath, body));
+    } catch (e) {
+      out.push(refSection(title, "", null, [el("div", "error", e.message)]));
+    }
+    return out;
+  }
+
+  /** An instance's transforms, one row each: where (metres), the turn and the scale, with open. */
+  async function transformRows(listPath, from, count) {
+    const shown = Math.min(count, 20);
+    const head = el("div", "prow");
+    head.append(el("span", "pname", "transforms"), el("span", "ptype", "RenderProxyTransform"), el("span", "dim", `${count} from [${from}]${count > shown ? `, the first ${shown} shown` : ""}`));
+    const rows = [head];
+    const fixed = (v) => (v && typeof v === "object" && "Bits" in v ? Number(v.Bits) / 131072 : Number(v));
+    const f = (x, d = 2) => (Number.isFinite(x) ? x.toFixed(d) : "?");
+    for (let k = from; k < from + shown; k++) {
+      const item = `${listPath}.${k}`;
+      try {
+        const scale = (await getNode(item)).children?.find((c) => c.name === "scale")?.value;
+        const t = await getNode(`${item}.transform`);
+        const q = t.children?.find((c) => c.name === "Orientation")?.value;
+        const p = await getNode(`${item}.transform.Position`);
+        const at = ["x", "y", "z"].map((a) => fixed(p.children?.find((c) => c.name === a)?.value));
+        const text = `at ${at.map((x) => f(x)).join(", ")} m  ·  turn ${q ? [q.i, q.j, q.k, q.r].map((x) => f(Number(x), 3)).join(", ") : "?"}  ·  scale ${scale ? [scale.X, scale.Y, scale.Z].map((x) => f(Number(x), 3)).join(", ") : "?"}`;
+        const open = el("button", "link", "open");
+        open.addEventListener("click", async () => { await revealInTree(item); void select(item); });
+        const cell = el("span", "pvalue");
+        cell.append(el("span", "dim", text), open);
+        const row = el("div", "prow");
+        row.append(el("span", "pname", `[${k}]`), el("span", "ptype", "transform"), cell);
+        rows.push(row);
+      } catch (e) {
+        rows.push(el("div", "error", `[${k}]: ${e.message}`));
+      }
+    }
+    return rows;
   }
 
   async function propertyRow(parentPath, c, pdesc, readOnly) {
