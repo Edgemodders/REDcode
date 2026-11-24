@@ -32,6 +32,11 @@ export interface FitReport {
   grounding: { motionLowest: number; gameLowest: number; lift: number };
   /** Degrees the motion was turned about the vertical so its first frame faces as the game clip does. */
   facing: number;
+  /**
+   * Metres, with inPlace: how far the motion travelled from its first frame to its last (taken out), and the
+   * largest sway or step kept on the hips. A large net means the motion walks somewhere: in place, its feet slide.
+   */
+  travel?: { net: number; kept: number };
 }
 
 export interface FitOptions {
@@ -39,6 +44,14 @@ export interface FitOptions {
   ground?: boolean;
   /** Turn the motion to face as the game clip does at its first frame (default true). */
   face?: boolean;
+  /**
+   * Keep the character where it stands (default false): the Root's travel across the floor is taken out as a
+   * straight line from the first frame to the last, and the rest of it, the body's sway and steps, goes onto the
+   * hips. So the clip starts and ends where the character stands, and the hips and feet move as the motion made
+   * them. Uthana's own in_place holds the hips still instead, so the feet slide whenever the body shifts its
+   * weight (AT3 run 2, 2026-11-24: both feet slid 18 cm together; 0.6 cm in the same motion with its travel).
+   */
+  inPlace?: boolean;
 }
 
 // ---- quaternions [x, y, z, w] ----
@@ -93,7 +106,57 @@ function turnMotion(nodes: GlbNode[], channels: Channel[], degrees: number): voi
   }
 }
 
-const quatAngle = (a: number[], b: number[]) => (2 * Math.acos(Math.min(1, Math.abs(a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3]))) * 180) / Math.PI;
+/**
+ * In place (FitOptions.inPlace): the Root's travel across the floor, less a straight line from its first frame to
+ * its last, moved onto the hips; the Root keeps only its height. The hips' world place is Root.t + Root.r * Hips.t,
+ * so the hips get Root.r⁻¹ * what is kept.
+ */
+function travelInPlace(nodes: GlbNode[], channels: Channel[]): { net: number; kept: number } | undefined {
+  const rootT = channels.findIndex((c) => c.node === "Root" && c.path === "translation");
+  const hipsT = channels.findIndex((c) => c.node === "Hips" && c.path === "translation");
+  if (rootT < 0 || hipsT < 0) return undefined;
+  const rootR = channels.find((c) => c.node === "Root" && c.path === "rotation");
+  const rootIndex = nodes.findIndex((n) => n.name === "Root");
+  const parentIndex = nodes.findIndex((n) => (n.children ?? []).includes(rootIndex));
+  // The world's up (glTF Y) in the Root's parent space.
+  const parentRot = parentIndex >= 0 ? worldRotationAtStart(nodes, channels, nodes[parentIndex].name!) : [0, 0, 0, 1];
+  const up = qrot(qconj(parentRot), [0, 1, 0]);
+  const level = (v: number[]) => {
+    const d = v[0] * up[0] + v[1] * up[1] + v[2] * up[2];
+    return [v[0] - d * up[0], v[1] - d * up[1], v[2] - d * up[2]];
+  };
+  const r = channels[rootT];
+  const h = channels[hipsT];
+  const n = r.values.length;
+  if (n < 2) return { net: 0, kept: 0 };
+  const sample = (c: Channel | undefined, i: number, rest: number[]) => (c ? c.values[Math.min(c.values.length - 1, Math.round((i * (c.values.length - 1)) / (n - 1)))] : rest);
+  const start = level(r.values[0]);
+  const end = level(r.values[n - 1]);
+  const t0 = r.times[0];
+  const span = r.times[n - 1] - t0 || 1;
+  let kept = 0;
+  const rootValues: number[][] = [];
+  const keptAt: number[][] = [];
+  for (let i = 0; i < n; i++) {
+    const f = (r.times[i] - t0) / span;
+    const flat = level(r.values[i]);
+    const rest = flat.map((v, k) => v - (start[k] + (end[k] - start[k]) * f));
+    kept = Math.max(kept, Math.hypot(rest[0], rest[1], rest[2]));
+    rootValues.push(r.values[i].map((v, k) => v - flat[k]));
+    keptAt.push(rest);
+  }
+  const rootRest = nodes[rootIndex]?.rotation ?? [0, 0, 0, 1];
+  const hipsValues = h.values.map((v, j) => {
+    const i = Math.min(n - 1, Math.round((j * (n - 1)) / Math.max(1, h.values.length - 1)));
+    const add = qrot(qconj(qnorm(sample(rootR, i, rootRest))), keptAt[i]);
+    return [v[0] + add[0], v[1] + add[1], v[2] + add[2]];
+  });
+  channels[rootT] = { ...r, values: rootValues };
+  channels[hipsT] = { ...h, values: hipsValues };
+  return { net: Math.hypot(end[0] - start[0], end[1] - start[1], end[2] - start[2]), kept };
+}
+
+const quatAngle =(a: number[], b: number[]) => (2 * Math.acos(Math.min(1, Math.abs(a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3]))) * 180) / Math.PI;
 
 /**
  * The lowest the heels and toes go, in metres above the clip's origin (glTF Y up): forward kinematics over the
@@ -203,6 +266,7 @@ export function fitClip(motion: Glb, reference: Glb, name: string, options: FitO
   // Uthana starts a motion facing its own way, 146 degrees from the game's in the first test; the game plays a
   // clip from the character's own facing. So the whole motion turns about the vertical until its first frame's
   // hips face as the game clip's do; any turning within the clip stays.
+  const travel = options.inPlace ? travelInPlace(gj.nodes, channels) : undefined;
   const refChannels = channelsOf(reference);
   const facing = options.face === false ? 0 : yawBetween(gj.nodes, refChannels, channels);
   if (Math.abs(facing) > 0.5) turnMotion(gj.nodes, channels, facing);
@@ -266,6 +330,7 @@ export function fitClip(motion: Glb, reference: Glb, name: string, options: FitO
       restDifference,
       grounding: { motionLowest, gameLowest, lift },
       facing,
+      ...(travel ? { travel } : {}),
     },
   };
 }

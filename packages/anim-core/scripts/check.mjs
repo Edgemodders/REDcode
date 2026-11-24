@@ -62,6 +62,61 @@ try {
   // The default fit turns the motion to face as the game's idle does (the pack's first in-game run).
   const faced = core.fitClip(core.readGlb(fs.readFileSync(motionFile)), reference, "faced").report;
   check(Math.abs(Math.abs(faced.facing) - 146) < 3, `the fit turns Uthana's motion ${faced.facing.toFixed(0)} degrees to face as the game's clips do`);
+  // In place (AT3 run 2): the same motion given a travel on its Root, a 50 cm drift plus a 15 cm sway. The fit
+  // takes the drift out and keeps the sway: the left heel is where the plain fit has it, moved by the sway alone.
+  {
+    const g = core.readGlb(fs.readFileSync(motionFile));
+    const anim0 = g.json.animations[0];
+    const rootNode = g.json.nodes.findIndex((n) => n.name === "Root");
+    const ch = anim0.channels.find((c) => c.target.node === rootNode && c.target.path === "translation");
+    const sampler = anim0.samplers[ch.sampler];
+    const times = core.readAccessor(g, sampler.input).map((v) => v[0]);
+    const acc = g.json.accessors[sampler.output];
+    const view = g.json.bufferViews[acc.bufferView];
+    const bin = Buffer.from(g.bin);
+    const T = times.at(-1) - times[0];
+    const sway = (t) => 0.15 * Math.sin((2 * Math.PI * (t - times[0])) / T);
+    times.forEach((t, i) => {
+      const at = (view.byteOffset ?? 0) + (acc.byteOffset ?? 0) + i * 12;
+      bin.writeFloatLE(bin.readFloatLE(at) + 0.5 * ((t - times[0]) / T) + sway(t), at);
+    });
+    const travelling = { ...g, bin };
+    const plain = core.fitClip(g, reference, "plain", { face: false });
+    const kept = core.fitClip(travelling, reference, "kept", { face: false, inPlace: true });
+    const heel = (glb) => {
+      const f = core.readGlb(glb);
+      const nodes = f.json.nodes;
+      const a0 = f.json.animations[0];
+      const tracks = new Map(a0.channels.map((c) => [`${c.target.node}/${c.target.path}`, core.readAccessor(f, a0.samplers[c.sampler].output)]));
+      const parent = new Map();
+      nodes.forEach((n, i) => (n.children ?? []).forEach((c) => parent.set(c, i)));
+      const compose = (t = [0, 0, 0], q = [0, 0, 0, 1]) => {
+        const [x, y, z, w] = q;
+        return [1 - 2 * (y * y + z * z), 2 * (x * y + z * w), 2 * (x * z - y * w), 0, 2 * (x * y - z * w), 1 - 2 * (x * x + z * z), 2 * (y * z + x * w), 0, 2 * (x * z + y * w), 2 * (y * z - x * w), 1 - 2 * (x * x + y * y), 0, t[0], t[1], t[2], 1];
+      };
+      const mul = (p, q) => {
+        const o = new Array(16).fill(0);
+        for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) for (let k = 0; k < 4; k++) o[c * 4 + r] += p[k * 4 + r] * q[c * 4 + k];
+        return o;
+      };
+      const target = nodes.findIndex((n) => n.name === "LeftHeel");
+      return times.map((_, i) => {
+        const world = (j) => {
+          const local = compose(tracks.get(`${j}/translation`)?.[i] ?? nodes[j].translation, tracks.get(`${j}/rotation`)?.[i] ?? nodes[j].rotation);
+          return parent.has(j) ? mul(world(parent.get(j)), local) : local;
+        };
+        const m = world(target);
+        return [m[12], m[13], m[14]];
+      });
+    };
+    const p = heel(plain.glb);
+    const k = heel(kept.glb);
+    const off = (i) => Math.hypot(k[i][0] - p[i][0], k[i][1] - p[i][1], k[i][2] - p[i][2]);
+    const worst = Math.max(...times.map((t, i) => Math.abs(off(i) - Math.abs(sway(t)))));
+    const tr = kept.report.travel;
+    check(worst < 0.002 && off(0) < 0.002 && off(times.length - 1) < 0.002 && Math.abs(tr.net - 0.5) < 0.01 && Math.abs(tr.kept - 0.15) < 0.01,
+      `in place: a 50 cm drift taken out (${(tr.net * 100).toFixed(1)} cm), the 15 cm sway kept on the hips (${(tr.kept * 100).toFixed(1)} cm; the heel within ${(worst * 1000).toFixed(1)} mm of it)`);
+  }
   const r = fitted.report;
   console.log(`     fit: ${r.duration.toFixed(2)} s, ${r.frames} frames, ${r.channels.written} channels (${r.channels.fromMotion} from the motion), lift ${(r.grounding.lift * 100).toFixed(1)} cm, rest pose within ${r.restDifference.degrees.toFixed(3)} degrees (${r.restDifference.bone}), missing ${r.missingBones.length}`);
   check(r.channels.written === 142 && r.missingBones.length === 0 && r.restDifference.degrees < 0.1, "the fit writes every channel, on the game's own skeleton");
@@ -111,7 +166,18 @@ try {
     check(!again.uploaded && again.id === c.id, "a second ask is answered from the record, with no upload");
     check(!fs.readFileSync(store, "utf8").includes(k.key), "the record holds no key");
     const dl = await u.download(c.id, state.motions.at(-1).id, { fps: 30, inPlace: true });
-    check(dl.equals(fs.readFileSync(motionFile)), `the download of Probe D's motion is the file the probe kept (${dl.length.toLocaleString()} bytes)`);
+    // The same motion as the probe kept, though not byte for byte: by 2026-11-24 Uthana served it re-exported (the
+    // same channels and frames, fingers within about 1 degree, some quaternions with the other sign).
+    const channelsIn = (g) => new Map(g.json.animations[0].channels.map((c) => [`${g.json.nodes[c.target.node].name}/${c.target.path}`, core.readAccessor(g, g.json.animations[0].samplers[c.sampler].output)]));
+    const got = channelsIn(core.readGlb(dl));
+    const kept = channelsIn(core.readGlb(fs.readFileSync(motionFile)));
+    let apart = 0;
+    for (const [n, v] of kept) {
+      const w = got.get(n);
+      if (!w || w.length !== v.length) apart = Infinity;
+      else for (let i = 0; i < v.length; i++) apart = Math.max(apart, v[i].length === 4 ? (2 * Math.acos(Math.min(1, Math.abs(v[i].reduce((s, x, j) => s + x * w[i][j], 0)))) * 180) / Math.PI : Math.max(...v[i].map((x, j) => Math.abs(x - w[i][j]) * 100)));
+    }
+    check(got.size === kept.size && apart < 3, `the download of Probe D's motion is the motion the probe kept (${got.size} channels, within ${apart.toFixed(1)} degrees or cm)`);
   }
 
   // 3. The woman's rig.

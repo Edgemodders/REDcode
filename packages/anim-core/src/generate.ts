@@ -98,10 +98,12 @@ export async function generate(o: GenerateOptions): Promise<Generated> {
   if (!motionId) throw new Error(`Uthana finished but named no motion: ${JSON.stringify(done.result ?? null).slice(0, 300)}`);
 
   stage("downloading", motionId);
-  const motion = await o.uthana.download(character.id, motionId, { fps: 30, inPlace: o.inPlace !== false, torsoOnly: !!o.upperBodyOnly });
+  // Always the motion with its travel: in place, the fit takes the travel out and keeps the body's sway on the
+  // hips, where Uthana's in_place would hold the hips still and slide the feet (AT3 run 2).
+  const motion = await o.uthana.download(character.id, motionId, { fps: 30, inPlace: false, torsoOnly: !!o.upperBodyOnly });
 
   stage("fitting");
-  const { glb, report } = fitClip(readGlb(motion), await referenceClip(o.bridge, o.cacheDir, o.rig), clip);
+  const { glb, report } = fitClip(readGlb(motion), await referenceClip(o.bridge, o.cacheDir, o.rig), clip, { inPlace: o.inPlace !== false });
   if (report.missingBones.length) throw new Error(`Uthana's motion lacks ${report.missingBones.length} of the rig's bones (${report.missingBones.slice(0, 5).join(", ")}): it is not on the game's skeleton`);
 
   stage("importing", clip);
