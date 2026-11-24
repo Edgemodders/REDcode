@@ -1006,10 +1006,14 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
     scriptLine.textContent = m.line ?? "";
     scriptLine.title = m.line ?? "";
     if (m.state === "done" && m.selected) {
+      const before = selection.length;
       const ids = m.selected.flatMap(idsOfEntry);
       select(ids, ids[0] ?? null);
-      // An instanced node is listed once per copy it draws.
-      if (ids.length > m.selected.length) scriptLine.textContent = `${m.line ?? ""} (${ids.length.toLocaleString()} copies drawn)`;
+      // How the list changed, in rows (an instanced node is a row per copy it draws): a run that adds copies to a
+      // selection already holding many could not be told apart from one that did nothing (the owner, 2026-11-24).
+      const change = `selection ${before.toLocaleString()} → ${ids.length.toLocaleString()}`;
+      scriptLine.textContent = `${m.line ?? ""} · ${change}`;
+      scriptLine.title = scriptLine.textContent;
     }
   };
   scriptsButton.addEventListener("click", () => {
