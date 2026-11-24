@@ -28,7 +28,7 @@ Still open: a clip that moves (Probe B: workspots apply no root motion), overrid
 | **`@edgemodders/anim-core`** | The shared library: the Uthana client, the stand-in character for a rig, the fit, and adding or replacing a clip through REDbridge. No VS Code and no REDnode imports | `packages/anim-core` in this repo, beside `world-view` |
 | **REDcode** | In the animation view: **Generate with Uthana**, **Add Clip from GLB**, **Replace Clip from GLB**; the commands, and MCP tools for assistants | `extensions/redcode` |
 | **Animation Tools** | A REDnode pack: prompt, generate, swap and play on a spawned NPC, all in the game; and play any clip the project has | `packs/animation-tools/` in this repo, released on its own, as EDGEbuilder's Remove Doors is |
-| **EDGEfab** (later) | Manual editing: timing, trim, loop, mirror, posing, over the same library | EDGEfab, once the owner decides |
+| ~~**EDGEfab** (later)~~ | ~~Manual editing: timing, trim, loop, mirror, posing, over the same library~~ | Moved to REDcode and this pack on 2026-11-24 (the owner: EDGEfab is reduced to props and clothes for now): the [Animation Editor](animation-editor.html) |
 
 So Uthana moves from EDGEfab's planned E3 to REDcode. EDGEfab hears of it on its repo once this page is agreed, with the owner's go.
 

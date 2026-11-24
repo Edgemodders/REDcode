@@ -58,6 +58,8 @@ nav:
     url: /design/keys.html
   - title: Animation Tools
     url: /design/animation-tools.html
+  - title: Animation Editor
+    url: /design/animation-editor.html
   - title: Lip Sync
     url: /design/lipsync.html
   - title: Game in a tab
