@@ -12,6 +12,7 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 - For other tools: `REDcodeApi.openLipSync(character?, clip?)` ([API](https://edgemodders.github.io/REDcode/api.html)).
 - **Overlaps** beside the selected list in the sector view: the sectors whose things reach into the opened one, in groups, each a layer you turn Off, Ghost (see-through) or Shown, and pick and select in. The first look at a place takes about a minute; after that, a second.
 - **Only** on a row of the sector view's selected list keeps just the selected things that draw its mesh.
+- The CR2W editor's search box goes to a path: paste `nodes.179.Data.buffer.Data` (or `nodes[179].Data`) and press Enter, and the tree opens there and selects it.
 - A sector's **nodeData** entry shows, below its own fields, the node its `nodeIdx` names (its fields, editable in a project's copy) and the instance its `instanceIndex` names: the mesh and settings from the node's inner nodes, and where each copy stands (position, turn, scale), so there is no scrolling between nodeData and nodes. **Show in tree** goes to either.
 - **Back** and **Forward** above the sector view's selected list return to the selection before or after, also after Clear or a script; the list's buttons are icons now, named in their tooltips.
 - Assistants in the game can read the game's window mode and resolution, with the sizes it offers: `redcode__display`, in REDcode's REDnode package (0.3.0).

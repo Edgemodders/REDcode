@@ -91,7 +91,7 @@ export function jsonNode(path: string, v: unknown, offset = 0, limit = 200): Cr2
 export function openChildren(n: Cr2wNode): Cr2wNode {
   if (!n.children?.some((c) => isOpaque(c.kind, c.value))) return n;
   // The type REDbridge names stays: these buffers' JSON has no $type of its own.
-  return { ...n, children: n.children.map((c) => (isOpaque(c.kind, c.value) ? { ...jsonChild(c.name, c.value), type: c.type } : c)) };
+  return { ...n, children: n.children.map((c) => (isOpaque(c.kind, c.value) ? { ...jsonChild(c.name, c.value), type: c.type, ...(Array.isArray(c.value) ? {} : { preview: c.type }) } : c)) };
 }
 
 /** Walks a value down dotted parts: array indices and object keys. */

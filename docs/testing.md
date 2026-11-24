@@ -849,7 +849,7 @@ F5 with **Run REDcode**; in Game Assets open `base\worlds\03_night_city\_compile
 
 | # | Do | Expected |
 |---|---|---|
-| B1 | Open `nodes` > `179` > `Data` > `buffer` > `Data` | `InnerNodes` and `TransformRanges`, 570 items each; open one: its fields (read-only) |
+| B1 | Paste `nodes.179.Data.buffer.Data` into the search box at the bottom, Enter (or open `nodes` > `179` > `Data` > `buffer` > `Data`) | The tree switches from 3D, opens there and selects it: `InnerNodes` and `TransformRanges`, 570 items each; open one: its fields (read-only). `nodes[179].Data.buffer.Data.InnerNodes[541]` goes there too; text that is not a path searches as before |
 | B2 | Open `cookedWorldTransformsBuffer` > `Data` > `Transforms` | 2,314 items, 200 at a time with Load more |
 | B3 | Select `nodeData` > `Data` > `1441` | Below its fields: **nodeIdx 179 → nodes[179]** with the node's fields, and **instanceIndex 541 → InnerNodes[541]** with the mesh `wat_kab_building_f_ceiling_w300_ab.mesh` and 5 transforms from [2223] |
 | B4 | **Show in tree** on either | The tree opens there and selects it |

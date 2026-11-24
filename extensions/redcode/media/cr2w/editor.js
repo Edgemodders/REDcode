@@ -1015,6 +1015,30 @@
   }
 
   // ---- search ---------------------------------------------------------------------------------
+  /**
+   * A path typed or pasted into the search box (nodes.179.Data.buffer.Data, or nodes[179].Data): the tree opens
+   * there and selects it. False when the text is not a path in the file, so the box searches as before.
+   */
+  async function goToPath(text) {
+    const path = text.replace(/\[(\d+)\]/g, ".$1").replace(/\.{2,}/g, ".").replace(/^\.|\.$/g, "");
+    if (!/^[A-Za-z_$][\w$]*(\.[\w$]+)*$/.test(path)) return false;
+    const root = nodes.get("") ?? (await fetchNode("").catch(() => null));
+    if (!root?.children?.some((c) => c.name === path.split(".")[0])) return false;
+    try {
+      await fetchNode(path);
+    } catch {
+      return false;
+    }
+    if (mode !== "tree") {
+      mode = "tree";
+      await render(true);
+    }
+    await revealInTree(path);
+    await select(path, true);
+    status("");
+    return true;
+  }
+
   async function runSearch(query) {
     const grid = $("grid");
     if (!query) { await renderGrid(); return; }
@@ -1711,7 +1735,11 @@
   });
   const searchBox = $("search");
   searchBox.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") { e.preventDefault(); void runSearch(searchBox.value.trim()); }
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const q = searchBox.value.trim();
+      void goToPath(q).then((went) => (went ? undefined : runSearch(q)));
+    }
     if (e.key === "Escape") { searchBox.value = ""; void rerender(); }
   });
   vscode.postMessage({ type: "ready", sidebar });

@@ -1411,7 +1411,7 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
   <span id="status"></span>
   <span class="spacer"></span>
   <span id="selected" class="meta"></span>
-  <input id="search" type="search" placeholder="search values and names" title="Finds values and property names anywhere in the file. Enter to search, Esc to clear.">
+  <input id="search" type="search" placeholder="search, or a path" title="Finds values and property names anywhere in the file, or goes to a path such as nodes.179.Data.buffer.Data or nodes[179].Data. Enter to search or go, Esc to clear.">
 </footer>
 ${viewer}<script nonce="${nonce}" src="${script}"></script>
 </body>

@@ -1550,7 +1550,7 @@ await check("cr2wValues: a buffer REDbridge sends whole becomes a read-only tree
   };
   const cache = new Map();
   const b = await cv.readNode(fetch, cache, "nodes.179.Data.buffer");
-  assert.deepEqual([b.children[0].kind, b.children[0].type, b.children[0].value], ["class", "worldInstancedMeshNodeBuffer", null], "the Data child opens, without its big value");
+  assert.deepEqual([b.children[0].kind, b.children[0].type, b.children[0].preview, b.children[0].value], ["class", "worldInstancedMeshNodeBuffer", "worldInstancedMeshNodeBuffer", null], "the Data child opens, named by its type, without its big value");
   const d = await cv.readNode(fetch, cache, "nodes.179.Data.buffer.Data");
   assert.deepEqual(d.children.map((c) => [c.name, c.kind, c.count]), [["Data", "null", null], ["InnerNodes", "array", 570], ["TransformRanges", "array", 570]]);
   assert.equal(d.readOnly, true);
