@@ -390,6 +390,10 @@
         // Sector scripts (docs/design/sector-scripts.md): the host's menu, and Stop.
         scripts: (entries) => request("sectorScripts", { entries }),
         stopScript: () => request("sectorScriptStop"),
+        // Sector layers (docs/design/sector-layers.md): find them, turn them on, open one.
+        overlaps: () => request("sectorOverlaps"),
+        layers: (paths) => request("sectorLayers", { layers: paths }),
+        openSector: (path) => request("sectorOpen", { path }),
         light: payload.light,
         onLight: (settings) => vscode.postMessage({ type: "light", settings }),
         sideWidth: payload.sideWidth,

@@ -112,6 +112,13 @@ The way back, from a definition or an inner record to its placements, is a tree 
 | **L3 Links** | The picked panel's Links row and Select Placements in 3D |
 | **L4 Open in REDcode** | `openSector` in the package (its version bumped), Open Sector Here; the request to EDGEbuilder for its buttons |
 
+## L1 as built (2026-11-24)
+
+- **The package:** `findOverlaps(bridge, sector, { cacheDir, onLayer, onProgress, stopped })` in `packages/world-view/src/host.ts` (each sector's things' boxes kept as JSON in `overlaps/` under the mesh cache, per game build), and `setSectorLook(sector, { colour, opacity } | null)` in `page.ts`: a layer's things in their own see-through instanced draw, still pickable.
+- **REDcode:** `sectorOverlaps`, `sectorLayers` and `sectorOpen` in `src/cr2wEditor.ts` (the loader draws the opened sector, the coarser ones when on, and the layers on; a layer is the project's copy when the project has one); the tabs and the Overlaps list in `webview/sectorViewer.ts`. A new view starts with every layer off.
+- **Changed from the plan:** Ghost and Shown are the only states drawn; the layer states are not kept when the tab closes (nothing checked at first, as the owner asked). The **variants** tag was dropped from the rows, since most sectors have variants; the count is in the row's tooltip. Off is lit in grey, so only layers that are on stand out.
+- **Checked:** see `docs/testing.md`, Sector layers (L1).
+
 ## Requests to others
 
 Filed on 2026-11-24 with the owner's go: [REDbridge #23](https://github.com/Edgemodders/REDbridge/issues/23) and [EDGEbuilder #11](https://github.com/Edgemodders/EDGEbuilder/issues/11).

@@ -6,6 +6,7 @@ What changed in each release of `@edgemodders/world-view`. Changes are grouped a
 
 **New**
 
+- **Overlaps:** `findOverlaps` in the host half lists the sectors whose things reach into one, grouped and nearest first, keeping each sector's boxes in a cache folder; `setSectorLook` in the page half draws a sector's things see-through in a colour, still pickable.
 - **The host half:** `createSectorLoader`, `sectorsOver`, `sectorsNear`, `texturedGlb`, `entityGlb`, and the axis helpers. It reads a sector through REDbridge's `sector.nodes`, exports each unique mesh once into a cache folder, and hands over every placement in glTF axes with its streaming distance.
 - **The page half:** `createWorldView`.
   - **Drawing:** one instanced draw per GLB primitive, markers for things with no mesh, and the caller's own objects in the same scene.

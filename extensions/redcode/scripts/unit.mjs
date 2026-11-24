@@ -1467,6 +1467,53 @@ await check("sector scripts: a run in its own process selects, changes, calls RE
   await assert.rejects(run.result, (e) => e instanceof ss.ScriptStopped);
 });
 
+await check("sector layers: findOverlaps keeps sectors whose things reach in, in groups, nearest first, and caches their boxes", async () => {
+  const box = (a, b) => ({ min: a, max: b });
+  const item = (min, max) => ({ index: 0, node: 0, kind: "worldMeshNode", transform: { position: min, rotation: [0, 0, 0, 1] }, bounds: box(min, max) });
+  const sectors = [
+    { path: "own.streamingsector", kind: "exterior", level: 0, box: box([0, 0, 0], [100, 100, 100]) },
+    { path: "near.streamingsector", kind: "exterior", level: 0, box: box([30, 0, 0], [130, 100, 100]) },
+    { path: "far.streamingsector", kind: "exterior", level: 0, box: box([39, 0, 0], [300, 100, 100]) },
+    { path: "outside.streamingsector", kind: "exterior", level: 0, box: box([35, 0, 0], [150, 100, 100]) },
+    { path: "coarse.streamingsector", kind: "exterior", level: 1, box: box([-500, -500, -500], [500, 500, 500]) },
+    { path: "quest_a.streamingsector", kind: "quest", level: 0, box: box([-1e6, -1e6, -1e6], [1e6, 1e6, 1e6]), variants: 2 },
+    { path: "inside.streamingsector", kind: "interior", level: 1, box: box([0, 0, 0], [20, 20, 20]) },
+  ];
+  const items = {
+    "own.streamingsector": [item([10, 10, 10], [40, 40, 40])],
+    "near.streamingsector": [item([35, 35, 35], [60, 60, 60]), item([80, 80, 80], [90, 90, 90])],
+    "far.streamingsector": [item([39, 10, 10], [45, 20, 20])],
+    "outside.streamingsector": [item([70, 70, 70], [80, 80, 80])],
+    "coarse.streamingsector": [{ index: 0, node: 0, kind: "worldEntityNode", transform: { position: [20, 20, 20], rotation: [0, 0, 0, 1] }, bounds: null }],
+    "quest_a.streamingsector": [item([5, 5, 5], [12, 12, 12])],
+    "inside.streamingsector": [],
+  };
+  const calls = [];
+  const bridge = {
+    request: async (method, params) => {
+      calls.push(`${method} ${params?.path ?? ""}`);
+      if (method === "sector.find") return { sectors };
+      return { items: items[params.path] };
+    },
+  };
+  const cacheDir = path.join(tmp, "overlaps");
+  const seen = [];
+  const found = await wv.findOverlaps(bridge, "own.streamingsector", { cacheDir, onLayer: (l) => seen.push(l.path) });
+  assert.deepEqual(found.map((l) => [l.path, l.group, l.reach]), [
+    ["near.streamingsector", "neighbours", 1],
+    ["far.streamingsector", "neighbours", 1],
+    ["coarse.streamingsector", "levels", 1],
+    ["quest_a.streamingsector", "global", 1],
+  ]);
+  assert.deepEqual(seen, found.map((l) => l.path));
+  assert.equal(found[2].byPosition, 1, "a thing with no box counts by where it stands");
+  assert.equal(found[3].variants, 2);
+  // Again: every candidate's boxes come from the cache, so only the opened sector is read.
+  calls.length = 0;
+  await wv.findOverlaps(bridge, "own.streamingsector", { cacheDir });
+  assert.deepEqual(calls.filter((c) => c.startsWith("sector.nodes")), ["sector.nodes own.streamingsector"]);
+});
+
 fs.rmSync(tmp, { recursive: true, force: true });
 console.log(`${passed} passed${failures.length ? `, ${failures.length} failed` : ""}`);
 process.exit(failures.length ? 1 : 0);

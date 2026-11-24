@@ -13,7 +13,7 @@ import { meshGlbFor, meshPayload } from "./meshExport";
 import { animsClip, animsGlbFor, animsList, animsSkeleton, baseBodyFor, baseBodyGlb, entityBodyGlb, readAnimsGlb, type AnimsGlb, type BodyGlb } from "./animsGlb";
 import { listSet, memberGlb, newSetSession, placeSet, toMatrix, type SetMember } from "./animsSet";
 import { SectorScriptsUi, type ScriptHost } from "./sectorScriptsUi";
-import { appearanceOf, cachedGlb, createSectorLoader, meshMaterials, sectorsOver, texturedGlb, type SectorLoader, type SectorRef } from "../../../packages/world-view/src/host";
+import { appearanceOf, cachedGlb, createSectorLoader, findOverlaps, meshMaterials, sectorsOver, texturedGlb, type SectorLoader, type SectorRef } from "../../../packages/world-view/src/host";
 import { bridgeOver, renderMaterials } from "@edgemodders/edgemat-core";
 import { gameCacheReady, stampFolder } from "./exportCache";
 import { findEdgemat, mapsForWebview, openInEdgemat, type RenderedMaterial } from "./edgemat";
@@ -252,6 +252,8 @@ interface Request {
   include?: number[];
   /** sectorLoad: the coarser sectors over the opened one too. */
   coarser?: boolean;
+  /** sectorLayers: the layers to draw beside the opened sector (docs/design/sector-layers.md). */
+  layers?: string[];
   /** light: the 3D views' light settings to keep for the window. */
   settings?: unknown;
   /** sideWidth: the side list's width in pixels, or none for the default. */
@@ -584,6 +586,16 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
     const setSource = (x: SetMember) => (x.self ? animsSource() : { gamePath: x.file });
     /** The sector view's loader (docs/design/sector-view.md), made when its 3D mode first loads. */
     let sectorLoader: SectorLoader | undefined;
+    // What the loader draws: the opened sector, the coarser ones over it when asked, and the layers turned on.
+    let coarserOn = false;
+    let coarserList: string[] | null = null;
+    let layersOn: string[] = [];
+    let overlapsRun: { stopped: boolean } | null = null;
+    /** A sector to load: the project's own copy when the opened sector is a project's and it has one. */
+    const layerRef = (gamePath: string): SectorRef => {
+      const root = document.gamePath ? null : archiveRootOf(document.uri.fsPath);
+      return root && fs.existsSync(path.join(root, gamePath)) ? { path: gamePath, root } : { path: gamePath };
+    };
     /** The opened sector as the drawing package reads it: a project's copy from the project's loose files. */
     const sectorRef = (sector: string): SectorRef => (document.gamePath ? { path: sector } : { path: sector, root: archiveRootOf(document.uri.fsPath) ?? undefined });
     /** The sector view's cache: one per game version, in a folder named by the stamp's hash. */
@@ -760,6 +772,9 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
             if (sectorLoader) this.log.appendLine(`sector view: a new view of ${document.name}; the previous loader stops`);
             sectorLoader?.dispose();
             sectorLoader = undefined;
+            // A new view starts with no layers on, as the page does.
+            layersOn = [];
+            if (overlapsRun) overlapsRun.stopped = true;
             const sector = meshGamePath();
             if (!sector) throw new Error("A sector is read by its game path: open the game's file, or a copy under the project's Archive folder");
             return reply(m.id, { sector, dirty: document.log.length > 0, light: this.context.workspaceState.get(LightKey) });
@@ -793,13 +808,15 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
                 },
               });
             }
-            this.log.appendLine(`sector view: loading ${sector}${m.coarser ? " with the coarser sectors" : ""} (cache ${worldCache})`);
+            this.log.appendLine(`sector view: loading ${sector}${m.coarser ? " with the coarser sectors" : ""}${layersOn.length ? ` and ${layersOn.length} layer(s)` : ""} (cache ${worldCache})`);
+            coarserOn = !!m.coarser;
             const own = sectorRef(sector);
             const sectors: (SectorRef | string)[] = [own];
-            if (m.coarser) {
-              const over = await sectorsOver(bridge, sector).catch(() => [sector]);
-              sectors.push(...over.filter((x) => x.toLowerCase() !== sector.toLowerCase()));
+            if (coarserOn) {
+              coarserList ??= await sectorsOver(bridge, sector).catch(() => [sector]);
+              sectors.push(...coarserList.filter((x) => x.toLowerCase() !== sector.toLowerCase()));
             }
+            for (const l of layersOn) if (!sectors.some((x) => (typeof x === "string" ? x : x.path).toLowerCase() === l.toLowerCase())) sectors.push(layerRef(l));
             // Answers at once; the meshes follow as messages, and sectorDone at the end.
             const t0 = Date.now();
             void sectorLoader.set(sectors).then(
@@ -812,6 +829,70 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
                 post({ type: "sectorDone", skipped: [{ id: sector, why: e instanceof Error ? e.message : String(e) }], sectors: [] });
               },
             );
+            return reply(m.id, null);
+          }
+          case "sectorOverlaps": {
+            // The sectors whose things reach into this one, found nearest first and sent as they are found.
+            const bridge = this.requireBridge();
+            const sector = meshGamePath();
+            if (!sector) throw new Error("No game path for this sector");
+            if (overlapsRun) overlapsRun.stopped = true;
+            const run = { stopped: false };
+            overlapsRun = run;
+            const cacheDir = path.join(await worldCacheDir(), "overlaps");
+            let lastPost = 0;
+            const t0 = Date.now();
+            void findOverlaps(bridge, sectorRef(sector), {
+              cacheDir,
+              stopped: () => run.stopped,
+              onLayer: (layer) => {
+                const own = layerRef(layer.path);
+                post({ type: "sectorOverlapLayer", layer: { ...layer, project: !!own.root } });
+              },
+              onProgress: (done, total) => {
+                const now = Date.now();
+                if (now - lastPost < 200 && done < total) return;
+                lastPost = now;
+                post({ type: "sectorOverlapProgress", done, total });
+              },
+            }).then(
+              (found) => {
+                if (run.stopped) return;
+                this.log.appendLine(`sector view: ${found.length} sector(s) reach into ${path.basename(sector)}, found in ${Date.now() - t0} ms`);
+                post({ type: "sectorOverlapDone", count: found.length });
+              },
+              (e) => {
+                this.log.appendLine(`sector view: overlaps failed: ${e instanceof Error ? e.stack ?? e.message : String(e)}`);
+                post({ type: "sectorOverlapDone", count: 0, error: e instanceof Error ? e.message : String(e) });
+              },
+            );
+            return reply(m.id, null);
+          }
+          case "sectorLayers": {
+            // The layers turned on changed: the loader loads the new ones and unloads the rest.
+            layersOn = (m.layers ?? []).filter((x) => /\.streamingsector$/i.test(x));
+            const sector = meshGamePath();
+            if (!sector || !sectorLoader) return reply(m.id, null);
+            const bridge = this.requireBridge();
+            const sectors: (SectorRef | string)[] = [sectorRef(sector)];
+            if (coarserOn) {
+              coarserList ??= await sectorsOver(bridge, sector).catch(() => [sector]);
+              sectors.push(...coarserList.filter((x) => x.toLowerCase() !== sector.toLowerCase()));
+            }
+            for (const l of layersOn) sectors.push(layerRef(l));
+            this.log.appendLine(`sector view: ${layersOn.length} layer(s) on`);
+            void sectorLoader.set(sectors).then(
+              (r) => post({ type: "sectorDone", skipped: r.skipped, sectors: sectors.map((x) => (typeof x === "string" ? x : x.path)) }),
+              (e) => post({ type: "sectorDone", skipped: [{ id: sector, why: e instanceof Error ? e.message : String(e) }], sectors: [] }),
+            );
+            return reply(m.id, null);
+          }
+          case "sectorOpen": {
+            // A layer's sector in its own tab: the project's copy when it has one.
+            if (!m.path || !/\.streamingsector$/i.test(m.path)) throw new Error("No sector to open");
+            const own = layerRef(m.path);
+            const uri = own.root ? vscode.Uri.file(path.join(own.root, m.path)) : gameUri(m.path);
+            await vscode.commands.executeCommand("vscode.openWith", uri, cr2wViewTypeFor(m.path));
             return reply(m.id, null);
           }
           case "sectorMeshInfo": {
@@ -1034,6 +1115,7 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
       messages.dispose();
       materialWatch?.dispose();
       sectorLoader?.dispose();
+      if (overlapsRun) overlapsRun.stopped = true;
       this.pages.get(document)?.delete(webview);
       // The last page of the document is gone: a script running on it stops.
       if (!this.pages.get(document)?.size) this.scriptsUi?.stop(document);

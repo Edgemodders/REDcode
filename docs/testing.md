@@ -48,6 +48,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Sector camera](#sector-camera) | By hand | C5 | 2026-11-21 | Not run (checked in Chrome over the real bridge) |
 | [Sector selection](#sector-selection) | By hand | C5 | 2026-11-21 | Not run (checked in Chrome over the real bridge) |
 | [Sector scripts](#sector-scripts) | By hand | Sector scripts | 2026-11-23 | Not run (checked by script and in Chrome over the real runner) |
+| [Sector layers (L1)](#sector-layers-l1) | By hand | Sector layers L1 | 2026-11-24 | Not run (checked by script and in Chrome over the real game) |
 | [Library view (#23)](#library-view-23) | By hand | Requests | 2026-11-15 | Pass, two fixes |
 | [Run Game without ELECTRON_RUN_AS_NODE (#24)](#run-game-without-electron_run_as_node-24) | By hand, in the game | Requests | 2026-11-20 | Pass |
 | [New File](#new-file) | By hand | Requests | 2026-11-20 | Pass, steps 1 to 13, four fixes |
@@ -1261,6 +1262,24 @@ F5 with **Run REDcode**, a project open (TestMod or any), and in Game Assets `ba
 | 14 | A script with `async visit(node, ctx) { if (node.entry === 21) await ctx.agent.request("Check this ambient area's distance", [node]) }`, run it | "Request 1 is saved, and its prompt is copied"; `.redcode\requests\1.json` holds the node; paste the prompt to Claude Code, which reads it with `request_get` (after `npm run mcp:build`) |
 
 Run 1 (owner, 2026-11-24), in progress: step 3 changed nothing in the selection list: run with Enter, a script saw no selection (`ctx.selected()` held the selection only on Run on Selection), and the example's "select a mesh first" went to the REDcode output only. Fixed the same day: `ctx.selected()` is the view's selection however a script runs, and the line under the view ends with the script's last `ctx.log` line. Unit checks pass (the example on every node with one crate selected gives both crates); step 3 again in VS Code. Found next: with several meshes selected, the result left out `catwalk_a_railing_l200_ay.mesh`. A script read no mesh on cooked nodes (`worldInstancedMeshNode`, 662 here, and `worldCookedStaticMeshNode`, 347), which name it in an inner node picked by the entry's `instanceIndex`. Fixed the same day: one railing selected now gives its four nodes (381, 405, 1042, 1056) on this sector, and Short streaming distance still gives 68. Asked the same day and built: **Back** and **Forward** for the selection (fast changes such as a Volume drag are one step), and the list's buttons as icons with their names in tooltips (step 3c); checked in Chrome over the sector page (Short streaming distance, Every copy, Back twice, Forward, Clear, Back give 86, 72, 86, none, 86, none, 86) and a picture of the header beside the old one, which the owner approved ("they look good"). Also asked: clicking a row in the list makes it the current one, not the selection, so a script still runs on the whole selection. The owner chose instead an **Only** button on each row, which keeps just the selected things that draw its mesh (step 3b, built the same day; typecheck and build pass, not run).
+
+## Sector layers (L1)
+
+Built 2026-11-24 ([design](design/sector-layers.html), stage L1): the side panel's **Selections** and **Overlaps** tabs, the sectors whose things reach into the opened one, and their layers. Checked before: a unit check of `findOverlaps` (groups, narrowing, a thing with no box counted by where it stands, the cache), and the page in Chrome over the real game on `exterior_-22_7_0_0`: the first search took 64 s and found 16 sectors (3 neighbours, 12 other levels, 1 quest sector); the second took 0.5 s from the cache; Ghost on `exterior_-22_6_0_0` loaded it in 5.4 s. **Not run:** anything in VS Code, and the look of a ghosted layer in 3D (the browser cannot take pictures of the 3D view).
+
+F5 with **Run REDcode**, and in Game Assets `base\worlds\03_night_city\_compiled\default\exterior_-22_7_0_0.streamingsector` opened on 3D.
+
+| # | Do | Expected |
+|---|---|---|
+| L1 | Look at the side panel | Two tabs, **Selections** (the list as before) and **Overlaps** |
+| L2 | Click **Overlaps** | A spinner and "Checking 120 of 3,107…"; rows appear as they are found, in groups with a colour each: Neighbours, Other levels, Global (collapsed). The first time takes about a minute; nothing is drawn yet |
+| L3 | When it ends | "16 sectors reach in". Hover a row: its level, how many of its things reach in, its variants |
+| L4 | **Ghost** on `exterior_-22_6_0_0` (94 things reach in) | A spinner on the row while it loads, then its things drawn see-through in light blue around the opened sector |
+| L5 | **Shown** on `exterior_-21_7_0_0` | Its things drawn as the opened sector's are |
+| L6 | Click a ghosted thing in the 3D view | It is picked; the line under the view names its sector and says "(a layer's)". Ctrl+click adds it to the selection; the Selections tab shows it with its sector before the entry (`exterior_-22_6_0_0#…`) |
+| L7 | The group heading's **Off**, then the × at the top | Each turns the layers off and their things go |
+| L8 | The open icon on a row | That sector opens in its own tab |
+| L9 | Close the tab, open the sector again, **Overlaps** | The list in about a second (the cache); nothing turned on |
 
 ## The game tools for assistants (redcode-mcp `game_*`)
 

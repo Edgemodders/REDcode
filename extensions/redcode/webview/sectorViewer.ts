@@ -21,6 +21,7 @@ const Icons = {
   add: "rect 2.5 2.5 11 11|path M8 5v6M5 8h6",
   copy: "rect 5.5 5.5 8 8|path M3 10.5V3.5a1 1 0 0 1 1-1h6.5",
   clear: "path M4 4l8 8M12 4l-8 8",
+  open: "path M9 2.5h4.5V7M13.5 2.5 7.5 8.5M12 9.5v3.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-8a.5.5 0 0 1 .5-.5H7",
 };
 
 /** What the host sends while a sector loads. */
@@ -30,7 +31,25 @@ export type SectorMessage =
   | { type: "sectorUnload"; sector: string }
   | { type: "sectorProgress"; phase?: "reading" | "exporting"; done: number; total: number; etaMs?: number; current?: string }
   | { type: "sectorDone"; skipped: { id: string; why: string }[]; sectors: string[] }
-  | { type: "sectorScript"; state: "running" | "done" | "applied"; name: string; done?: number; total?: number; note?: string; selected?: number[] | null; line?: string };
+  | { type: "sectorScript"; state: "running" | "done" | "applied"; name: string; done?: number; total?: number; note?: string; selected?: number[] | null; line?: string }
+  | { type: "sectorOverlapLayer"; layer: OverlapLayer }
+  | { type: "sectorOverlapProgress"; done: number; total: number }
+  | { type: "sectorOverlapDone"; count: number; error?: string };
+
+/** A sector whose things reach into the opened one (docs/design/sector-layers.md). */
+export interface OverlapLayer {
+  path: string;
+  kind: string;
+  level: number;
+  group: "neighbours" | "levels" | "interiors" | "exteriors" | "global" | "other";
+  reach: number;
+  byPosition: number;
+  variants: number;
+  replaces: boolean;
+  distance: number;
+  /** The project has its own copy, which is the one drawn. */
+  project?: boolean;
+}
 
 export interface SectorSource {
   /** The opened sector's game path. */
@@ -61,6 +80,12 @@ export interface SectorSource {
   scripts?(entries: number[]): Promise<unknown>;
   /** Stop: ends the running script. */
   stopScript?(): Promise<unknown>;
+  /** The Overlaps tab: the host finds the sectors whose things reach in, and sends them as it finds them. */
+  overlaps?(): Promise<unknown>;
+  /** The layers turned on (Ghost or Shown), by game path: the host loads them beside the opened sector. */
+  layers?(paths: string[]): Promise<unknown>;
+  /** A layer's Open: its sector in its own tab. */
+  openSector?(path: string): Promise<unknown>;
 }
 
 export interface SectorView {
@@ -301,7 +326,7 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
     const id = picked;
     const path = id ? pathOf(id) : null;
     toTree.hidden = !path;
-    pickedLine.textContent = id ? `${id.slice(id.lastIndexOf("\\") + 1)}${path ? "" : "  (a coarser sector's)"}` : "";
+    pickedLine.textContent = id ? `${id.slice(id.lastIndexOf("\\") + 1)}${path ? "" : layerOf(id.slice(0, id.lastIndexOf("#"))) ? "  (a layer's)" : "  (a coarser sector's)"}` : "";
     pickedLine.title = id ?? "";
     const what = id ? drawnAs.get(id) : undefined;
     for (const b of meshButtons) b.hidden = !what || !source.action;
@@ -435,7 +460,162 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
   forward.addEventListener("click", () => travel(1));
   const rows = el("div", "selrows");
   const empty = el("div", "dim selempty", "Nothing selected. Click a thing to select it, Ctrl+click to add or take out, Shift+drag for a box on the screen, or Volume for a box in the world.");
-  side.append(head, rows, empty);
+  // ---- the side panel's tabs: Selections and Overlaps (docs/design/sector-layers.md) ----
+  const tabs = el("div", "sidetabs");
+  const selTab = el("button", "sidetab on", "Selections");
+  selTab.title = "The things selected in the view";
+  const ovTab = el("button", "sidetab", "Overlaps");
+  ovTab.title = "Overlaps: the sectors whose things reach into this one, as layers to show beside it";
+  tabs.append(selTab, ovTab);
+  const selPane = el("div", "sidepane");
+  selPane.append(head, rows, empty);
+  const ovPane = el("div", "sidepane");
+  ovPane.hidden = true;
+  side.append(tabs, selPane, ovPane);
+  const showTab = (which: "selections" | "overlaps") => {
+    selTab.classList.toggle("on", which === "selections");
+    ovTab.classList.toggle("on", which === "overlaps");
+    selPane.hidden = which !== "selections";
+    ovPane.hidden = which !== "overlaps";
+    if (which === "overlaps") startOverlaps();
+  };
+  selTab.addEventListener("click", () => showTab("selections"));
+  ovTab.addEventListener("click", () => showTab("overlaps"));
+
+  type LayerState = "off" | "ghost" | "shown";
+  const GroupInfo: Record<OverlapLayer["group"], { name: string; tip: string; colour: number }> = {
+    neighbours: { name: "Neighbours", tip: "Sectors of the same kind and level beside this one", colour: 0x4fc3f7 },
+    levels: { name: "Other levels", tip: "Sectors of the same kind at other levels: coarser ones hold big things and what is seen from far", colour: 0xb39ddb },
+    interiors: { name: "Interiors", tip: "Interior sectors: the insides of buildings", colour: 0xffb74d },
+    exteriors: { name: "Exteriors", tip: "Exterior sectors", colour: 0x81c784 },
+    other: { name: "Other", tip: "Navigation and other kinds", colour: 0x90a4ae },
+    global: { name: "Global", tip: "Quest and always-loaded sectors. Many quest sectors load only while their quest runs, so their things may never show at the same time as the rest", colour: 0xf06292 },
+  };
+  const GroupOrder = Object.keys(GroupInfo) as OverlapLayer["group"][];
+  const LayerOpacity = 0.3;
+  const layers: OverlapLayer[] = [];
+  const layerState = new Map<string, LayerState>();
+  const loadingLayers = new Set<string>();
+  const collapsed = new Set<string>(["global"]);
+  let overlapsStarted = false;
+  let overlapRun: { done: number; total: number; finished: boolean; error?: string } = { done: 0, total: 0, finished: false };
+  const stateOf = (p: string): LayerState => layerState.get(p.toLowerCase()) ?? "off";
+  const layerOf = (sector: string) => layers.find((l) => l.path.toLowerCase() === sector.toLowerCase());
+  const shortSector = (p: string) => p.slice(p.lastIndexOf("\\") + 1).replace(/\.streamingsector$/i, "");
+
+  const ovHead = el("div", "selhead ovhead");
+  const ovStatus = el("span", "selcount ovstatus", "");
+  const ovAllOff = iconButton(Icons.clear, "All Off: turn every layer off");
+  ovHead.append(ovStatus, ovAllOff);
+  const ovList = el("div", "selrows ovlist");
+  const ovEmpty = el("div", "dim selempty", "");
+  ovPane.append(ovHead, ovList, ovEmpty);
+
+  const sendLayers = () => {
+    const on = layers.filter((l) => stateOf(l.path) !== "off").map((l) => l.path);
+    source.layers?.(on).catch((e) => source.say?.(e instanceof Error ? e.message : String(e)));
+  };
+  const setLayers = (list: OverlapLayer[], state: LayerState) => {
+    let load = false;
+    for (const l of list) {
+      const was = stateOf(l.path);
+      if (was === state) continue;
+      layerState.set(l.path.toLowerCase(), state);
+      view.setSectorLook(l.path, state === "ghost" ? { colour: GroupInfo[l.group].colour, opacity: LayerOpacity } : null);
+      if ((was === "off") !== (state === "off")) load = true;
+      if (was === "off" && state !== "off") loadingLayers.add(l.path.toLowerCase());
+      if (state === "off") loadingLayers.delete(l.path.toLowerCase());
+    }
+    if (load) sendLayers();
+    renderOverlaps();
+  };
+  ovAllOff.addEventListener("click", () => setLayers(layers, "off"));
+
+  /** Off, Ghost, Shown: three buttons, the one on lit; none lit when a group is mixed. */
+  const stateSwitch = (current: LayerState | null, tip: string, set: (s: LayerState) => void) => {
+    const box = el("span", "laystate");
+    for (const [state, label, what] of [
+      ["off", "Off", "not drawn"],
+      ["ghost", "Ghost", "drawn see-through in the group's colour"],
+      ["shown", "Shown", "drawn as this sector's things are"],
+    ] as [LayerState, string, string][]) {
+      const b = button(label, `${label}: ${tip} ${what}`, current === state);
+      b.addEventListener("click", (e) => {
+        e.stopPropagation();
+        set(state);
+      });
+      box.appendChild(b);
+    }
+    return box;
+  };
+
+  const renderOverlaps = () => {
+    const n = layers.length;
+    ovTab.textContent = n ? `Overlaps (${n.toLocaleString()})` : "Overlaps";
+    if (!overlapRun.finished) {
+      ovStatus.replaceChildren(el("span", "makespin"), document.createTextNode(overlapRun.total ? ` Checking ${overlapRun.done.toLocaleString()} of ${overlapRun.total.toLocaleString()}…` : " Finding the sectors…"));
+      ovStatus.title = "Each sector is read once and kept, so this place is quicker next time";
+    } else {
+      ovStatus.textContent = overlapRun.error ? `Could not finish: ${overlapRun.error}` : `${n.toLocaleString()} sector${n === 1 ? "" : "s"} reach in`;
+      ovStatus.title = "";
+    }
+    ovAllOff.hidden = !layers.some((l) => stateOf(l.path) !== "off");
+    ovEmpty.hidden = n > 0 || !overlapRun.finished;
+    ovEmpty.textContent = overlapRun.error ? "" : "No other sector's things reach into this one.";
+    const out: HTMLElement[] = [];
+    for (const g of GroupOrder) {
+      const list = layers.filter((l) => l.group === g);
+      if (!list.length) continue;
+      const info = GroupInfo[g];
+      const states = new Set(list.map((l) => stateOf(l.path)));
+      const gh = el("div", "ovgroup");
+      gh.title = info.tip;
+      const caret = el("span", "ovcaret", collapsed.has(g) ? "▸" : "▾");
+      const swatch = el("span", "ovswatch");
+      swatch.style.background = `#${info.colour.toString(16).padStart(6, "0")}`;
+      gh.append(caret, swatch, el("span", "ovgname", `${info.name} (${list.length.toLocaleString()})`), stateSwitch(states.size === 1 ? [...states][0] : null, "every sector in the group", (st) => setLayers(list, st)));
+      gh.addEventListener("click", () => {
+        if (collapsed.has(g)) collapsed.delete(g);
+        else collapsed.add(g);
+        renderOverlaps();
+      });
+      out.push(gh);
+      if (collapsed.has(g)) continue;
+      for (const l of list) {
+        const row = el("div", "ovrow");
+        const state = stateOf(l.path);
+        row.title = `${l.path}\nLevel ${l.level}, ${l.kind}. ${l.reach.toLocaleString()} of its things reach into this sector${l.byPosition ? ` (${l.byPosition.toLocaleString()} have no box and count by where they stand)` : ""}.${l.variants ? `\n${l.variants} named variant(s): node ranges a quest switches on or off.` : ""}${l.replaces ? "\nPhantom Liberty's copy, which the game streams in place of the base game's." : ""}${l.project ? "\nThe project's own copy is the one drawn." : ""}`;
+        const name = el("span", "selname", shortSector(l.path));
+        const meta = el("span", "dim ovmeta", `${l.reach.toLocaleString()}`);
+        meta.title = "Things that reach in";
+        row.append(name, meta);
+        if (l.project) row.appendChild(el("span", "ovtag", "project"));
+        if (l.replaces) row.appendChild(el("span", "ovtag", "PL"));
+        if (loadingLayers.has(l.path.toLowerCase())) row.appendChild(el("span", "makespin"));
+        row.appendChild(stateSwitch(state, "this sector", (st) => setLayers([l], st)));
+        if (source.openSector) {
+          const open = iconButton(Icons.open, "Open: this sector in its own tab");
+          open.addEventListener("click", (e) => {
+            e.stopPropagation();
+            source.openSector!(l.path).catch((err) => source.say?.(err instanceof Error ? err.message : String(err)));
+          });
+          row.appendChild(open);
+        }
+        out.push(row);
+      }
+    }
+    ovList.replaceChildren(...out);
+  };
+  const startOverlaps = () => {
+    if (overlapsStarted || !source.overlaps) return;
+    overlapsStarted = true;
+    renderOverlaps();
+    source.overlaps().catch((e) => {
+      overlapRun = { ...overlapRun, finished: true, error: e instanceof Error ? e.message : String(e) };
+      renderOverlaps();
+    });
+  };
+  ovTab.hidden = !source.overlaps;
   const MaxRows = 500;
   const fileName = (p: string) => p.slice(p.lastIndexOf("\\") + 1);
   const labelOf = (id: string) => {
@@ -444,7 +624,12 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
     const mk = markerOf.get(id);
     return { kind: mk?.kind ?? "thing", name: mk?.class ?? "" };
   };
-  const entryOf = (id: string) => id.slice(id.lastIndexOf("#"));
+  /** "#12", or "exterior_-20_7_-1_0#12" for another sector's thing. */
+  const entryOf = (id: string) => {
+    const cut = id.lastIndexOf("#");
+    const sector = id.slice(0, cut);
+    return sector.toLowerCase() === source.sector.toLowerCase() ? id.slice(cut) : `${sector.slice(sector.lastIndexOf("\\") + 1).replace(/\.streamingsector$/i, "")}${id.slice(cut)}`;
+  };
   const runAction = (action: "openInEdgemat" | "openMesh" | "addMesh", what: { mesh: string; appearance?: string }) => {
     source.action?.(action, what.mesh, what.appearance).catch((e) => source.say?.(e instanceof Error ? e.message : String(e)));
   };
@@ -500,6 +685,7 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
     for (const b of [frameAll, isolate, copyAll, clearAll]) b.hidden = !any;
     empty.hidden = any;
     count.textContent = any ? `${selection.length.toLocaleString()} selected` : "";
+    selTab.textContent = any ? `Selections (${selection.length.toLocaleString()})` : "Selections";
     if (!any) {
       addAll.hidden = true;
       rows.replaceChildren();
@@ -905,8 +1091,24 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
         case "sectorScript":
           showScript(m);
           return;
+        case "sectorOverlapLayer":
+          if (!layerOf(m.layer.path)) layers.push(m.layer);
+          renderOverlaps();
+          return;
+        case "sectorOverlapProgress":
+          overlapRun = { ...overlapRun, done: m.done, total: m.total };
+          renderOverlaps();
+          return;
+        case "sectorOverlapDone":
+          overlapRun = { ...overlapRun, finished: true, error: m.error };
+          renderOverlaps();
+          return;
         case "sectorDone":
           idle();
+          if (loadingLayers.size) {
+            loadingLayers.clear();
+            renderOverlaps();
+          }
           {
             const all = [...m.skipped, ...failed];
             progress.textContent = all.length ? `${all.length.toLocaleString()} thing(s) could not be drawn` : "";

@@ -6,6 +6,7 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 **New**
 
+- **Overlaps** beside the selected list in the sector view: the sectors whose things reach into the opened one, in groups, each a layer you turn Off, Ghost (see-through) or Shown, and pick and select in. The first look at a place takes about a minute; after that, a second.
 - **Only** on a row of the sector view's selected list keeps just the selected things that draw its mesh.
 - **Back** and **Forward** above the sector view's selected list return to the selection before or after, also after Clear or a script; the list's buttons are icons now, named in their tooltips.
 - Assistants in the game can read the game's window mode and resolution, with the sizes it offers: `redcode__display`, in REDcode's REDnode package (0.3.0).

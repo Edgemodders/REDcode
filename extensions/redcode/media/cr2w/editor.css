@@ -173,6 +173,31 @@ body.mesh-mode #props { display: flex; flex-direction: column; overflow: hidden;
 .meshview .camerahelp { font-size: 12px; padding: 4px 0; }
 .meshview .camerahelp[hidden] { display: none; }
 .sectorside { display: flex; flex-direction: column; }
+.sectorside .sidetabs { display: flex; border-bottom: 1px solid var(--line); flex: none; }
+.sectorside .sidetab { flex: 1; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none; padding: 5px 6px; font-size: 12px; color: var(--vscode-descriptionForeground); }
+.sectorside .sidetab.on { color: var(--vscode-foreground); border-bottom-color: var(--accent); }
+.sectorside .sidetab[hidden] { display: none; }
+.sectorside .sidepane { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.sectorside .sidepane[hidden] { display: none; }
+.sectorside .ovhead .selcount { font-weight: 400; }
+.sectorside .ovgroup { display: flex; gap: 6px; align-items: center; padding: 4px 6px; font-size: 12px; font-weight: 500; cursor: pointer; background: var(--vscode-sideBarSectionHeader-background, transparent); border-top: 1px solid var(--line); }
+.sectorside .ovgroup .ovgname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sectorside .ovcaret { width: 1em; flex: none; }
+.sectorside .ovswatch { width: 9px; height: 9px; border-radius: 2px; flex: none; }
+.sectorside .ovrow { display: flex; gap: 6px; align-items: center; padding: 2px 6px 2px 22px; font-size: 12px; white-space: nowrap; }
+.sectorside .ovrow:hover { background: var(--vscode-list-hoverBackground); }
+.sectorside .ovrow .selname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-family: var(--mono); }
+.sectorside .ovmeta { flex: none; min-width: 2.5em; text-align: right; }
+.sectorside .ovtag { flex: none; font-size: 10px; padding: 0 4px; border: 1px solid var(--line); border-radius: 8px; color: var(--vscode-descriptionForeground); }
+.sectorside .laystate { display: inline-flex; flex: none; }
+.sectorside .laystate button { font-size: 11px; padding: 0 5px; border-radius: 0; margin-left: -1px; }
+.sectorside .laystate button:first-child { border-radius: 2px 0 0 2px; margin-left: 0; }
+.sectorside .laystate button:last-child { border-radius: 0 2px 2px 0; }
+.sectorside .laystate button.on { border-color: var(--accent); color: var(--accent); position: relative; }
+.sectorside .laystate button.on:first-child { border-color: var(--line); color: var(--vscode-foreground); background: var(--vscode-list-hoverBackground, rgba(128,128,128,.15)); }
+.sectorside .ovrow button.icon { display: inline-flex; align-items: center; padding: 1px 2px; line-height: 0; flex: none; }
+.sectorside .ovrow button.icon svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; }
+.sectorside .ovrow .makespin, .sectorside .ovstatus .makespin { display: inline-block; width: 9px; height: 9px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: makespin .8s linear infinite; flex: none; }
 .sectorside .selhead { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; padding: 4px 6px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--vscode-editor-background); }
 .sectorside .selhead .selcount { flex: 1; min-width: 4em; font-weight: 500; white-space: nowrap; }
 .sectorside .selhead button.icon { display: inline-flex; align-items: center; justify-content: center; padding: 2px 3px; line-height: 0; }

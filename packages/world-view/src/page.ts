@@ -78,6 +78,11 @@ export interface WorldView {
   /** A mesh's appearances, for colouring by material: each placement's parts by the materials its appearance names. */
   setMaterials(mesh: string, appearances: PageAppearance[]): void;
   setHidden(ids: string[], how: "hidden" | "ghost" | "shown"): void;
+  /**
+   * A sector's things drawn see-through in one colour, as a layer under the sector in focus; null draws them
+   * as usual. They stay pickable and selectable.
+   */
+  setSectorLook(sector: string, look: { colour: number; opacity: number } | null): void;
   /** Draws these in the selection colour; with current, that one in it and the rest paler. */
   highlight(ids: string[], current?: string | null): void;
   /**
@@ -196,6 +201,10 @@ export function createWorldView(canvas: HTMLCanvasElement, options: WorldViewOpt
   const replaced = new Map<string, THREE.Object3D>();
   const hidden = new Set<string>();
   const ghosted = new Set<string>();
+  /** Sectors drawn see-through in a colour (layers), by lower-case path. */
+  const looks = new Map<string, { key: string; colour: THREE.Color; opacity: number }>();
+  const lookMaterials = new Map<string, THREE.MeshStandardMaterial>();
+  const lookOf = (id: string) => (looks.size ? looks.get(sectorOf(id).toLowerCase()) : undefined);
   let highlighted = new Set<string>();
   let current: string | null = null;
   const highlightColour = (id: string) => (current === null || id === current ? accent : paleAccent);
@@ -220,6 +229,8 @@ export function createWorldView(canvas: HTMLCanvasElement, options: WorldViewOpt
   /** A copy's colour for one part: the selection's, or (by material) its material's, or white over the mesh's colour. */
   const copyColour = (record: MeshRecord, part: MeshRecord["parts"][number], placement: PagePlacement) => {
     if (highlighted.has(placement.id)) return highlightColour(placement.id);
+    const look = lookOf(placement.id);
+    if (look) return look.colour;
     if (!byMaterial(record)) return white;
     const m = record.materials!;
     const names = (placement.appearance && m.byName.get(placement.appearance.toLowerCase())) || m.first;
@@ -250,18 +261,29 @@ export function createWorldView(canvas: HTMLCanvasElement, options: WorldViewOpt
     record.slots = [];
     for (let i = 0; i < record.placements.length; i++) if (visible(record, i)) record.slots.push(i);
     if (!record.slots.length) return;
+    // Placements of a sector with a look go into their own see-through draw.
+    const groups = new Map<string, number[]>();
+    for (const pi of record.slots) {
+      const key = lookOf(record.placements[pi].id)?.key ?? "";
+      const g = groups.get(key);
+      if (g) g.push(pi);
+      else groups.set(key, [pi]);
+    }
     for (const part of record.parts) {
-      const im = new THREE.InstancedMesh(part.geometry, materialFor(record), record.slots.length);
-      record.slots.forEach((pi, slot) => {
-        im.setMatrixAt(slot, record.matrices[pi]);
-        im.setColorAt(slot, copyColour(record, part, record.placements[pi]));
-      });
-      im.instanceMatrix.needsUpdate = true;
-      if (im.instanceColor) im.instanceColor.needsUpdate = true;
-      im.frustumCulled = false;
-      im.userData.record = record.key;
-      world.add(im);
-      record.drawn.push(im);
+      for (const [key, slots] of groups) {
+        const im = new THREE.InstancedMesh(part.geometry, key ? lookMaterials.get(key)! : materialFor(record), slots.length);
+        slots.forEach((pi, slot) => {
+          im.setMatrixAt(slot, record.matrices[pi]);
+          im.setColorAt(slot, copyColour(record, part, record.placements[pi]));
+        });
+        im.instanceMatrix.needsUpdate = true;
+        if (im.instanceColor) im.instanceColor.needsUpdate = true;
+        im.frustumCulled = false;
+        im.userData.record = record.key;
+        if (key) im.renderOrder = 1;
+        world.add(im);
+        record.drawn.push(im);
+      }
     }
   };
 
@@ -796,6 +818,16 @@ export function createWorldView(canvas: HTMLCanvasElement, options: WorldViewOpt
       if (!record) return;
       record.materials = { byName: new Map(appearances.map((a) => [a.name.toLowerCase(), a.chunkMaterials])), first: appearances[0]?.chunkMaterials ?? [] };
       if (opts.colourBy === "material") redraw(record);
+    },
+    setSectorLook(sector, look) {
+      const lower = sector.toLowerCase();
+      if (!look) looks.delete(lower);
+      else {
+        const key = `${look.opacity}`;
+        if (!lookMaterials.has(key)) lookMaterials.set(key, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8, metalness: 0, transparent: true, opacity: look.opacity, depthWrite: false }));
+        looks.set(lower, { key, colour: new THREE.Color(look.colour), opacity: look.opacity });
+      }
+      redrawAll();
     },
     setHidden(ids, how) {
       for (const id of ids) {
