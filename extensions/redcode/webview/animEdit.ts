@@ -116,9 +116,14 @@ export function editPanel(api: EditApi, info: EditInfo, view: EditView): { box: 
     steps.forEach((s, i) => {
       const row = el("div", "editstep");
       const text = el("span", "edittext", `${i + 1}. ${stepText(s)}`);
-      text.title = JSON.stringify(s);
       const at = "at" in s && typeof s.at === "number" ? s.at : "from" in s && typeof s.from === "number" ? s.from : undefined;
-      if (at !== undefined) text.addEventListener("click", () => view.seek(at));
+      // Click: go to its time and mark its bone (the owner's AE2 run: the marker showed the form's bone, not the step's).
+      text.addEventListener("click", () => {
+        if (at !== undefined) view.seek(at);
+        if ("bone" in s && s.bone) view.showBone(s.bone);
+      });
+      text.title = `${JSON.stringify(s)}
+Click: go to its time and mark its bone`;
       const tool = (label: string, title: string, run: () => void, off = false) => {
         const b = el("button", "icon", label);
         b.title = title;
@@ -263,7 +268,8 @@ export function editPanel(api: EditApi, info: EditInfo, view: EditView): { box: 
         const my = number(0, 1, "Move up, in cm");
         const mz = number(0, 1, "Move forward, in cm");
         const ease = select(Eases.map((e) => [e, e]), "smooth", "How the change runs into this key");
-        const blend = number(0.3, 0.05, "Seconds the change fades in before the first key on this bone and out after the last");
+        // 0.6 s each side: a single key reads as a turn, not a flick (the owner's AE2 run: 0.3 s was easy to miss).
+        const blend = number(0.6, 0.05, "Seconds the change fades in before the first key on this bone and out after the last; two keys hold it between them");
         const moveRow = row(el("span", "dim", "Move cm"), mx, my, mz);
         const showMove = () => (moveRow.hidden = !info.ikBones.includes(bone.value));
         bone.addEventListener("change", showMove);
