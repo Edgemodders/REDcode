@@ -839,7 +839,7 @@ In the game, with the Animation Tools pack on its own project (the project line 
 
 | # | Do | Expected |
 |---|---|---|
-| E1 | Ask the assistant to pin the feet of `man_stands_relaxed_crosses` (it uses `anim_edit` with the suggested pins), then **Play** it in the pack | Packed and swapped (the files changed); the feet stay planted, no slide, the tapping foot still taps |
+| E1 | Ask the assistant to pin the feet of `man_stands_relaxed_crosses` (it uses `anim_edit` with the suggested pins), then **Play** it in the pack. The assistant is a Claude Code session in this repo, with the workspace's redcode-mcp: `anim_edit` is not released yet, so REDagent and the edge plugin's published redcode-mcp do not have it | Packed and swapped (the files changed); the feet stay planted, no slide, the tapping foot still taps |
 | E2 | Ask for a head turn: 30 degrees to his left at 2.5 s; **Play** | He looks to his left around 2.5 s, smoothly, and back |
 | E3 | Ask to clear the edits; **Play** | The clip as made again |
 
