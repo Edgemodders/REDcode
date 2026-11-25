@@ -848,6 +848,8 @@ F5 with **Run REDcode**. In the Project view (the pack's project, `Documents\RED
 | D6 | **Undo** | The steps before the last Apply come back (the layer gone), rebuilt; Undo again takes the next ones back |
 | D7 | **Clear**, **Apply** | The clip as made: no steps, the feet sliding again |
 
+Run 1 (owner, 2026-11-24), in progress: no way to add a step but Pin All Sliding. Found: the side column clips what is taller than it, so the Add a Step form and its **Add Step** fell off the bottom with no scroll. Fixed the same day: the Make and Edit panels scroll inside the column, the clip list keeps 90 px below them (checked in a 520 px column: the panel 342 px, scrolling its 457 px).
+
 ## Animation Editor (AE1)
 
 Built 2026-11-24 ([design](design/animation-editor.html#ae1-as-built-2026-11-24)): the edit steps in anim-core and redcode-mcp's `anim_edit_info` and `anim_edit`. Checked: anim-core's `scripts/check.mjs` (all pass, 7 of them AE1's), and the two tools through an MCP client on a copy of the pack's project (the step 4 clip's left foot slid 3.5 cm; its suggested pin held it within 0.1 cm). **Not run:** an edited clip in the game.
