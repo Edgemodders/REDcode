@@ -3,12 +3,14 @@
 // changed here and sent whole on Apply: the host rebuilds the clip from them (anim-core's editClip) and opens
 // the tab again on the new set, so the list always comes back from the clip's record.
 
-// The steps' shape, as anim-core's EditStep (packages/anim-core/src/edit.ts) has it: written out here, since the
-// page's type check takes no Node types and anim-core's files carry them.
+// The steps' shape, as anim-core's EditStep (packages/anim-core/src/edit.ts) has it: written out here, since edit.ts
+// carries Node types. The timeline's steps come from timeline.ts, which has none (docs/design/animation-timeline.md).
+import type { LayerSource, TimelineStep } from "../../../packages/anim-core/src/timeline";
+export type { LayerSource, TimelineStep };
 export type Ease = "linear" | "in" | "out" | "smooth" | "overshoot";
 export type BoneGroup = "leftHand" | "rightHand" | "leftFingers" | "rightFingers" | "leftArm" | "rightArm" | "head" | "upperBody" | "legs" | "all";
-export type LayerSource = { made: string } | { game: { set: string; clip: string } } | { file: string };
 export type EditStep =
+  | TimelineStep
   | { step: "trim"; from?: number; to?: number }
   | { step: "loop"; blend?: number }
   | { step: "key"; bone: string; at: number; turn?: { yaw?: number; pitch?: number; roll?: number }; move?: [number, number, number]; ease?: Ease; blend?: number }
@@ -44,9 +46,13 @@ export interface EditApi {
   redo?(): Promise<unknown>;
   /** AE5: the clip as it plays now opens in Blender; each save there becomes its new starting point. False when Blender was not found. */
   blender?(): Promise<boolean>;
+  /** The Animation Timeline (TL2): the clip as made (no source), or an animation block's clip, as a one-clip .glb. */
+  clip?(source?: LayerSource): Promise<ArrayBuffer>;
 }
 
 export interface EditView {
+  /** The steps changed here (a form, a click, Revert): the timeline draws them again. */
+  changed?(steps: EditStep[]): void;
   /** The playhead, in seconds. */
   now(): number;
   seek(t: number): void;
@@ -68,6 +74,8 @@ const BoneGroupLabels: Record<string, string> = {
   all: "Whole body",
 };
 const Eases = ["smooth", "linear", "in", "out", "overshoot"];
+const TimelineKinds = new Set(["anim", "move", "blend", "track", "line", "end"]);
+const isTimeline = (s: EditStep): s is TimelineStep => TimelineKinds.has(s.step);
 const s2 = (t: number | undefined) => (typeof t === "number" ? `${t.toFixed(2)} s` : "?");
 
 /** One line for a step, as the list shows it. */
@@ -86,15 +94,55 @@ export function stepText(s: EditStep): string {
       return `Key ${s.bone} at ${s2(s.at)}: ${[turn, move].filter(Boolean).join("; ") || "no change"} (${s.ease ?? "smooth"})`;
     }
     case "layer": {
-      const src = "made" in s.source ? s.source.made : "game" in s.source ? s.source.game.clip : s.source.file.split(/[\\/]/).pop();
       const what = s.group ? BoneGroupLabels[s.group] ?? s.group : `${s.bones?.length ?? 0} bones`;
-      return `Layer ${src} on ${what.toLowerCase()} from ${s2(s.at ?? 0)}`;
+      return `Layer ${sourceName(s.source)} on ${what.toLowerCase()} from ${s2(s.at ?? 0)}`;
     }
+    // The timeline's steps (docs/design/animation-timeline.md): shown here as lines, changed on the timeline.
+    case "anim":
+      return `Animation ${s.clip && s.clip !== "base" ? sourceName(s.clip) : "as made"} on track ${s.track}, ${s2(s.start)}${s.length !== undefined ? `–${s2(s.start + s.length)}` : ""}${s.from ? ` (from ${s2(s.from)})` : ""}`;
+    case "move":
+      return `Move ${moveOnText(s.on)} on track ${s.track}, ${s2(s.start)}–${s2(s.start + s.length)}, ${s.keys.length} key${s.keys.length === 1 ? "" : "s"}`;
+    case "blend":
+      return `Blend on track ${s.track}, ${s2(s.start)}–${s2(s.start + s.length)} (${s.ease ?? "smooth"})`;
+    case "track":
+      return `Track ${s.track}${s.name ? ` "${s.name}"` : ""}${s.off ? ", off" : ""}`;
+    case "line":
+      return `Line at ${s2(s.start)}`;
+    case "end":
+      return `End at ${s2(s.at)}`;
   }
 }
 
+/** A clip's name for a line: a made clip's, a game clip's, or a file's. */
+export function sourceName(src: LayerSource): string {
+  return "made" in src ? src.made : "game" in src ? src.game.clip : src.file.split(/[\\/]/).pop() ?? src.file;
+}
+
+/** What a move drives, in words. */
+export function moveOnText(on: { ik: string } | { bones: string[] } | { group: string }): string {
+  if ("ik" in on) return `${on.ik} (by IK)`;
+  if ("group" in on) return (BoneGroupLabels[on.group] ?? on.group).toLowerCase();
+  return on.bones.length === 1 ? on.bones[0] : `${on.bones.length} bones`;
+}
+
 /** The Edit panel: shown by the bar's Edit button on a made clip. */
-export function editPanel(api: EditApi, info: EditInfo, view: EditView): { box: HTMLElement; pickBone(name: string): void; wantsBone(): boolean } {
+export interface EditPanel {
+  box: HTMLElement;
+  pickBone(name: string): void;
+  wantsBone(): boolean;
+  /** The steps as the panel has them now, applied or not: shared with the timeline. */
+  steps(): EditStep[];
+  /** The timeline's change: the whole list, which waits for Apply as the panel's own changes do. */
+  setSteps(next: EditStep[]): void;
+  /** The step at this place in the list, chosen: its time shown, its values in the form. */
+  choose(index: number): void;
+  /** Apply, as the panel's button does. */
+  apply(): void;
+  /** Steps waiting for Apply. */
+  dirty(): boolean;
+}
+
+export function editPanel(api: EditApi, info: EditInfo, view: EditView): EditPanel {
   const box = el("div", "animmake animedit");
   box.hidden = true;
   box.append(el("div", "label", `Edit ${info.clip}`));
@@ -157,6 +205,8 @@ export function editPanel(api: EditApi, info: EditInfo, view: EditView): { box: 
         for (const r of list.querySelectorAll(".editstep")) r.classList.remove("chosen");
         row.classList.add("chosen");
         if (at !== undefined) view.seek(at);
+        else if ("start" in s && typeof s.start === "number") view.seek(s.start);
+        if (isTimeline(s)) return;
         // The form below takes the step's values: change them and Update Step.
         kind.value = s.step;
         buildForm(s);
@@ -188,6 +238,7 @@ Click: go to its time, mark its bone, and change it in the form below`;
     status.classList.toggle("editpending", pending);
     apply.classList.toggle("editready", pending);
     if (pending) status.textContent = `Not applied yet: ${steps.length} step${steps.length === 1 ? "" : "s"} wait for Apply, which rebuilds the clip.`;
+    view.changed?.(steps);
   };
   const run = async (what: string, job: () => Promise<unknown>) => {
     busy = true;
@@ -438,6 +489,22 @@ Click: go to its time, mark its bone, and change it in the form below`;
   renderSteps();
   return {
     box,
+    steps: () => steps,
+    setSteps: (next: EditStep[]) => {
+      steps = next;
+      // The timeline drew it already; the list follows without calling it back.
+      const tell = view.changed;
+      view.changed = undefined;
+      renderSteps();
+      view.changed = tell;
+    },
+    choose: (index: number) => {
+      const row = list.querySelectorAll(".editstep")[index]?.querySelector(".edittext") as HTMLElement | null;
+      row?.click();
+      row?.scrollIntoView({ block: "nearest" });
+    },
+    apply: () => apply.click(),
+    dirty,
     pickBone: (name: string) => {
       if (!boneTarget) return;
       if (![...boneTarget.options].some((o) => o.value === name)) return view.say(`${name} cannot be used here`);

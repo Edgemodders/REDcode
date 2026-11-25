@@ -310,6 +310,8 @@ interface Request {
   meshes?: string[];
   /** sectorAction copy: the text for the clipboard. */
   text?: string;
+  /** animsEditClip: an animation block's clip, or none for the clip as made (docs/design/animation-timeline.md, TL2). */
+  source?: import("../../../packages/anim-core/src/index").LayerSource | null;
   /** animsEdit: a made clip's whole list of edit steps (docs/design/animation-editor.md, AE2). */
   steps?: import("../../../packages/anim-core/src/index").EditStep[];
   /** animsMake: what to make (docs/design/animation-tools.md, AT2); replace is the clip the view shows, by name. */
@@ -328,6 +330,8 @@ export interface AnimMaker {
   madeFromOf(file: string): Record<string, unknown> | undefined;
   /** AE2: a made clip's edits, or undefined when this file is not a made clip's own set. */
   editInfo(file: string): import("./animCommands").EditInfo | undefined;
+  /** The Animation Timeline (TL2): the clip as made (no source) or an animation block's clip, as a one-clip .glb in base64. */
+  clipBytes(file: string, source?: import("../../../packages/anim-core/src/index").LayerSource): Promise<string>;
   /** AE2: the clip rebuilt from these steps; its tab opens again on the new set. */
   edit(file: string, steps: import("../../../packages/anim-core/src/index").EditStep[]): Promise<unknown>;
   /** AE2: the steps before the last edit, put back. */
@@ -861,6 +865,9 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
             // The Edit panel (AE2): only a project's made clip, in its own set.
             if (!this.animMaker || document.gamePath) return reply(m.id, null);
             return reply(m.id, this.animMaker.editInfo(document.uri.fsPath) ?? null);
+          case "animsEditClip":
+            if (!this.animMaker || document.gamePath) throw new Error("Only a project's made clip has a timeline");
+            return reply(m.id, await this.animMaker.clipBytes(document.uri.fsPath, m.source ?? undefined));
           case "animsBlender": {
             if (!this.animMaker) throw new Error("Editing clips is not available");
             if (document.log.length > 0) throw new Error("This file has unsaved changes: save or revert them first");

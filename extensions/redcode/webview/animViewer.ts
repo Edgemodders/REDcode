@@ -7,9 +7,12 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
 import { cssColour, el, lightControls, sideSplitter, type LightSettings } from "./viewerKit";
 import { createStage } from "../../../packages/world-view/src/stage";
 import { editPanel, type EditApi } from "./animEdit";
+import { timelinePanel, type TimelinePanel } from "./animTimeline";
+import type { Frames } from "../../../packages/anim-core/src/pose";
 
 export interface AnimClipInfo {
   name: string;
@@ -510,7 +513,12 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
   if (source.note) bar.append(el("span", "dim", source.note));
   if (bodyRoot) showBones(false);
 
-  const info = () => source.animations[current];
+  /** While the timeline plays its own frames (TL2): their length, in place of the clip's. */
+  let previewDuration: number | undefined;
+  const info = () => {
+    const a = source.animations[current];
+    return a && previewDuration !== undefined ? { ...a, duration: previewDuration } : a;
+  };
   const showTime = () => {
     const a = info();
     if (!a) {
@@ -520,6 +528,7 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
     const t = action?.time ?? 0;
     time.textContent = `${seconds(t)} / ${seconds(a.duration)}`;
     if (document.activeElement !== scrub) scrub.value = String(t);
+    timeline?.tick();
   };
   const setPlaying = (on: boolean) => {
     playing = on;
@@ -586,6 +595,8 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
   stage.tabIndex = -1;
   const onKey = (e: KeyboardEvent) => {
     const t = e.target as HTMLElement;
+    // The timeline's keys first (Delete, S, Ctrl+Z, W and E for the grabbed bone, Esc), while the view has the keyboard.
+    if (timeline?.key(e)) return;
     if (e.ctrlKey || e.altKey || e.metaKey || t.closest("input, textarea, select")) return;
     // Space on a button presses that button.
     if (e.code === "Space" && t.closest("button")) return;
@@ -652,8 +663,10 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
     const b = name ? bones.find((x) => x.name === name) : undefined;
     if (b) b.add(marker);
   };
+  let timeline: TimelinePanel | undefined;
   const editor = editInfo && source.edit
     ? editPanel(source.edit, editInfo, {
+        changed: () => timeline?.changed(),
         now: () => action?.time ?? 0,
         seek: (t: number) => {
           setPlaying(false);
@@ -663,14 +676,142 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
         say: (message: string) => source.say?.(message),
       })
     : undefined;
+  // ---- the Animation Timeline under the view (docs/design/animation-timeline.md, TL2 to TL4) ----
+  /** The timeline's own frames, played in place of the applied clip while its blocks are changed. */
+  let previewClip: THREE.AnimationClip | undefined;
+  const previewFrames = (f: Frames | null) => {
+    const t = action?.time ?? 0;
+    if (!f) {
+      if (!previewClip) return;
+      mixer.uncacheClip(previewClip);
+      previewClip = undefined;
+      previewDuration = undefined;
+      if (current >= 0) void pick(current, t, true);
+      return;
+    }
+    const times = Float32Array.from({ length: f.count }, (_, i) => i / f.fps);
+    const tracks: THREE.KeyframeTrack[] = [];
+    for (const [name, rots] of f.rot) {
+      const node = THREE.PropertyBinding.sanitizeNodeName(name);
+      if (!animated.getObjectByName(node)) continue;
+      tracks.push(new THREE.QuaternionKeyframeTrack(`${node}.quaternion`, times, rots.flat()));
+      const pos = f.pos.get(name);
+      if (pos) tracks.push(new THREE.VectorKeyframeTrack(`${node}.position`, times, pos.flat()));
+    }
+    const duration = (f.count - 1) / f.fps;
+    const clip = new THREE.AnimationClip(`${f.name} (timeline)`, duration, tracks);
+    action?.stop();
+    if (previewClip) mixer.uncacheClip(previewClip);
+    previewClip = clip;
+    previewDuration = duration;
+    action = mixer.clipAction(clip);
+    action.clampWhenFinished = true;
+    action.setLoop(loop ? THREE.LoopRepeat : THREE.LoopOnce, Infinity);
+    action.play();
+    action.time = Math.min(t, duration);
+    action.paused = !playing;
+    scrub.max = String(duration || 1);
+    mixer.update(0);
+    moveDots();
+    showTime();
+  };
+  // The grabbed bone's handles (TL4): three.js's TransformControls on a stand-in that sits on the bone.
+  let handles: TransformControls | undefined;
+  const handleAt = new THREE.Object3D();
+  let grabbedBone: THREE.Bone | undefined;
+  let grabMode: "move" | "turn" = "turn";
+  const placeHandles = () => {
+    if (!grabbedBone || handles?.dragging) return;
+    grabbedBone.getWorldPosition(handleAt.position);
+    grabbedBone.getWorldQuaternion(handleAt.quaternion);
+  };
+  const boneNamed = (name: string) => bones.find((b) => b.name === name);
+  /** The grabbed bone's value at the playhead, as the timeline's keys hold it (TL1's rules). */
+  const grabValue = (): { place?: number[]; turn?: number[] } | undefined => {
+    if (!grabbedBone || !timeline) return undefined;
+    const profile = timeline.profile();
+    const chain = profile?.chains[grabbedBone.name];
+    const anchor = chain ? (chain.space === "root" ? boneNamed(profile!.root) : boneNamed(chain.bones[0])?.parent) : grabbedBone.parent;
+    if (!anchor) return undefined;
+    anchor.updateMatrixWorld(true);
+    if (grabMode === "move") return { place: anchor.worldToLocal(handleAt.position.clone()).toArray() };
+    const q = anchor.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(handleAt.quaternion);
+    return { turn: q.toArray() };
+  };
+  const timelineHost = editor && editInfo && source.edit?.clip
+    ? {
+        info: editInfo,
+        steps: () => editor.steps(),
+        setSteps: (next: Parameters<typeof editor.setSteps>[0]) => editor.setSteps(next),
+        dirty: () => editor.dirty(),
+        apply: () => editor.apply(),
+        clip: (src?: Parameters<NonNullable<EditApi["clip"]>>[0]) => source.edit!.clip!(src),
+        now: () => action?.time ?? 0,
+        seek: (t: number) => {
+          setPlaying(false);
+          seek(t);
+        },
+        playing: () => playing,
+        togglePlay: () => (playing ? setPlaying(false) : playWay(direction)),
+        preview: previewFrames,
+        chooseStep: (index: number) => {
+          if (editTab) showTab(editTab);
+          editor.choose(index);
+        },
+        grabbed: (bone: string | null, mode: "move" | "turn") => {
+          grabMode = mode;
+          grabbedBone = bone ? boneNamed(bone) : undefined;
+          showBone(bone);
+          if (!grabbedBone) {
+            handles?.detach();
+            return;
+          }
+          if (!handles) {
+            handles = new TransformControls(camera, renderer.domElement);
+            handles.setSize(0.8);
+            scene.add(handleAt, handles.getHelper());
+            handles.addEventListener("dragging-changed", (ev) => {
+              controls.enabled = !ev.value;
+              if (ev.value) {
+                setPlaying(false);
+                timeline?.grabStart();
+              } else timeline?.grabEnd();
+            });
+            handles.addEventListener("objectChange", () => {
+              if (!handles?.dragging) return;
+              const v = grabValue();
+              if (v) timeline?.grabMove(v);
+            });
+          }
+          placeHandles();
+          handles.attach(handleAt);
+          handles.setMode(mode === "move" ? "translate" : "rotate");
+          handles.setSpace(mode === "move" ? "world" : "local");
+        },
+        say: (message: string) => source.say?.(message),
+      }
+    : undefined;
+  if (timelineHost) {
+    timeline = timelinePanel(timelineHost);
+    container.insertBefore(timeline.box, transport);
+    const timelineButton = el("button", "on", "Timeline");
+    timelineButton.title = "Show the timeline under the view: the clip's blocks on tracks, its keys and blends";
+    timelineButton.addEventListener("click", () => {
+      timeline!.box.hidden = !timeline!.box.hidden;
+      timelineButton.classList.toggle("on", !timeline!.box.hidden);
+    });
+    bar.insertBefore(timelineButton, bar.firstChild);
+  }
   if (editor) {
-    // A click (not a drag) near a joint fills the form's bone, when the form has one.
+    // A click (not a drag) near a joint fills the form's bone, when the form has one; else it grabs the joint for the timeline.
     let down: { x: number; y: number } | null = null;
-    renderer.domElement.addEventListener("pointerdown", (e) => (down = { x: e.clientX, y: e.clientY }));
+    renderer.domElement.addEventListener("pointerdown", (e) => (down = handles?.axis ? null : { x: e.clientX, y: e.clientY }));
     renderer.domElement.addEventListener("pointerup", (e) => {
       const from = down;
       down = null;
-      if (!from || Math.hypot(e.clientX - from.x, e.clientY - from.y) > 4 || !editor.wantsBone()) return;
+      if (!from || Math.hypot(e.clientX - from.x, e.clientY - from.y) > 4) return;
+      const forForm = editor.wantsBone();
+      if (!forForm && (!timeline || timeline.box.hidden)) return;
       const r = renderer.domElement.getBoundingClientRect();
       let best: { name: string; d: number } | null = null;
       for (const b of framed.length ? framed : bones) {
@@ -679,7 +820,10 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
         const d = Math.hypot(((p.x + 1) / 2) * r.width - (e.clientX - r.left), ((1 - p.y) / 2) * r.height - (e.clientY - r.top));
         if (d < 14 && (!best || d < best.d)) best = { name: b.name, d };
       }
-      if (best) editor.pickBone(best.name);
+      if (!best) return;
+      // Both: the form's bone, and the timeline's handles on it.
+      if (forForm) editor.pickBone(best.name);
+      if (timeline && !timeline.box.hidden) timeline.grab(best.name);
     });
   }
   // The side column's tabs (the owner, 2026-11-25): Clip, Edit and Animations, each with the column's whole height,
@@ -1065,6 +1209,7 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
       follow();
       showTime();
     }
+    placeHandles();
     controls.update();
     lighting.update(camera);
     renderer.render(scene, camera);
@@ -1092,6 +1237,8 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
   return {
     dispose: () => {
       running = false;
+      timeline?.dispose();
+      handles?.dispose();
       stopSet();
       observer.disconnect();
       controls.dispose();

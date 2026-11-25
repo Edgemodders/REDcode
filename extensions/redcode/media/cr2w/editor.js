@@ -470,7 +470,7 @@
           : undefined,
         restore: (() => { const k = keptAnimState; keptAnimState = null; return k ?? undefined; })(),
         // AE2: a made clip's edit steps (docs/design/animation-editor.md).
-        edit: { info: () => request("animsEditInfo"), apply: (steps) => request("animsEdit", { steps }), undo: () => request("animsEditUndo"), redo: () => request("animsEditRedo"), blender: () => request("animsBlender") },
+        edit: { info: () => request("animsEditInfo"), clip: async (source) => base64ToBuffer(await request("animsEditClip", { source: source ?? null })), apply: (steps) => request("animsEdit", { steps }), undo: () => request("animsEditUndo"), redo: () => request("animsEditRedo"), blender: () => request("animsBlender") },
         // A lip sync set: its character's lines in the Lip Sync editor, at the shown clip's line.
         lipSync: payload.lipSync ? (clip) => request("animsLipSync", { clip }).catch((e) => status(e.message, "error")) : undefined,
         note: payload.dirty ? "Shows the saved file; save to see your edits" : "",

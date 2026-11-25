@@ -4,7 +4,7 @@
 import * as path from "node:path";
 import * as vscode from "vscode";
 import * as fs from "node:fs";
-import { asBridge, BoneGroups, bonesOf, clipOnBody, editClip, footContacts, IkBones, madeClips, projectAt, readGlb, rebaseClip, rigFor, Rigs, standInGlb, suggestPins, type EditStep, type Model } from "../../../packages/anim-core/src/index";
+import { asBridge, BoneGroups, bonesOf, clipOnBody, editClip, editSourceGlb, footContacts, IkBones, madeClips, projectAt, readGlb, rebaseClip, rigFor, Rigs, standInGlb, suggestPins, type EditStep, type LayerSource, type Model } from "../../../packages/anim-core/src/index";
 import { Cancelled, makeClip, makeRig, StageText, type MakeDeps, type MakeRequest, type MakeResult } from "./animMake";
 import type { AnimMaker } from "./cr2wEditor";
 import { gamePathOfUri } from "./gameFs";
@@ -298,6 +298,13 @@ export function registerAnimCommands(context: vscode.ExtensionContext, host: Ani
     },
     madeClipOf: (file) => madeOf(file)?.name,
     editInfo,
+    // The Animation Timeline (TL2): the clip as made, or an animation block's clip, for the page's live preview.
+    clipBytes: async (file, source) => {
+      const m = madeOf(file);
+      if (!m) throw new Error("This file is not a made clip's own set");
+      const bytes = await editSourceGlb(asBridge(host.deps.bridge()), projectAt(host.projectDir()!), m.name, source, { cacheDir: host.deps.cacheDir, set: m.set });
+      return bytes.toString("base64");
+    },
     edit: (file, steps) => applySteps(file, steps, true),
     undo: (file) => travel(file, history, future, "Nothing to undo"),
     redo: (file) => travel(file, future, history, "Nothing to redo"),
