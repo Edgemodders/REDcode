@@ -6,6 +6,8 @@ What changed in each release of `@edgemodders/anim-core`. Changes are grouped as
 
 **New**
 
+- **Clips read in a page:** `parseGlb` and `framesOfData` read a clip's `.glb` from its bytes with no Node imports, so REDcode's timeline plays its blocks live; `framesOf` uses them. `editSourceGlb` gives a made clip's clip as made, or another clip a block plays.
+- A jump on the timeline counts only what a block's edge adds to the motion below it: a step already in that motion is not one.
 - **The Animation Timeline's blocks** (REDcode's Animation Timeline, TL1): `evaluateTimeline` works out animation blocks, moves and blends on tracks, each starting from what shows through before it, blends into the live motion, the rest pose under everything, and the places the pose jumps. `rigProfile` tells a person's rig from any other, so the same blocks turn an AV's doors or slide a ramp. `applyEdits` runs a record's timeline steps before its other steps. The pose math is in `pose.ts`, with no Node imports, so a page can run it.
 - **Made animations from words:** `generate` runs Uthana's text to motion onto a stand-in character with the game's own skeleton, fits the motion onto the game's rig, and imports it into a WolvenKit project through REDbridge, as a new clip or in place of a game clip. Each stage is reported, and the clip's source is kept beside it.
 - **The parts:** the Uthana client (`uthana`, `cost`), the rigs (`man_base`, `woman_base`), the stand-in (`standIn`), the fit (`fitClip`, with every channel the game needs and the hips grounded to the game's foot height), `addClip`, `replaceClip`, `clipsIn`, and the `.glb` helpers.

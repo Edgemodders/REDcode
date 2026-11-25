@@ -4,7 +4,7 @@ title: Animation Timeline
 
 # Animation Timeline: blocks on tracks, posed by hand
 
-Draft 0.4, **agreed with the owner on 2026-11-25**: three kinds of block (animation, move, blend), a block starts from **what shows through** before it, a move ends on its last pose with no implied return, **blends** carry one pose into the next, a new move comes with a blend after it, and the clip ends at the last block (the owner's design, with the recommendations under Decisions). Draft 0.3 (2026-11-25) took **EDGEwave's mix** look and lane behaviour in place of EDGEdir's; draft 0.2 (agreed 2026-11-24) had implied entry and exit keys, which 0.4 replaces. Details may change in testing. **TL1 is built (2026-11-25)**: [TL1 as built](#tl1-as-built-2026-11-25); the rest is not, and it does not hold up the next release. It grows the [Animation Editor](animation-editor.html): AE1 and AE2 are its steps and its first panel. Its goal is [The Speaking Scene](speaking-scene.html) (the owner, 2026-11-25): a character's body, head and lip sync with the voice, together, which TL6 brings into the timeline.
+Draft 0.4, **agreed with the owner on 2026-11-25**: three kinds of block (animation, move, blend), a block starts from **what shows through** before it, a move ends on its last pose with no implied return, **blends** carry one pose into the next, a new move comes with a blend after it, and the clip ends at the last block (the owner's design, with the recommendations under Decisions). Draft 0.3 (2026-11-25) took **EDGEwave's mix** look and lane behaviour in place of EDGEdir's; draft 0.2 (agreed 2026-11-24) had implied entry and exit keys, which 0.4 replaces. Details may change in testing. **TL1 to TL4 are built (2026-11-25)**: [TL1 as built](#tl1-as-built-2026-11-25), [TL2 to TL4 as built](#tl2-to-tl4-as-built-2026-11-25); TL4's hand test is pending, and the rest is not built. It does not hold up the next release. It grows the [Animation Editor](animation-editor.html): AE1 and AE2 are its steps and its first panel. Its goal is [The Speaking Scene](speaking-scene.html) (the owner, 2026-11-25): a character's body, head and lip sync with the voice, together, which TL6 brings into the timeline.
 
 ## What the owner asked for
 
@@ -163,6 +163,38 @@ Settled while building, within the agreed rules:
 - **A jump** is a bone turning or sliding at a block's edge far more than in the frames either side of it (over 3 degrees or 2 cm, and 2.5 times its neighbours): a fast start that carries on is not one.
 - **The clip as made** is an animation block like any other, written into the record when the timeline first changes it (`withBase`); a timeline with no animation block shows the rest pose.
 
+## TL2 to TL4 as built (2026-11-25)
+
+| Part | Where |
+|---|---|
+| The timeline under the animation view, on a project's made clip | `webview/animTimeline.ts`, mounted by `webview/animViewer.ts` between the view and the transport, with a **Timeline** button in the view's bar to hide it; its styles at the end of `media/cr2w/editor.css` |
+| Live preview | The page reads the clip as made (and each animation block's clip) through the host's `animsEditClip` (anim-core's `editSourceGlb`), runs `evaluateTimeline` on each change (anim-core's `clipData.ts` reads a `.glb` from bytes with no Node imports) and plays the frames in place of the applied clip; the length shown follows the end |
+| One step list | The timeline and the Edit tab share it: a change in either shows in the other, and **Apply** in either sends it (`editPanel`'s `steps`, `setSteps`, `choose`, `apply`, `dirty`) |
+| Grabbing (TL4) | A click near a joint grabs it, with three.js's TransformControls: **Move** (W) for a hand or foot (the arm or leg by IK) or a sliding bone, **Turn** (E), **Let Go** (Esc). A drag keys the move under the playhead that drives the bone (the selected one first), else makes a move around the playhead (1 s either side) on a free track with its 0.5 s Smooth blend after it. The key is the pose, as TL1 keeps it: an arm's or leg's end in its chain's frame, any other bone's local turn or place |
+
+How it works on screen:
+
+- **Lanes:** one per track, the highest on top (it wins), each with its checkbox; right-click a lane for **Only This Track**, **All Tracks**, **Move Up**, **Move Down**, **Rename** and **Add Blend Here**. Dragging a block up or down moves its whole lane, as in EDGEwave's mix.
+- **Blocks:** an animation block is a plain bar with its clip and stretch, a move shows its keys as diamonds, a blend is hatched. The selected block's settings are in the bar above the lanes: start and length; an animation block's from, bones (a group) and Replace or Add with a weight; a move's transition into each key, a key's time, Delete Key.
+- **Editing:** drag a block sideways (it stops at its neighbours on the lane), an edge to trim it (an animation block's left edge keeps its frames where they were; a move's keys stay where they are in time), a diamond to move a key. Snap is to frames, block edges, the playhead and the end; Alt holds it off. **S** splits at the playhead, **Delete** removes, **Ctrl+C** and **Ctrl+V** copy and paste at the playhead, **Ctrl+Z** and **Ctrl+Y** (or ↶ ↷) undo on the timeline; the wheel scrolls, Ctrl+wheel zooms, **Fit** shows it all.
+- **Add:** Move (on the grabbed bone, else the right hand), Blend, an animation block of another made clip, a game clip (set and clip by name) or the clip as made, at the playhead.
+- **Ruler:** the playhead (click or drag to scrub), red ticks at the jumps (a click adds a blend after the block that ends there, else before the one that starts there, on its lane when free), and the end marker (drag it; a double click gives the end back to the last block).
+- **The clip's other steps** (pins, keys, layers, trim, loop) are drawn in a **Steps** lane as marks; a click names the step and **Edit It** opens it in the Edit tab's form.
+
+Settled while building:
+
+- **A jump counts only what a block's edge adds** to the motion below the block (anim-core's check: a step already in that motion is not one). The harness found a game clip whose pinky turns 5.8 degrees in one frame at 1.4 s, where a move without keys started; it was marked as a jump before.
+- **A click on a joint both grabs it and fills the Edit tab's form**, when the form has a bone: before, the form took every click while the Edit tab was open, and nothing was grabbed.
+
+Not built, or not as the screen sketch has it:
+
+- **The clip's other steps are not in the live preview:** the preview runs the timeline only, and says so while those steps are there; Apply puts them on top, as before.
+- **The detail pane under a splitter** is the bar above the lanes for now; a grip above the timeline sets its height (kept per window).
+- An animation block made from a prompt through Make, or from a `.glb` file, is not in Add yet (the Clip tab makes the clip; then Add, a made clip).
+- Unverified: whether VS Code takes Ctrl+Z inside the webview for its own Undo before the timeline sees it (the ↶ and ↷ buttons work either way); whether a key made on a lower track lands right when an upper track turns the arm's anchor (the key is read from the view's pose).
+
+Checked: anim-core's checks (`check-timeline` 35 of 35, `check.mjs` all pass against the game), REDcode's unit checks and type checks, and the page in Chrome on Probe D's made clip (`docs/testing.md`, Animation Timeline TL2 to TL4).
+
 ## Built on what exists
 
 | Part | From |
@@ -179,9 +211,9 @@ Settled while building, within the agreed rules:
 | Stage | What | Checked by |
 |---|---|---|
 | **TL1** (built 2026-11-25, its check passes) | The three blocks in anim-core: animation blocks (pieces keeping their frames, chosen bones), moves (start from what shows through, keys of place and turn, stretches with their transitions, IK keeping the hand's turn from below), blends into the live motion, the rest pose under everything, tracks from the bottom up, weight and Add, the end; the frame math also running in a page | anim-core's check: a move touching another starts on its last pose; after a gap it starts on what shows through (a piece of a cut clip); a blend has no step at either edge and ends on the moving animation; a cut piece plays its own frames; nothing below gives the rest pose; a hand reaches its key's place within 1 mm; a raise and a turn on the same hand both show; on the same thing the upper track wins; weight 0.5 is halfway |
-| **TL2** | The timeline under the view, showing today's steps as blocks and marks, with live preview; click a block to change it in the bar | A hand test |
-| **TL3** | Blocks made and edited on the timeline: Add (move, blend, animation), drag, trim, split, keys as diamonds with their transitions, jump ticks, the end marker | A hand test |
-| **TL4** | Grabbing a bone in the 3D view: handles, a key at the playhead, a new move with its blend when none is under it | A hand test |
+| **TL2** (built 2026-11-25, hand test pending) | The timeline under the view, showing today's steps as blocks and marks, with live preview; click a block to change it in the bar | A hand test |
+| **TL3** (built 2026-11-25, hand test pending) | Blocks made and edited on the timeline: Add (move, blend, animation), drag, trim, split, keys as diamonds with their transitions, jump ticks, the end marker | A hand test |
+| **TL4** (built 2026-11-25, hand test pending) | Grabbing a bone in the 3D view: handles, a key at the playhead, a new move with its blend when none is under it | A hand test |
 | **TL5** | The same page in the game through the Animation Tools pack (AE3), and the MCP tools for blocks | A hand test in the game |
 | **TL6** | [A line on the timeline](#a-line-on-the-timeline-tl6): the Line lane, the head on the body with the face moving to the voice, Open in Lip Sync. Needs TL1 to TL4 and Lip Sync L2 | The check on the head's bones first, then a hand test: Judy walks, gestures and speaks a made line |
 

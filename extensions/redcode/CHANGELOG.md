@@ -8,6 +8,7 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 - **EDGEworld: Open Sector Here** opens the sector V stands in, in the sector view, with the thing nearest V picked: the interior when V is inside one, else the street's level 0 sector, and the project's copy when the project has one. It needs the game running with REDnode and a save loaded.
 - **Open in REDcode from the game:** REDcode's REDnode package (0.4.0) has `openSector`, so EDGEbuilder and assistants in the game can open a sector in REDcode at a node. The REDcode window last used with a project opens it.
+- **The Animation Timeline** under the animation view, on a made clip: its blocks on tracks played live as they change. Grab a joint and drag its handles to pose it at the playhead; a move and a blend back into the motion are made for it. Add moves, blends and other clips, drag, trim, split and delete blocks, see where the pose jumps and blend it away, drag the clip's end. Apply rebuilds the clip.
 - **Show in Game** in the sector view, on the picked thing and on each selected row: EDGEbuilder flies its camera there in the running game with Edit on. Each thing picked in REDcode is also picked in EDGEbuilder's Sector drawer. It needs REDnode with its MCP server on and EDGEbuilder 0.13.2 or later in the game; REDcode offers EDGEbuilder's Nexus page once when the game has REDnode and no EDGEbuilder.
 
 **Changed**

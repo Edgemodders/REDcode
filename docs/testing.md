@@ -774,6 +774,30 @@ Run 2 (owner, 2026-11-22), after Pack and Play of the refitted sets: **pass** ("
 
 Run 2026-11-25: **pass, 34 of 34**, after four fixes the first runs found: a one-frame stall at a move's start, relative keys measured from the move's start (a blend before it moved them), the elbow flipping as the arm straightened, and a jump test that took a fast start for a jump. Also passed the same day: REDcode's unit checks (91) and the type checks of the extension, its webviews and redcode-mcp. AE1's check against the game was not run again (its steps' code moved to `pose.ts` unchanged).
 
+## Animation Timeline TL2 to TL4
+
+Built 2026-11-25 ([design](design/animation-timeline.html#tl2-to-tl4-as-built-2026-11-25)): the timeline under the animation view on a made clip, its live preview, editing blocks, and grabbing a joint.
+
+Checked on 2026-11-25 in Chrome, by script and real clicks, on a harness page that mounts the bundled view (`media/mesh/viewer.js`) with Probe D's made clip `man_stands_relaxed_crosses` (its clip as made, its Pin and Head key) and `crossed_arms_copy` as another made clip, the host faked: the timeline drew the clip as made as a block and the two steps as marks; Add Move made a right hand move around the playhead with its blend; a click on the left wrist grabbed it and a drag up on the handle made a left hand move with a key at the playhead, the arm bent by IK in the preview; a drag past a neighbour stopped, a drag back moved the block, Ctrl+Z and Ctrl+Y undid and redid it; S split a move and Delete took the second piece out; Apply sent the whole list with the clip as made in it; Add, a made clip, read `crossed_arms_copy` through the host and placed it; its lane's checkbox turned the track off and on; a click on its jump tick added a blend before it and the jump went; the end marker dragged to 4.70 s made the clip 4.70 s long; the lane menu's Move Down swapped two tracks. No page errors. It found one fault, fixed in anim-core the same day (a step in the motion below a block's edge was taken for a jump), and one in the page (the Edit tab's form took every joint click).
+
+By hand, with F5 **Run REDcode** on a project with a made clip (Probe D's project: `C:\Users\VYRAL\Documents\AnimProbeD`), its own set open on the animation view:
+
+| # | Do | Expected |
+|---|---|---|
+| T1 | Look under the view | The **Timeline**: the clip as made on Track 0, the clip's other steps in a Steps lane, the playhead moving as it plays |
+| T2 | Stop at about 2 s. Click the right wrist joint, then drag its green handle up | A Right Hand move appears around the playhead with a blend after it; the hand goes up and the arm bends; the status says it plays the timeline as changed |
+| T3 | Play | The hand rises into the key, holds, and the blend carries it back into the motion with no snap |
+| T4 | **Turn** (or E), drag a ring | The hand turns; the same key holds the turn |
+| T5 | Drag the move sideways, its right edge, a diamond; then Ctrl+Z | Each changes it and the preview follows; Undo puts it back (or ↶ if VS Code takes Ctrl+Z) |
+| T6 | Put the playhead in the move, press S, then Delete | It splits in two; the second piece goes |
+| T7 | Add, a made clip; then click its red jump tick | A block of that clip at the playhead on a new track; the tick adds a blend and goes |
+| T8 | Uncheck that lane; right-click a lane, Move Down | The track leaves the clip; the lanes swap and the upper one wins |
+| T9 | Drag the end marker (▼) earlier | The clip shortens; the time shows the new length |
+| T10 | **Apply** | The clip rebuilds with the timeline and the other steps; the view reopens on it, as applied |
+| T11 | In the game (the pack's Swap or Pack and Play) | The clip plays as it did in the view after Apply |
+
+Not run yet.
+
 ## anim-core check
 
 `node packages/anim-core/scripts/check.mjs <REDbridge.exe> <game folder> <Probe D's project folder>` ([design](design/animation-tools.html#at1-as-built-2026-11-22)). It needs the game, the Uthana key in the shared store and Probe D's project; it starts no paid job and writes only into a scratch folder.
