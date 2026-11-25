@@ -4,7 +4,7 @@ title: Animation Timeline
 
 # Animation Timeline: moves on tracks, posed by hand
 
-Draft 0.2, **agreed with the owner on 2026-11-24 with every recommendation under Decisions** (0.2 took the owner's second message: implied entry and exit keys, tracks stacked from the bottom up, moves on one bone combined by what each changes). Details may change in testing. Nothing here is built, and it does not hold up the next release. It grows the [Animation Editor](animation-editor.html): AE1 and AE2 are its steps and its first panel.
+Draft 0.3, 2026-11-25: the timeline takes **EDGEwave's mix** look and lane behaviour in place of EDGEdir's (the owner; decision 6 and The timeline below). Draft 0.2, **agreed with the owner on 2026-11-24 with every recommendation under Decisions** (0.2 took the owner's second message: implied entry and exit keys, tracks stacked from the bottom up, moves on one bone combined by what each changes). Details may change in testing. Nothing here is built, and it does not hold up the next release. It grows the [Animation Editor](animation-editor.html): AE1 and AE2 are its steps and its first panel.
 
 ## What the owner asked for
 
@@ -12,7 +12,7 @@ The owner, 2026-11-24, after trying the Edit panel:
 
 > I can have a clip of a foot bone at position A at time 0 in the clip and the clip is 5 seconds long and the foot bone is moved to position B at time 5 and the rest is filled in with a chosen transition (smooth, ease-in…). Then I might have a separate clip for the hand… I click at time 5 in the clip (adds a key marker inside the clip) and move the hand up in the air, bringing the arm with it. … I can move these clips independently… They would reside on separate tracks not unlike how EDGEdir does its timeline. … The beginning of a clip would be automatically set based on where the clip is moved on the animation timeline… then the clip overrides the base animation with its new tween and key values. What happens after the clip will be up to the author.
 
-So: an editor where the modder **clicks a bone and drags it** into place, and the motion between poses is **filled in with a chosen transition**, organised as **blocks on tracks** under the 3D view, the way EDGEdir lays out a scene.
+So: an editor where the modder **clicks a bone and drags it** into place, and the motion between poses is **filled in with a chosen transition**, organised as **blocks on tracks** under the 3D view, the way EDGEwave lays out a mix (the owner, 2026-11-25: EDGEwave's timeline fits better than EDGEdir's, whose coloured clips tell actors apart in large scenes).
 
 ## Terms
 
@@ -20,7 +20,7 @@ So: an editor where the modder **clicks a bone and drags it** into place, and th
 |---|---|
 | **The animation** | The clip being edited, as made (Uthana's, a file's, the game's). It plays underneath everything |
 | **Move** (name to agree, decision 1) | A block on a track: which bones it drives, where it starts, how long it lasts, and its keys. The owner's "clip on the timeline"; called a move here so it is not confused with the animation clip itself |
-| **Track** | A lane of moves, as in EDGEdir. Moves on one track do not overlap |
+| **Track** | A lane of moves, as in EDGEwave's mix. Moves on one track do not overlap |
 | **Key** | A pose for the move's bones at a moment inside the move |
 | **Entry and exit keys** | Implied, never stored: at the move's start its bones are where the tracks beneath have them then, and at its end they are back where the tracks beneath have them then. Moving or stretching the block in time takes the new moments' poses |
 | **Stretch** | The part of a move between two keys (entry, the author's keys, exit), each with its own transition: smooth, linear, ease in, ease out, overshoot, or hold |
@@ -78,7 +78,7 @@ Averaging two moves by default is left out on purpose: it gives a pose neither m
 ```
 
 - **Grab a joint** in the 3D view: rotate handles on it, and move handles on a hand or foot. Dragging **at the playhead** sets a key there: in the selected move when the playhead is inside it, or in a **new move** on a free track around the playhead (1 s either side, stretched by dragging its edges); its entry and exit keys are implied.
-- **The timeline** (EDGEdir's look and keys: the ruler in seconds and frames, lanes with name, mute and lock, blocks dragged to move and by an edge to trim, snap to frames and edges with Alt to hold it off, Space plays, S splits, Delete removes, copy and paste). Keys are diamonds inside a move, the entry and exit shown hollow at its edges: drag a key in time; click a stretch between keys to pick its transition.
+- **The timeline**, in EDGEwave's mix look and behaviour (its A2 Mix, `webview/editor.ts` and `media/editor.css` in EDGEwave): the ruler in seconds and frames; one lane per track, the selected one shaded with the accent bar at its left and its block outlined in the accent colour, the others plain (no colour per lane); a **checkbox** at each lane's left for in the clip or not, with right-click **Only This Track** and **All Tracks** (EDGEwave's answer to Mute and Solo, which confused the owner there); a lane dragged **up or down** moves it (the order is which track wins), **sideways** moves its block in time, the first 4 px deciding; **Move Up** and **Move Down** in the lane's menu; the **selected move's controls** in a bar above the lanes (its bone or group, Replace or Add, Weight, its transitions); a **splitter** between the lanes and the selected move's detail below (its keys and stretches over time, as EDGEwave's clip editor sits below its lanes), its height kept per tab. Added to EDGEwave's mix for moves: a block trimmed by an edge, snap to frames and edges (Alt holds it off), Space plays, S splits, Delete removes, copy and paste. Keys are diamonds inside a move, the entry and exit shown hollow at its edges: drag a key in time; click a stretch between keys to pick its transition.
 - **Live preview**: the view plays the result while the modder drags, scrubs and plays, with no rebuild. **Apply** writes the clip as now (the steps, through anim-core's `editClip`), and the game sees it after the pack swaps it in.
 - **Today's steps show on the timeline too** (decision 5): a pin as a block on its foot's track, a layer as a block as long as its clip, a trim and a loop as marks on the ruler. The step list becomes the timeline.
 
@@ -103,7 +103,7 @@ Moves are steps in the clip's record, as AE1 keeps every edit, so the record, Un
 |---|---|
 | Two-bone IK, turns in the character's frame, easings, the edit list, `editClip`, the record | AE1 (`packages/anim-core/src/edit.ts`) |
 | The Edit panel, the bone marker, picking a joint, Apply in place | AE2 (`webview/animEdit.ts`) |
-| The timeline's lanes, ruler, drag, trim, snap and keys | EDGEdir's D1 (`webview/editor.ts` in EDGEdir), copied with a note of the source version as EDGEdir copied its own; a shared package later (decision 6) |
+| The timeline's lanes, ruler, checkboxes, lane moves, splitter and selected track's bar | EDGEwave's A2 Mix (`webview/editor.ts`, `media/editor.css` in EDGEwave), copied with a note of the source version; trim, snap and split added in the same look; a shared timeline package later (decision 6) |
 | Rotate and move handles | three.js's TransformControls, on a bone |
 | Live preview | AE1's frame math made to run in the page (it has no Node needs but `Buffer` in writing the file), so the page plays the steps on the clip's keys while the modder works |
 
@@ -126,5 +126,5 @@ Moves are steps in the clip's record, as AE1 keeps every edit, so the record, Un
 | 3 | Two moves on different tracks on the same bone at once | **By what each changes** (Stacking above): different things both take effect; the same thing, the **upper track wins**; a **Weight** per move to mix on purpose. Not an average by default |
 | 4 | How a move starts and ends | **Implied entry and exit keys** from beneath, as the owner proposed in 0.2; a last stretch can **hold** instead of returning |
 | 5 | Today's steps on the timeline | **Yes**: pins, layers, trims and loops as blocks and marks, so there is one place to see every edit; the list goes |
-| 6 | The timeline's code | **Copy EDGEdir's** lanes now with a note of its version (as EDGEdir did), and agree a shared timeline package with EDGEdir once both are settled |
+| 6 | The timeline's code | **Copy EDGEwave's** mix lanes now with a note of its version, and agree a shared timeline package with EDGEwave (and EDGEdir, if it wants one) once both are settled. Changed by the owner on 2026-11-25 from EDGEdir's lanes: EDGEwave's look fits one body better than EDGEdir's coloured clips per actor |
 | 7 | Edit in Blender (asked the same day) | Blender works on the clip as it plays now, and what it saves becomes the clip's new starting point (the steps folded in, the old one kept for Undo). It comes first, as the Animation Editor's AE5, ahead of the timeline and of AE3 |
