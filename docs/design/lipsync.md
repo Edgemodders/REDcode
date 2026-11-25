@@ -4,7 +4,7 @@ title: Lip Sync
 
 # Lip Sync: the Lip Sync editor in REDcode
 
-Agreed with the owner on 2026-11-24, all four decisions as recommended (draft 0.1 was of 2026-11-22). **L1 is built (2026-11-24); its hand test in VS Code is pending** ([L1 as built](#l1-as-built), [Tests](../testing.html#lip-sync)).
+Agreed with the owner on 2026-11-24, all four decisions as recommended (draft 0.1 was of 2026-11-22). **L1 was released in REDcode 0.10.17 (2026-11-25)**; its hand test passed but step 9, which shipped untested ([L1 as built](#l1-as-built), [Tests](../testing.html#lip-sync)). The goal it builds to is [The Speaking Scene](speaking-scene.html) (the owner, 2026-11-25): a character's body, head and lip sync with the voice, together, in REDcode, in a scene and in the game.
 
 On 2026-11-22 the owner moved the Lip Sync editor from EDGEfab to REDcode. EDGEfab now covers props and clothing only. EDGEfab's session pushed the editor, as EDGEfab had it, to the branch `lipsync` (6303a5b), all in one folder, `lipsync/`. The branch was merged into `main` after REDcode 0.10.16 (deb45a2), and L1 moved each file to its place and wired it in.
 
@@ -85,6 +85,11 @@ The owner: viewing a line's lip sync, swapping heads to see how it plays on each
 | **Into the game** | Not built | Each of the above written into the project as the game's own files (the lip sync `.anims` with float tracks, the `.wem`, the subtitle), packed and heard in the game | REDcode; REDbridge #14 for the float tracks |
 
 So L2 is this loop, not only writing a made line: its own design page, agreed before code, in stages, with EDGEwave asked for the `.wem` call.
+
+Two more things L2 must do, for [The Speaking Scene](speaking-scene.html) (the owner, 2026-11-25):
+
+- **A saved line the timeline can read.** A made line (its words with their times, the voice take, the lip sync) is saved as one thing with a name and a place, so the Animation Timeline's Line lane (TL6) and later EDGEdir can put it on a track and play it with its head. The format is L2's to choose, with TL6's needs in it: the voice file, the words' times, the lip sync clip, the character or head it was made for.
+- **The in-game probe P-line** ([The Speaking Scene](speaking-scene.html#the-probe-that-decides-step-8-p-line)): a made line with its lip sync on an NPC, in a game `.scene` from EDGEquest and from a REDnode package. It decides how the line reaches the game for EDGEdir and EDGEquest.
 
 ## Phases
 

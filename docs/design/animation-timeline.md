@@ -4,7 +4,7 @@ title: Animation Timeline
 
 # Animation Timeline: blocks on tracks, posed by hand
 
-Draft 0.4, **agreed with the owner on 2026-11-25**: three kinds of block (animation, move, blend), a block starts from **what shows through** before it, a move ends on its last pose with no implied return, **blends** carry one pose into the next, a new move comes with a blend after it, and the clip ends at the last block (the owner's design, with the recommendations under Decisions). Draft 0.3 (2026-11-25) took **EDGEwave's mix** look and lane behaviour in place of EDGEdir's; draft 0.2 (agreed 2026-11-24) had implied entry and exit keys, which 0.4 replaces. Details may change in testing. Nothing here is built, and it does not hold up the next release. It grows the [Animation Editor](animation-editor.html): AE1 and AE2 are its steps and its first panel.
+Draft 0.4, **agreed with the owner on 2026-11-25**: three kinds of block (animation, move, blend), a block starts from **what shows through** before it, a move ends on its last pose with no implied return, **blends** carry one pose into the next, a new move comes with a blend after it, and the clip ends at the last block (the owner's design, with the recommendations under Decisions). Draft 0.3 (2026-11-25) took **EDGEwave's mix** look and lane behaviour in place of EDGEdir's; draft 0.2 (agreed 2026-11-24) had implied entry and exit keys, which 0.4 replaces. Details may change in testing. Nothing here is built, and it does not hold up the next release. It grows the [Animation Editor](animation-editor.html): AE1 and AE2 are its steps and its first panel. Its goal is [The Speaking Scene](speaking-scene.html) (the owner, 2026-11-25): a character's body, head and lip sync with the voice, together, which TL6 brings into the timeline.
 
 ## What the owner asked for
 
@@ -97,6 +97,16 @@ Averaging two blocks by default is left out on purpose: it gives a pose neither 
 - **Live preview**: the view plays the result while the modder drags, scrubs and plays, with no rebuild. **Apply** writes the clip as now (the steps, through anim-core's `editClip`), and the game sees it after the pack swaps it in.
 - **Today's steps show on the timeline**: a layer is an animation block on chosen bones, a pin a block on its foot's track, a trim the clip's start and end marker, a loop a mark on the ruler. The step list becomes the timeline.
 
+## A line on the timeline (TL6)
+
+Asked by the owner on 2026-11-25 for [The Speaking Scene](speaking-scene.html): a spoken line made in the Lip Sync editor, played with the body's moves so the gestures can be timed to the words.
+
+- **A Line lane** at the top of the timeline holds **line blocks**: a voice line with its lip sync, from the game or made in the Lip Sync editor (L2), its length the voice's. Slid in time like any block; its waveform on the block and its words under it, each word where it is spoken.
+- **For watching and timing only.** In the game the face plays apart from the body, so a line block changes nothing in the clip Apply writes: the body clip stays body only. The line's start is kept in the record (`{ "step": "line", "start": 1.2, "line": ... }`), so the timing travels with the clip to EDGEdir.
+- **The lip sync is edited in one place**: the line block's **Open in Lip Sync** opens the Lip Sync editor on that line; the timeline never edits curves.
+- **The head on the body**: the Lip Sync tab's head and face solve (`webview/lipsyncHead.ts`, `faceSolve` in lipsync-core) in the animation view, on the body's head bone, with the voice played on the transport's clock. **Unverified**: whether a character's body export carries the head's face bones, or the head is a second model placed on the head bone; a short check comes first.
+- A character with no head in the export (V: the game builds V's head from the save) shows the line on the head picked in the Lip Sync editor.
+
 ## The data
 
 Blocks are steps in the clip's record, as AE1 keeps every edit, so the record, Undo, Apply, the MCP tools and EDGEfab's reading stay as they are:
@@ -139,6 +149,7 @@ Blocks are steps in the clip's record, as AE1 keeps every edit, so the record, U
 | **TL3** | Blocks made and edited on the timeline: Add (move, blend, animation), drag, trim, split, keys as diamonds with their transitions, jump ticks, the end marker | A hand test |
 | **TL4** | Grabbing a bone in the 3D view: handles, a key at the playhead, a new move with its blend when none is under it | A hand test |
 | **TL5** | The same page in the game through the Animation Tools pack (AE3), and the MCP tools for blocks | A hand test in the game |
+| **TL6** | [A line on the timeline](#a-line-on-the-timeline-tl6): the Line lane, the head on the body with the face moving to the voice, Open in Lip Sync. Needs TL1 to TL4 and Lip Sync L2 | The check on the head's bones first, then a hand test: Judy walks, gestures and speaks a made line |
 
 ## Decisions
 
