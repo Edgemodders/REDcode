@@ -71,8 +71,8 @@ Averaging two moves by default is left out on purpose: it gives a pose neither m
 ├ timeline ────────────────────────────────────────┴───────────────────┤
 │ 0s     1s     2s     3s     4s     5s     6s     7s     8s           │
 │ ┃ playhead                                                           │
-│ Legs   [ Left foot ◆─────────────────◆ ]                             │
-│ R arm                    [ Right hand ◆──────────────◆ Back ◇ ]      │
+│ Legs   [◇ Left foot ──────◆──────────◇]                             │
+│ R arm                    [◇ Right hand ──◆──────────◇]             │
 │ Feet   [ Pin LeftFoot ══════════════════════════════════════ ]      │
 └──────────────────────────────────────────────────────────────────────┘
 ```
