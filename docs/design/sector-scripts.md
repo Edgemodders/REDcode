@@ -54,7 +54,8 @@ export default {
 
 | `ctx` | What it does |
 |---|---|
-| `nodes()`, `selected()` | Every node, and the ones selected in the view when it ran, however it runs: on every node or on the selection (`run` uses these) |
+| `nodes()`, `selected()` | Every node, and the ones selected in the view when it ran, however it runs: on every node or on the selection (`run` uses these). Run on **This Sector and Its Layers On** ([Sector layers](sector-layers.html), L2), the layers' nodes follow the opened sector's, each with its own `node.sector` |
+| `sector`, `sectors()` | The opened sector's game path, and every sector in the run: the opened one first, then the layers |
 | `select(node)`, `deselect(node)` | Builds the selection the view shows when the script ends |
 | `log(...)` | A line in REDcode's output channel |
 | `game.read(path)` | Another game or project file as JSON, such as a node's mesh |

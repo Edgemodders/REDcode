@@ -77,9 +77,9 @@ export function scriptTemplate(name: string): string {
   return `// ${name}: a REDcode sector script (https://edgemodders.github.io/REDcode/design/sector-scripts.html).
 // Run it from the Scripts button in a sector's 3D view: on all nodes, or on the selected ones.
 //
-// node: id, entry, type, debugName, mesh, resource, appearance, position [x, y, z], streamingDistance,
+// node: id, sector, entry, type, debugName, mesh, resource, appearance, position [x, y, z], streamingDistance,
 //       get(path), set(path, value), json { node, entry }, inner (a cooked node's inner node)
-// ctx:  select(node), deselect(node), log(...), nodes(), selected(), sector,
+// ctx:  select(node), deselect(node), log(...), nodes(), selected(), sector, sectors(),
 //       game.read(path), tools.call(extension, method, ...args), agent.request(text, nodes)
 //
 // set records a change: REDcode shows them all before anything changes, and Apply makes them one edit.
@@ -101,8 +101,10 @@ export const ScriptApi =
   "A script is an ES module (.mjs, run by Node in its own process, so it may import node: modules) whose default export is " +
   "{ name, description, visit(node, ctx) } or { name, description, run(ctx) }: name and description as plain string literals, which the Scripts menu shows. " +
   "visit is called once for every node, or for the selected ones; run is called once and walks ctx.nodes() or ctx.selected() itself. Either may be async. " +
-  "node: id, entry, type, debugName, mesh, resource, appearance, position [x, y, z] (game axes), streamingDistance, get(path), set(path, value), json { node, entry }, inner (a cooked node's inner node). " +
-  "ctx: select(node), deselect(node), log(...), nodes(), selected(), sector, await game.read(path); tools.call(extension, method, ...args) and agent.request(text, nodes) work only in REDcode. " +
+  "node: id (<sector>#<entry>), sector, entry, type, debugName, mesh, resource, appearance, position [x, y, z] (game axes), streamingDistance, get(path), set(path, value), json { node, entry }, inner (a cooked node's inner node). " +
+  "ctx: select(node), deselect(node), log(...), nodes(), selected(), sector, sectors(), await game.read(path); " +
+  "run on a sector's layers too (in REDcode, This Sector and Its Layers On), nodes() holds every layer's nodes after the opened sector's, each with its own sector, and sectors() lists them; select(n) with a number picks an entry of the opened sector. " +
+  "tools.call(extension, method, ...args) and agent.request(text, nodes) work only in REDcode. " +
   "node.set only records a change: nothing is written until the modder chooses Apply in REDcode, or script_run is called with apply: true.";
 
 /** The largest script script_write takes. */

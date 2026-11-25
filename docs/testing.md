@@ -1472,6 +1472,29 @@ F5 with **Run REDcode**, and in Game Assets `base\worlds\03_night_city\_compiled
 
 Run by EDGEweb's session by script on 2026-11-24 (EDGEkit 1.143.1 trial on a scratch profile and project, the checkout's dist of 20:57 = a4b54fb, REDbridge 0.19.0, game 2.5 read only, real clicks and keys over CDP at 1920x1032; nothing that needs the owner's eye judged): **L1 to L9 pass**. L2: 66.5 s the first time, groups Neighbours 3, Other levels 12, Global 1 (collapsed). L3: 16 sectors; a row's tooltip names its level, "94 of its things reach into this sector (26 have no box and count by where they stand)" and its variants. L4: Ghost on exterior_-22_6_0_0 in about 2 s, 105 → 168 meshes, 8,986 → 9,621 copies, see-through bluish in the picture; **how it looks is the owner's to judge**. L5: Shown on exterior_-21_7_0_0, solid; its "1 thing(s) could not be drawn" is entry #62, `engine\meshes\editor\plane_occluder_twosided_xz.mesh`, an editor-only occluder WolvenKit does not export (expected). L6: a ghosted thing picked "(a layer's)", Ctrl+click added `exterior_-22_6_0_0#455.2`. L7: a group's Off and All Off, back to 8,986 copies, the layer's thing left the selection. L8: its own tab. L9: 16 sectors in 0.6 s, nothing on. **The ghosted look: passed** (the owner, 2026-11-25, with the sector tests).
 
+## Sector layers L2 and L3
+
+Built 2026-11-25 ([design](design/sector-layers.html#l2-and-l3-as-built-2026-11-25)): scripts over layers, changes into several sectors, the Links row, Select Placements in 3D.
+
+Checked by script on 2026-11-25: REDcode's unit checks (94: a run over two sectors visits both, selects and changes by id, keeps the same path in two sectors apart; on the selection by id only the layer's entry runs; Links and Select Placements on a cooked node), and the Links and placements of `exterior_-22_7_0_0` read through REDbridge 0.19.0 (1,233 entries, 14 node classes; one placement per inner record of a cooked node, its record's files only).
+
+By hand, F5 with **Run REDcode** on a project, `exterior_-22_7_0_0` opened from Game Assets on 3D, **Overlaps** listed:
+
+| # | Do | Expected |
+|---|---|---|
+| L2-1 | **Ghost** on `exterior_-22_6_0_0`; Scripts, **Every copy of these meshes** with a thing of each sector selected | It asks This Sector or This Sector and Its Layers On; with the layers, the copies in both sectors are selected, and the Selections rows name the layer's sector |
+| L2-2 | A script of your own that sets `streamingDistance` on what it visits, on This Sector and Its Layers On | One question lists both sectors: the opened one and the layer, each "the game's, added to <project>"; **Add 2 Sectors to Project and Apply** adds both, opens each in its own tab with its changes, unsaved |
+| L2-3 | Ctrl+Z in one of the two tabs | Only that sector's changes go back |
+| L2-4 | The same run on the project's copies (open the project's copy, layers on) | The opened copy changes in place, the layer's copy in its own tab |
+| L3-1 | Pick a cooked static mesh | Links: Node, Inner, the mesh's file; **1 placement** shows no button |
+| L3-2 | Pick a thing with several placements (a rotating fan) | **2 placements** selects both |
+| L3-3 | Node, then Inner | The tree at `nodes.<k>`, then at its inner record |
+| L3-4 | A file in Links | It opens in REDcode (the mesh view for a mesh) |
+| L3-5 | A layer's thing: Node, and Open Its Sector | Its sector opens in its own tab with it picked |
+| L3-6 | In the tree, right-click `nodes.39`, then one of its inner records | **Select Placements in 3D**: the view goes to 3D with its entries selected |
+
+Not run yet.
+
 ## Sector layers L4 and Sector Tools L1
 
 Built 2026-11-25 ([L4](design/sector-layers.html#l4-as-built-2026-11-25), [Sector Tools L1](design/sector-tools.html#l1-as-built-2026-11-25)): the `redcode` REDnode package 0.4.0 (`openSector`, `place`), **EDGEworld: Open Sector Here**, **Show in Game** and the pick sent to EDGEbuilder, the EDGEbuilder offer.

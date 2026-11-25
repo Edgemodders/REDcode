@@ -4,7 +4,7 @@ title: Sector layers
 
 # Sector layers: what else is in this place
 
-Draft 0.2. Agreed with the owner on 2026-11-24, with all five recommendations under Decisions; details may change in testing. Nothing here is built.
+Draft 0.2. Agreed with the owner on 2026-11-24, with all five recommendations under Decisions; details may change in testing. **L1 to L4 are built** (L1 released in 0.10.17; L2, L3 and L4 on 2026-11-25, hand tests pending): see each stage's as built section.
 
 A modder sent the owner a feature request for a world editor that understands data across sectors (the "EDGEkit World Editor" request, 2026-11-24). Its point: one sector on its own does not show what the player sees. Many sectors, from several kinds and levels, add to one place. This page is REDcode's first part of the answer: the sectors that reach into the one you opened, drawn as layers you switch on, select in and edit.
 
@@ -108,8 +108,8 @@ The way back, from a definition or an inner record to its placements, is a tree 
 |---|---|
 | **P1, P2** | The two probes |
 | **L1 Layers** | The tabs, the narrowed list, Off, Ghost and Shown, loading progress, picking a layer's thing |
-| **L2 Across layers** | Selections across sectors, scripts over layers, Apply into each project sector |
-| **L3 Links** | The picked panel's Links row and Select Placements in 3D |
+| **L2 Across layers** (built 2026-11-25, hand test pending) | Selections across sectors, scripts over layers, Apply into each project sector |
+| **L3 Links** (built 2026-11-25, hand test pending) | The picked panel's Links row and Select Placements in 3D |
 | **L4 Open in REDcode** (built 2026-11-25, hand test pending) | `openSector` in the package (its version bumped), Open Sector Here; the request to EDGEbuilder for its buttons |
 
 ## L1 as built (2026-11-24)
@@ -118,6 +118,16 @@ The way back, from a definition or an inner record to its placements, is a tree 
 - **REDcode:** `sectorOverlaps`, `sectorLayers` and `sectorOpen` in `src/cr2wEditor.ts` (the loader draws the opened sector, the coarser ones when on, and the layers on; a layer is the project's copy when the project has one); the tabs and the Overlaps list in `webview/sectorViewer.ts`. A new view starts with every layer off.
 - **Changed from the plan:** Ghost and Shown are the only states drawn; the layer states are not kept when the tab closes (nothing checked at first, as the owner asked). The **variants** tag was dropped from the rows, since most sectors have variants; the count is in the row's tooltip. Off is lit in grey, so only layers that are on stand out.
 - **Checked:** see `docs/testing.md`, Sector layers (L1).
+
+## L2 and L3 as built (2026-11-25)
+
+- **Scripts over layers** (`src/sectorScriptsUi.ts`, `src/scriptRunner.ts`): with layers on, a run asks **This Sector** or **This Sector and Its Layers On** (decision 3). For the second, each layer's JSON is read (the project's copy when it has one, with an open tab's unsaved edits; else the game's) and its nodes follow the opened sector's in `ctx.nodes()`, each with its own `node.sector`; `ctx.sectors()` lists the run's sectors. The selection goes by id, so **Run on Selection** and `ctx.selected()` hold the layers' things too, and what a script selects comes back by id and is selected in any sector.
+- **Changes in several sectors** (`applyAcross`): one question lists each sector, how many values change there, and where they go (here; the project's copy, in its own tab; or the game's, added to the project). The game's sectors are added together through Add to Project (one question when any is there already); then each sector's changes are one edit in its own tab, unsaved, with its own Undo (decision 2). A run whose changes are all in the opened sector goes the way it went before.
+- **Changes are kept by sector and path** (`src/sectorNodes.ts`), so the same value in two sectors is two changes.
+- **Links** (`entryLinks`, the host's `sectorLinks`): the picked thing's **Node** (its definition, Show in Tree), its **placements** (select them all), a cooked node's **Inner** record (Show in Tree, at `nodes.<k>.Data.buffer.Data.InnerNodes.<i>`), and the **files** it uses (each opens in REDcode, the project's copy first). For a layer's thing, Node and Inner open its sector at it, and **Open Its Sector** does too. A cooked node's definition is the inner record each entry places: its placements are the entries placing the same record, and its files that record's, with the node's own outside its buffer (a destructible's effect).
+- **Select Placements in 3D**: right-click a node (`nodes.<k>`) or a cooked node's inner record in the tree; the view goes to 3D with the entries that place it selected (`placementsOf`, the host's `sectorPlacements`).
+- **Checked** on `exterior_-22_7_0_0` through REDbridge 0.19.0 (1,233 entries of 14 node classes: an AI spot's workspot, a smart object's workspot and action database, a decal's materials, a destructible's effect and mesh, cooked and instanced nodes with one placement per inner record) and by the unit checks (94).
+- **Not built:** the Properties tab across layers (it still changes only the opened sector's things, and says so); every other look and copy action already worked on any thing.
 
 ## L4 as built (2026-11-25)
 
