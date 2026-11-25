@@ -8,4 +8,6 @@ export * from "./uthana";
 export * from "./fit";
 export * from "./game";
 export * from "./generate";
+export * from "./pose";
 export * from "./edit";
+export * from "./timeline";
