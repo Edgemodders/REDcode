@@ -41,6 +41,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [anim-core check](#anim-core-check) | Automated, on the PC (game and Uthana key) | Animation Tools AT1 | 2026-11-22 | Pass, 22 of 22 |
 | [Animation Tools AT2](#animation-tools-at2) | By hand, in REDcode and the game | Animation Tools AT2 | 2026-11-22 | Pass (owner), steps 1 to 9 with 3b, after fixes |
 | [Animation Tools pack (AT3)](#animation-tools-pack-at3) | By hand, in the game | Animation Tools AT3 | 2026-11-22 | **Passed** 2026-11-24 (run 2, with the fixes it raised) |
+| [Animation Editor (AE2)](#animation-editor-ae2) | By hand | Animation Editor AE2 | 2026-11-24 | Not run (checked in Chrome over the real REDbridge) |
 | [Animation Editor (AE1)](#animation-editor-ae1) | Script, MCP client, and by hand in the game | Animation Editor AE1 | 2026-11-24 | **Passed** 2026-11-24 (script, MCP, and E1 to E3 in the game) |
 | [CR2W editor: buffers and nodeData](#cr2w-editor-buffers-and-nodedata) | By hand | A modder's report, 2026-11-24 | 2026-11-24 | **Passed** 2026-11-24 |
 | [Replace with a WAV, titled models (#29), every window's project (#32)](#replace-with-a-wav-titled-models-29-and-every-windows-project-32) | By hand, in the game | Requests | 2026-11-20 | Pass (owner), with two fixes |
@@ -830,6 +831,22 @@ Run 2, more (owner, 2026-11-24): much better, with two more: both clips **rise a
 Run 2, the rise (owner, 2026-11-24): with the Root still, he faces V the whole time and the feet barely turn (a slight slide at the start remains, likely the motion's own few cm of drift), but **the rise stayed**. Four test clips, each leaving one step of the fit out (the game's own idle through our import, the motion as Probe D played it, turned, no lift), **all rose**, so it was not the clips. Screenshots of the game window (PrintWindow, with the owner's go) showed the whole body about 30 cm up while a clip plays, the feet above their shadow. The cause: V stood on a sidewalk sloping away, the pack spawned the medic 3 m ahead **at V's height**, and while the game's idle puts the feet on the ground, a workspot plays from the person's own position, which never moved down (`GetWorldPosition` kept V's height). Probe D, on flat ground, did not rise. Fixed: the pack casts a ray down at the spot (`Static`, `Terrain`, `PlayerBlocker`, the nearest hit, as EDGEbuilder's drop to floor does) and spawns there; the log names each group's answer and both heights. **The owner confirmed in the game: he stays on the ground.** Asked of REDnode for every package that spawns a person for a workspot: https://github.com/Edgemodders/REDnode/issues/59. The four test clips were taken out of the pack's project.
 
 **Result 2026-11-24, reported by the owner: all 11 steps pass.** The owner did not close every VS Code window (too many open), but step 2 still showed the pack's own project, since no REDcode window with a project had the focus since the pack started; at step 9 a new window on AnimProbeD and the refresh icon moved the pack there, and the clip went into it. Found there, for later: the pack follows the REDcode window last focused with a project, which is fragile with many windows open; a picker of the open REDcode windows (the `redcode` REDnode package's `projects()`) is to come. **AT3 passes.** Next: AT3r, the pack's release (zip, GitHub release, its own Nexus page the owner makes), on the owner's go.
+
+## Animation Editor (AE2)
+
+Built 2026-11-24 ([design](design/animation-editor.html#ae2-as-built-2026-11-24)): the Edit panel in REDcode's animation view. Checked in Chrome over REDbridge 0.19.0 on a copy of the pack's project (see the design page). **Not run:** in VS Code.
+
+F5 with **Run REDcode**. In the Project view (the pack's project, `Documents\REDnode\Animation Tools`, or AnimProbeD), open `anims\man_stands_relaxed_crosses\man_stands_relaxed_crosses.anims`.
+
+| # | Do | Expected |
+|---|---|---|
+| D1 | **Edit** in the view's bar | The panel above the clip list: "No steps.", the Feet with three rows (the left foot sliding about 3.5 cm, its **Pin** lit), **Pin All Sliding**, and Add a Step |
+| D2 | **Pin All Sliding**, then **Apply** | The steps list the pins; Apply says it is rebuilding; the tab opens again at the clip with the panel shown, the steps there, and the Feet now near 0 cm; play it: the feet stay put |
+| D3 | Add a Step: **Key a bone**, pick Head (or click the head joint with **Bones** on), drag the playhead to about 2.5 s, **Now**, Yaw 30, **Add Step**, **Apply** | A yellow marker on the head while the form shows; after Apply, the head turns to his left around 2.5 s |
+| D4 | Add a Step: **Layer another clip**, `man_looks_around_nervously`, On **Right hand**, From **Now** at 1 s, **Add Step**, **Apply** | From 1 s his right hand moves as in the other clip; the rest of him as before |
+| D5 | ↑ or × on a step, then **Revert** | The list goes back to the steps applied last, without rebuilding |
+| D6 | **Undo** | The steps before the last Apply come back (the layer gone), rebuilt; Undo again takes the next ones back |
+| D7 | **Clear**, **Apply** | The clip as made: no steps, the feet sliding again |
 
 ## Animation Editor (AE1)
 
