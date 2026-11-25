@@ -328,6 +328,8 @@ export interface AnimMaker {
   edit(file: string, steps: import("../../../packages/anim-core/src/index").EditStep[]): Promise<unknown>;
   /** AE2: the steps before the last edit, put back. */
   undo(file: string): Promise<unknown>;
+  /** The last Undo taken back. */
+  redo(file: string): Promise<unknown>;
   /** AE5: the clip as it plays now opens in Blender; each save becomes its new starting point. False when Blender was not found. */
   blender(file: string): Promise<boolean>;
 }
@@ -859,10 +861,12 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
             return reply(m.id, await this.animMaker.blender(document.uri.fsPath));
           }
           case "animsEdit":
-          case "animsEditUndo": {
+          case "animsEditUndo":
+          case "animsEditRedo": {
             if (!this.animMaker) throw new Error("Editing clips is not available");
             if (document.log.length > 0) throw new Error("This file has unsaved changes: save or revert them first");
-            const r = m.type === "animsEdit" ? await this.animMaker.edit(document.uri.fsPath, m.steps ?? []) : await this.animMaker.undo(document.uri.fsPath);
+            const f = document.uri.fsPath;
+            const r = m.type === "animsEdit" ? await this.animMaker.edit(f, m.steps ?? []) : m.type === "animsEditUndo" ? await this.animMaker.undo(f) : await this.animMaker.redo(f);
             reply(m.id, r);
             // The set on disk is new: the document reads it again and the view rebuilds in place, keeping its camera
             // (the owner's AE2 run: closing and opening the tab was jarring).

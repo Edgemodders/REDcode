@@ -42,7 +42,8 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Animation Tools AT2](#animation-tools-at2) | By hand, in REDcode and the game | Animation Tools AT2 | 2026-11-22 | Pass (owner), steps 1 to 9 with 3b, after fixes |
 | [Animation Tools pack (AT3)](#animation-tools-pack-at3) | By hand, in the game | Animation Tools AT3 | 2026-11-22 | **Passed** 2026-11-24 (run 2, with the fixes it raised) |
 | [Sector Properties tab](#sector-properties-tab) | By hand | Sector selection | 2026-11-24 | **Passed by script** (EDGEweb, P1 to P6); two findings fixed, not retested |
-| [Animation Editor (AE5)](#animation-editor-ae5) | By hand, with Blender | Animation Editor AE5 | 2026-11-24 | Not run (checked with Blender in the background) |
+| [Animation Editor (AE5)](#animation-editor-ae5) | By hand, with Blender | Animation Editor AE5 | 2026-11-25 | **Passed** (the owner, B1 to B5) |
+| [Animation view: tabs, transport, Redo](#animation-view-tabs-transport-redo) | By hand | Animation Editor | 2026-11-25 | Not run (the transport checked in Chrome over the real REDbridge) |
 | [Animation Editor (AE2)](#animation-editor-ae2) | By hand | Animation Editor AE2 | 2026-11-24 | **Passed** 2026-11-24 (owner, D1 to D7, with the changes run 1 asked for) |
 | [Animation Editor (AE1)](#animation-editor-ae1) | Script, MCP client, and by hand in the game | Animation Editor AE1 | 2026-11-24 | **Passed** 2026-11-24 (script, MCP, and E1 to E3 in the game) |
 | [CR2W editor: buffers and nodeData](#cr2w-editor-buffers-and-nodedata) | By hand | A modder's report, 2026-11-24 | 2026-11-24 | **Passed** 2026-11-24 |
@@ -864,6 +865,24 @@ F5 with **Run REDcode**; open `man_stands_relaxed_crosses.anims` from the Projec
 | B3 | Another change in Blender, **Ctrl+S** again | The view shows the second change too |
 | B4 | Here: **Undo** | The clip before Blender comes back, with its steps |
 | B5 | Close Blender | The status bar item goes ("no longer watching its saves" in the REDcode output) |
+
+**Passed** (the owner, 2026-11-25, B1 to B5, Blender 5.2.2). Found on the way: Edit in Blender was out of view in the Edit panel (fixed by the side column's tabs, below); a beginner in Blender needs the steps spelled out (Select Pattern to pick a bone, the bone's keys deleted first, I over the 3D view); a key on one frame of a clip keyed on every frame changes that frame only, so a lone key is a one-frame flick (thinning the keys before Blender opens is proposed). Asked for: **Redo** beside Undo, and the transport as the usual media buttons (below).
+
+## Animation view: tabs, transport, Redo
+
+Built 2026-11-25 from the owner's AE5 run: the side column's tabs **Clip**, **Edit** and **Animations** (in place of the bar's Make and Edit buttons), the transport as seven icon buttons, and **Redo** in the Edit tab. Checked in Chrome over REDbridge 0.19.0 on a copy of the pack's project: the tabs fill the column (Edit 785 of 813 px, the clip list 732 px); Jump to the end 4.97 s, Jump to the beginning 0.00 s, two steps forward 0.07 s, one back 0.03 s, Play backward from there wraps to the end and runs back, Stop holds the frame, Play forward runs on; Home and the Right arrow on the 3D view. **Not run:** in VS Code; Redo against the host.
+
+F5 with **Run REDcode**; open `man_stands_relaxed_crosses.anims` from the Project view.
+
+| # | Do | Expected |
+|---|---|---|
+| T1 | Look at the side column | Tabs **Clip**, **Edit**, **Animations**; it opens on Edit for an edited clip. Each tab fills the column; on Clip the words box is several lines tall and **Generate** is in view without scrolling |
+| T2 | The transport under the view | Seven icon buttons: jump to the beginning, step back, play backward, stop, play forward, step forward, jump to the end; each names itself on hover |
+| T3 | Play forward, then Play backward, then Stop | It plays one way, then the other (the lit button shows which); Stop holds the frame. Play backward at the start runs from the end |
+| T4 | Jump to the end, Jump to the beginning, the step buttons | The time reads the end, 0.00 s, and one frame (0.03 s) per step |
+| T5 | Click the 3D view, then Space, the arrows, Home and End | Space plays or stops; the arrows step a frame; Home and End jump |
+| T6 | Edit tab: add a step, **Apply**, then **Undo**, then **Redo** | Undo puts the steps before back; Redo brings the step back; Redo is off again after a new Apply |
+| T7 | After a Blender save (as B2): **Undo**, then **Redo** | Undo brings the clip before Blender; Redo the Blender version again |
 
 ## Animation Editor (AE2)
 

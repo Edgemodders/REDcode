@@ -10,7 +10,7 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 - **Lip Sync: add a line.** Type a new line for the character and press Enter: EDGEwave speaks it in the character's voice (ElevenLabs, your own key), and REDcode makes the lip sync from the words and the voice's timing and plays both on the head. **New Take** speaks it again. It stays in the tab for now: writing it into a mod comes later. Needs EDGEwave 0.3.0 or later.
 - A **Lip Sync** button in the audio player on a voice line the game has lip sync for, and **Open in Lip Sync** in the animation view of a lip sync set: both open the Lip Sync tab at that line.
 - For other tools: `REDcodeApi.openLipSync(character?, clip?)` ([API](https://edgemodders.github.io/REDcode/api.html)).
-- **Edit** in the animation view on a made clip: pin a sliding foot (the panel shows where each foot slides, with a Pin for it), turn a bone or move a hand or foot at a moment, lay another clip's motion on a hand or other bones, trim, loop. The clip as made is kept, so any step can be changed or taken out later, with Undo. **Edit in Blender** opens the clip on the base body in Blender; each save there becomes the clip's new start.
+- **Edit** in the animation view on a made clip: pin a sliding foot (the panel shows where each foot slides, with a Pin for it), turn a bone or move a hand or foot at a moment, lay another clip's motion on a hand or other bones, trim, loop. The clip as made is kept, so any step can be changed or taken out later, with Undo and Redo. **Edit in Blender** opens the clip on the base body in Blender; each save there becomes the clip's new start.
 - **Overlaps** beside the selected list in the sector view: the sectors whose things reach into the opened one, in groups, each a layer you turn Off, Ghost (see-through) or Shown, and pick and select in. The first look at a place takes about a minute; after that, a second.
 - **Properties** beside Selections and Overlaps in the sector view: what every selected thing shares (its streaming distance, flags, priority; its node's appearance, shadows…), with **mixed** where they differ. Change a value there and it is set on all of them at once, after a question that says how many values change; one Undo takes it back.
 - **Only** on a row of the sector view's selected list keeps just the selected things that draw its mesh.
@@ -23,6 +23,7 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 **Changed**
 
 - The animation view's side column has tabs, **Clip**, **Edit** and **Animations**, in place of the Make and Edit buttons in its bar: making a clip, editing one and the list of clips each get the column's whole height.
+- The animation view's playback buttons are the usual media buttons: jump to the beginning, step back a frame, play backward, stop, play forward, step forward a frame, jump to the end. With the 3D view clicked, Space plays or stops, the arrows step a frame, and Home and End jump.
 
 **Fixed**
 

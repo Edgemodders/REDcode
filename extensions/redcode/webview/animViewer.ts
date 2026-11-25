@@ -395,12 +395,23 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
   const clips = new Map<number, THREE.AnimationClip>();
   let asking = 0;
 
-  const play = el("button", "", "Play");
-  play.title = "Play or pause";
-  const back = el("button", "", "◀");
-  back.title = "One frame back";
-  const forward = el("button", "", "▶");
-  forward.title = "One frame on";
+  /** Which way it plays: 1 forward, -1 backward. */
+  let direction = 1;
+  // The transport's buttons as the usual media icons (the owner's AE5 run, 2026-11-25).
+  const transportButton = (shape: string, title: string) => {
+    const b = el("button", "icon animtbtn");
+    b.title = title;
+    b.setAttribute("aria-label", title.split(" (")[0]);
+    b.innerHTML = `<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="${shape}"/></svg>`;
+    return b;
+  };
+  const toStart = transportButton("M2 3h1.6v10H2zM9.4 3v10L3.8 8zM15 3v10L9.4 8z", "Jump to the beginning (Home)");
+  const back = transportButton("M3 3h1.6v10H3zM13 3v10L5.4 8z", "Step back one frame (Left arrow)");
+  const playBack = transportButton("M12.5 2.5v11L3.5 8z", "Play backward");
+  const stop = transportButton("M3.5 3.5h9v9h-9z", "Stop at this frame (Space plays again)");
+  const play = transportButton("M3.5 2.5v11L12.5 8z", "Play forward (Space)");
+  const forward = transportButton("M3 3v10L10.6 8zM11.4 3H13v10h-1.6z", "Step forward one frame (Right arrow)");
+  const toEnd = transportButton("M1 3v10L6.6 8zM6.6 3v10L12.2 8zM12.4 3H14v10h-1.6z", "Jump to the end (End)");
   const scrub = el("input", "animscrub");
   scrub.type = "range";
   scrub.min = "0";
@@ -419,7 +430,9 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
     if (s === 1) o.selected = true;
     speedPick.appendChild(o);
   }
-  transport.append(play, back, forward, scrub, time, loopButton, speedPick);
+  const buttons = el("span", "animtbuttons");
+  buttons.append(toStart, back, playBack, stop, play, forward, toEnd);
+  transport.append(buttons, scrub, time, loopButton, speedPick);
 
   const fit = el("button", "", "Frame");
   fit.title = "Fit the view to the rig";
@@ -510,8 +523,12 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
   };
   const setPlaying = (on: boolean) => {
     playing = on;
-    play.textContent = on ? "Pause" : "Play";
-    if (action) action.paused = !on;
+    play.classList.toggle("on", on && direction > 0);
+    playBack.classList.toggle("on", on && direction < 0);
+    if (action) {
+      action.paused = !on;
+      action.timeScale = direction;
+    }
   };
   /** Shows the pose at a moment, playing or not. */
   const seek = (t: number) => {
@@ -535,21 +552,57 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
     seek(Math.round((action.time + by / fps) * fps) / fps);
   };
 
-  play.addEventListener("click", () => {
+  /** Plays one way from where it stands; at that way's end, from the other end. */
+  const playWay = (way: number) => {
     if (!action) return;
-    if (playing) {
-      setPlaying(false);
-      return;
-    }
-    if (ended) action.reset();
+    const a = info();
+    const length = a?.duration ?? 0;
+    direction = way;
+    const frameLength = 1 / (fpsOf(a!) || 30);
+    if (way > 0 && (ended || action.time >= length - frameLength / 2)) action.time = 0;
+    if (way < 0 && (ended || action.time <= frameLength / 2)) action.time = length;
     ended = false;
     action.enabled = true;
-    action.play();
+    action.paused = false;
+    if (!action.isRunning()) action.play();
     setPlaying(true);
     showTime();
+  };
+  play.addEventListener("click", () => playWay(1));
+  playBack.addEventListener("click", () => playWay(-1));
+  stop.addEventListener("click", () => setPlaying(false));
+  toStart.addEventListener("click", () => {
+    setPlaying(false);
+    seek(0);
+  });
+  toEnd.addEventListener("click", () => {
+    setPlaying(false);
+    seek(info()?.duration ?? 0);
   });
   back.addEventListener("click", () => step(-1));
   forward.addEventListener("click", () => step(1));
+  // The keys of the transport, while the 3D view or the transport (not a text box) has the keyboard. On the view's
+  // own elements, which go with it, not on the page's container, which the tree uses too.
+  stage.tabIndex = -1;
+  const onKey = (e: KeyboardEvent) => {
+    const t = e.target as HTMLElement;
+    if (e.ctrlKey || e.altKey || e.metaKey || t.closest("input, textarea, select")) return;
+    // Space on a button presses that button.
+    if (e.code === "Space" && t.closest("button")) return;
+    const keys: Record<string, () => void> = {
+      Space: () => (playing ? setPlaying(false) : playWay(direction)),
+      ArrowLeft: () => step(-1),
+      ArrowRight: () => step(1),
+      Home: () => toStart.click(),
+      End: () => toEnd.click(),
+    };
+    const run = keys[e.code];
+    if (!run) return;
+    e.preventDefault();
+    run();
+  };
+  stage.addEventListener("keydown", onKey);
+  transport.addEventListener("keydown", onKey);
   scrub.addEventListener("input", () => {
     setPlaying(false);
     seek(Number(scrub.value));

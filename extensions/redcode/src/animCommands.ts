@@ -31,6 +31,8 @@ export interface EditInfo {
   steps: EditStep[];
   edited?: string;
   canUndo: boolean;
+  /** An Undo to take back (the owner's AE5 run). */
+  canRedo: boolean;
   /** Just rebuilt from the panel: the reopened tab shows the panel again. */
   open: boolean;
   /** The rig's bones by name, and its bone groups. */
@@ -201,6 +203,30 @@ export function registerAnimCommands(context: vscode.ExtensionContext, host: Ani
   // ---- the Animation Editor in the animation view (docs/design/animation-editor.md, AE2) ----
   /** Each edited clip's earlier step lists, newest last, by its record's id: Undo puts the last back. Kept while REDcode runs. */
   const history = new Map<string, { steps: EditStep[]; base?: string }[]>();
+  /** What each Undo took away, newest last, for Redo; a new Apply or a Blender save clears it. */
+  const future = new Map<string, { steps: EditStep[]; base?: string }[]>();
+  /** A copy of a clip's starting point, for an Undo or Redo that crosses a Blender save, in REDcode's cache (not the project). */
+  const keepBase = (m: { id: string; name: string; glb: string }) => {
+    const dir = path.join(host.deps.cacheDir, "anim-edit", m.id.replace(/[^\w.-]+/g, "_"));
+    fs.mkdirSync(dir, { recursive: true });
+    const file = path.join(dir, `${m.name}.${Date.now()}.base.glb`);
+    fs.copyFileSync(path.join(path.dirname(m.glb), `${m.name}.base.glb`), file);
+    return file;
+  };
+  /** Moves one state from one list to the other: the clip as it is now goes onto `to`, and `from`'s last is put back. */
+  const travel = async (file: string, from: Map<string, { steps: EditStep[]; base?: string }[]>, to: Map<string, { steps: EditStep[]; base?: string }[]>, none: string) => {
+    const m = madeOf(file);
+    const last = m ? from.get(m.id)?.pop() : undefined;
+    if (!m || !last) throw new Error(none);
+    const now = { steps: (m.edits ?? []) as EditStep[], base: last.base ? keepBase(m) : undefined };
+    const list = to.get(m.id) ?? [];
+    list.push(now);
+    if (list.length > 30) list.shift();
+    to.set(m.id, list);
+    // Across a Blender save the starting point changes too: it goes back first, then its steps.
+    if (last.base) fs.copyFileSync(last.base, path.join(path.dirname(m.glb), `${m.name}.base.glb`));
+    return applySteps(file, last.steps, false);
+  };
   /** The file rebuilt last and when: its tab, opening again, shows the Edit panel where the modder left it. */
   let rebuilt: { file: string; at: number } | undefined;
   const editInfo = (file: string): EditInfo | undefined => {
@@ -218,6 +244,7 @@ export function registerAnimCommands(context: vscode.ExtensionContext, host: Ani
       steps: (m.edits ?? []) as EditStep[],
       edited: m.edited,
       canUndo: (history.get(m.id)?.length ?? 0) > 0,
+      canRedo: (future.get(m.id)?.length ?? 0) > 0,
       open: !!rebuilt && rebuilt.file === path.resolve(file).toLowerCase() && Date.now() - rebuilt.at < 30000,
       bones: (joints.length ? joints : names).filter((n) => !["Root", "Trajectory", "reference_joint"].includes(n)),
       groups: Object.fromEntries(BoneGroups.map((g) => [g, bonesOf(g, names)])),
@@ -240,6 +267,7 @@ export function registerAnimCommands(context: vscode.ExtensionContext, host: Ani
       list.push({ steps: before });
       if (list.length > 30) list.shift();
       history.set(m.id, list);
+      future.delete(m.id);
     }
     host.deps.log.appendLine(`Animation Editor: ${m.name}, ${steps.length} step(s): ${r.report.steps.map((x) => x.did).join("; ") || "as made"}`);
     host.deps.refresh();
@@ -271,15 +299,8 @@ export function registerAnimCommands(context: vscode.ExtensionContext, host: Ani
     madeClipOf: (file) => madeOf(file)?.name,
     editInfo,
     edit: (file, steps) => applySteps(file, steps, true),
-    undo: async (file) => {
-      const m = madeOf(file);
-      const list = m ? history.get(m.id) : undefined;
-      const last = list?.pop();
-      if (!m || !last) throw new Error("Nothing to undo");
-      // A Blender save made a new starting point: the old one goes back first, then its steps.
-      if (last.base) fs.copyFileSync(last.base, path.join(path.dirname(m.glb), `${m.name}.base.glb`));
-      return applySteps(file, last.steps, false);
-    },
+    undo: (file) => travel(file, history, future, "Nothing to undo"),
+    redo: (file) => travel(file, future, history, "Nothing to redo"),
     blender: async (file) => {
       const m = madeOf(file);
       if (!m) throw new Error("This file is not a made clip's own set");
@@ -303,6 +324,7 @@ export function registerAnimCommands(context: vscode.ExtensionContext, host: Ani
             list.push({ steps: r.before.steps, base: r.before.file });
             history.set(m.id, list);
           }
+          future.delete(m.id);
           first = false;
           rebuilt = { file: path.resolve(file).toLowerCase(), at: Date.now() };
           host.deps.log.appendLine(`Animation Editor: ${m.name} from Blender, ${r.report.seconds.toFixed(2)} s; its steps folded in`);

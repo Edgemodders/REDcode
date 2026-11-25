@@ -23,6 +23,7 @@ export interface EditInfo {
   steps: EditStep[];
   edited?: string;
   canUndo: boolean;
+  canRedo?: boolean;
   /** Just rebuilt from the panel: the reopened tab shows it again. */
   open?: boolean;
   bones: string[];
@@ -39,6 +40,8 @@ export interface EditApi {
   apply(steps: EditStep[]): Promise<unknown>;
   /** The steps before the last Apply, put back. */
   undo(): Promise<unknown>;
+  /** The last Undo taken back. */
+  redo?(): Promise<unknown>;
   /** AE5: the clip as it plays now opens in Blender; each save there becomes its new starting point. False when Blender was not found. */
   blender?(): Promise<boolean>;
 }
@@ -114,6 +117,10 @@ export function editPanel(api: EditApi, info: EditInfo, view: EditView): { box: 
   const undo = el("button", "", "Undo");
   undo.title = "Put back the steps before the last Apply";
   undo.disabled = !info.canUndo;
+  const redo = el("button", "", "Redo");
+  redo.title = "Take back the last Undo";
+  redo.disabled = !info.canRedo;
+  redo.hidden = !api.redo;
   const clear = el("button", "", "Clear");
   clear.title = "No steps: the clip as made (Apply to rebuild)";
   // AE5: Edit in Blender, for what the panel cannot do.
@@ -174,6 +181,8 @@ Click: go to its time, mark its bone, and change it in the form below`;
     apply.disabled = busy || !dirty();
     revert.disabled = busy || !dirty();
     clear.disabled = busy || !steps.length;
+    undo.disabled = busy || !info.canUndo;
+    redo.disabled = busy || !info.canRedo;
     // Added steps change nothing until Apply: said in the accent colour, with Apply lit (the owner's AE2 run).
     const pending = dirty() && !busy;
     status.classList.toggle("editpending", pending);
@@ -194,6 +203,7 @@ Click: go to its time, mark its bone, and change it in the form below`;
   };
   apply.addEventListener("click", () => void run("Rebuilding the clip", () => api.apply(steps)));
   undo.addEventListener("click", () => void run("Putting the last steps back", () => api.undo()));
+  redo.addEventListener("click", () => void run("Taking back the Undo", () => api.redo!()));
   revert.addEventListener("click", () => { steps = JSON.parse(applied); startNew(); });
   clear.addEventListener("click", () => { steps = []; startNew(); });
   const add = (s: EditStep) => {
@@ -415,7 +425,7 @@ Click: go to its time, mark its bone, and change it in the form below`;
 
   box.append(
     list,
-    row(apply, revert, undo, clear),
+    row(apply, revert, undo, redo, clear),
     row(blender),
     status,
     el("div", "label", "Feet"),

@@ -267,6 +267,10 @@ body.mesh-mode #props { display: flex; flex-direction: column; overflow: hidden;
 .animrow.selected { background: var(--vscode-list-activeSelectionBackground); color: var(--vscode-list-activeSelectionForeground); }
 .animrow[hidden] { display: none; }
 .animtransport { flex-wrap: nowrap; padding-top: 6px; }
+.meshstage:focus { outline: none; }
+.animtbuttons { display: inline-flex; gap: 2px; flex: none; }
+.animtransport button.animtbtn { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 24px; padding: 0; }
+.animtransport button.animtbtn svg { display: block; }
 .animscrub { flex: 1; min-width: 80px; accent-color: var(--accent); }
 .animtime { white-space: nowrap; min-width: 11em; text-align: right; }
 .animrig { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

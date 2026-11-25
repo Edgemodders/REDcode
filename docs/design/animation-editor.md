@@ -83,7 +83,8 @@ AE1 alone already lets an assistant fix a clip ("pin the left foot from 1.2 s to
 
 - **Edit in Blender** in the Edit panel (hidden only when no host offers it): the clip as it plays now (its `<name>.glb`, the steps in it) on the base body (anim-core's `clipOnBody` over the stand-in's `standInGlb`), written as `<name>.blender.glb` beside the clip and opened in Blender with `src/blender.ts`'s `BlenderAnimScript` (the scene at 30 fps before the import, its range the clip's frames; each save exports the animation, sampled at every frame). One Blender session at a time, shared with the mesh's Edit in Blender, with its status bar item.
 - **Each save** (`editAnimationInBlender` in `src/extension.ts` watches the file): anim-core's `rebaseClip` fits it by bone name (no turn, no lift) and makes it the clip's new starting point, the steps emptied; the first save of a session keeps the old start as `<name>.before.glb` and its steps, which **Undo** puts back. The open view reloads in place. The record gets `reshaped: { by: "Blender", at }`.
-- **Checked:** see `docs/testing.md`, Animation Editor (AE5).
+- **Checked:** see `docs/testing.md`, Animation Editor (AE5). **Passed** by the owner on 2026-11-25 (B1 to B5).
+- **After the run (2026-11-25):** the animation view's side column has the tabs Clip, Edit and Animations; the transport is seven media buttons (jump to the beginning, step back, play backward, stop, play forward, step forward, jump to the end) with Space, the arrows, Home and End on the 3D view; **Redo** sits beside Undo (a second list of states in `src/animCommands.ts`; a state across a Blender save keeps a copy of its starting point in REDcode's cache, `anim-edit\`). Proposed, not built: thin the keys before Blender opens, so one key blends into the frames around it.
 
 ## Decisions (agreed 2026-11-24)
 
