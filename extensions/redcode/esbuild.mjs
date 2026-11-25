@@ -43,6 +43,8 @@ const keysStore = { ...client, entryPoints: ["src/keys.ts"], outfile: "dist/keys
 const opens = { ...client, entryPoints: ["src/opens.ts"], outfile: "dist/opens.js" };
 // Values REDbridge cannot walk into, as nodes (the CR2W editor), for scripts/unit.mjs.
 const cr2wValues = { ...client, entryPoints: ["src/cr2wValues.ts"], outfile: "dist/cr2wValues.js" };
+// The sector view's Properties tab, for scripts/unit.mjs.
+const sectorProps = { ...client, entryPoints: ["src/sectorProps.ts"], outfile: "dist/sectorProps.js" };
 // For the unit checks and the smoke test too.
 const animsGlb = { ...client, entryPoints: ["src/animsGlb.ts"], outfile: "dist/animsGlb.js" };
 // Run game's launch, for scripts/unit.mjs.
@@ -84,7 +86,7 @@ fs.mkdirSync("media/mesh", { recursive: true });
 // three's exports hide its package.json; its main entry sits in <package>/build/.
 fs.copyFileSync(path.join(path.dirname(require.resolve("three")), "..", "LICENSE"), "media/mesh/three.LICENSE.txt");
 
-const builds = [extension, client, hotSwap, exportCache, library, keysStore, opens, cr2wValues, animsGlb, install, newFile, animsSet, rednodeService, gameDisplay, gameRun, worldViewHost, scriptRunner, sectorScripts, sectorNodesBuild, meshViewer, lipsyncHead];
+const builds = [extension, client, hotSwap, exportCache, library, keysStore, opens, cr2wValues, sectorProps, animsGlb, install, newFile, animsSet, rednodeService, gameDisplay, gameRun, worldViewHost, scriptRunner, sectorScripts, sectorNodesBuild, meshViewer, lipsyncHead];
 if (watch) {
   const contexts = await Promise.all(builds.map((b) => esbuild.context(b)));
   await Promise.all(contexts.map((c) => c.watch()));

@@ -401,6 +401,9 @@
         overlaps: () => request("sectorOverlaps"),
         layers: (paths) => request("sectorLayers", { layers: paths }),
         openSector: (path) => request("sectorOpen", { path }),
+        // The Properties tab: what the selection shares, set on all of it (the host asks first).
+        props: (entries) => request("sectorProps", { entries }),
+        setProp: (entries, propTarget, property, value) => request("sectorPropsSet", { entries, propTarget, property, value }),
         light: payload.light,
         onLight: (settings) => vscode.postMessage({ type: "light", settings }),
         sideWidth: payload.sideWidth,

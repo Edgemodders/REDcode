@@ -484,6 +484,18 @@ export class SectorScriptsUi {
     if (r.changes.length) await this.preview(host, s, r.changes);
   }
 
+  /**
+   * Changes made elsewhere than a script (the sector view's Properties tab): the same question, list and one
+   * undoable edit as a script's, or on the game's sector the same Add to Project and Apply.
+   */
+  async applyChanges(host: ScriptHost, label: string, changes: NodeChange[]): Promise<void> {
+    if (!changes.length) {
+      void vscode.window.showInformationMessage(`${label}: nothing to change, every one has that value already.`);
+      return;
+    }
+    await this.preview(host, { file: "", place: "example", name: label, description: "" }, changes);
+  }
+
   private async preview(host: ScriptHost, s: ScriptInfo, changes: NodeChange[]): Promise<void> {
     const MaxLines = 2000;
     this.log.appendLine(`script: ${s.name} would change:`);

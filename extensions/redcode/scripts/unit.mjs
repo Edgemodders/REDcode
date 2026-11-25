@@ -1566,6 +1566,35 @@ await check("cr2wValues: a buffer REDbridge sends whole becomes a read-only tree
   await assert.rejects(cv.readNode(fetch, cache, "nodes.179.Data.buffer.Data.InnerNodes.570"), /No item 570/);
 });
 
+await check("sectorProps: what the selected entries and their nodes share, and the changes an edit makes", async () => {
+  const sp = require("../dist/sectorProps.js");
+  const cname = (v) => ({ $type: "CName", $storage: "string", $value: v });
+  const entry = (i, node, dist, prio) => ({ path: `nodeData.Data.${i}`, kind: "class", type: "worldCompiledNodeInstanceSetupInfo", children: [
+    { name: "nodeIdx", kind: "value", type: "Uint16", value: node },
+    { name: "streamingDistance", kind: "value", type: "Float", value: dist },
+    { name: "streamingPriority", kind: "value", type: "Uint8", value: prio },
+    { name: "transform", kind: "class", type: "Transform", value: null },
+  ] });
+  const node = (i, type, app, shadows) => ({ path: `nodes.${i}.Data`, kind: "class", type, children: [
+    { name: "meshAppearance", kind: "value", type: "CName", value: cname(app) },
+    { name: "castShadows", kind: "value", type: "shadowsShadowCastingMode", value: shadows },
+    ...(type === "worldMeshNode" ? [{ name: "forceAutoHideDistance", kind: "value", type: "Float", value: 50 }] : []),
+  ] });
+  const entries = [4, 9, 12];
+  const entryNodes = [entry(4, 7, 40, 10), entry(9, 7, 40, 20), entry(12, 3, 40, 10)];
+  const rows = sp.sharedProps(entryNodes);
+  assert.deepEqual(rows.map((r) => [r.name, r.mixed]), [["streamingDistance", false], ["streamingPriority", true]], "a struct and nodeIdx are left out; the same value is not mixed");
+  const nodes = new Map([[7, node(7, "worldMeshNode", "default", "Always")], [3, node(3, "worldInstancedMeshNode", "default", "Never")]]);
+  const nrows = sp.sharedProps([...nodes.values()]);
+  assert.deepEqual(nrows.map((r) => [r.name, r.mixed]), [["meshAppearance", false], ["castShadows", true]], "a property one node type lacks is left out");
+  const set = sp.propChanges("s.streamingsector", entries, entryNodes, nodes, "entry", "streamingDistance", 90);
+  assert.deepEqual(set.map((c) => [c.entry, c.path, c.from, c.to]), [[4, "nodeData.Data.4.streamingDistance", 40, 90], [9, "nodeData.Data.9.streamingDistance", 40, 90], [12, "nodeData.Data.12.streamingDistance", 40, 90]]);
+  const same = sp.propChanges("s.streamingsector", entries, entryNodes, nodes, "entry", "streamingPriority", 10);
+  assert.deepEqual(same.map((c) => c.entry), [9], "an entry that already has the value is not changed");
+  const onNodes = sp.propChanges("s.streamingsector", entries, entryNodes, nodes, "node", "castShadows", "Always");
+  assert.deepEqual(onNodes.map((c) => [c.entry, c.path]), [[12, "nodes.3.Data.castShadows"]], "each node once; node 7 has it already");
+});
+
 fs.rmSync(tmp, { recursive: true, force: true });
 console.log(`${passed} passed${failures.length ? `, ${failures.length} failed` : ""}`);
 process.exit(failures.length ? 1 : 0);

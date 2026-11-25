@@ -5,6 +5,7 @@
 // restart is survived by reopening the file and replaying it.
 
 import { readNode, type Cr2wNode } from "./cr2wValues";
+import { nodeIndexOf, propChanges, sharedProps, type PropsNode } from "./sectorProps";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as vscode from "vscode";
@@ -269,6 +270,11 @@ interface Request {
   include?: number[];
   /** sectorLoad: the coarser sectors over the opened one too. */
   coarser?: boolean;
+  /** sectorProps and sectorPropsSet: the selected node data entries, which property, on what, and its new value. */
+  propTarget?: "entry" | "node";
+  property?: string;
+  /** sectorPropsSet: the new value, as WolvenKit's JSON has it. */
+  value?: unknown;
   /** sectorLayers: the layers to draw beside the opened sector (docs/design/sector-layers.md). */
   layers?: string[];
   /** light: the 3D views' light settings to keep for the window. */
@@ -1056,6 +1062,61 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
               void vscode.window.showErrorMessage(`Sector scripts: ${e instanceof Error ? e.message : String(e)}`);
             });
             return;
+          }
+          case "sectorProps":
+          case "sectorPropsSet": {
+            // The Properties tab (a modder's request, 2026-11-24): what the selected things share, edited on all of them.
+            const bridge = this.requireBridge();
+            const sector = meshGamePath();
+            if (!sector) throw new Error("No game path for this sector");
+            const entries = [...new Set((m.entries ?? []).filter((e) => Number.isInteger(e) && e >= 0))].slice(0, 5000);
+            const read = async (paths: string[]) => {
+              const out: PropsNode[] = [];
+              for (let i = 0; i < paths.length; i += 500) out.push(...((await bridge.getNodes(document.doc, paths.slice(i, i + 500), 400)) as PropsNode[]));
+              return out;
+            };
+            const entryNodes = await read(entries.map((e) => `nodeData.Data.${e}`));
+            const indices = [...new Set(entryNodes.map(nodeIndexOf).filter((x): x is number => x !== undefined))];
+            const nodeList = await read(indices.map((i) => `nodes.${i}.Data`));
+            const nodes = new Map(indices.map((i, k) => [i, nodeList[k]]));
+            if (m.type === "sectorPropsSet") {
+              const target = m.propTarget === "node" ? "node" : "entry";
+              const changes = propChanges(sector, entries, entryNodes, nodes, target, m.property ?? "", m.value);
+              const host: ScriptHost = {
+                document,
+                bridge,
+                sector,
+                post,
+                changed: () => {
+                  for (const w of this.pages.get(document) ?? []) void w.postMessage({ type: "changed", path: "" });
+                },
+              };
+              await this.scripts.applyChanges(host, `Set ${m.property} on ${target === "node" ? `${indices.length} node(s)` : `${entries.length} node data entr${entries.length === 1 ? "y" : "ies"}`}`, changes);
+              return reply(m.id, { changes: changes.length });
+            }
+            // Enums offer their values; describeType once a type.
+            const enumsOf = new Map<string, string[] | undefined>();
+            const withEnums = async (rows: ReturnType<typeof sharedProps>) => {
+              for (const r of rows) {
+                if (!enumsOf.has(r.type)) {
+                  const d = (await bridge.describeType(r.type).catch(() => null)) as { kind?: string; enumValues?: string[] } | null;
+                  enumsOf.set(r.type, d?.kind === "enum" ? d.enumValues : undefined);
+                }
+                const values = enumsOf.get(r.type);
+                if (values) r.enumValues = values;
+              }
+              return rows;
+            };
+            const types = [...new Set(nodeList.map((n) => n.type))];
+            return reply(m.id, {
+              entries: entries.length,
+              nodes: indices.length,
+              entryType: entryNodes[0]?.type ?? "",
+              nodeTypes: types,
+              entryProps: await withEnums(sharedProps(entryNodes)),
+              nodeProps: await withEnums(sharedProps(nodeList)),
+              game: !!document.gamePath,
+            });
           }
           case "sectorScriptStop":
             this.scripts.stop(document);

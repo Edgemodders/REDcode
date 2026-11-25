@@ -92,6 +92,29 @@ export interface SectorSource {
   layers?(paths: string[]): Promise<unknown>;
   /** A layer's Open: its sector in its own tab. */
   openSector?(path: string): Promise<unknown>;
+  /** The Properties tab: what the selected node data entries, and the nodes they name, share. */
+  props?(entries: number[]): Promise<PropsInfo>;
+  /** Sets one property on every selected entry or node; the host asks first. */
+  setProp?(entries: number[], target: "entry" | "node", property: string, value: unknown): Promise<unknown>;
+}
+
+/** A property every selected thing has (src/sectorProps.ts). */
+export interface PropRowInfo {
+  name: string;
+  type: string;
+  value: unknown;
+  mixed: boolean;
+  enumValues?: string[];
+}
+
+export interface PropsInfo {
+  entries: number;
+  nodes: number;
+  entryType: string;
+  nodeTypes: string[];
+  entryProps: PropRowInfo[];
+  nodeProps: PropRowInfo[];
+  game: boolean;
 }
 
 export interface SectorView {
@@ -472,21 +495,148 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
   selTab.title = "The things selected in the view";
   const ovTab = el("button", "sidetab", "Overlaps");
   ovTab.title = "Overlaps: the sectors whose things reach into this one, as layers to show beside it";
-  tabs.append(selTab, ovTab);
+  const propTab = el("button", "sidetab", "Properties");
+  propTab.title = "Properties: what every selected thing shares, changed on all of them at once";
+  tabs.append(selTab, ovTab, propTab);
   const selPane = el("div", "sidepane");
   selPane.append(head, rows, empty);
   const ovPane = el("div", "sidepane");
   ovPane.hidden = true;
-  side.append(tabs, selPane, ovPane);
-  const showTab = (which: "selections" | "overlaps") => {
+  const propPane = el("div", "sidepane proppane");
+  propPane.hidden = true;
+  side.append(tabs, selPane, ovPane, propPane);
+  const showTab = (which: "selections" | "overlaps" | "properties") => {
     selTab.classList.toggle("on", which === "selections");
     ovTab.classList.toggle("on", which === "overlaps");
+    propTab.classList.toggle("on", which === "properties");
     selPane.hidden = which !== "selections";
     ovPane.hidden = which !== "overlaps";
+    propPane.hidden = which !== "properties";
     if (which === "overlaps") startOverlaps();
+    if (which === "properties") refreshProps();
   };
   selTab.addEventListener("click", () => showTab("selections"));
   ovTab.addEventListener("click", () => showTab("overlaps"));
+  propTab.addEventListener("click", () => showTab("properties"));
+  propTab.hidden = !source.props;
+
+  // ---- the Properties tab (a modder's request, 2026-11-24) ----------------------------------------
+  // What every selected node data entry shares, and what every node they name shares, edited on all of them: an edit
+  // goes to the host, which says how many values change and asks, as a sector script's changes do.
+  let propsAsked = 0;
+  let propsTimer: ReturnType<typeof setTimeout> | undefined;
+  const plainOf = (v: unknown) => (v && typeof v === "object" && "$value" in (v as Record<string, unknown>) ? (v as Record<string, unknown>).$value : v);
+  const IntTypes = /^(Int|Uint)(8|16|32|64)$/;
+  const propEditor = (row: PropRowInfo, commit: (value: unknown) => void): HTMLElement => {
+    const shown = plainOf(row.value);
+    const wrap = (v: unknown) => (row.value && typeof row.value === "object" && "$value" in (row.value as Record<string, unknown>) ? { ...(row.value as Record<string, unknown>), $value: v } : v);
+    if (row.enumValues?.length) {
+      const s = el("select");
+      if (row.mixed) {
+        const o = el("option", "", "(mixed)");
+        o.value = "";
+        s.append(o);
+      }
+      for (const v of row.enumValues) {
+        const o = el("option", "", v);
+        o.value = v;
+        s.append(o);
+      }
+      s.value = row.mixed ? "" : String(shown);
+      s.addEventListener("change", () => s.value && commit(wrap(s.value)));
+      return s;
+    }
+    if (row.type === "Bool") {
+      const c = el("input");
+      c.type = "checkbox";
+      c.checked = !row.mixed && (shown === 1 || shown === true);
+      c.indeterminate = row.mixed;
+      c.addEventListener("change", () => commit(c.checked ? 1 : 0));
+      return c;
+    }
+    const numeric = row.type === "Float" || row.type === "Double" || IntTypes.test(row.type);
+    const i = el("input");
+    i.type = "text";
+    i.className = numeric ? "num" : "";
+    i.value = row.mixed ? "" : shown === null || shown === undefined ? "" : String(shown);
+    i.placeholder = row.mixed ? "mixed" : "";
+    const done = () => {
+      if (row.mixed && i.value === "") return;
+      if (!row.mixed && i.value === String(shown ?? "")) return;
+      if (numeric) {
+        const n = Number(i.value);
+        if (i.value.trim() === "" || Number.isNaN(n)) {
+          i.classList.add("bad");
+          return;
+        }
+        i.classList.remove("bad");
+        const big = /64$/.test(row.type) && typeof shown === "string";
+        commit(wrap(row.type === "Float" ? Math.fround(n) : IntTypes.test(row.type) ? (big ? String(Math.trunc(n)) : Math.trunc(n)) : n));
+      } else commit(wrap(i.value));
+    };
+    i.addEventListener("change", done);
+    i.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        done();
+      }
+      if (e.key === "Escape") i.value = row.mixed ? "" : String(shown ?? "");
+    });
+    return i;
+  };
+  const propSection = (title: string, tip: string, rows: PropRowInfo[], target: "entry" | "node", entries: number[]) => {
+    const box = el("div", "propsection");
+    const head = el("div", "prophead", title);
+    head.title = tip;
+    box.append(head);
+    if (!rows.length) box.append(el("div", "dim propnone", "Nothing all of them share that can be set here."));
+    for (const r of rows) {
+      const line = el("div", "proprow");
+      const name = el("span", "propname", r.name);
+      name.title = `${r.name} (${r.type})${r.mixed ? "\nNot the same on all of them" : ""}`;
+      const cell = el("span", "propvalue");
+      cell.append(
+        propEditor(r, (value) => {
+          source.setProp!(entries, target, r.name, value).then(
+            () => refreshProps(),
+            (e) => source.say?.(e instanceof Error ? e.message : String(e)),
+          );
+        }),
+      );
+      line.append(name, el("span", "dim proptype", r.type), cell);
+      box.append(line);
+    }
+    return box;
+  };
+  /** Reads what the selection shares again, when the tab shows (after the selection settles). */
+  const refreshProps = () => {
+    if (!source.props || propPane.hidden) return;
+    clearTimeout(propsTimer);
+    propsTimer = setTimeout(() => {
+      const entries = selectedEntries();
+      const mine = ++propsAsked;
+      if (!entries.length) {
+        propPane.replaceChildren(el("div", "dim propnone", selection.length ? "The selection holds nothing of this sector's own (a layer's things are changed in their own sector)." : "Select things in the view, or with a script, to see what they share and change it on all of them."));
+        return;
+      }
+      propPane.replaceChildren(el("div", "dim propnone", `Reading ${entries.length.toLocaleString()} node data entr${entries.length === 1 ? "y" : "ies"}…`));
+      source.props!(entries).then(
+        (p) => {
+          if (mine !== propsAsked) return;
+          const kinds = p.nodeTypes.length === 1 ? p.nodeTypes[0] : `${p.nodeTypes.length} kinds`;
+          const head = el("div", "dim propsummary", `${p.entries.toLocaleString()} node data entr${p.entries === 1 ? "y" : "ies"}, naming ${p.nodes.toLocaleString()} node${p.nodes === 1 ? "" : "s"} (${kinds}).${p.game ? " The game's copy: a change asks to add the sector to the project." : " A change asks first, with how many values it changes."}`);
+          propPane.replaceChildren(
+            head,
+            propSection(`Node data · ${p.entryType}`, "Each selected thing's node data entry: where it streams, its flags and priority", p.entryProps, "entry", entries),
+            propSection(`Node · ${kinds}`, "The nodes the entries name: what they draw and how. Several entries can name one node, such as an instanced mesh's copies", p.nodeProps, "node", entries),
+          );
+        },
+        (e) => {
+          if (mine === propsAsked) propPane.replaceChildren(el("div", "error", e instanceof Error ? e.message : String(e)));
+        },
+      );
+    }, 250);
+  };
 
   type LayerState = "off" | "ghost" | "shown";
   const GroupInfo: Record<OverlapLayer["group"], { name: string; tip: string; colour: number }> = {
@@ -684,6 +834,7 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
     return row;
   };
   const renderList = () => {
+    refreshProps();
     const any = selection.length > 0;
     back.disabled = at <= 0;
     forward.disabled = at >= steps.length - 1;
