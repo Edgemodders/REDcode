@@ -78,7 +78,9 @@ export function lipsyncHtml(cspSource: string, headScript?: string): string {
   #curvesBox { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
   #curvesScroll { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; }
   #curves { width: 100%; display: block; cursor: crosshair; }
-  #readout { min-height: 20px; flex: none; color: var(--dim); font-size: 12px; margin-bottom: 6px; font-variant-numeric: tabular-nums; }
+  /* Two fixed lines, so the curves never move under the mouse as the text changes. */
+  #readout { height: 2.9em; flex: none; overflow: hidden; color: var(--dim); font-size: 12px; line-height: 1.45; margin-bottom: 6px; font-variant-numeric: tabular-nums; }
+  #readout > div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #readout b { color: var(--vscode-foreground); font-weight: 600; }
   table { border-collapse: collapse; margin-top: 12px; font-size: 12px; width: 100%; }
   th, td { text-align: left; padding: 2px 10px 2px 0; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
@@ -519,8 +521,8 @@ ${headScript ? `<script nonce="${nonce}" src="${headScript}"></script>` : ""}
     }).sort(function (a, b) { return Math.abs(b.v) - Math.abs(a.v); });
     state.hover = { row: row, track: best };
     var raw = $("raw").checked;
-    $("readout").innerHTML = s.toFixed(2) + " s · <b style='color:" + best.color + "'>" + text(raw ? best.name : plain(best.name)) + " " + sample(best, s).toFixed(2) + "</b> · strongest: " +
-      at.slice(0, 4).map(function (a) { return text(raw ? a.t.name : plain(a.t.name)) + " " + a.v.toFixed(2); }).join(", ");
+    $("readout").innerHTML = "<div>" + s.toFixed(2) + " s · <b style='color:" + best.color + "'>" + text(raw ? best.name : plain(best.name)) + " " + sample(best, s).toFixed(2) + "</b></div><div>Strongest: " +
+      at.slice(0, 4).map(function (a) { return text(raw ? a.t.name : plain(a.t.name)) + " " + a.v.toFixed(2); }).join(", ") + "</div>";
     if (!state.playing) draw();
   });
   curves.addEventListener("mouseleave", function () { state.hover = null; if (!state.playing) draw(); });
