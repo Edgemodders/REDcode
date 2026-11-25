@@ -6,14 +6,13 @@
 // The character's axes, used by `turn` and `move`, come from the clip's first frame: up is the world's up (glTF Y),
 // right runs from the left hip to the right hip, levelled, and forward is up × right.
 
-import { channelsOf, writeClipGlb, type Channel } from "./fit";
-import { evaluateTimeline, isTimelineStep, type TimelineStep } from "./timeline";
+import { writeClipGlb, type Channel } from "./fit";
+import { evaluateTimeline, isTimelineStep, type LayerSource, type TimelineStep } from "./timeline";
+import { framesOfData } from "./clipData";
 import { writeGlb, type Glb } from "./glb";
 import { add, axesOf, copyFrames, ease, len, lerp, qaxis, qmul, qnorm, scale, setWorldRot, skeletonOf, slerp, solveTwoBone, worldAt, type Ease, type Frames, type Skeleton, type V, Chains, IkBones, bonesOf, type BoneGroup } from "./pose";
 
 
-/** Where a Layer's motion comes from: a made clip in the project, a game clip, or a .glb on the same rig. */
-export type LayerSource = { made: string } | { game: { set: string; clip: string } } | { file: string };
 
 export type EditStep =
   /** Cuts the clip to from..to seconds (either may be left out). */
@@ -39,41 +38,9 @@ export type EditStep =
 
 // ---- the clip as whole frames ----
 
-function sample(c: Channel, t: number): V {
-  const ts = c.times;
-  if (t <= ts[0] || ts.length === 1) return c.values[0];
-  if (t >= ts[ts.length - 1]) return c.values[c.values.length - 1];
-  let i = 0;
-  while (i < ts.length - 2 && ts[i + 1] <= t) i++;
-  if (c.interpolation === "STEP") return c.values[i];
-  const f = (t - ts[i]) / (ts[i + 1] - ts[i] || 1);
-  return c.path === "rotation" ? slerp(c.values[i], c.values[i + 1], f) : lerp(c.values[i], c.values[i + 1], f);
-}
-
 /** A clip's first animation as whole frames at fps (30, the game's rate). */
 export function framesOf(glb: Glb, fps = 30): Frames {
-  const channels = channelsOf(glb);
-  const a = glb.json.animations?.[0];
-  if (!a) throw new Error("No animation in the file");
-  const start = Math.min(...channels.map((c) => c.times[0]));
-  const end = Math.max(...channels.map((c) => c.times[c.times.length - 1]));
-  const count = Math.max(1, Math.round((end - start) * fps) + 1);
-  const rot = new Map<string, V[]>();
-  const pos = new Map<string, V[]>();
-  for (const n of glb.json.nodes) {
-    if (!n.name) continue;
-    rot.set(n.name, Array.from({ length: count }, () => [...(n.rotation ?? [0, 0, 0, 1])]));
-    pos.set(n.name, Array.from({ length: count }, () => [...(n.translation ?? [0, 0, 0])]));
-  }
-  const keyed: string[] = [];
-  for (const c of channels) {
-    if (c.path !== "rotation" && c.path !== "translation") continue;
-    const into = (c.path === "rotation" ? rot : pos).get(c.node);
-    if (!into) continue;
-    keyed.push(`${c.node}/${c.path}`);
-    for (let i = 0; i < count; i++) into[i] = [...sample(c, start + i / fps)];
-  }
-  return { json: glb.json, name: a.name ?? "clip", extras: JSON.parse(JSON.stringify(a.extras ?? {})), fps, count, rot, pos, keyed };
+  return framesOfData(glb, fps);
 }
 
 /** The frames written back as a one-clip .glb, every channel the clip had keyed at each frame. */

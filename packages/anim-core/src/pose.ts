@@ -2,7 +2,7 @@
 // and animation-timeline.md): vectors and quaternions, a clip as whole frames, forward kinematics and two-bone IK.
 // No Node imports, so it runs in a page as well as in Node.
 
-import type { Glb, GlbNode } from "./glb";
+import type { GlbJson, GlbNode } from "./glbJson";
 
 export type Ease = "linear" | "in" | "out" | "smooth" | "overshoot";
 
@@ -111,7 +111,7 @@ export function ease(kind: Ease | undefined, t: number): number {
 
 export interface Frames {
   /** The nodes of the clip's .glb (the rig's bones by name), and the .glb's json for writing it again. */
-  json: Glb["json"];
+  json: GlbJson;
   name: string;
   extras: Record<string, unknown>;
   fps: number;

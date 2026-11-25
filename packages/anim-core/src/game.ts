@@ -4,8 +4,9 @@
 import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { applyEdits, type EditReport, type EditStep, type LayerSource } from "./edit";
-import { clipOf, readGlb, type Glb } from "./glb";
+import { applyEdits, type EditReport, type EditStep } from "./edit";
+import type { LayerSource } from "./timeline";
+import { clipOf, readGlb, writeGlb, type Glb } from "./glb";
 import { fitClip } from "./fit";
 import type { Uthana } from "./uthana";
 
@@ -365,6 +366,35 @@ export async function addClip(
   return { ...r, record };
 }
 
+/** An animation block's or a Layer's clip, as a one-clip Glb: a made clip of the project, a game clip, or a .glb. */
+export async function layerGlb(bridge: Bridge, project: Project, src: LayerSource, cacheDir: string): Promise<Glb> {
+  if ("made" in src) {
+    const other = path.join(path.dirname(path.join(project.rawDir, ...addedSet(project, src.made).split(BS))), `${src.made}.glb`);
+    if (!fs.existsSync(other)) throw new Error(`layer: no made clip ${src.made} in ${project.name}`);
+    return readGlb(fs.readFileSync(other));
+  }
+  if ("game" in src) return clipOf(await exportGame(bridge, cacheDir, src.game.set, ".anims.glb", {}, "anims"), src.game.clip);
+  return readGlb(fs.readFileSync(src.file));
+}
+
+/**
+ * The bytes of a clip a made clip's timeline plays (REDcode's Animation Timeline, TL2): with no source, the clip as
+ * made (its starting point, before its steps); else that source's clip. A one-clip .glb either way.
+ */
+export async function editSourceGlb(bridge: Bridge, project: Project, clip: string, src: LayerSource | undefined, options: { cacheDir: string; set?: string }): Promise<Buffer> {
+  if (src) {
+    const g = await layerGlb(bridge, project, src, options.cacheDir);
+    return writeGlb(g.json, g.bin);
+  }
+  const set = options.set ?? addedSet(project, clip);
+  const dir = path.dirname(path.join(project.rawDir, ...set.split(BS)));
+  const baseFile = path.join(dir, `${clip}.base.glb`);
+  const clipFile = path.join(dir, `${clip}.glb`);
+  if (fs.existsSync(baseFile)) return fs.readFileSync(baseFile);
+  if (fs.existsSync(clipFile)) return fs.readFileSync(clipFile);
+  throw new Error(`${clip}: its .glb is missing (${clipFile})`);
+}
+
 /**
  * Edits a made clip (REDcode's Animation Editor, docs/design/animation-editor.md): the steps run in order on the
  * clip as made, kept as <name>.base.glb from the first edit on, and the result imported over the clip's set, its
@@ -391,15 +421,7 @@ export async function editClip(
     if (!fs.existsSync(clipFile)) throw new Error(`${clip}: its .glb is missing (${clipFile})`);
     fs.copyFileSync(clipFile, baseFile);
   }
-  const layer = async (src: LayerSource): Promise<Glb> => {
-    if ("made" in src) {
-      const other = path.join(path.dirname(path.join(project.rawDir, ...addedSet(project, src.made).split(BS))), `${src.made}.glb`);
-      if (!fs.existsSync(other)) throw new Error(`layer: no made clip ${src.made} in ${project.name}`);
-      return readGlb(fs.readFileSync(other));
-    }
-    if ("game" in src) return clipOf(await exportGame(bridge, options.cacheDir, src.game.set, ".anims.glb", {}, "anims"), src.game.clip);
-    return readGlb(fs.readFileSync(src.file));
-  };
+  const layer = (src: LayerSource) => layerGlb(bridge, project, src, options.cacheDir);
   const { glb, report } = await applyEdits(readGlb(fs.readFileSync(baseFile)), steps, { layer, name: clip });
   fs.rmSync(path.join(project.archiveDir, ...set.split(BS)), { force: true });
   const r = await importClip(bridge, project, set, clip, glb, { rig: rig.rig });

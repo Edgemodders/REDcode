@@ -4,6 +4,7 @@
 // extension, its MCP server and the Animation Tools pack all use it.
 
 export * from "./glb";
+export * from "./clipData";
 export * from "./uthana";
 export * from "./fit";
 export * from "./game";

@@ -2,63 +2,9 @@
 // and cut one animation out of a large .anims export without reading its whole binary. No dependencies.
 
 import * as fs from "node:fs";
+import type { GlbAccessor, GlbBufferView, GlbJson } from "./glbJson";
 
-export interface GlbAccessor {
-  bufferView?: number;
-  byteOffset?: number;
-  componentType: number;
-  count: number;
-  type: string;
-  min?: number[];
-  max?: number[];
-}
-
-export interface GlbBufferView {
-  buffer?: number;
-  byteOffset?: number;
-  byteLength: number;
-  byteStride?: number;
-}
-
-export interface GlbNode {
-  name?: string;
-  children?: number[];
-  translation?: number[];
-  rotation?: number[];
-  scale?: number[];
-}
-
-export interface GlbChannel {
-  sampler: number;
-  target: { node?: number; path: string };
-}
-
-export interface GlbSampler {
-  input: number;
-  output: number;
-  interpolation?: string;
-}
-
-export interface GlbAnimation {
-  name?: string;
-  channels: GlbChannel[];
-  samplers: GlbSampler[];
-  extras?: Record<string, unknown>;
-}
-
-export interface GlbJson {
-  asset: unknown;
-  scene?: number;
-  scenes?: { nodes?: number[] }[];
-  nodes: GlbNode[];
-  skins?: { joints: number[]; skeleton?: number; name?: string; inverseBindMatrices?: number }[];
-  meshes?: unknown[];
-  animations?: GlbAnimation[];
-  accessors?: GlbAccessor[];
-  bufferViews?: GlbBufferView[];
-  buffers?: { byteLength: number }[];
-  [key: string]: unknown;
-}
+export type { GlbAccessor, GlbAnimation, GlbBufferView, GlbChannel, GlbJson, GlbNode, GlbSampler } from "./glbJson";
 
 /** A .glb in memory. */
 export interface Glb {

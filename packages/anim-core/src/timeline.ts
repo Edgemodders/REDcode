@@ -13,7 +13,6 @@
 // - Not only people: a rig profile gives a person's arm and leg chains and bone groups; any other rig (an AV's
 //   doors, a prop) still turns and slides its bones.
 
-import type { LayerSource } from "./edit";
 import {
   add, bonesOf, BoneGroups, Chains, copyFrames, ease as easeCurve, lerp, qaxis, qconj, qmul, qnorm, qrot, scale, setWorldRot, skeletonOf, slerp,
   solveTwoBone, sub, worldAt, axesOf, type BoneGroup, type Frames, type Skeleton, type V,
@@ -67,6 +66,9 @@ export type TimelineStep =
 
 export const TimelineSteps = ["anim", "move", "blend", "track", "line", "end"] as const;
 export const isTimelineStep = (s: { step: string }): s is TimelineStep => (TimelineSteps as readonly string[]).includes(s.step);
+
+/** Where an animation block's (or a Layer's) motion comes from: a made clip in the project, a game clip, or a .glb on the same rig. */
+export type LayerSource = { made: string } | { game: { set: string; clip: string } } | { file: string };
 
 // ---- rigs ----
 
@@ -528,17 +530,34 @@ export function evaluateTimeline(base: Frames, steps: { step: string }[], option
   out.keyed = [...keyed];
 
   // Jumps: at a block's edge, a bone that turns or slides from one frame to the next far more than in the frames on
-  // either side (a fast start that carries on is not a jump).
+  // either side (a fast start that carries on is not a jump), counting only what the edge adds to the motion below
+  // the block: a step already in that motion (a game clip's finger that starts at once) is the motion's, not a jump.
   const jumps: number[] = [];
   const edges = [...new Set(blocks.flatMap((b) => [b.s, b.e]))].filter((x) => x >= 1 && x <= last).sort((a, b) => a - b);
   const turnAt = (n: string, i: number) => (i < 1 || i > last ? 0 : angleBetween(out.rot.get(n)![i - 1], out.rot.get(n)![i]));
   const slideAt = (n: string, i: number) => (i < 1 || i > last ? 0 : Math.hypot(...sub(out.pos.get(n)![i], out.pos.get(n)![i - 1])));
   for (const x of edges) {
-    const jumped = names.some(
-      (n) =>
-        turnAt(n, x) > Math.max(3, 2.5 * Math.max(turnAt(n, x - 1), turnAt(n, x + 1))) ||
-        slideAt(n, x) > Math.max(0.02, 2.5 * Math.max(slideAt(n, x - 1), slideAt(n, x + 1))),
-    );
+    const unders = [...new Set(blocks.filter((b) => b.s === x || b.e === x).map((b) => tracks.indexOf(b.track)))].map((k) => (i: number) => below(st, k, i));
+    const added = (n: string) =>
+      unders.reduce(
+        (worst, under) => {
+          const o0 = out.rot.get(n)![x - 1];
+          const o1 = out.rot.get(n)![x];
+          const u0 = under(x - 1).r.get(n)!;
+          const u1 = under(x).r.get(n)!;
+          const turn = angleBetween(qmul(qconj(o0), o1), qmul(qconj(u0), u1));
+          const slide = Math.hypot(...sub(sub(out.pos.get(n)![x], out.pos.get(n)![x - 1]), sub(under(x).p.get(n)!, under(x - 1).p.get(n)!)));
+          return { turn: Math.max(worst.turn, turn), slide: Math.max(worst.slide, slide) };
+        },
+        { turn: 0, slide: 0 },
+      );
+    const jumped = names.some((n) => {
+      const a = added(n);
+      return (
+        (turnAt(n, x) > Math.max(3, 2.5 * Math.max(turnAt(n, x - 1), turnAt(n, x + 1))) && a.turn > 3) ||
+        (slideAt(n, x) > Math.max(0.02, 2.5 * Math.max(slideAt(n, x - 1), slideAt(n, x + 1))) && a.slide > 0.02)
+      );
+    });
     if (jumped) jumps.push(x / fps);
   }
   return { frames: out, profile, jumps };

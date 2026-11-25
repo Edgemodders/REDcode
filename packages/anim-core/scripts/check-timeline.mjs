@@ -206,6 +206,12 @@ check(core.rigProfile(person.map((n) => n.name)).kind === "person", "a person's 
   check(/overlap/.test(said), "two blocks overlapping on a lane are refused");
   const end = run([baseBlock, moveA(), { step: "end", at: 3 }]);
   check(end.frames.count === 91, `the end marker sets the length (${end.frames.count} frames)`);
+  // A step in the motion below, at a block's edge, is the motion's (found in the harness on 2026-11-25: a game
+  // clip's pinky starting at once where a move without keys began).
+  const stepped = clip(person, 4, (t) => ({ LeftHand: { r: qz(t >= 1.4 ? 20 : 0) } }));
+  const keyless = { step: "move", track: 1, start: 1.4, length: 1, on: { ik: "RightHand" }, keys: [] };
+  const r2 = run([baseBlock, keyless], stepped);
+  check(!r2.jumps.length, `a step already in the motion below a block's edge is not a jump (${r2.jumps.join(", ") || "none"})`);
 }
 
 // 14. applyEdits runs the timeline, then the other steps, on a .glb.
