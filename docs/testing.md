@@ -41,6 +41,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [anim-core check](#anim-core-check) | Automated, on the PC (game and Uthana key) | Animation Tools AT1 | 2026-11-22 | Pass, 22 of 22 |
 | [Animation Tools AT2](#animation-tools-at2) | By hand, in REDcode and the game | Animation Tools AT2 | 2026-11-22 | Pass (owner), steps 1 to 9 with 3b, after fixes |
 | [Animation Tools pack (AT3)](#animation-tools-pack-at3) | By hand, in the game | Animation Tools AT3 | 2026-11-22 | **Passed** 2026-11-24 (run 2, with the fixes it raised) |
+| [Sector Properties tab](#sector-properties-tab) | By hand | Sector selection | 2026-11-24 | Not run (checked by a unit check and in Chrome over the real REDbridge) |
 | [Animation Editor (AE5)](#animation-editor-ae5) | By hand, with Blender | Animation Editor AE5 | 2026-11-24 | Not run (checked with Blender in the background) |
 | [Animation Editor (AE2)](#animation-editor-ae2) | By hand | Animation Editor AE2 | 2026-11-24 | **Passed** 2026-11-24 (owner, D1 to D7, with the changes run 1 asked for) |
 | [Animation Editor (AE1)](#animation-editor-ae1) | Script, MCP client, and by hand in the game | Animation Editor AE1 | 2026-11-24 | **Passed** 2026-11-24 (script, MCP, and E1 to E3 in the game) |
@@ -832,6 +833,21 @@ Run 2, more (owner, 2026-11-24): much better, with two more: both clips **rise a
 Run 2, the rise (owner, 2026-11-24): with the Root still, he faces V the whole time and the feet barely turn (a slight slide at the start remains, likely the motion's own few cm of drift), but **the rise stayed**. Four test clips, each leaving one step of the fit out (the game's own idle through our import, the motion as Probe D played it, turned, no lift), **all rose**, so it was not the clips. Screenshots of the game window (PrintWindow, with the owner's go) showed the whole body about 30 cm up while a clip plays, the feet above their shadow. The cause: V stood on a sidewalk sloping away, the pack spawned the medic 3 m ahead **at V's height**, and while the game's idle puts the feet on the ground, a workspot plays from the person's own position, which never moved down (`GetWorldPosition` kept V's height). Probe D, on flat ground, did not rise. Fixed: the pack casts a ray down at the spot (`Static`, `Terrain`, `PlayerBlocker`, the nearest hit, as EDGEbuilder's drop to floor does) and spawns there; the log names each group's answer and both heights. **The owner confirmed in the game: he stays on the ground.** Asked of REDnode for every package that spawns a person for a workspot: https://github.com/Edgemodders/REDnode/issues/59. The four test clips were taken out of the pack's project.
 
 **Result 2026-11-24, reported by the owner: all 11 steps pass.** The owner did not close every VS Code window (too many open), but step 2 still showed the pack's own project, since no REDcode window with a project had the focus since the pack started; at step 9 a new window on AnimProbeD and the refresh icon moved the pack there, and the clip went into it. Found there, for later: the pack follows the REDcode window last focused with a project, which is fragile with many windows open; a picker of the open REDcode windows (the `redcode` REDnode package's `projects()`) is to come. **AT3 passes.** Next: AT3r, the pack's release (zip, GitHub release, its own Nexus page the owner makes), on the owner's go.
+
+## Sector Properties tab
+
+Built 2026-11-24 ([design](design/sector-selection.html#the-properties-tab-a-modders-request-2026-11-24)). Checked by a unit check and in Chrome over REDbridge 0.19.0 (see the design page). **Not run:** in VS Code.
+
+F5 with **Run REDcode**; open `exterior_-22_7_0_0.streamingsector` on 3D from your project (a copy) and from Game Assets (the game's).
+
+| # | Do | Expected |
+|---|---|---|
+| P1 | **Properties** tab with nothing selected | "Select things in the view, or with a script…" |
+| P2 | Select the soda cans (one, then Every copy of these meshes, or Shift+drag), **Properties** | "N node data entries, naming N nodes (worldInstancedDestructibleMeshNode)"; Node data and Node sections; values shown, or **mixed**; no nodeIdx or instanceIndex |
+| P3 | In the project's copy: `streamingPriority` 5, Enter | A question: how many values change, **Apply** and **Show List**; Apply: the tab shows 5; one Ctrl+Z takes all back |
+| P4 | `castShadows` (Node) to **Never** | The same question for the nodes; Apply |
+| P5 | Add an ambient area to the selection (Ctrl+click) | Node · 2 kinds, only what both share |
+| P6 | In the game's copy: change a value | **Add to Project and Apply** (or Open the Project's Copy and Apply), as a script's change does |
 
 ## Animation Editor (AE5)
 

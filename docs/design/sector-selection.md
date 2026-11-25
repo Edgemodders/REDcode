@@ -111,3 +111,12 @@ Asked in the Add to Project retest: a modder with sector meshes in the project c
 - **Project view:** a hover button on a `.mesh`, **Select in Sector View**, shown while a sector view is open. It selects every copy of that mesh in the open sector view and frames them.
 - **The selected list:** an **All Copies** hover button on each row, selecting every copy of that row's mesh.
 - **Either asks first** when it would replace a selection of more than one thing. With no copy of the mesh in the sector, it says so.
+
+## The Properties tab (a modder's request, 2026-11-24)
+
+Asked by the owner for a modder: a third tab beside Selections and Overlaps with only the properties every selected thing shares, so a mass edit is made in one place, with a question that says how many edits it makes. Built the same day:
+
+- **Two parts:** the node data entries (where each thing streams: `streamingDistance`, `streamingPriority`, `nodeFlags`, `dataGroup`…) and the nodes they name (what is drawn and how: `meshAppearance`, `castShadows`, `isVisibleInGame`…). Several entries can name one node, such as an instanced mesh's copies, and a node is changed once. With nodes of several kinds, only what every kind has shows.
+- **A property shows** when every one has it with the same type and it is a plain value (a number, text, a name, a yes or no, an enum); its value, or **mixed**. Left out on purpose: `nodeIdx`, `instanceIndex`, `sourcePrefabHash` and node references, since one value for all of them would break what ties the sector together.
+- **An edit** (a value typed and Enter, a box ticked, an enum picked) becomes one change per entry or node that differs, through the sector scripts' question and Apply: "Set streamingPriority on 4 node data entries would change 4 values…", **Apply** as one edit that one Undo takes back, **Show List**; on the game's copy, **Add to Project and Apply**, as a script's change does. Only this sector's own things: a layer's are changed in their sector.
+- **Built in:** `src/sectorProps.ts` (no VS Code imports: `sharedProps`, `propChanges`), `sectorProps` and `sectorPropsSet` in `src/cr2wEditor.ts`, `applyChanges` in `src/sectorScriptsUi.ts`, the tab in `webview/sectorViewer.ts`. Checked by a unit check and in Chrome over REDbridge 0.19.0 on `exterior_-22_7_0_0` (four soda cans: 4 entries naming 4 `worldInstancedDestructibleMeshNode`s; streamingPriority 1 → 5 gives 4 changes, castShadows on the nodes 4; with an ambient area added, only what both kinds share).
