@@ -230,15 +230,17 @@
 
   async function reloadAll(reason) {
     nodes.clear();
-    if (reason === "save" || reason === "revert") {
+    if (reason === "save" || reason === "revert" || reason === "edit") {
       textureEl = null;
+      // A clip rebuilt by the Edit panel (AE2): the view comes back where it was, camera, clip and moment.
+      if (reason === "edit") keptAnimState = meshView?.state?.() ?? null;
       meshShown = false; // export again, so the 3D view shows the saved file
     }
     try {
       await fetchNode("");
       renderTree();
       await render(true);
-      status(reason === "open" ? "" : `Reloaded after ${reason}`);
+      status(reason === "open" ? "" : reason === "edit" ? "Rebuilt from its steps" : `Reloaded after ${reason}`);
     } catch (e) {
       status(e.message, "error");
     }
@@ -420,6 +422,8 @@
   // The extension exports the saved file to a .glb in its cache and sends the skeleton and the list.
   // Each animation's keys come when it is picked, since the export can be hundreds of MB.
   let pendingAnimation = null;
+  /** The animation view's camera, clip and moment, kept across a rebuild from the Edit panel. */
+  let keptAnimState = null;
   /** With pendingAnimation: play its synced set too (REDcodeApi.openAnimation's set). */
   let pendingPlaySet = false;
 
@@ -456,6 +460,7 @@
         make: payload.make
           ? { why: payload.make.why, game: !!payload.make.game, made: payload.make.made, from: payload.make.from, run: (make) => request("animsMake", { make }) }
           : undefined,
+        restore: (() => { const k = keptAnimState; keptAnimState = null; return k ?? undefined; })(),
         // AE2: a made clip's edit steps (docs/design/animation-editor.md).
         edit: { info: () => request("animsEditInfo"), apply: (steps) => request("animsEdit", { steps }), undo: () => request("animsEditUndo") },
         // A lip sync set: its character's lines in the Lip Sync editor, at the shown clip's line.

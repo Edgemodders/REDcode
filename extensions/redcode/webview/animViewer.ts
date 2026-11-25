@@ -54,6 +54,8 @@ export interface AnimsSource {
   make?: MakeApi;
   /** Editing a made clip (docs/design/animation-editor.md, AE2). Without it, or on a file that is not a made clip's own set, no Edit panel. */
   edit?: EditApi;
+  /** Where a view stood before it was built again (a rebuild from the Edit panel): its camera, clip, moment and speed. */
+  restore?: AnimsViewState;
   /** A lip sync set (docs/design/lipsync.md): opens the Lip Sync editor at the shown clip's line. */
   lipSync?: (clip: string | undefined) => void;
 }
@@ -163,7 +165,17 @@ export interface SetApi {
   member(index: number): Promise<{ skeleton: ArrayBuffer; clip: ArrayBuffer; body?: { data: ArrayBuffer; label: string; notes: string[] }; bodyNote?: string }>;
 }
 
+export interface AnimsViewState {
+  clip?: string;
+  time: number;
+  speed: number;
+  camera: number[];
+  target: number[];
+}
+
 export interface AnimsView {
+  /** Where the view stands, for a view built again to come back to. */
+  state?(): AnimsViewState;
   dispose(): void;
   refreshMaterials(): void;
   /** Goes to an animation by name, and plays it; with playSet, plays its synced set too. */
@@ -997,7 +1009,18 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
   };
   tick();
 
-  if (source.initial && source.animations.some((a) => a.name.toLowerCase() === source.initial!.toLowerCase())) showAnimation(source.initial);
+  const kept = source.restore;
+  const backIndex = kept?.clip ? source.animations.findIndex((a) => a.name === kept!.clip) : -1;
+  if (kept && backIndex >= 0) {
+    // Built again after an edit: the same clip, paused at the same moment, from the same camera and speed.
+    fitted = true;
+    speed = kept.speed;
+    speedPick.value = String(kept.speed);
+    camera.position.fromArray(kept.camera);
+    controls.target.fromArray(kept.target);
+    controls.update();
+    void pick(backIndex, kept.time);
+  } else if (source.initial && source.animations.some((a) => a.name.toLowerCase() === source.initial!.toLowerCase())) showAnimation(source.initial);
   else {
     if (source.initial) source.say?.(`This file has no animation named ${source.initial}`);
     if (source.animations.length > 0) void pick(0);
@@ -1022,6 +1045,7 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
     refreshMaterials: () => undefined,
     showAnimation,
     makeStage: (stage, detail) => make?.stage(stage, detail),
+    state: () => ({ clip: info()?.name, time: action?.time ?? 0, speed, camera: camera.position.toArray(), target: controls.target.toArray() }),
   };
 }
 

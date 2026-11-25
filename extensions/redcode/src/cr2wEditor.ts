@@ -226,7 +226,8 @@ export class Cr2wDocument implements vscode.CustomDocument {
     });
   }
 
-  revert(bridge: BridgeClient): Promise<void> {
+  /** Reads the file again from disk. reason: "revert", or "edit" when the file was rebuilt beside the editor (AE2). */
+  revert(bridge: BridgeClient, reason = "revert"): Promise<void> {
     return this.enqueue(async () => {
       if (this.info && this.openedOn === bridge) {
         await bridge.closeDocument(this.doc).catch(() => undefined);
@@ -235,7 +236,7 @@ export class Cr2wDocument implements vscode.CustomDocument {
       this.openedOn = undefined;
       this.log = [];
       await this.ensureOpen(bridge);
-      this.reloaded.fire("revert");
+      this.reloaded.fire(reason);
     });
   }
 
@@ -843,7 +844,11 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
             if (!this.animMaker) throw new Error("Editing clips is not available");
             if (document.log.length > 0) throw new Error("This file has unsaved changes: save or revert them first");
             const r = m.type === "animsEdit" ? await this.animMaker.edit(document.uri.fsPath, m.steps ?? []) : await this.animMaker.undo(document.uri.fsPath);
-            return reply(m.id, r);
+            reply(m.id, r);
+            // The set on disk is new: the document reads it again and the view rebuilds in place, keeping its camera
+            // (the owner's AE2 run: closing and opening the tab was jarring).
+            await document.revert(this.requireBridge(), "edit");
+            return;
           }
           case "light":
             await this.context.workspaceState.update(LightKey, m.settings);

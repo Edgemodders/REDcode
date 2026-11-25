@@ -156,7 +156,7 @@ Click: go to its time and mark its bone`;
   const run = async (what: string, job: () => Promise<unknown>) => {
     busy = true;
     renderSteps();
-    status.replaceChildren(el("span", "makespin"), document.createTextNode(` ${what}… the tab opens again when it is done.`));
+    status.replaceChildren(el("span", "makespin"), document.createTextNode(` ${what}… the view reloads when it is done.`));
     try {
       await job();
     } catch (e) {

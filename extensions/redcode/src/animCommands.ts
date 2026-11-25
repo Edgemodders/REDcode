@@ -5,7 +5,7 @@ import * as path from "node:path";
 import * as vscode from "vscode";
 import * as fs from "node:fs";
 import { asBridge, BoneGroups, bonesOf, editClip, footContacts, IkBones, madeClips, projectAt, readGlb, Rigs, suggestPins, type EditStep, type Model } from "../../../packages/anim-core/src/index";
-import { Cancelled, closeTabsOn, makeClip, makeRig, StageText, type MakeDeps, type MakeRequest, type MakeResult } from "./animMake";
+import { Cancelled, makeClip, makeRig, StageText, type MakeDeps, type MakeRequest, type MakeResult } from "./animMake";
 import type { AnimMaker } from "./cr2wEditor";
 import { gamePathOfUri } from "./gameFs";
 import { ProjectFolders } from "./project";
@@ -240,12 +240,7 @@ export function registerAnimCommands(context: vscode.ExtensionContext, host: Ani
     host.deps.log.appendLine(`Animation Editor: ${m.name}, ${steps.length} step(s): ${r.report.steps.map((x) => x.did).join("; ") || "as made"}`);
     host.deps.refresh();
     rebuilt = { file: path.resolve(file).toLowerCase(), at: Date.now() };
-    // After the answer goes back to the page: the tab closes and opens again on the new set, at the clip.
-    setTimeout(() => {
-      void (async () => {
-        if (await closeTabsOn(file)) await host.open(file, m.name);
-      })();
-    }, 50);
+    // The editor reads the new set again in place (src/cr2wEditor.ts, animsEdit).
     return { clip: m.name, seconds: r.report.seconds, did: r.report.steps };
   };
   const maker: AnimMaker = {
