@@ -7,7 +7,7 @@
 // right runs from the left hip to the right hip, levelled, and forward is up × right.
 
 import { channelsOf, writeClipGlb, type Channel } from "./fit";
-import type { Glb, GlbNode } from "./glb";
+import { writeGlb, type Glb, type GlbNode } from "./glb";
 
 export type Ease = "linear" | "in" | "out" | "smooth" | "overshoot";
 
@@ -485,6 +485,54 @@ export async function applyEdits(clip: Glb, steps: EditStep[], options: EditOpti
   report.frames = f.count;
   report.seconds = (f.count - 1) / f.fps;
   return { glb: writeFrames(f, options.name ?? f.name), frames: f, report };
+}
+
+/**
+ * The clip on a body, as one .glb for Blender (AE5, Edit in Blender): the body's file (a mesh skinned on the rig,
+ * the stand-in) with the clip's keys, at whole frames, on its bones by name. Bones the body lacks are left out.
+ */
+export function clipOnBody(body: Glb, clip: Glb, name: string): Buffer {
+  const f = framesOf(clip);
+  const json = JSON.parse(JSON.stringify(body.json)) as Glb["json"] & Record<string, any>;
+  const index = new Map(json.nodes.map((n, i) => [n.name, i]));
+  const parts: Buffer[] = [];
+  let length = 0;
+  const base = body.bin ? Buffer.from(body.bin) : Buffer.alloc(0);
+  const pad = (n: number) => (4 - (n % 4)) % 4;
+  parts.push(base, Buffer.alloc(pad(base.length)));
+  length = base.length + pad(base.length);
+  json.accessors ??= [];
+  json.bufferViews ??= [];
+  const put = (rows: number[][], type: string) => {
+    const n = rows[0].length;
+    const buf = Buffer.alloc(rows.length * n * 4);
+    rows.forEach((r, i) => r.forEach((v, k) => buf.writeFloatLE(v, (i * n + k) * 4)));
+    json.bufferViews!.push({ buffer: 0, byteOffset: length, byteLength: buf.length });
+    parts.push(buf);
+    length += buf.length;
+    const a: Record<string, unknown> = { bufferView: json.bufferViews!.length - 1, componentType: 5126, count: rows.length, type };
+    if (type === "SCALAR") {
+      a.min = [rows[0][0]];
+      a.max = [rows[rows.length - 1][0]];
+    }
+    json.accessors!.push(a as never);
+    return json.accessors!.length - 1;
+  };
+  const input = put(Array.from({ length: f.count }, (_, i) => [i / f.fps]), "SCALAR");
+  const samplers: unknown[] = [];
+  const channels: unknown[] = [];
+  for (const k of f.keyed) {
+    const [bone, p] = k.split("/");
+    const node = index.get(bone);
+    if (node === undefined) continue;
+    const output = put((p === "rotation" ? f.rot : f.pos).get(bone)!, p === "rotation" ? "VEC4" : "VEC3");
+    samplers.push({ input, output, interpolation: "LINEAR" });
+    channels.push({ sampler: samplers.length - 1, target: { node, path: p } });
+  }
+  if (!channels.length) throw new Error("The body has none of the clip's bones");
+  json.animations = [{ name, channels, samplers }] as never;
+  json.buffers = [{ byteLength: length }];
+  return writeGlb(json, Buffer.concat(parts));
 }
 
 /** A bone's world place and turn at every frame (glTF axes, metres). */

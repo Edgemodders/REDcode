@@ -6,6 +6,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { applyEdits, type EditReport, type EditStep, type LayerSource } from "./edit";
 import { clipOf, readGlb, type Glb } from "./glb";
+import { fitClip } from "./fit";
 import type { Uthana } from "./uthana";
 
 /** What anim-core needs of REDbridge: REDcode's BridgeClient has request; REDnode's kernel.bridge() has call. */
@@ -416,6 +417,43 @@ export async function editClip(
   if (!edited) fs.rmSync(baseFile, { force: true });
   r.files.push(clipFile, path.join(dir, `${clip}.edgefab.json`), ...(edited ? [baseFile] : []));
   return { ...r, record, report };
+}
+
+/**
+ * A made clip's new starting point from outside (the Animation Editor's AE5, Edit in Blender): motion is a .glb on
+ * the rig, such as Blender's save, fitted by bone name (no turn, no lift: as the modder posed it) and made the clip
+ * as made; the clip's steps are folded into it and emptied. With keepBefore (the first save of a session), the
+ * previous starting point is copied to <name>.before.glb and given back with the steps it had, so a caller can put
+ * both back (editClip on that base with those steps).
+ */
+export async function rebaseClip(
+  bridge: Bridge,
+  project: Project,
+  clip: string,
+  motion: Buffer,
+  options: { cacheDir: string; set?: string; keepBefore?: boolean; by?: string },
+): Promise<ImportResult & { record: AnimRecord; report: EditReport; before?: { file: string; steps: EditStep[] } }> {
+  const set = options.set ?? addedSet(project, clip);
+  const old = recordOf(project, clip, set);
+  if (!old) throw new Error(`${clip} is not a made clip in ${project.name}: no record`);
+  const rig = rigFor(old.anim.rig);
+  if (!rig) throw new Error(`${clip} is on ${old.anim.rig}; only man_base and woman_base clips can be edited`);
+  const dir = path.dirname(path.join(project.rawDir, ...set.split(BS)));
+  const clipFile = path.join(dir, `${clip}.glb`);
+  const baseFile = path.join(dir, `${clip}.base.glb`);
+  let before: { file: string; steps: EditStep[] } | undefined;
+  if (options.keepBefore) {
+    const file = path.join(dir, `${clip}.before.glb`);
+    fs.copyFileSync(fs.existsSync(baseFile) ? baseFile : clipFile, file);
+    before = { file, steps: (old.edits ?? []) as EditStep[] };
+  }
+  const { glb } = fitClip(readGlb(motion), await referenceClip(bridge, options.cacheDir, rig), clip, { face: false, ground: false });
+  fs.writeFileSync(baseFile, glb);
+  const r = await editClip(bridge, project, clip, [], { cacheDir: options.cacheDir, set });
+  // What made the new start, beside where the clip came from (EDGEdir and EDGEfab skip fields they do not know).
+  const record: AnimRecord & { reshaped?: { by: string; at: string } } = { ...r.record, reshaped: { by: options.by ?? "Blender", at: new Date().toISOString() } };
+  fs.writeFileSync(path.join(dir, `${clip}.edgefab.json`), JSON.stringify(record, null, 2));
+  return { ...r, record, before };
 }
 
 /** The made clips in a project, found by their records (kind "anim") under source\raw, newest first. */

@@ -41,7 +41,7 @@ import { GameSoundIndex } from "./audio";
 import { packProject, walk, type PackSummary } from "./pack";
 import { findEDGEdeck, runningEDGEdeck, type DeployResult } from "./edgedeck";
 import { findGames, isGameFolder, steamPath } from "./gameFinder";
-import { findBlender, writeBlenderScript } from "./blender";
+import { writeBlenderAnimScript, findBlender, writeBlenderScript } from "./blender";
 import { TweakClaims, TweakDb, TweakHover, TweakTree, type TweakNode } from "./tweakView";
 import { TweakRecordPanel } from "./tweakRecordPanel";
 import { LocHover, LocTree, locKeyOf, locLanguage, locTextOf, type LocNode } from "./locView";
@@ -312,6 +312,8 @@ export function activate(context: vscode.ExtensionContext): REDcodeApi | undefin
     projectDir: () => project?.dir,
     open: (file, clip) => openAnimationInEditor(file, clip),
     keyFor: async (caller) => (await keys?.api.get("uthana", caller)) ?? (await keys?.api.ask("uthana", caller)),
+    blender: (o) => editAnimationInBlender(o),
+    reload: (file) => cr2w.reloadFromDisk(vscode.Uri.file(file)),
   });
   cr2w.animMaker = anims.maker;
   // The Lip Sync editor (docs/design/lipsync.md, L1): the command, the tab, and the ways in from other views.
@@ -1132,6 +1134,63 @@ async function editInBlenderCommand(arg?: ProjectNode | string): Promise<void> {
   status.command = "redcode.stopBlender";
   status.show();
   blenderSession = { glb, process: child, watcher, status };
+}
+
+/**
+ * Edit in Blender for an animation (the Animation Editor's AE5): Blender opens the .glb (the clip on the base body)
+ * with the animation script, and each save it exports calls onSave, which fits it and makes it the clip's new
+ * starting point. One Blender session at a time, shared with the mesh's Edit in Blender.
+ */
+async function editAnimationInBlender(o: { glb: string; label: string; onSave: () => Promise<void> }): Promise<boolean> {
+  const blender = await resolveBlender();
+  if (!blender) {
+    const pick = await vscode.window.showWarningMessage("REDcode could not find Blender. Set redcode.blenderPath to blender.exe or its folder.", "Open Setting");
+    if (pick) await vscode.commands.executeCommand("workbench.action.openSettings", "redcode.blenderPath");
+    return false;
+  }
+  stopBlender();
+  const script = writeBlenderAnimScript(path.join(storage.fsPath, "blender"));
+  const blend = o.glb.replace(/\.glb$/i, ".blend");
+  log.appendLine(`Edit in Blender: ${blender} with the animation ${o.label}`);
+  const child = spawn(blender, ["--python", script, "--", o.glb, blend], { stdio: ["ignore", "pipe", "pipe"], windowsHide: false });
+  const relay = (d: Buffer) => {
+    for (const line of String(d).split(/\r?\n/)) if (line.startsWith("REDcode:") || /error|traceback/i.test(line)) log.appendLine(`  blender | ${line}`);
+  };
+  child.stdout?.on("data", relay);
+  child.stderr?.on("data", relay);
+  child.on("error", (e) => {
+    log.appendLine(`Blender did not start: ${e.message}`);
+    stopBlender();
+    void vscode.window.showErrorMessage(`REDcode: Blender did not start. ${e.message}`);
+  });
+  child.on("exit", () => {
+    if (blenderSession?.process === child) stopBlender("Blender closed; no longer watching its saves.");
+  });
+  // Each save: once the file has stopped growing, the clip is rebuilt from it.
+  const name = path.basename(o.glb).toLowerCase();
+  const watcher = fs.watch(path.dirname(o.glb), (_event, changed) => {
+    if (!blenderSession || String(changed ?? "").toLowerCase() !== name) return;
+    clearTimeout(blenderSession.timer);
+    blenderSession.timer = setTimeout(async () => {
+      const size = fs.existsSync(o.glb) ? fs.statSync(o.glb).size : -1;
+      await new Promise((r) => setTimeout(r, 400));
+      if (!fs.existsSync(o.glb) || fs.statSync(o.glb).size !== size) return;
+      log.appendLine(`Blender saved ${o.label}; rebuilding the clip from it`);
+      try {
+        await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: `${o.label} from Blender` }, () => o.onSave());
+      } catch (e) {
+        log.appendLine(`Edit in Blender: ${e instanceof Error ? (e.stack ?? e.message) : String(e)}`);
+        void vscode.window.showErrorMessage(`REDcode: ${o.label} could not be rebuilt from Blender's save. ${e instanceof Error ? e.message : String(e)}`);
+      }
+    }, 1200);
+  });
+  const status = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 45);
+  status.text = `$(edit) Blender: ${o.label}`;
+  status.tooltip = `Saving in Blender (Ctrl+S) rebuilds ${o.label} from it in REDcode. Click to stop watching.`;
+  status.command = "redcode.stopBlender";
+  status.show();
+  blenderSession = { glb: o.glb, process: child, watcher, status };
+  return true;
 }
 
 /** REDcode: Run game: through Steam for a Steam install, else the exe, with -modded for a REDmod project. */

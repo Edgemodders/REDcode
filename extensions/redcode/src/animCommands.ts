@@ -4,7 +4,7 @@
 import * as path from "node:path";
 import * as vscode from "vscode";
 import * as fs from "node:fs";
-import { asBridge, BoneGroups, bonesOf, editClip, footContacts, IkBones, madeClips, projectAt, readGlb, Rigs, suggestPins, type EditStep, type Model } from "../../../packages/anim-core/src/index";
+import { asBridge, BoneGroups, bonesOf, clipOnBody, editClip, footContacts, IkBones, madeClips, projectAt, readGlb, rebaseClip, rigFor, Rigs, standInGlb, suggestPins, type EditStep, type Model } from "../../../packages/anim-core/src/index";
 import { Cancelled, makeClip, makeRig, StageText, type MakeDeps, type MakeRequest, type MakeResult } from "./animMake";
 import type { AnimMaker } from "./cr2wEditor";
 import { gamePathOfUri } from "./gameFs";
@@ -18,6 +18,10 @@ export interface AnimCommandsHost {
   open(file: string, clip: string): Promise<void>;
   /** A key for another tool, asking the modder (REDcodeApi.keys). */
   keyFor(caller: string): Promise<string | undefined>;
+  /** Opens a .glb in Blender with the animation script and calls onSave after each save Blender exports (AE5). */
+  blender(o: { glb: string; label: string; onSave: () => Promise<void> }): Promise<boolean>;
+  /** Reads an open .anims again from disk, its view rebuilt in place. */
+  reload(file: string): Promise<void>;
 }
 
 /** A made clip's edits for the animation view's Edit panel (AE2). */
@@ -196,7 +200,7 @@ export function registerAnimCommands(context: vscode.ExtensionContext, host: Ani
 
   // ---- the Animation Editor in the animation view (docs/design/animation-editor.md, AE2) ----
   /** Each edited clip's earlier step lists, newest last, by its record's id: Undo puts the last back. Kept while REDcode runs. */
-  const history = new Map<string, EditStep[][]>();
+  const history = new Map<string, { steps: EditStep[]; base?: string }[]>();
   /** The file rebuilt last and when: its tab, opening again, shows the Edit panel where the modder left it. */
   let rebuilt: { file: string; at: number } | undefined;
   const editInfo = (file: string): EditInfo | undefined => {
@@ -233,7 +237,7 @@ export function registerAnimCommands(context: vscode.ExtensionContext, host: Ani
     );
     if (remember) {
       const list = history.get(m.id) ?? [];
-      list.push(before);
+      list.push({ steps: before });
       if (list.length > 30) list.shift();
       history.set(m.id, list);
     }
@@ -272,7 +276,40 @@ export function registerAnimCommands(context: vscode.ExtensionContext, host: Ani
       const list = m ? history.get(m.id) : undefined;
       const last = list?.pop();
       if (!m || !last) throw new Error("Nothing to undo");
-      return applySteps(file, last, false);
+      // A Blender save made a new starting point: the old one goes back first, then its steps.
+      if (last.base) fs.copyFileSync(last.base, path.join(path.dirname(m.glb), `${m.name}.base.glb`));
+      return applySteps(file, last.steps, false);
+    },
+    blender: async (file) => {
+      const m = madeOf(file);
+      if (!m) throw new Error("This file is not a made clip's own set");
+      const rig = rigFor(m.anim.rig);
+      if (!rig) throw new Error(`${m.name} is on ${m.anim.rig}; only man_base and woman_base clips open in Blender`);
+      const dir = host.projectDir()!;
+      const bridge = asBridge(host.deps.bridge());
+      // The clip as it plays now, on the base body, for Blender (decision 7 of docs/design/animation-timeline.md).
+      const glb = path.join(path.dirname(m.glb), `${m.name}.blender.glb`);
+      const body = await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: `Preparing ${m.name} for Blender` }, () => standInGlb(bridge, host.deps.cacheDir, rig));
+      fs.writeFileSync(glb, clipOnBody(readGlb(fs.readFileSync(body)), readGlb(fs.readFileSync(m.glb)), m.name));
+      let first = true;
+      return host.blender({
+        glb,
+        label: m.name,
+        onSave: async () => {
+          // Each save is the clip's new starting point; the first keeps the one before it, with its steps, for Undo.
+          const r = await rebaseClip(bridge, projectAt(dir), m.name, fs.readFileSync(glb), { cacheDir: host.deps.cacheDir, set: m.set, keepBefore: first, by: "Blender" });
+          if (first && r.before) {
+            const list = history.get(m.id) ?? [];
+            list.push({ steps: r.before.steps, base: r.before.file });
+            history.set(m.id, list);
+          }
+          first = false;
+          rebuilt = { file: path.resolve(file).toLowerCase(), at: Date.now() };
+          host.deps.log.appendLine(`Animation Editor: ${m.name} from Blender, ${r.report.seconds.toFixed(2)} s; its steps folded in`);
+          host.deps.refresh();
+          await host.reload(file);
+        },
+      });
     },
     madeFromOf: (file) => {
       const m = madeOf(file);

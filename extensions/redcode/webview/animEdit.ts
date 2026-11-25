@@ -39,6 +39,8 @@ export interface EditApi {
   apply(steps: EditStep[]): Promise<unknown>;
   /** The steps before the last Apply, put back. */
   undo(): Promise<unknown>;
+  /** AE5: the clip as it plays now opens in Blender; each save there becomes its new starting point. False when Blender was not found. */
+  blender?(): Promise<boolean>;
 }
 
 export interface EditView {
@@ -114,6 +116,25 @@ export function editPanel(api: EditApi, info: EditInfo, view: EditView): { box: 
   undo.disabled = !info.canUndo;
   const clear = el("button", "", "Clear");
   clear.title = "No steps: the clip as made (Apply to rebuild)";
+  // AE5: Edit in Blender, for what the panel cannot do.
+  const blender = el("button", "", "Edit in Blender");
+  blender.title = "Open the clip as it plays now in Blender, on the base body. Each save there (Ctrl+S) becomes the clip's new starting point, its steps folded in; Undo here puts the old one back";
+  blender.hidden = !api.blender;
+  blender.addEventListener("click", () => {
+    if (dirty()) return view.say("Apply or Revert the steps first: Blender opens the clip as it plays now");
+    blender.disabled = true;
+    status.textContent = "Opening Blender…";
+    api.blender!().then(
+      (opened) => {
+        blender.disabled = false;
+        status.textContent = opened ? "In Blender: save there (Ctrl+S) and the clip here rebuilds from it, its steps folded in." : "Blender was not found: set redcode.blenderPath.";
+      },
+      (e) => {
+        blender.disabled = false;
+        status.textContent = e instanceof Error ? e.message : String(e);
+      },
+    );
+  });
   const dirty = () => JSON.stringify(steps) !== applied;
   const renderSteps = () => {
     list.replaceChildren();
@@ -395,6 +416,7 @@ Click: go to its time, mark its bone, and change it in the form below`;
   box.append(
     list,
     row(apply, revert, undo, clear),
+    row(blender),
     status,
     el("div", "label", "Feet"),
     feet,

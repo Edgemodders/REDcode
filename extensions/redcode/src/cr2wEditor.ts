@@ -322,6 +322,8 @@ export interface AnimMaker {
   edit(file: string, steps: import("../../../packages/anim-core/src/index").EditStep[]): Promise<unknown>;
   /** AE2: the steps before the last edit, put back. */
   undo(file: string): Promise<unknown>;
+  /** AE5: the clip as it plays now opens in Blender; each save becomes its new starting point. False when Blender was not found. */
+  blender(file: string): Promise<boolean>;
 }
 
 /** Where the localization table's column widths are kept, for every file. */
@@ -467,6 +469,12 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
       void w.postMessage({ type: "changed", path: "" });
       if (ready) void w.postMessage({ type: "sectorScript", state: "applied", ...line });
     }
+  }
+
+  /** Reads an open document again from disk (a file rebuilt beside the editor), its pages rebuilt in place. */
+  async reloadFromDisk(uri: vscode.Uri): Promise<void> {
+    const document = this.documents.get(uri.toString());
+    if (document) await document.revert(this.requireBridge(), "edit");
   }
 
   /** The open document for an editor tab's URI, for the Properties view. */
@@ -839,6 +847,11 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
             // The Edit panel (AE2): only a project's made clip, in its own set.
             if (!this.animMaker || document.gamePath) return reply(m.id, null);
             return reply(m.id, this.animMaker.editInfo(document.uri.fsPath) ?? null);
+          case "animsBlender": {
+            if (!this.animMaker) throw new Error("Editing clips is not available");
+            if (document.log.length > 0) throw new Error("This file has unsaved changes: save or revert them first");
+            return reply(m.id, await this.animMaker.blender(document.uri.fsPath));
+          }
           case "animsEdit":
           case "animsEditUndo": {
             if (!this.animMaker) throw new Error("Editing clips is not available");
