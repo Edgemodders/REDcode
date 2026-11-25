@@ -265,6 +265,9 @@ body.mesh-mode #props { display: flex; flex-direction: column; overflow: hidden;
 .animedit .editsteps, .animedit .editfeet { display: flex; flex-direction: column; gap: 1px; }
 .animedit .editstep { display: flex; gap: 4px; align-items: center; font-size: 12px; }
 .animedit .editstep .edittext { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.animedit .editsteps .editstep .edittext:hover { text-decoration: underline; }
+.animedit .editsteps .editstep.chosen .edittext { color: var(--accent); }
+.animedit .editsteps .editstep.chosen { box-shadow: inset 2px 0 0 var(--accent); padding-left: 4px; }
 .animedit .editstep button.icon { padding: 0 5px; }
 .animedit .editnum { width: 4.5em; }
 .animedit .edittime { display: inline-flex; gap: 4px; align-items: center; }

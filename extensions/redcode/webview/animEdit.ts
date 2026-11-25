@@ -96,6 +96,8 @@ export function editPanel(api: EditApi, info: EditInfo, view: EditView): { box: 
   const applied = JSON.stringify(info.steps);
   let steps: EditStep[] = JSON.parse(applied);
   let busy = false;
+  /** The step clicked last, drawn yellow like the bone marker it shows (the owner's AE2 run). */
+  let chosen = -1;
 
   // ---- the steps -------------------------------------------------------------------------------
   const list = el("div", "editsteps");
@@ -114,13 +116,16 @@ export function editPanel(api: EditApi, info: EditInfo, view: EditView): { box: 
     list.replaceChildren();
     if (!steps.length) list.append(el("div", "dim", "No steps."));
     steps.forEach((s, i) => {
-      const row = el("div", "editstep");
+      const row = el("div", `editstep${i === chosen ? " chosen" : ""}`);
       const text = el("span", "edittext", `${i + 1}. ${stepText(s)}`);
       const at = "at" in s && typeof s.at === "number" ? s.at : "from" in s && typeof s.from === "number" ? s.from : undefined;
       // Click: go to its time and mark its bone (the owner's AE2 run: the marker showed the form's bone, not the step's).
       text.addEventListener("click", () => {
+        chosen = i;
+        for (const r of list.querySelectorAll(".editstep")) r.classList.remove("chosen");
+        row.classList.add("chosen");
         if (at !== undefined) view.seek(at);
-        if ("bone" in s && s.bone) view.showBone(s.bone);
+        view.showBone("bone" in s && s.bone ? s.bone : null);
       });
       text.title = `${JSON.stringify(s)}
 Click: go to its time and mark its bone`;
@@ -133,9 +138,9 @@ Click: go to its time and mark its bone`;
       };
       row.append(
         text,
-        tool("↑", "Earlier: steps run in order", () => { [steps[i - 1], steps[i]] = [steps[i], steps[i - 1]]; renderSteps(); }, i === 0),
-        tool("↓", "Later", () => { [steps[i + 1], steps[i]] = [steps[i], steps[i + 1]]; renderSteps(); }, i === steps.length - 1),
-        tool("×", "Take this step out", () => { steps.splice(i, 1); renderSteps(); }),
+        tool("↑", "Earlier: steps run in order", () => { [steps[i - 1], steps[i]] = [steps[i], steps[i - 1]]; chosen = -1; renderSteps(); }, i === 0),
+        tool("↓", "Later", () => { [steps[i + 1], steps[i]] = [steps[i], steps[i + 1]]; chosen = -1; renderSteps(); }, i === steps.length - 1),
+        tool("×", "Take this step out", () => { steps.splice(i, 1); chosen = -1; renderSteps(); }),
       );
       list.append(row);
     });
