@@ -1063,9 +1063,21 @@
 
   async function runSearch(query) {
     const grid = $("grid");
-    if (!query) { await renderGrid(); return; }
+    if (!query) { status(""); if (!isSpecial()) await renderGrid(); return; }
     status("searching…");
     try {
+      // On a sector's 3D view the hits are selected there, as things (the owner, 2026-11-25: "12 matches" showed
+      // nothing, since the list goes to the property pane the 3D view hides).
+      if (mode === "sector" && meshView?.selectEntry) {
+        const all = await search(query, "", 20000);
+        const entries = await request("sectorEntriesOf", { paths: all.hits.map((h) => h.path) });
+        const n = all.total.toLocaleString();
+        if (entries.length) meshView.selectEntry(entries);
+        status(`${n} match${all.total === 1 ? "" : "es"}: ${entries.length ? `${entries.length.toLocaleString()} thing${entries.length === 1 ? "" : "s"} selected` : "none is a thing in the view"}${all.truncated ? ` (of the first ${all.hits.length.toLocaleString()})` : ""}; the same search in Tree lists them`);
+        return;
+      }
+      // Another 3D view hides the property pane too: the matches show in Tree.
+      if (mode === "mesh" || mode === "anims") { mode = "tree"; await render(true); }
       const r = await search(query, "", 500);
       status(`${r.total.toLocaleString()} match${r.total === 1 ? "" : "es"}${r.truncated ? `, first ${r.hits.length} shown` : ""}`);
       const list = el("div", "results");
@@ -1762,7 +1774,13 @@
       const q = searchBox.value.trim();
       void goToPath(q).then((went) => (went ? undefined : runSearch(q)));
     }
-    if (e.key === "Escape") { searchBox.value = ""; void rerender(); }
+    if (e.key === "Escape") { searchBox.value = ""; status(""); void rerender(); }
+  });
+  // The box's own clear (its ×) or deleting the words: the count goes, and the property pane comes back.
+  searchBox.addEventListener("input", () => {
+    if (searchBox.value.trim() !== "") return;
+    status("");
+    if (!isSpecial()) void renderGrid();
   });
   vscode.postMessage({ type: "ready", sidebar });
 })();

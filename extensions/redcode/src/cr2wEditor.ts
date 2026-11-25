@@ -1067,6 +1067,26 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
             });
             return;
           }
+          case "sectorEntriesOf": {
+            // The footer search on a sector's 3D view (the owner, 2026-11-25): the hits, as paths in the file, become
+            // the node data entries they belong to: a hit under nodeData.Data.<k> is entry k, one under nodes.<n> every
+            // entry that places node n.
+            const sector = meshGamePath();
+            if (!sector) throw new Error("No game path for this sector");
+            const entries = new Set<number>();
+            const nodesHit = new Set<number>();
+            for (const p of (m.paths ?? []) as string[]) {
+              const e = /^nodeData\.Data\.(\d+)(?:\.|$)/.exec(p);
+              if (e) entries.add(Number(e[1]));
+              const n = /^nodes\.(\d+)(?:\.|$)/.exec(p);
+              if (n) nodesHit.add(Number(n[1]));
+            }
+            if (nodesHit.size) {
+              const r = await this.requireBridge().request<{ items: { index: number; node: number }[] }>("sector.nodes", { ...sectorRef(sector) });
+              for (const i of r.items ?? []) if (nodesHit.has(i.node)) entries.add(i.index);
+            }
+            return reply(m.id, [...entries].sort((a, b) => a - b));
+          }
           case "sectorProps":
           case "sectorPropsSet": {
             // The Properties tab (a modder's request, 2026-11-24): what the selected things share, edited on all of them.
