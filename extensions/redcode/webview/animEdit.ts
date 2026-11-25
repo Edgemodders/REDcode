@@ -98,6 +98,9 @@ export function editPanel(api: EditApi, info: EditInfo, view: EditView): { box: 
   let busy = false;
   /** The step clicked last, drawn yellow like the bone marker it shows (the owner's AE2 run). */
   let chosen = -1;
+  /** The step the form changes, or -1 when it adds a new one. */
+  let editing = -1;
+  const formLabel = el("div", "label", "Add a Step");
 
   // ---- the steps -------------------------------------------------------------------------------
   const list = el("div", "editsteps");
@@ -122,13 +125,16 @@ export function editPanel(api: EditApi, info: EditInfo, view: EditView): { box: 
       // Click: go to its time and mark its bone (the owner's AE2 run: the marker showed the form's bone, not the step's).
       text.addEventListener("click", () => {
         chosen = i;
+        editing = i;
         for (const r of list.querySelectorAll(".editstep")) r.classList.remove("chosen");
         row.classList.add("chosen");
         if (at !== undefined) view.seek(at);
-        view.showBone("bone" in s && s.bone ? s.bone : null);
+        // The form below takes the step's values: change them and Update Step.
+        kind.value = s.step;
+        buildForm(s);
       });
       text.title = `${JSON.stringify(s)}
-Click: go to its time and mark its bone`;
+Click: go to its time, mark its bone, and change it in the form below`;
       const tool = (label: string, title: string, run: () => void, off = false) => {
         const b = el("button", "icon", label);
         b.title = title;
@@ -138,9 +144,9 @@ Click: go to its time and mark its bone`;
       };
       row.append(
         text,
-        tool("↑", "Earlier: steps run in order", () => { [steps[i - 1], steps[i]] = [steps[i], steps[i - 1]]; chosen = -1; renderSteps(); }, i === 0),
-        tool("↓", "Later", () => { [steps[i + 1], steps[i]] = [steps[i], steps[i + 1]]; chosen = -1; renderSteps(); }, i === steps.length - 1),
-        tool("×", "Take this step out", () => { steps.splice(i, 1); chosen = -1; renderSteps(); }),
+        tool("↑", "Earlier: steps run in order", () => { [steps[i - 1], steps[i]] = [steps[i], steps[i - 1]]; startNew(); }, i === 0),
+        tool("↓", "Later", () => { [steps[i + 1], steps[i]] = [steps[i], steps[i + 1]]; startNew(); }, i === steps.length - 1),
+        tool("×", "Take this step out", () => { steps.splice(i, 1); startNew(); }),
       );
       list.append(row);
     });
@@ -167,10 +173,18 @@ Click: go to its time and mark its bone`;
   };
   apply.addEventListener("click", () => void run("Rebuilding the clip", () => api.apply(steps)));
   undo.addEventListener("click", () => void run("Putting the last steps back", () => api.undo()));
-  revert.addEventListener("click", () => { steps = JSON.parse(applied); renderSteps(); });
-  clear.addEventListener("click", () => { steps = []; renderSteps(); });
+  revert.addEventListener("click", () => { steps = JSON.parse(applied); startNew(); });
+  clear.addEventListener("click", () => { steps = []; startNew(); });
   const add = (s: EditStep) => {
     steps.push(s);
+    renderSteps();
+  };
+  /** The form's step: in place of the one being changed, or added at the end. */
+  const commit = (s: EditStep) => {
+    if (editing >= 0 && editing < steps.length) {
+      steps[editing] = s;
+      chosen = editing;
+    } else steps.push(s);
     renderSteps();
   };
 
@@ -247,34 +261,42 @@ Click: go to its time and mark its bone`;
 
   const kind = select([["pin", "Pin a foot or hand"], ["key", "Key a bone"], ["layer", "Layer another clip"], ["trim", "Trim"], ["loop", "Loop"]], "pin", "What the step does");
   const form = el("div", "editform");
-  const buildForm = () => {
+  /**
+   * The form, empty for a new step or filled from a step to change (the owner's AE2 run: a step could only be
+   * taken out and made again). Its button adds the step, or puts it in place of the one being changed.
+   */
+  const buildForm = (fill?: EditStep) => {
     form.replaceChildren();
     boneTarget = null;
     view.showBone(null);
-    const addButton = el("button", "on", "Add Step");
+    formLabel.textContent = editing >= 0 ? `Change Step ${editing + 1}` : "Add a Step";
+    const addButton = el("button", "on", editing >= 0 ? "Update Step" : "Add Step");
+    addButton.title = editing >= 0 ? `Put these values in step ${editing + 1}; Apply rebuilds the clip` : "Add this step at the end of the list; Apply rebuilds the clip";
+    const f = fill as Record<string, any> | undefined;
     switch (kind.value) {
       case "pin": {
-        const bone = boneSelect(info.ikBones, "LeftFoot");
+        const bone = boneSelect(info.ikBones, f?.bone ?? "LeftFoot");
         boneTarget = bone;
-        const from = timeBox("From", view.now());
-        const to = timeBox("To", info.seconds);
-        addButton.addEventListener("click", () => add({ step: "pin", bone: bone.value, from: read(from.input), to: read(to.input) }));
+        const from = timeBox("From", f?.from ?? view.now());
+        const to = timeBox("To", f?.to ?? info.seconds);
+        addButton.addEventListener("click", () => commit({ step: "pin", bone: bone.value, from: read(from.input), to: read(to.input), ...(f?.blend !== undefined ? { blend: f.blend } : {}), ...(f?.keepTurn !== undefined ? { keepTurn: f.keepTurn } : {}) }));
         form.append(row(bone), row(from.wrap, to.wrap));
         break;
       }
       case "key": {
-        const bone = boneSelect(info.bones, info.bones.includes("Head") ? "Head" : info.bones[0]);
+        const bone = boneSelect(info.bones, f?.bone ?? (info.bones.includes("Head") ? "Head" : info.bones[0]));
         boneTarget = bone;
-        const at = timeBox("At", view.now());
-        const yaw = number(0, 1, "Yaw: degrees about the character's up; + turns to its left");
-        const pitch = number(0, 1, "Pitch: degrees about the character's right");
-        const roll = number(0, 1, "Roll: degrees about the character's forward");
-        const mx = number(0, 1, "Move right, in cm (feet and hands only: the leg or arm bends)");
-        const my = number(0, 1, "Move up, in cm");
-        const mz = number(0, 1, "Move forward, in cm");
-        const ease = select(Eases.map((e) => [e, e]), "smooth", "How the change runs into this key");
+        const at = timeBox("At", f?.at ?? view.now());
+        const yaw = number(f?.turn?.yaw ?? 0, 1, "Yaw: degrees about the character's up; + turns to its left");
+        const pitch = number(f?.turn?.pitch ?? 0, 1, "Pitch: degrees about the character's right");
+        const roll = number(f?.turn?.roll ?? 0, 1, "Roll: degrees about the character's forward");
+        const cm = (i: number) => Math.round((f?.move?.[i] ?? 0) * 1000) / 10;
+        const mx = number(cm(0), 1, "Move right, in cm (feet and hands only: the leg or arm bends)");
+        const my = number(cm(1), 1, "Move up, in cm");
+        const mz = number(cm(2), 1, "Move forward, in cm");
+        const ease = select(Eases.map((e) => [e, e]), f?.ease ?? "smooth", "How the change runs into this key");
         // 0.6 s each side: a single key reads as a turn, not a flick (the owner's AE2 run: 0.3 s was easy to miss).
-        const blend = number(0.6, 0.05, "Seconds the change fades in before the first key on this bone and out after the last; two keys hold it between them");
+        const blend = number(f?.blend ?? 0.6, 0.05, "Seconds the change fades in before the first key on this bone and out after the last; two keys hold it between them");
         const moveRow = row(el("span", "dim", "Move cm"), mx, my, mz);
         const showMove = () => (moveRow.hidden = !info.ikBones.includes(bone.value));
         bone.addEventListener("change", showMove);
@@ -284,55 +306,90 @@ Click: go to its time and mark its bone`;
           const move: [number, number, number] = [read(mx) / 100, read(my) / 100, read(mz) / 100];
           const moving = !moveRow.hidden && move.some((v) => v);
           if (!Object.keys(turn).length && !moving) return view.say("A key needs a turn or a move");
-          add({ step: "key", bone: bone.value, at: read(at.input), ...(Object.keys(turn).length ? { turn } : {}), ...(moving ? { move } : {}), ease: ease.value as Ease, blend: read(blend) });
+          commit({ step: "key", bone: bone.value, at: read(at.input), ...(Object.keys(turn).length ? { turn } : {}), ...(moving ? { move } : {}), ease: ease.value as Ease, blend: read(blend) });
         });
         form.append(row(bone, at.wrap), row(el("span", "dim", "Yaw"), yaw, el("span", "dim", "Pitch"), pitch, el("span", "dim", "Roll"), roll), moveRow, row(el("span", "dim", "Ease"), ease, el("span", "dim", "Blend s"), blend));
         break;
       }
       case "layer": {
-        const source = select([...info.others.map((o): [string, string] => [`made:${o}`, o]), ["game", "A game clip…"]], info.others.length ? `made:${info.others[0]}` : "game", "The clip whose motion goes on the bones");
+        const src = f?.source as LayerSource | undefined;
+        const choices: [string, string][] = info.others.map((o): [string, string] => [`made:${o}`, o]);
+        // A source the list does not offer (a made clip since renamed, a .glb an assistant named) stays as it was.
+        if (src && "made" in src && !info.others.includes(src.made)) choices.unshift([`made:${src.made}`, src.made]);
+        if (src && "file" in src) choices.unshift([`file:${src.file}`, src.file.split(/[\\/]/).pop() ?? src.file]);
+        choices.push(["game", "A game clip…"]);
+        const first = src ? ("made" in src ? `made:${src.made}` : "file" in src ? `file:${src.file}` : "game") : info.others.length ? `made:${info.others[0]}` : "game";
+        const source = select(choices, first, "The clip whose motion goes on the bones");
         const gameSet = el("input");
         gameSet.type = "text";
         gameSet.placeholder = "the game's .anims set, by game path";
         const gameClip = el("input");
         gameClip.type = "text";
         gameClip.placeholder = "the clip in it, by name";
+        if (src && "game" in src) {
+          gameSet.value = src.game.set;
+          gameClip.value = src.game.clip;
+        }
         const gameRow = row(gameSet, gameClip);
         const showGame = () => (gameRow.hidden = source.value !== "game");
         source.addEventListener("change", showGame);
         showGame();
-        const group = select(Object.keys(info.groups).filter((g) => g !== "all").map((g) => [g, BoneGroupLabels[g] ?? g]), "rightHand", "The bones the layer moves");
-        const at = timeBox("From", view.now());
-        const weight = number(1, 0.1, "How much of the layer: 0 to 1");
-        const blendIn = number(0.2, 0.05, "Seconds it blends in");
-        const blendOut = number(0.2, 0.05, "Seconds it blends out");
+        const groups: [string, string][] = Object.keys(info.groups).filter((g) => g !== "all").map((g) => [g, BoneGroupLabels[g] ?? g]);
+        // A layer on bones by name (an assistant's) keeps its bones unless a group is picked.
+        const keptBones: string[] | undefined = !f?.group && Array.isArray(f?.bones) && f.bones.length ? f.bones : undefined;
+        if (keptBones) groups.unshift(["", `${keptBones.length} bones, as given`]);
+        const group = select(groups, keptBones ? "" : f?.group ?? "rightHand", "The bones the layer moves");
+        const at = timeBox("From", f?.at ?? view.now());
+        const weight = number(f?.weight ?? 1, 0.1, "How much of the layer: 0 to 1");
+        const blendIn = number(f?.blendIn ?? 0.2, 0.05, "Seconds it blends in");
+        const blendOut = number(f?.blendOut ?? 0.2, 0.05, "Seconds it blends out");
         addButton.addEventListener("click", () => {
-          const src = source.value === "game" ? (gameSet.value.trim() && gameClip.value.trim() ? { game: { set: gameSet.value.trim(), clip: gameClip.value.trim() } } : null) : { made: source.value.slice("made:".length) };
-          if (!src) return view.say("Name the game's set and the clip in it");
-          add({ step: "layer", source: src, group: group.value as BoneGroup, at: read(at.input), weight: Math.min(1, Math.max(0, read(weight))), blendIn: read(blendIn), blendOut: read(blendOut) });
+          const v = source.value;
+          const picked: LayerSource | null = v === "game" ? (gameSet.value.trim() && gameClip.value.trim() ? { game: { set: gameSet.value.trim(), clip: gameClip.value.trim() } } : null) : v.startsWith("file:") ? { file: v.slice(5) } : { made: v.slice("made:".length) };
+          if (!picked) return view.say("Name the game's set and the clip in it");
+          const on = group.value ? { group: group.value as BoneGroup } : { bones: keptBones ?? [] };
+          commit({ step: "layer", source: picked, ...on, at: read(at.input), weight: Math.min(1, Math.max(0, read(weight))), blendIn: read(blendIn), blendOut: read(blendOut) });
         });
         form.append(row(source), gameRow, row(el("span", "dim", "On"), group), row(at.wrap), row(el("span", "dim", "Weight"), weight, el("span", "dim", "In s"), blendIn, el("span", "dim", "Out s"), blendOut));
         break;
       }
       case "trim": {
-        const from = timeBox("From", 0);
-        const to = timeBox("To", info.seconds);
-        addButton.addEventListener("click", () => add({ step: "trim", from: read(from.input), to: read(to.input) }));
+        const from = timeBox("From", f?.from ?? 0);
+        const to = timeBox("To", f?.to ?? info.seconds);
+        addButton.addEventListener("click", () => commit({ step: "trim", from: read(from.input), to: read(to.input) }));
         form.append(row(from.wrap, to.wrap));
         break;
       }
       case "loop": {
-        const blend = number(0.4, 0.05, "Seconds at the end that flow back into the first frame");
-        addButton.addEventListener("click", () => add({ step: "loop", blend: read(blend) }));
+        const blend = number(f?.blend ?? 0.4, 0.05, "Seconds at the end that flow back into the first frame");
+        addButton.addEventListener("click", () => commit({ step: "loop", blend: read(blend) }));
         form.append(row(el("span", "dim", "Blend s"), blend));
         break;
       }
     }
-    form.append(row(addButton));
+    const buttons = row(addButton);
+    if (editing >= 0) {
+      const fresh = el("button", "", "New Step");
+      fresh.title = "Stop changing this step: the form adds a new one";
+      fresh.addEventListener("click", () => startNew());
+      buttons.append(fresh);
+    }
+    form.append(buttons);
     // The form's bone is marked at once, not only after it changes.
     if (boneTarget) view.showBone(boneTarget.value);
   };
-  kind.addEventListener("change", buildForm);
+  /** Back to adding: no step chosen, the form empty. */
+  const startNew = () => {
+    editing = -1;
+    chosen = -1;
+    renderSteps();
+    buildForm();
+  };
+  kind.addEventListener("change", () => {
+    // Another kind is another step: the form adds it.
+    editing = -1;
+    buildForm();
+  });
   buildForm();
 
   box.append(
@@ -342,7 +399,7 @@ Click: go to its time and mark its bone`;
     el("div", "label", "Feet"),
     feet,
     row(pinAll),
-    el("div", "label", "Add a Step"),
+    formLabel,
     row(kind),
     form,
   );
