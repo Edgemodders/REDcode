@@ -4,6 +4,10 @@ What changed in each release of `@edgemodders/world-view`. Changes are grouped a
 
 ## Unreleased
 
+## 0.1.0 (2026-11-25)
+
+The first release: what draws the sector view of REDcode 0.10.17.
+
 **New**
 
 - **Overlaps:** `findOverlaps` in the host half lists the sectors whose things reach into one, grouped and nearest first, keeping each sector's boxes in a cache folder; `setSectorLook` in the page half draws a sector's things see-through in a colour, still pickable.

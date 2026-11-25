@@ -10,6 +10,10 @@
 #                        (its version in pack.json, its notes in changelog.md, its Nexus page in its nexus/;
 #                        the zip is tools/release/pack-zip.mjs, a draft when not released)
 #
+#   A REDcode release takes world-view with it: a world-view version with no release yet is published by
+#   the same run (npm and its own GitHub release), and a packages/world-view changed since its last
+#   release without a new version stops the run before anything is built.
+#
 #   Run workflow (Actions tab)                  builds it and keeps the files as the run's artifact, to
 #                                               install and test before a release; publishes nothing
 #   Run workflow, "Make a release" ticked       also publishes it (an extension to the VS Code
@@ -147,6 +151,31 @@ jobs:
             node tools/release-notes.mjs "${DIR}" "${VERSION}" --nexus --out "${RUNNER_TEMP}/nexus-notes.txt"
           fi
 
+      # world-view goes with a REDcode release, so the package is never left behind what REDcode ships (the
+      # owner, 2026-11-25). Before anything is built: a version with no release yet is published by this run
+      # too (its CHANGELOG.md section is checked here), and a package changed since its last release
+      # without a new version stops the run.
+      - name: world-view goes with REDcode
+        if: inputs.release && inputs.what == 'REDcode'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          wv=$(node -p "require('./packages/world-view/package.json').version")
+          tag="world-view-v${wv}"
+          echo "WV_VERSION=${wv}" >> "$GITHUB_ENV"
+          if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${tag}" --silent >/dev/null 2>&1; then
+            if ! git diff --quiet "${tag}" HEAD -- packages/world-view ':(exclude)packages/world-view/CHANGELOG.md'; then
+              echo "::error::packages/world-view changed since ${tag}. Raise its version and give its CHANGELOG.md a section for it, then run again: this run then publishes it with REDcode."
+              git diff --stat "${tag}" HEAD -- packages/world-view ':(exclude)packages/world-view/CHANGELOG.md'
+              exit 1
+            fi
+            echo "@edgemodders/world-view ${wv} is released and unchanged since"
+          else
+            node tools/release-notes.mjs packages/world-view "${wv}" --out "${RUNNER_TEMP}/world-view-notes.md"
+            echo "WV_RELEASE=true" >> "$GITHUB_ENV"
+            echo "@edgemodders/world-view ${wv} goes out with this release"
+          fi
+
       # The Nexus tool, shared by the Edgemodders repos at this tag (REDnode's docs/edgerepo.md). Outside
       # the workspace, so nothing packs it.
       - name: The Nexus tool
@@ -193,6 +222,16 @@ jobs:
           npm run build --workspace "${DIR}"
           mkdir -p dist
           npm pack --workspace "${DIR}" --pack-destination dist
+
+      # Built before anything is published, so a world-view that does not build stops REDcode's release too.
+      - name: Build world-view for the REDcode release
+        id: wvbuild
+        if: env.WV_RELEASE == 'true'
+        run: |
+          npm run typecheck --workspace packages/world-view
+          npm run build --workspace packages/world-view
+          mkdir -p dist
+          npm pack --workspace packages/world-view --pack-destination dist
 
       # A REDnode app pack: built with its own build.mjs and zipped; a release build when released (its
       # changelog checked), a draft otherwise.
@@ -272,3 +311,23 @@ jobs:
           else
             node "$RUNNER_TEMP/EDGErepo/tools/nexus/nexus.mjs" release --version "${VERSION}" --zip "dist/REDcode-${VERSION}-nexus.zip" --notes "${RUNNER_TEMP}/nexus-notes.txt"
           fi
+
+      # world-view with a REDcode release (see "world-view goes with REDcode"). Last, and tried even when a
+      # step before it failed: a re-run of REDcode stops at its tag, and What world-view then does the same.
+      - name: world-view to npm, with the REDcode release
+        id: wvnpm
+        if: ${{ env.WV_RELEASE == 'true' && !cancelled() && steps.wvbuild.outcome == 'success' }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if npm view "@edgemodders/world-view@${WV_VERSION}" version >/dev/null 2>&1; then
+            echo "@edgemodders/world-view ${WV_VERSION} is already on npm"
+            exit 0
+          fi
+          npm publish --workspace packages/world-view --provenance --access public
+
+      - name: world-view's GitHub release, with the REDcode release
+        if: ${{ env.WV_RELEASE == 'true' && !cancelled() && steps.wvnpm.outcome == 'success' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "world-view-v${WV_VERSION}" --target "${GITHUB_SHA}" --title "@edgemodders/world-view ${WV_VERSION}" --notes-file "${RUNNER_TEMP}/world-view-notes.md" --latest=false

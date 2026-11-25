@@ -2,7 +2,11 @@
 
 Cyberpunk 2077's streaming sectors in three.js, for the EDGE tools. REDcode's sector view draws with it, and EDGEbuilder's Sector Tools and world view will too. The API was agreed between REDcode and EDGEbuilder in [EDGEbuilder #8](https://github.com/Edgemodders/EDGEbuilder/issues/8). The design is at https://edgemodders.github.io/REDcode/design/sector-view.html.
 
-It needs [REDbridge](https://github.com/Edgemodders/REDbridge) 0.12.0 or later, for `sector.find` and `sector.nodes`. Not published to npm yet.
+It needs [REDbridge](https://github.com/Edgemodders/REDbridge) 0.12.0 or later, for `sector.find` and `sector.nodes`.
+
+```
+npm install @edgemodders/world-view three
+```
 
 ## The host half (Node)
 
