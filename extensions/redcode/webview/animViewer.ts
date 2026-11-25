@@ -585,22 +585,6 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
   }
   // AT2: the Make panel above the list, shown by the bar's Make button.
   const make = source.make ? makePanel(source.make, () => info()?.name) : undefined;
-  if (make) {
-    const makeButton = el("button", "", "Make");
-    makeButton.title = source.make!.why ?? "Make a clip from words with Uthana, or from a .glb, as a new clip or in place of the one shown";
-    makeButton.addEventListener("click", () => {
-      make.box.hidden = !make.box.hidden;
-      makeButton.classList.toggle("on", !make.box.hidden);
-      if (!make.box.hidden) make.focus();
-    });
-    bar.insertBefore(makeButton, bar.firstChild);
-    side.append(make.box);
-    // A made clip's own tab opens with the panel shown: its words and how it was made are what it is about.
-    if (source.make?.from && !source.make.why) {
-      make.box.hidden = false;
-      makeButton.classList.add("on");
-    }
-  }
   // AE2: the Edit panel on a made clip's own set, shown by the bar's Edit button.
   const editInfo = source.edit ? await source.edit.info().catch(() => null) : null;
   // A marker on the bone a step's form names; clicking a joint in the view picks it.
@@ -627,21 +611,6 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
       })
     : undefined;
   if (editor) {
-    const editButton = el("button", "", "Edit");
-    editButton.title = "Edit this made clip: pin a sliding foot, key a bone, lay another clip on some bones, trim, loop. The clip as made is kept";
-    editButton.addEventListener("click", () => {
-      editor.box.hidden = !editor.box.hidden;
-      editButton.classList.toggle("on", !editor.box.hidden);
-      if (editor.box.hidden) showBone(null);
-    });
-    bar.insertBefore(editButton, bar.firstChild);
-    side.append(editor.box);
-    // A clip just rebuilt from the panel opens with it shown, where the modder left it; an edited clip too, since
-    // its steps are what it is about.
-    if (editInfo?.open || editInfo?.edited) {
-      editor.box.hidden = false;
-      editButton.classList.add("on");
-    }
     // A click (not a drag) near a joint fills the form's bone, when the form has one.
     let down: { x: number; y: number } | null = null;
     renderer.domElement.addEventListener("pointerdown", (e) => (down = { x: e.clientX, y: e.clientY }));
@@ -660,7 +629,48 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
       if (best) editor.pickBone(best.name);
     });
   }
-  side.append(el("div", "label", "Animations"), filter, list, setBox);
+  // The side column's tabs (the owner, 2026-11-25): Clip, Edit and Animations, each with the column's whole height,
+  // where the Make and Edit panels above the list squeezed each other and the list.
+  const animPane = el("div", "animpane");
+  animPane.append(el("div", "label", "Animations"), filter, list, setBox);
+  const tabRow = el("div", "sidetabs");
+  type SideTab = { button: HTMLButtonElement; pane: HTMLElement; shown?: () => void; left?: () => void };
+  const sideTabs: SideTab[] = [];
+  let currentTab: SideTab | undefined;
+  const showTab = (t: SideTab) => {
+    if (currentTab && currentTab !== t) currentTab.left?.();
+    for (const x of sideTabs) {
+      x.pane.hidden = x !== t;
+      x.button.classList.toggle("on", x === t);
+    }
+    currentTab = t;
+  };
+  const addTab = (label: string, title: string, pane: HTMLElement, shown?: () => void, left?: () => void): SideTab => {
+    const button = el("button", "sidetab", label) as HTMLButtonElement;
+    button.title = title;
+    pane.classList.add("sidepane");
+    const t: SideTab = { button, pane, shown, left };
+    button.addEventListener("click", () => {
+      showTab(t);
+      t.shown?.();
+    });
+    sideTabs.push(t);
+    tabRow.append(button);
+    side.append(pane);
+    return t;
+  };
+  side.append(tabRow);
+  const clipTab = make
+    ? addTab("Clip", source.make!.why ?? "Make a clip from words with Uthana, or from a .glb, as a new clip or in place of the one shown", make.box, () => make.focus())
+    : undefined;
+  const editTab = editor
+    ? addTab("Edit", "Edit this made clip: pin a sliding foot, key a bone, lay another clip on some bones, trim, loop. The clip as made is kept", editor.box, undefined, () => showBone(null))
+    : undefined;
+  const animsTab = addTab("Animations", "The clips in this file", animPane);
+  tabRow.hidden = sideTabs.length < 2;
+  // A clip just rebuilt from the Edit panel opens on Edit, where the modder left it, and an edited clip too, since its
+  // steps are what it is about; a made clip's own tab opens on Clip, its words and how it was made.
+  showTab(editTab && (editInfo?.open || editInfo?.edited) ? editTab : clipTab && source.make?.from && !source.make.why ? clipTab : animsTab);
   const rows: HTMLElement[] = source.animations.map((a, i) => {
     const row = el("div", "part animrow");
     const fps = fpsOf(a);

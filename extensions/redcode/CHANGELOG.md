@@ -20,6 +20,10 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 - Assistants in the game can read the game's window mode and resolution, with the sizes it offers: `redcode__display`, in REDcode's REDnode package (0.3.0).
 - Sector scripts: a **Scripts** button in a sector's 3D view runs a small JavaScript file on every node or on the selection, to find nodes (such as every streaming distance under 45 m), select them, or change their values. Changes are shown first and applied as one edit that one Undo takes back, and only in a project's copy of a sector: run on the game's sector, one answer adds it to the project, opens the copy and makes the changes there. New Script, Edit, Remove and Debug (VS Code's own debugger) are in its menu, with three examples, among them selecting every copy of the selected meshes. A script can read other files, call another EDGE tool, and hand nodes to an assistant as a request (https://edgemodders.github.io/REDcode/design/sector-scripts.html).
 
+**Changed**
+
+- The animation view's side column has tabs, **Clip**, **Edit** and **Animations**, in place of the Make and Edit buttons in its bar: making a clip, editing one and the list of clips each get the column's whole height.
+
 **Fixed**
 
 - The CR2W editor shows what is inside an instanced mesh node's buffers (`buffer` and `cookedWorldTransformsBuffer`): their inner nodes, transform ranges and transforms open as a tree and page like any list, where only a type name showed before. Read-only for now.

@@ -855,11 +855,11 @@ Run by EDGEweb's session by script on 2026-11-24 (EDGEkit 1.143.1 trial on a scr
 
 Built 2026-11-24 ([design](design/animation-editor.html)): **Edit in Blender** in the Edit panel. Checked with Blender (the owner's, `L:\SteamLibrary\steamapps\common\Blender`) in the background on a copy of the pack's project (scratchpad `ae5check.mjs`): the clip on the base body opened at 30 fps, frames 0 to 149; a head key 45° further at frame 75 and a save exported the GLB; the clip rebuilt from it has 150 frames, the head 45° off at frame 75 and 0° at frame 0, the left foot and right hand within 0 mm of before; the record says `reshaped` by Blender, the old start kept as `<name>.before.glb`. **Not run:** in VS Code with Blender's window.
 
-F5 with **Run REDcode**; open `man_stands_relaxed_crosses.anims` from the Project view; **Edit**.
+F5 with **Run REDcode**; open `man_stands_relaxed_crosses.anims` from the Project view; the **Edit** tab in the side column (since 2026-11-25 the side column has the tabs Clip, Edit and Animations, in place of the bar's Make and Edit buttons).
 
 | # | Do | Expected |
 |---|---|---|
-| B1 | Leave a step or two applied (a pin, a key). **Edit in Blender** | "Preparing… for Blender", then Blender opens on the body with the clip, at 30 fps, its range the clip's frames; a status bar item "Blender: man_stands_relaxed_crosses"; the panel says to save in Blender |
+| B1 | Leave a step or two applied (a pin, a key). **Edit in Blender** (under Apply, Revert, Undo and Clear) | "Preparing… for Blender", then Blender opens on the body with the clip, at 30 fps, its range the clip's frames; a status bar item "Blender: man_stands_relaxed_crosses"; the panel says to save in Blender |
 | B2 | In Blender, Pose Mode: at a frame mid-clip, turn the head or raise an arm, key it (I), then **Ctrl+S** | A notification "… from Blender"; the view here rebuilds in place at the same moment and camera; the change shows; the panel's steps are empty (folded in) |
 | B3 | Another change in Blender, **Ctrl+S** again | The view shows the second change too |
 | B4 | Here: **Undo** | The clip before Blender comes back, with its steps |
