@@ -59,7 +59,7 @@ The order of steps matters and is the list's order: Trim first, then Layers and 
 | **AE2** | The editor page in REDcode's animation view: **Edit** on a made clip (and on a game clip, copied in first) | A hand test |
 | **AE3** | The same page in the game: the pack's **Edit**, an overlay window, and **Try in game** | A hand test in the game |
 | **AE4** | Hand poses from the game's clips, and Join through Uthana | A hand test |
-| **AE5** (agreed 2026-11-24, next) | **Edit in Blender**, as REDcode's Edit in Blender for meshes (`src/blender.ts`): the clip as it plays now, on the base body, opens in Blender at 30 fps; each save writes a .glb that REDcode watches, fits onto the rig by bone name and makes the clip's new starting point (the steps folded in and emptied, the old start kept for Undo) | A hand test with Blender |
+| **AE5** (agreed 2026-11-24; built the same day) | **Edit in Blender**, as REDcode's Edit in Blender for meshes (`src/blender.ts`): the clip as it plays now, on the base body, opens in Blender at 30 fps; each save writes a .glb that REDcode watches, fits onto the rig by bone name and makes the clip's new starting point (the steps folded in and emptied, the old start kept for Undo) | A hand test with Blender |
 | **Timeline** | Moves on tracks posed by grabbing bones: its own page, [Animation Timeline](animation-timeline.html), stages TL1 to TL5, after AE5 | Hand tests |
 
 AE1 alone already lets an assistant fix a clip ("pin the left foot from 1.2 s to 3 s, then lay a fist on the right hand from 2 s").
@@ -78,6 +78,12 @@ AE1 alone already lets an assistant fix a clip ("pin the left foot from 1.2 s to
 - **The host** (`src/animCommands.ts`, `editInfo`, `edit`, `undo`; `animsEditInfo`, `animsEdit` and `animsEditUndo` in `src/cr2wEditor.ts`): Apply runs anim-core's `editClip` on the whole list, then closes the tab and opens it again on the new set at the clip, with the panel shown. A file with unsaved changes is refused. The bones offered are the skeleton's joints (68 on man_base, without Root, Trajectory and reference_joint).
 - **Not yet:** game clips edited in place (the panel shows only on a made clip's own set); dragging keys on a timeline; the feet's contacts drawn on the scrub bar; hand poses (AE4).
 - **Checked:** in Chrome over REDbridge 0.19.0 with the editor page and a stand-in host over anim-core, on a copy of the pack's project: Pin All Sliding and a head key through the form, Apply (the page came back with the 4 steps from the record, the feet sliding 0.1, 0.5 and 0 cm), Undo (as made, 3.5, 1.6 and 1.4 cm, the panel still shown), a layer of another made clip on the right hand (20 bones from 1 s). Not run in VS Code: that is the hand test.
+
+## AE5 as built (2026-11-24)
+
+- **Edit in Blender** in the Edit panel (hidden only when no host offers it): the clip as it plays now (its `<name>.glb`, the steps in it) on the base body (anim-core's `clipOnBody` over the stand-in's `standInGlb`), written as `<name>.blender.glb` beside the clip and opened in Blender with `src/blender.ts`'s `BlenderAnimScript` (the scene at 30 fps before the import, its range the clip's frames; each save exports the animation, sampled at every frame). One Blender session at a time, shared with the mesh's Edit in Blender, with its status bar item.
+- **Each save** (`editAnimationInBlender` in `src/extension.ts` watches the file): anim-core's `rebaseClip` fits it by bone name (no turn, no lift) and makes it the clip's new starting point, the steps emptied; the first save of a session keeps the old start as `<name>.before.glb` and its steps, which **Undo** puts back. The open view reloads in place. The record gets `reshaped: { by: "Blender", at }`.
+- **Checked:** see `docs/testing.md`, Animation Editor (AE5).
 
 ## Decisions (agreed 2026-11-24)
 

@@ -41,7 +41,8 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [anim-core check](#anim-core-check) | Automated, on the PC (game and Uthana key) | Animation Tools AT1 | 2026-11-22 | Pass, 22 of 22 |
 | [Animation Tools AT2](#animation-tools-at2) | By hand, in REDcode and the game | Animation Tools AT2 | 2026-11-22 | Pass (owner), steps 1 to 9 with 3b, after fixes |
 | [Animation Tools pack (AT3)](#animation-tools-pack-at3) | By hand, in the game | Animation Tools AT3 | 2026-11-22 | **Passed** 2026-11-24 (run 2, with the fixes it raised) |
-| [Animation Editor (AE2)](#animation-editor-ae2) | By hand | Animation Editor AE2 | 2026-11-24 | Not run (checked in Chrome over the real REDbridge) |
+| [Animation Editor (AE5)](#animation-editor-ae5) | By hand, with Blender | Animation Editor AE5 | 2026-11-24 | Not run (checked with Blender in the background) |
+| [Animation Editor (AE2)](#animation-editor-ae2) | By hand | Animation Editor AE2 | 2026-11-24 | **Passed** 2026-11-24 (owner, D1 to D7, with the changes run 1 asked for) |
 | [Animation Editor (AE1)](#animation-editor-ae1) | Script, MCP client, and by hand in the game | Animation Editor AE1 | 2026-11-24 | **Passed** 2026-11-24 (script, MCP, and E1 to E3 in the game) |
 | [CR2W editor: buffers and nodeData](#cr2w-editor-buffers-and-nodedata) | By hand | A modder's report, 2026-11-24 | 2026-11-24 | **Passed** 2026-11-24 |
 | [Replace with a WAV, titled models (#29), every window's project (#32)](#replace-with-a-wav-titled-models-29-and-every-windows-project-32) | By hand, in the game | Requests | 2026-11-20 | Pass (owner), with two fixes |
@@ -832,6 +833,20 @@ Run 2, the rise (owner, 2026-11-24): with the Root still, he faces V the whole t
 
 **Result 2026-11-24, reported by the owner: all 11 steps pass.** The owner did not close every VS Code window (too many open), but step 2 still showed the pack's own project, since no REDcode window with a project had the focus since the pack started; at step 9 a new window on AnimProbeD and the refresh icon moved the pack there, and the clip went into it. Found there, for later: the pack follows the REDcode window last focused with a project, which is fragile with many windows open; a picker of the open REDcode windows (the `redcode` REDnode package's `projects()`) is to come. **AT3 passes.** Next: AT3r, the pack's release (zip, GitHub release, its own Nexus page the owner makes), on the owner's go.
 
+## Animation Editor (AE5)
+
+Built 2026-11-24 ([design](design/animation-editor.html)): **Edit in Blender** in the Edit panel. Checked with Blender (the owner's, `L:\SteamLibrary\steamapps\common\Blender`) in the background on a copy of the pack's project (scratchpad `ae5check.mjs`): the clip on the base body opened at 30 fps, frames 0 to 149; a head key 45° further at frame 75 and a save exported the GLB; the clip rebuilt from it has 150 frames, the head 45° off at frame 75 and 0° at frame 0, the left foot and right hand within 0 mm of before; the record says `reshaped` by Blender, the old start kept as `<name>.before.glb`. **Not run:** in VS Code with Blender's window.
+
+F5 with **Run REDcode**; open `man_stands_relaxed_crosses.anims` from the Project view; **Edit**.
+
+| # | Do | Expected |
+|---|---|---|
+| B1 | Leave a step or two applied (a pin, a key). **Edit in Blender** | "Preparing… for Blender", then Blender opens on the body with the clip, at 30 fps, its range the clip's frames; a status bar item "Blender: man_stands_relaxed_crosses"; the panel says to save in Blender |
+| B2 | In Blender, Pose Mode: at a frame mid-clip, turn the head or raise an arm, key it (I), then **Ctrl+S** | A notification "… from Blender"; the view here rebuilds in place at the same moment and camera; the change shows; the panel's steps are empty (folded in) |
+| B3 | Another change in Blender, **Ctrl+S** again | The view shows the second change too |
+| B4 | Here: **Undo** | The clip before Blender comes back, with its steps |
+| B5 | Close Blender | The status bar item goes ("no longer watching its saves" in the REDcode output) |
+
 ## Animation Editor (AE2)
 
 Built 2026-11-24 ([design](design/animation-editor.html#ae2-as-built-2026-11-24)): the Edit panel in REDcode's animation view. Checked in Chrome over REDbridge 0.19.0 on a copy of the pack's project (see the design page). **Not run:** in VS Code.
@@ -849,6 +864,8 @@ F5 with **Run REDcode**. In the Project view (the pack's project, `Documents\RED
 | D7 | **Clear**, **Apply** | The clip as made: no steps, the feet sliding again |
 
 Run 1 (owner, 2026-11-24), in progress: no way to add a step but Pin All Sliding. Found: the side column clips what is taller than it, so the Add a Step form and its **Add Step** fell off the bottom with no scroll. Fixed the same day: the Make and Edit panels scroll inside the column, the clip list keeps 90 px below them (checked in a 520 px column: the panel 342 px, scrolling its 457 px). At D3 the head showed no marker: it showed only after the bone list changed, and was a 2.5 cm ball inside the head. Fixed: a yellow dot of fixed screen size over the body, shown as soon as the form names a bone; and steps not applied yet are said in the accent colour with Apply lit, since a step changes nothing until Apply. Then (the owner, after F5): the steps were applied, but the marker sat on the Pin form's LeftFoot, not the head, and the head turn was hard to see: one key with a 0.3 s blend turns the head only from 2.2 to 2.8 s. Changed: clicking a step goes to its time and marks its bone; a key's blend is 0.6 s by default. Asked next: the chosen step drawn yellow (built); and Apply closed and opened the whole tab, which was jarring. Changed: Apply and Undo read the rebuilt set again in place (the document reloads from disk, as Revert does) and the view comes back at the same clip, moment, camera and speed, the panel still shown. At D4 a layer of the other clip on the right hand showed little, since that clip barely moves its hand: Right arm (its shrug) shows it. D3 and D4 pass (the owner: the head turn at 0.25x, the arm with the layered clip). Asked: a way to change a step. Built: clicking a step fills the form below with its kind and values ("Change Step n"), **Update Step** puts them in its place, **New Step** goes back to adding; checked in Chrome over the real REDbridge.
+
+**Result 2026-11-24, reported by the owner: D1 to D7 pass.** The interactive editor the owner had in mind (bones dragged, moves on tracks) is its own page, [Animation Timeline](design/animation-timeline.html), agreed the same day.
 
 ## Animation Editor (AE1)
 
