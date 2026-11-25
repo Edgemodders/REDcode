@@ -41,7 +41,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [anim-core check](#anim-core-check) | Automated, on the PC (game and Uthana key) | Animation Tools AT1 | 2026-11-22 | Pass, 22 of 22 |
 | [Animation Tools AT2](#animation-tools-at2) | By hand, in REDcode and the game | Animation Tools AT2 | 2026-11-22 | Pass (owner), steps 1 to 9 with 3b, after fixes |
 | [Animation Tools pack (AT3)](#animation-tools-pack-at3) | By hand, in the game | Animation Tools AT3 | 2026-11-22 | **Passed** 2026-11-24 (run 2, with the fixes it raised) |
-| [Animation Editor (AE1)](#animation-editor-ae1) | Script, MCP client, and by hand in the game | Animation Editor AE1 | 2026-11-24 | Script and MCP passed; in the game not run |
+| [Animation Editor (AE1)](#animation-editor-ae1) | Script, MCP client, and by hand in the game | Animation Editor AE1 | 2026-11-24 | **Passed** 2026-11-24 (script, MCP, and E1 to E3 in the game) |
 | [CR2W editor: buffers and nodeData](#cr2w-editor-buffers-and-nodedata) | By hand | A modder's report, 2026-11-24 | 2026-11-24 | **Passed** 2026-11-24 |
 | [Replace with a WAV, titled models (#29), every window's project (#32)](#replace-with-a-wav-titled-models-29-and-every-windows-project-32) | By hand, in the game | Requests | 2026-11-20 | Pass (owner), with two fixes |
 | [Replace All](#replace-all) | By hand, in the game | Requests | 2026-11-20 | Pass (owner), with one fix |
@@ -842,6 +842,8 @@ In the game, with the Animation Tools pack on its own project (the project line 
 | E1 | Ask the assistant to pin the feet of `man_stands_relaxed_crosses` (it uses `anim_edit` with the suggested pins), then **Play** it in the pack. The assistant is a Claude Code session in this repo, with the workspace's redcode-mcp: `anim_edit` is not released yet, so REDagent and the edge plugin's published redcode-mcp do not have it | Packed and swapped (the files changed); the feet stay planted, no slide, the tapping foot still taps |
 | E2 | Ask for a head turn: 30 degrees to his left at 2.5 s; **Play** | He looks to his left around 2.5 s, smoothly, and back |
 | E3 | Ask to clear the edits; **Play** | The clip as made again |
+
+Result 2026-11-24, reported by the owner: E1 to E3 pass ("worked great"). The edits were made from this Claude Code session through the workspace's redcode-mcp (`anim_edit` with the suggested pins, a head key, then no steps), on `man_stands_relaxed_crosses` in both AnimProbeD (fitted again with the current fit first) and the pack's own project, so the test did not depend on which one the pack was on. REDagent was tried first and has no `anim_edit`: it comes with the next redcode-mcp release. **AE1 passes.**
 
 ## CR2W editor: buffers and nodeData
 
