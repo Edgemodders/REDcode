@@ -4,7 +4,7 @@ title: Animation Timeline
 
 # Animation Timeline: moves on tracks, posed by hand
 
-Draft 0.2, for discussion with the owner (2026-11-24; 0.2 takes the owner's second message: implied entry and exit keys, tracks stacked from the bottom up, moves on one bone combined by what each changes). Nothing here is built, and it does not hold up the next release. It grows the [Animation Editor](animation-editor.html): AE1 and AE2 are its steps and its first panel.
+Draft 0.2, **agreed with the owner on 2026-11-24 with every recommendation under Decisions** (0.2 took the owner's second message: implied entry and exit keys, tracks stacked from the bottom up, moves on one bone combined by what each changes). Details may change in testing. Nothing here is built, and it does not hold up the next release. It grows the [Animation Editor](animation-editor.html): AE1 and AE2 are its steps and its first panel.
 
 ## What the owner asked for
 
@@ -117,7 +117,7 @@ Moves are steps in the clip's record, as AE1 keeps every edit, so the record, Un
 | **TL4** | Grabbing a bone in the 3D view: handles, a key at the playhead, a new move when none is under it | A hand test |
 | **TL5** | The same page in the game through the Animation Tools pack (AE3), and the MCP tools for moves | A hand test in the game |
 
-## Decisions to talk over
+## Decisions (agreed 2026-11-24)
 
 | # | Question | Recommendation |
 |---|---|---|
@@ -127,4 +127,4 @@ Moves are steps in the clip's record, as AE1 keeps every edit, so the record, Un
 | 4 | How a move starts and ends | **Implied entry and exit keys** from beneath, as the owner proposed in 0.2; a last stretch can **hold** instead of returning |
 | 5 | Today's steps on the timeline | **Yes**: pins, layers, trims and loops as blocks and marks, so there is one place to see every edit; the list goes |
 | 6 | The timeline's code | **Copy EDGEdir's** lanes now with a note of its version (as EDGEdir did), and agree a shared timeline package with EDGEdir once both are settled |
-| 7 | Edit in Blender (asked the same day) | Still open from the chat: Blender works on the clip as it plays now, and what it saves becomes the clip's new starting point (the steps folded in, the old one kept for Undo). It can come before or after the timeline |
+| 7 | Edit in Blender (asked the same day) | Blender works on the clip as it plays now, and what it saves becomes the clip's new starting point (the steps folded in, the old one kept for Undo). It comes first, as the Animation Editor's AE5, ahead of the timeline and of AE3 |

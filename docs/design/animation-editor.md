@@ -59,6 +59,8 @@ The order of steps matters and is the list's order: Trim first, then Layers and 
 | **AE2** | The editor page in REDcode's animation view: **Edit** on a made clip (and on a game clip, copied in first) | A hand test |
 | **AE3** | The same page in the game: the pack's **Edit**, an overlay window, and **Try in game** | A hand test in the game |
 | **AE4** | Hand poses from the game's clips, and Join through Uthana | A hand test |
+| **AE5** (agreed 2026-11-24, next) | **Edit in Blender**, as REDcode's Edit in Blender for meshes (`src/blender.ts`): the clip as it plays now, on the base body, opens in Blender at 30 fps; each save writes a .glb that REDcode watches, fits onto the rig by bone name and makes the clip's new starting point (the steps folded in and emptied, the old start kept for Undo) | A hand test with Blender |
+| **Timeline** | Moves on tracks posed by grabbing bones: its own page, [Animation Timeline](animation-timeline.html), stages TL1 to TL5, after AE5 | Hand tests |
 
 AE1 alone already lets an assistant fix a clip ("pin the left foot from 1.2 s to 3 s, then lay a fist on the right hand from 2 s").
 
