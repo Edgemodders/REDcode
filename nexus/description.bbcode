@@ -12,16 +12,35 @@
 [quote][size=4][b][color=#fcee0a]STATUS: PREVIEW[/color][/b][/size]
 What is here works and is tested against the game. New features land in small updates.
 [b]This is not a game mod.[/b] It is an extension for VS Code, so install it there (steps below), not with Vortex. The quickest way is straight from the [url=https://marketplace.visualstudio.com/items?itemName=Edgemodders.redcode-cyberpunk]VS Code Marketplace[/url] or [url=https://open-vsx.org/extension/edgemodders/redcode-cyberpunk]Open VSX[/url]; the file here is the same extension.[/quote]
-Animation viewer (editing soon!)
+[color=#00ffff][size=4][b]From World Editing to Pixel Editing (Sectors to Materials)[/b][/size][/color]
+
+[color=#00ffff][size=4][b]View/Edit a Sector[/b][/size][/color]
+[img]https://staticdelivery.nexusmods.com/mods/3333/images/35421/35421-1795545929-1262777770.png[/img]
+[img]https://staticdelivery.nexusmods.com/mods/3333/images/35421/35421-1795392484-67723056.png[/img]
+
+[color=#00ffff][size=4][b]Custom Script Tools You Can Add
+This One Filters Objects Based on Streaming Distance[/b][/size][/color]
+[youtube]giAFpEaH7pU[/youtube]
+
+[b][color=#00ffff][size=4]Select a Mesh and Show It's Material[/size][/color][/b]
+[img]https://staticdelivery.nexusmods.com/mods/3333/images/35421/35421-1795392502-360973774.png[/img]
+
+[b][color=#00ffff][size=4]MultiLayer Material Setup & Editing[/size][/color][/b]
+[img]https://staticdelivery.nexusmods.com/mods/3333/images/35421/35421-1795392509-197183046.png[/img]
+
+[b][color=#00ffff][size=4]Material Layer Editing[/size][/color][/b]
+[img]https://staticdelivery.nexusmods.com/mods/3333/images/35421/35421-1795392516-673613817.png[/img]
+
+[color=#00ffff][size=4][b]Animation viewer[/b][/size][/color]
 [img]https://staticdelivery.nexusmods.com/mods/3333/images/35421/35421-1794051139-1377291144.gif[/img]
 
-Full native audio editor
+[color=#00ffff][size=4][b]Full native audio editor[/b][/size][/color]
 [img]https://raw.githubusercontent.com/Edgemodders/REDcode/main/nexus/images/audio-editor.webp[/img]
 
-Fully connected, searchable, fast, hyperlinked TweakDB browser and editor.
+[b][color=#00ffff][size=4]Fully connected, searchable, fast, hyperlinked TweakDB browser and editor.[/size][/color][/b]
 [img]https://raw.githubusercontent.com/Edgemodders/REDcode/main/nexus/images/tweakdb-browser.webp[/img]
 
-3D mesh viewer with individual parts and segment selection.
+[color=#00ffff][size=4][b]3D mesh viewer with individual parts and segment selection.[/b][/size][/color]
 [img]https://raw.githubusercontent.com/Edgemodders/REDcode/main/nexus/images/mesh-viewer.webp[/img]
 
 [size=5][b][color=#fcee0a]What REDcode is[/color][/b][/size]
@@ -65,13 +84,19 @@ Every record type and record, with a page per record where links take you to the
 [b][img]https://raw.githubusercontent.com/Edgemodders/REDcode/main/nexus/images/lockeys.webp[/img][/b]
 
 [color=#00ffff][size=4][b]Game animations[/b][/size][/color]
-An [i].anims[/i] file opens on its animations: pick one and watch it play on a body (the base male or female body, or a character's own meshes when another tool asks) or as bones and joints, with play and pause, a scrub bar, single frames, loop, speed, and a Root motion switch that moves the whole rig through the scene. A synced clip lists its set, the other clips of the same moment such as the Trauma Team's AV and soldiers landing, and [b]Play the Set[/b] plays them together, each placed where the game puts it.
+An [i].anims[/i] file opens on its animations: pick one and watch it play on a body (the base male or female body, or a character's own meshes when another tool asks) or as bones and joints, with play forward and backward, stop, single frames, jump to either end, a scrub bar, loop, speed, and a Root motion switch that moves the whole rig through the scene. A synced clip lists its set, the other clips of the same moment such as the Trauma Team's AV and soldiers landing, and [b]Play the Set[/b] plays them together, each placed where the game puts it.
 
 [color=#00ffff][size=4][b]Animations from words[/b][/size][/color]
-Press [b]Make[/b] in a man's or woman's animation, say what it should show, and [b]Generate[/b]: [url=https://uthana.com]Uthana[/url] makes the motion straight onto the game's own skeleton (with your own Uthana key, $0.10 a second, charged only when it finishes). It becomes a new clip in your project, or takes the place of a game clip, facing the way the game's clips face and with feet that respect the ground. [b]From a GLB[/b] does the same with a clip from Blender. Open a made clip again and its words are there, ready for another go.
+In the [b]Clip[/b] tab of a man's or woman's animation, say what it should show, and press [b]Generate[/b]: [url=https://uthana.com]Uthana[/url] makes the motion straight onto the game's own skeleton (with your own Uthana key, $0.10 a second, charged only when it finishes). It becomes a new clip in your project, or takes the place of a game clip, facing the way the game's clips face and with feet that respect the ground. [b]From a GLB[/b] does the same with a clip from Blender. Open a made clip again and its words are there, ready for another go.
+
+[color=#00ffff][size=4][b]Edit made animations[/b][/size][/color]
+The [b]Edit[/b] tab of a made clip fixes what words cannot: it shows where each foot slides and pins it, turns a bone or moves a hand or foot at a moment with an easing, lays another clip's motion on a hand or the upper body, trims and loops. Every step is kept and can be changed or taken out later, with Undo and Redo, and the clip as made is never lost. [b]Edit in Blender[/b] opens the clip on the body in Blender: each save there comes straight back as the clip's new start.
+
+[color=#00ffff][size=4][b]Lip sync[/b][/size][/color]
+[b]Open Lip Sync[/b] lists a character's lip synced lines, scene by scene. Pick one to hear it spoken on that character's own head, with every curve the game's clip moves under the voice: jaw, lips, tongue, brows, blinks. Type a new line and [url=https://github.com/Edgemodders/EDGEwave]EDGEwave[/url] speaks it in the character's voice (your own ElevenLabs key), with the lip sync made to match. A voice line in the audio player and a lip sync set in the animation view open it at that line.
 
 [color=#00ffff][size=4][b]The world in 3D[/b][/size][/color]
-A [i].streamingsector[/i] opens in 3D: every building, prop and street mesh where the sector places it, with markers for lights, sounds and spawn points. Fly around with the right mouse button and W, A, S, D, or the camera buttons; double-click a thing to fly to it. Click a thing to see its node and its own materials, [b]Show in Tree[/b] to edit it, and [b]Coarser levels[/b] to add what the game draws from far away. Select many at once with Ctrl+click, a box on the screen or a [b]Volume[/b] in the world, then [b]Isolate[/b] them, add their meshes to your project or copy the list.
+A [i].streamingsector[/i] opens in 3D: every building, prop and street mesh where the sector places it, with markers for lights, sounds and spawn points. Fly around with the right mouse button and W, A, S, D, or the camera buttons; double-click a thing to fly to it. Click a thing to see its node and its own materials, [b]Show in Tree[/b] to edit it, and [b]Coarser levels[/b] to add what the game draws from far away. Select many at once with Ctrl+click, a box on the screen or a [b]Volume[/b] in the world, then [b]Isolate[/b] them, add their meshes to your project or copy the list. [b]Overlaps[/b] lists the sectors that reach into this one, to see as see-through layers or in full and to pick in. [b]Properties[/b] shows what every selected thing shares and changes it on all of them at once. The search box selects what it finds ([i]soda[/i] selects the soda cans), and [b]Scripts[/b] runs small JavaScript files that find, select or change nodes, such as every streaming distance under 45 m, shown first and undone in one step.
 
 [color=#00ffff][size=4][b]Pack, install, play[/b][/size][/color]
 [b]Pack[/b] builds your mod the way WolvenKit does (Ctrl+Shift+B), [b]Install[/b] puts it in the game (through EDGEdeck when you have it, so you can undo it, and only your mod: other mods' changes wait for you), and [b]Run Game[/b] starts Cyberpunk. [b]Pack and Play[/b] does it in one click, straight into the running game: through [url=https://github.com/Edgemodders/REDnode]REDnode[/url] and its REDswap when the game runs with it and its MCP server is on (edited sound banks too), or else it installs the mod for the next start. Export to glTF, PNG and WAV, edit, and import back: a GLB can become a new mesh, and edited sound effects go back into the game's sound banks. REDmod packs carry your custom sounds.
@@ -86,10 +111,10 @@ The [b]Keys[/b] view keeps the AI service keys every EDGE tool shares, in VS Cod
 Syntax highlighting, brackets, comments and snippets for TweakXL's [i].tweak[/i] format.
 
 [size=4][b][color=#19f3ff]For AI assistants[/color][/b][/size]
-[url=https://www.npmjs.com/package/@edgemodders/redcode-mcp]@edgemodders/redcode-mcp[/url] gives Claude Code and other assistants the same engine: browse the archives, read and patch CR2W files, export, import, pack, and query the TweakDB and the game's texts. Ask your assistant to make the mod, and watch it work in the same project. With REDnode in the game, REDcode also tells REDnode mods and the assistants connected to it which project is open, so EDGEbuilder can place your own objects.
+[url=https://www.npmjs.com/package/@edgemodders/redcode-mcp]@edgemodders/redcode-mcp[/url] gives Claude Code and other assistants the same engine: browse the archives, read and patch CR2W files, export, import, pack, query the TweakDB and the game's texts, make and edit animations, read lip sync, and read, change and script a sector's nodes. Ask your assistant to make the mod, and watch it work in the same project. With REDnode in the game, REDcode also tells REDnode mods and the assistants connected to it which project is open, so EDGEbuilder can place your own objects.
 
 [size=4][b][color=#19f3ff]Coming next[/color][/b][/size]
-Planned: the [b]Lip Sync editor[/b], to see a character's lines on their head and add new voiced lines; [b]takes[/b] for made animations; changing a sector's materials live from EDGEmat; and the [b]REDnode loop[/b], to edit a REDnode mod and see it in the running game without a restart, with the game's logs and a debugger in VS Code.
+Planned: [b]editing lip sync[/b] and putting new voiced lines into a mod, on any head; a [b]timeline[/b] for made animations, posed by grabbing a bone; [b]takes[/b] for made animations; changing a sector's materials live from EDGEmat; and the [b]REDnode loop[/b], to edit a REDnode mod and see it in the running game without a restart, with the game's logs and a debugger in VS Code.
 
 [size=5][b][color=#fcee0a]Requirements[/color][/b][/size]
 

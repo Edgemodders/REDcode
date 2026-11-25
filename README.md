@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://edgemodders.github.io/REDcode/"><img src="docs/assets/brand/badges/docs.svg" alt="docs: read the docs"></a>
-  <img src="docs/assets/brand/badges/status.svg" alt="status: 0.10.16 preview">
+  <img src="docs/assets/brand/badges/status.svg" alt="status: 0.10.17 preview">
   <img src="docs/assets/brand/badges/vscode.svg" alt="VS Code: 1.70+">
   <img src="docs/assets/brand/badges/node.svg" alt="Node: 24">
   <a href="LICENSE"><img src="docs/assets/brand/badges/license.svg" alt="license: MIT"></a>
@@ -19,7 +19,7 @@ REDcode is the build-time half of an AI-first, Node-based modding ecosystem; [RE
 **[Read the docs](https://edgemodders.github.io/REDcode/)** &middot; [REDbridge](https://github.com/Edgemodders/REDbridge) &middot; [REDnode](https://github.com/Edgemodders/REDnode)
 
 > [!NOTE]
-> **Status: 0.10.16 released on 2026-11-22, a preview on the stores.** REDcode 0.10.16 is on the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=Edgemodders.redcode-cyberpunk) and [Open VSX](https://open-vsx.org/extension/edgemodders/redcode-cyberpunk) as **REDcode for Cyberpunk 2077**, and on [Nexus Mods](https://www.nexusmods.com/cyberpunk2077/mods/35421). It browses the archives, edits CR2W files, shows textures, meshes, animations, streaming sectors in 3D and sounds, browses the TweakDB and the game's texts, makes new game files and animations, exports, imports, packs and installs. New in 0.10.16: the Keys view, which keeps the AI service keys every EDGE tool shares; animations made from words with Uthana; and materials, a camera and selecting many things in the sector view. Phases C0 to C4 are done, and C5's viewers (V1 to V4). Still to come: the REDnode loop (C5 V5), graph editors (C6) and the branded editor (C7). Tests since 2026-10-26 run on game 2.5, and REDcode needs [REDbridge 0.18.0](https://github.com/Edgemodders/REDbridge/releases/tag/v0.18.0) or later.
+> **Status: 0.10.17 released on 2026-11-25, a preview on the stores.** REDcode 0.10.17 is on the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=Edgemodders.redcode-cyberpunk) and [Open VSX](https://open-vsx.org/extension/edgemodders/redcode-cyberpunk) as **REDcode for Cyberpunk 2077**, and on [Nexus Mods](https://www.nexusmods.com/cyberpunk2077/mods/35421). It browses the archives, edits CR2W files, shows textures, meshes, animations, streaming sectors in 3D and sounds, browses the TweakDB and the game's texts, makes new game files and animations, exports, imports, packs and installs. New in 0.10.17: the Lip Sync editor, which plays a character's lip synced lines on their own head and voices new ones through EDGEwave; editing made animations, in REDcode and in Blender; and layers, mass edits, search and scripts in the sector view. Phases C0 to C4 are done, and C5's viewers (V1 to V4). Still to come: the REDnode loop (C5 V5), graph editors (C6) and the branded editor (C7). Tests since 2026-10-26 run on game 2.5, and REDcode needs [REDbridge 0.18.0](https://github.com/Edgemodders/REDbridge/releases/tag/v0.18.0) or later.
 
 ## Get started
 

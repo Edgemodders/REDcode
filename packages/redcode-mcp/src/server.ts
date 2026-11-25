@@ -268,7 +268,10 @@ tool("library_add", "Add a game file or a project's file to the EDGE Library, th
 });
 
 // ---- the game itself, for a test an assistant runs (REDcode's docs/design/game-testing.md) ----
+// Held back from releases until their hand test (T1 to T5) has run with the game (the owner, 2026-11-25): they start
+// and stop the game, so they are offered only with REDCODE_MCP_GAME_TOOLS=1.
 
+if (process.env.REDCODE_MCP_GAME_TOOLS === "1") {
 tool("game_status", "Whether Cyberpunk 2077 is running, and whether REDnode in it answers yet (through REDcode's redcode package, 0.3.0 or later), with the game's window mode and resolution. Use it to wait after game_start: REDnode's own tools (game_state, game_image, api_read, logs) work once rednode is true, and game_state says whether a save is loaded. When the game has ended after a game_start, this also puts the player's own window mode and resolution back in the game's settings file. Changes nothing else.", {}, async () => gameStatus());
 
 tool("game_start", "Start Cyberpunk 2077 for a test, so it does not take over the player's monitor: windowed at a small size, or inside REDcode's game tab in VS Code when a REDcode window offers one (then at a size that fits the tab). The game's exe is started directly. It changes the window mode and resolution in the game's settings file and keeps the player's own values, which go back when the game has ended (game_stop, or game_status after it closed). It answers at once: ask game_status until rednode is true, about a minute. The game opens on its main menu; loading a save is the player's step until REDnode has a call for it. Ask the player before starting the game unless they asked for exactly that.", {
@@ -282,6 +285,7 @@ tool("game_start", "Start Cyberpunk 2077 for a test, so it does not take over th
 });
 
 tool("game_stop", "Close Cyberpunk 2077: asks its window to close and, when it has not gone after 15 seconds, ends its process. Progress since the last save is lost, so ask the player first unless this session started the game for a test. Afterwards the player's own window mode and resolution are back in the game's settings file, when game_start changed them.", {}, async () => stopGame());
+}
 
 // ---- made animations (REDcode's docs/design/animation-tools.md, AT2), over @edgemodders/anim-core ----
 

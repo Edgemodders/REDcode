@@ -4,6 +4,25 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 ## Unreleased
 
+## 0.10.17 (2026-11-25)
+
+The Lip Sync editor, editing made animations in REDcode and in Blender, and layers, mass edits, search and scripts in the sector view. Needs REDbridge 0.18.0, as 0.10.16 did.
+
+<!-- nexus
+New: Lip Sync editor: a character's lip synced lines, played on their own head, with the curves under the voice
+New: Lip Sync: type a new line, spoken in the character's voice through EDGEwave, and see its lip sync
+New: Edit made animations: pin sliding feet, key a bone, layer another clip, trim, loop, with Undo and Redo
+New: Edit in Blender for made animations: each save in Blender becomes the clip's new start
+New: Sector view Overlaps: the sectors that reach into this one, as layers to ghost, show and pick in
+New: Sector view Properties: what the selected things share, changed on all of them at once
+New: Sector scripts: small JavaScript files that find, select or change a sector's nodes
+New: Search a sector to select what it finds; a nodeData entry shows its node and instance
+Changed: The animation view has Clip, Edit and Animations tabs, and the usual media playback buttons
+Fixed: Instanced mesh buffers open as a tree in the CR2W editor, where only a type name showed
+Fixed: Animations made In place no longer slide their feet
+Needs: REDbridge 0.18.0, as 0.10.16 did
+-->
+
 **New**
 
 - **Lip Sync:** **REDcode: Open Lip Sync** asks for a character and opens a tab with every lip synced line the game has for them, scene by scene. Pick a line to hear it and see it spoken on the head it was made for, in 3D, with what the game's clip moves as curves under the voice: jaw, lips, tongue, brows, blinks. Drag the marker along the curves, step by frames, turn the head. The tab comes back after a window reload. Made in EDGEfab and moved to REDcode ([Lip Sync](https://edgemodders.github.io/REDcode/design/lipsync.html)).
