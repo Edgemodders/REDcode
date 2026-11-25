@@ -78,9 +78,16 @@ export function lipsyncHtml(cspSource: string, headScript?: string): string {
   #curvesBox { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
   #curvesScroll { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; }
   #curves { width: 100%; display: block; cursor: crosshair; }
-  /* Two fixed lines, so the curves never move under the mouse as the text changes. */
-  #readout { height: 2.9em; flex: none; overflow: hidden; color: var(--dim); font-size: 12px; line-height: 1.45; margin-bottom: 6px; font-variant-numeric: tabular-nums; }
-  #readout > div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* One fixed line, so the curves never move under the mouse; what a curve reads is in the tooltip. */
+  #readout { height: 1.45em; flex: none; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--dim); font-size: 12px; line-height: 1.45; margin-bottom: 6px; font-variant-numeric: tabular-nums; }
+  #tip { position: fixed; z-index: 10; pointer-events: none; max-width: 340px; padding: 6px 9px; font-size: 12px; line-height: 1.45; font-variant-numeric: tabular-nums;
+    color: var(--vscode-editorHoverWidget-foreground, var(--vscode-foreground)); background: var(--vscode-editorHoverWidget-background, #252526);
+    border: 1px solid var(--vscode-editorHoverWidget-border, var(--line)); border-radius: 3px; box-shadow: 0 2px 8px rgba(0,0,0,.36); }
+  #tip .tn { font-weight: 600; }
+  #tip .th { color: var(--dim); margin-top: 4px; }
+  #tip table { margin: 0; width: auto; font-size: 12px; }
+  #tip td { border: 0; padding: 0 12px 0 0; }
+  #tip td.v { text-align: right; padding-right: 0; }
   #readout b { color: var(--vscode-foreground); font-weight: 600; }
   table { border-collapse: collapse; margin-top: 12px; font-size: 12px; width: 100%; }
   th, td { text-align: left; padding: 2px 10px 2px 0; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
@@ -137,6 +144,7 @@ export function lipsyncHtml(cspSource: string, headScript?: string): string {
     </div>
   </section>
 </main>
+<div id="tip" hidden></div>
 ${headScript ? `<script nonce="${nonce}" src="${headScript}"></script>` : ""}
 <script nonce="${nonce}">
 (function () {
@@ -512,7 +520,7 @@ ${headScript ? `<script nonce="${nonce}" src="${headScript}"></script>` : ""}
     var r = curves.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top;
     var s = Math.max(0, Math.min(geo.total, ((px - LEFT) / geo.plotW) * geo.total));
     var row = geo.rows[Math.floor((py - WAVE) / LANE)];
-    if (!row || py < WAVE) { state.hover = null; $("readout").textContent = s.toFixed(2) + " s"; if (!state.playing) draw(); return; }
+    if (!row || py < WAVE) { state.hover = null; $("tip").hidden = true; $("readout").textContent = s.toFixed(2) + " s"; if (!state.playing) draw(); return; }
     var top = WAVE + geo.rows.indexOf(row) * LANE + 18, ph = LANE - 18 - PAD, best = null, bestD = 1e9;
     var at = row.tracks.map(function (t) {
       var v = sample(t, s), y = top + ph - ((v - row.lo) / (row.hi - row.lo)) * ph, d = Math.abs(y - py);
@@ -521,11 +529,22 @@ ${headScript ? `<script nonce="${nonce}" src="${headScript}"></script>` : ""}
     }).sort(function (a, b) { return Math.abs(b.v) - Math.abs(a.v); });
     state.hover = { row: row, track: best };
     var raw = $("raw").checked;
-    $("readout").innerHTML = "<div>" + s.toFixed(2) + " s · <b style='color:" + best.color + "'>" + text(raw ? best.name : plain(best.name)) + " " + sample(best, s).toFixed(2) + "</b></div><div>Strongest: " +
-      at.slice(0, 4).map(function (a) { return text(raw ? a.t.name : plain(a.t.name)) + " " + a.v.toFixed(2); }).join(", ") + "</div>";
+    $("readout").textContent = s.toFixed(2) + " s";
+    // The whole reading in a tooltip by the pointer (the owner's hand test: a line above the curves cut it off).
+    var name = function (t) { return text(raw ? t.name : plain(t.name)); };
+    var tip = $("tip");
+    tip.innerHTML = "<div class='tn' style='color:" + best.color + "'>" + name(best) + " " + sample(best, s).toFixed(2) + "</div><div class='dim'>at " + s.toFixed(2) + " s</div>" +
+      "<div class='th'>Strongest here</div><table>" + at.slice(0, 4).map(function (a) {
+        return "<tr><td><span style='color:" + a.t.color + "'>&#9632;</span> " + name(a.t) + "</td><td class='v'>" + a.v.toFixed(2) + "</td></tr>";
+      }).join("") + "</table>";
+    tip.hidden = false;
+    var tw = tip.offsetWidth, tht = tip.offsetHeight, x = e.clientX + 16, y = e.clientY + 16;
+    if (x + tw > window.innerWidth - 4) x = e.clientX - tw - 12;
+    if (y + tht > window.innerHeight - 4) y = e.clientY - tht - 12;
+    tip.style.left = Math.max(4, x) + "px"; tip.style.top = Math.max(4, y) + "px";
     if (!state.playing) draw();
   });
-  curves.addEventListener("mouseleave", function () { state.hover = null; if (!state.playing) draw(); });
+  curves.addEventListener("mouseleave", function () { state.hover = null; $("tip").hidden = true; if (!state.playing) draw(); });
   var dragging = false;
   function scrub(e) {
     var geo = state.geometry; if (!geo) return;
