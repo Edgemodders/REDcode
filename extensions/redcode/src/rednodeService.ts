@@ -157,10 +157,30 @@ export interface LiveDisplay {
  * running, or the game has a package older than 0.3.0. Throws what the game refused.
  */
 export async function requestDisplay(want: { windowMode?: string; resolution?: string } = {}, timeoutMs = 8000): Promise<LiveDisplay | undefined> {
+  return askPackage<LiveDisplay>("display-request.json", "display.json", want, timeoutMs, "The game refused the display change.");
+}
+
+/** V's place as the package's place() answers it, in the game's axes (Z up), metres. */
+export interface VPlace {
+  position: [number, number, number];
+  forward: [number, number, number];
+}
+
+/**
+ * Asks the package in the running game where V stands (EDGEworld: Open Sector Here). Undefined when
+ * nothing answers in time: REDnode is not running, or the game has a package older than 0.4.0. Throws
+ * what the game said, such as no save loaded.
+ */
+export function requestPlace(timeoutMs = 6000): Promise<VPlace | undefined> {
+  return askPackage<VPlace>("place-request.json", "place.json", {}, timeoutMs, "The game could not say where V is.");
+}
+
+/** Writes a request file beside project.json and waits for the package's answer file with the same id. */
+async function askPackage<T>(requestName: string, answerName: string, want: object, timeoutMs: number, refused: string): Promise<T | undefined> {
   const dir = path.dirname(projectStateFile());
   const id = `${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const request = path.join(dir, "display-request.json");
-  const answer = path.join(dir, "display.json");
+  const request = path.join(dir, requestName);
+  const answer = path.join(dir, answerName);
   fs.mkdirSync(dir, { recursive: true });
   const tmp = `${request}.${process.pid}.tmp`;
   fs.writeFileSync(tmp, JSON.stringify({ id, pid: process.pid, at: new Date().toISOString(), ...want }, null, 2));
@@ -168,15 +188,82 @@ export async function requestDisplay(want: { windowMode?: string; resolution?: s
   const end = Date.now() + timeoutMs;
   while (Date.now() < end) {
     await new Promise((r) => setTimeout(r, 150));
-    let got: (Partial<LiveDisplay> & { id?: string; ok?: boolean; error?: string }) | undefined;
+    let got: { id?: string; ok?: boolean; error?: string } | undefined;
     try {
       got = JSON.parse(fs.readFileSync(answer, "utf8"));
     } catch {
       continue;
     }
     if (got?.id !== id) continue;
-    if (!got.ok) throw new Error(got.error ?? "The game refused the display change.");
-    return got as LiveDisplay;
+    if (!got.ok) throw new Error(got.error ?? refused);
+    return got as T;
   }
   return undefined;
+}
+
+/** What the package's openSector asks a REDcode window to open. */
+export interface OpenRequest {
+  id: string;
+  at: string;
+  sector: string;
+  entry?: number;
+}
+
+/**
+ * A REDcode window's side of the package's openSector (docs/design/sector-layers.md, L4): calls `open`
+ * for each fresh request this window wins. The window last focused with a project answers at once; other
+ * windows with a project a moment later (sooner with the focus), and windows with none last, so a request
+ * is still taken when that window does not answer.
+ */
+export function watchOpenRequests(open: (request: OpenRequest) => void, state: { focused: () => boolean; hasProject: () => boolean }): { dispose(): void } {
+  const dir = path.dirname(projectStateFile());
+  const requestFile = path.join(dir, "open-request.json");
+  let seen = "";
+  const lastWindow = (): number | undefined => {
+    try {
+      const s = JSON.parse(fs.readFileSync(projectStateFile(), "utf8")) as Partial<ProjectState>;
+      return s.project ? s.pid : undefined;
+    } catch {
+      return undefined;
+    }
+  };
+  const check = (): void => {
+    let request: OpenRequest | undefined;
+    try {
+      request = JSON.parse(fs.readFileSync(requestFile, "utf8")) as OpenRequest;
+    } catch {
+      return;
+    }
+    if (!request?.id || request.id === seen || typeof request.sector !== "string") return;
+    seen = request.id;
+    if (Math.abs(Date.now() - Date.parse(request.at)) > 10000) return;
+    const delay = state.hasProject() ? (lastWindow() === process.pid ? 0 : state.focused() ? 300 : 700) : 1200;
+    const taken = request;
+    setTimeout(() => {
+      try {
+        // Made new or not at all: the first window wins.
+        fs.writeFileSync(path.join(dir, `open-${taken.id}.claim`), String(process.pid), { flag: "wx" });
+      } catch {
+        return;
+      }
+      fs.rmSync(requestFile, { force: true });
+      open(taken);
+    }, delay);
+  };
+  let watcher: fs.FSWatcher | undefined;
+  const timer = setInterval(check, 2000);
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    watcher = fs.watch(dir, (_event, name) => {
+      if (!name || name.toLowerCase() === "open-request.json") setTimeout(check, 50);
+    });
+  } catch {
+    // The 2-second check still sees a request.
+  }
+  return {
+    dispose: () => {
+      watcher?.close();
+      clearInterval(timer);
+    },
+  };
 }

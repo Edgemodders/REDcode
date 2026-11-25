@@ -69,8 +69,52 @@ export type ReloadResult =
   | { kind: "unreachable"; why: string };
 
 /** One POST to REDnode's MCP server: tools/call archives_reload. The server is stateless, so no initialize is needed. */
-export function callArchivesReload(mcp: { port: number; token: string }, files: string[], timeoutMs = 120_000): Promise<ReloadResult> {
-  const body = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "archives_reload", arguments: { files } } });
+export async function callArchivesReload(mcp: { port: number; token: string }, files: string[], timeoutMs = 120_000): Promise<ReloadResult> {
+  const r = await postTool(mcp, "archives_reload", { files }, timeoutMs);
+  return "kind" in r ? r : readReply(r.status, r.contentType, r.text);
+}
+
+/** Any tool's answer through REDnode's MCP server, such as EDGEbuilder's edgebuilder__focus. */
+export type ToolResult =
+  | { kind: "answer"; value: unknown }
+  | { kind: "refused"; why: string }
+  | { kind: "unauthorized" }
+  | { kind: "unreachable"; why: string };
+
+/** Calls one tool of REDnode's MCP server (a package's service function is listed as <package>__<name>). */
+export async function callRednodeTool(mcp: { port: number; token: string }, name: string, args: Record<string, unknown>, timeoutMs = 20_000): Promise<ToolResult> {
+  const r = await postTool(mcp, name, args, timeoutMs);
+  return "kind" in r ? r : readToolReply(r.status, r.contentType, r.text, name);
+}
+
+/** Reads the HTTP reply of any tools/call: the tool's text as JSON when it is JSON, else the text. Exported for the unit test. */
+export function readToolReply(status: number, contentType: string, text: string, name: string): ToolResult {
+  if (status === 401) return { kind: "unauthorized" };
+  if (status < 200 || status >= 300) return { kind: "refused", why: `REDnode's MCP server answered HTTP ${status}${text ? `: ${text.slice(0, 200)}` : ""}` };
+  let json = text;
+  if (/text\/event-stream/i.test(contentType)) json = text.split(/\r?\n/).filter((l) => l.startsWith("data:")).map((l) => l.slice(5).trim()).pop() ?? "";
+  let message: { result?: { content?: { type?: string; text?: string }[]; isError?: boolean }; error?: { message?: string } };
+  try {
+    message = JSON.parse(json);
+  } catch {
+    return { kind: "refused", why: `REDnode's MCP server sent something other than JSON: ${text.slice(0, 200)}` };
+  }
+  const missing = new RegExp(`${name} not found`, "i");
+  const refused = (why: string): ToolResult => ({ kind: "refused", why: missing.test(why) ? `${why}: the package is not in the game, or ${name} is switched off in REDnode's Tools Manager` : why });
+  if (message.error) return refused(message.error.message ?? "REDnode refused the call");
+  const content = message.result?.content?.find((c) => c.type === "text")?.text ?? "";
+  if (message.result?.isError) return refused(content || "REDnode refused the call");
+  try {
+    return { kind: "answer", value: JSON.parse(content) };
+  } catch {
+    return { kind: "answer", value: content };
+  }
+}
+
+type Posted = { status: number; contentType: string; text: string };
+
+function postTool(mcp: { port: number; token: string }, name: string, args: Record<string, unknown>, timeoutMs: number): Promise<Posted | Extract<ReloadResult, { kind: "refused" | "unreachable" }>> {
+  const body = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } });
   return new Promise((resolve) => {
     const req = http.request(
       {
@@ -89,7 +133,7 @@ export function callArchivesReload(mcp: { port: number; token: string }, files: 
       (res) => {
         const chunks: Buffer[] = [];
         res.on("data", (c: Buffer) => chunks.push(c));
-        res.on("end", () => resolve(readReply(res.statusCode ?? 0, res.headers["content-type"] ?? "", Buffer.concat(chunks).toString("utf8"))));
+        res.on("end", () => resolve({ status: res.statusCode ?? 0, contentType: res.headers["content-type"] ?? "", text: Buffer.concat(chunks).toString("utf8") }));
         res.on("error", (e) => resolve({ kind: "refused", why: `REDnode's reply broke off: ${e.message}` }));
       },
     );

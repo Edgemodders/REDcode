@@ -27,6 +27,7 @@ import {
   waitForUpdate,
   writeUpdateMarker,
 } from "./bridgeUpdater";
+import { registerSectorGame } from "./sectorGame";
 import { Cr2wEditorProvider, Cr2wPropertiesView, Cr2wViewType, cr2wViewTypeFor, opensInCr2wEditor } from "./cr2wEditor";
 import { GameFileSystem, gameUri } from "./gameFs";
 import { compareJson, formatDifference, type JsonComparison } from "./jsonDiff";
@@ -288,6 +289,13 @@ export function activate(context: vscode.ExtensionContext): REDcodeApi | undefin
     }),
   );
   registerGameView({ context, log, gameFolder }, extensionDir, shipCommand);
+  // The sector view and the game, both ways (docs/design/sector-layers.md L4, docs/design/sector-tools.md L1).
+  cr2wEditor.sectorGame = registerSectorGame(context, {
+    log,
+    bridge: () => bridge,
+    projectDir: () => project?.dir,
+    openSector: (target, options) => openSectorInEditor(target, options),
+  });
 
   detectProject();
   syncRednodeService();

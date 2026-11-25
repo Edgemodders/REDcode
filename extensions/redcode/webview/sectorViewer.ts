@@ -28,6 +28,8 @@ const Icons = {
   only: "path M2.5 3h11l-4.25 5v5l-2.5 1.2V8Z",
   mesh: "path M8 1.8 13.5 4.9v6.2L8 14.2l-5.5-3.1V4.9Z|path M2.5 4.9 8 8l5.5-3.1M8 8v6.2",
   material: "circle 8 8 5.5|path M5.2 6.4a3.2 3.2 0 0 1 2.6-1.9",
+  // Show in Game: a screen with a play mark.
+  game: "rect 1.5 3 13 9|path M6.5 5.5v4l3.5-2Z|path M5.5 14h5",
 };
 
 /** What the host sends while a sector loads. */
@@ -92,6 +94,8 @@ export interface SectorSource {
   layers?(paths: string[]): Promise<unknown>;
   /** A layer's Open: its sector in its own tab. */
   openSector?(path: string): Promise<unknown>;
+  /** Show in Game: EDGEbuilder's camera to a sector's node data entry ("focus"), or the pick sent along to it ("select"). */
+  showInGame?(sector: string, entry: number, how: "focus" | "select"): Promise<unknown>;
   /** The Properties tab: what the selected node data entries, and the nodes they name, share. */
   props?(entries: number[]): Promise<PropsInfo>;
   /** Sets one property on every selected entry or node; the host asks first. */
@@ -251,12 +255,14 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
   const scriptLine = el("span", "dim", "");
   const toTree = button("Show in Tree", "Go to this node data entry in the tree");
   toTree.hidden = true;
+  const toGame = button("Show in Game", "Fly EDGEbuilder's camera to this thing in the running game, with Edit on. Needs REDnode and EDGEbuilder in the game");
+  toGame.hidden = true;
   const openMesh = button("Open Mesh", "Open the mesh in REDcode's mesh view");
   const toEdgemat = button("Open in EDGEmat", "Put the mesh on EDGEmat's Desk at this node's appearance, to choose or make another material");
   const addMesh = button("Add Mesh to Project", "Copy the mesh into the project. A change to it shows everywhere the game uses this mesh, not only here");
   const meshButtons = [openMesh, toEdgemat, addMesh];
   for (const b of meshButtons) b.hidden = true;
-  info.append(progress, hint, scriptLine, pickedLine, pickedMeta, toTree, ...meshButtons, realNote);
+  info.append(progress, hint, scriptLine, pickedLine, pickedMeta, toTree, toGame, ...meshButtons, realNote);
 
   // ---- the camera's row: each move while its button is held (Shift faster, Ctrl slower), as the keys do ----
   const group = (label: string, ...items: HTMLElement[]) => {
@@ -352,11 +358,32 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
     return /^\d+$/.test(entry) ? `nodeData.Data.${entry}` : null;
   };
 
+  /** A thing's sector and node data entry, from its id (<sector>#<entry>, or #<entry>.<copy> for an instanced copy). */
+  const gameEntryOf = (id: string): { sector: string; entry: number } | null => {
+    const cut = id.lastIndexOf("#");
+    const entry = cut < 0 ? "" : id.slice(cut + 1).split(".")[0];
+    return /^\d+$/.test(entry) && /\.streamingsector$/i.test(id.slice(0, cut)) ? { sector: id.slice(0, cut), entry: Number(entry) } : null;
+  };
+  const showInGame = (id: string) => {
+    const at = gameEntryOf(id);
+    if (at) source.showInGame?.(at.sector, at.entry, "focus").catch((e) => source.say?.(e instanceof Error ? e.message : String(e)));
+  };
+  /** Each pick goes along to EDGEbuilder in the game, a moment after it settles. */
+  let sendTimer: ReturnType<typeof setTimeout> | undefined;
+  const sendPick = (id: string | null) => {
+    clearTimeout(sendTimer);
+    const at = id ? gameEntryOf(id) : null;
+    if (!at || !source.showInGame) return;
+    sendTimer = setTimeout(() => void source.showInGame?.(at.sector, at.entry, "select").catch(() => undefined), 400);
+  };
+
   /** The panel under the view, Show in Tree, the Properties view and Materials: all on the current thing. */
   const showCurrent = () => {
     const id = picked;
     const path = id ? pathOf(id) : null;
     toTree.hidden = !path;
+    toGame.hidden = !id || !source.showInGame || !gameEntryOf(id);
+    sendPick(id);
     pickedLine.textContent = id ? `${id.slice(id.lastIndexOf("\\") + 1)}${path ? "" : layerOf(id.slice(0, id.lastIndexOf("#"))) ? "  (a layer's)" : "  (a coarser sector's)"}` : "";
     pickedLine.title = id ?? "";
     const what = id ? drawnAs.get(id) : undefined;
@@ -819,6 +846,11 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
         setCurrent(id);
         source.showInTree(path);
       });
+    if (source.showInGame && gameEntryOf(id))
+      rowButton(Icons.game, "Show in Game: EDGEbuilder's camera to it in the running game", () => {
+        setCurrent(id);
+        showInGame(id);
+      });
     rowButton(Icons.only, what ? "Only: keep only the selected things that draw this mesh" : "Only: keep only this one in the selection", () => {
       const keep = what ? selection.filter((x) => drawnAs.get(x)?.mesh.toLowerCase() === what.mesh.toLowerCase()) : [id];
       select(keep, id);
@@ -1045,6 +1077,9 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
   toTree.addEventListener("click", () => {
     const path = picked ? pathOf(picked) : null;
     if (path) source.showInTree(path);
+  });
+  toGame.addEventListener("click", () => {
+    if (picked) showInGame(picked);
   });
   fit.addEventListener("click", () => view.flyTo(picked ? [picked] : undefined));
   // The view's keys work wherever the view has the keyboard: the 3D view, the list, its buttons, the line under

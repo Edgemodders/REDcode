@@ -404,6 +404,8 @@
         overlaps: () => request("sectorOverlaps"),
         layers: (paths) => request("sectorLayers", { layers: paths }),
         openSector: (path) => request("sectorOpen", { path }),
+        // Show in Game, and each pick sent along to EDGEbuilder in the game (docs/design/sector-tools.md, L1).
+        showInGame: payload.showInGame ? (sector, entry, how) => request("sectorGame", { sector, entry, how }) : undefined,
         // The Properties tab: what the selection shares, set on all of it (the host asks first).
         props: (entries) => request("sectorProps", { entries }),
         setProp: (entries, propTarget, property, value) => request("sectorPropsSet", { entries, propTarget, property, value }),

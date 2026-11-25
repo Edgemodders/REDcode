@@ -139,6 +139,14 @@ await check("reply: an event stream carries the same message", () => {
   const body = `event: message\ndata: ${rpc({ content: [{ type: "text", text: '{"reloaded":["x.archive"],"failed":[]}' }] })}\n\n`;
   assert.equal(hs.readReply(200, "text/event-stream", body).kind, "answer");
 });
+await check("any tool's reply: JSON, plain text, a missing package's tool", () => {
+  assert.deepEqual(hs.readToolReply(200, "application/json", rpc({ content: [{ type: "text", text: '{"focused":false,"why":"No save loaded"}' }] }), "edgebuilder__focus"), { kind: "answer", value: { focused: false, why: "No save loaded" } });
+  assert.deepEqual(hs.readToolReply(200, "application/json", rpc({ content: [{ type: "text", text: "done" }] }), "x"), { kind: "answer", value: "done" });
+  const r = hs.readToolReply(200, "application/json", JSON.stringify({ jsonrpc: "2.0", id: 1, error: { code: -32602, message: "Tool edgebuilder__focus not found" } }), "edgebuilder__focus");
+  assert.equal(r.kind, "refused");
+  assert.match(r.why, /not in the game/);
+  assert.deepEqual(hs.readToolReply(401, "application/json", "", "x"), { kind: "unauthorized" });
+});
 await check("call: nothing listening is unreachable", async () => {
   const server = http.createServer();
   await new Promise((r) => server.listen(0, "127.0.0.1", r));
@@ -807,7 +815,7 @@ await check("redcode service: every window's project, the last focused first; a 
         "const list = (values, index) => ({ values, index, GetValue: async function () { return this.values[this.index]; }, GetValues: async function () { return this.values; }, GetIndex: async function () { return this.index; }, SetIndex: async function (i) { this.index = i; } });",
         "const vars = (globalThis.__display ??= { WindowMode: list(['Windowed', 'BorderlessWindowed', 'Fullscreen'], 1), Resolution: list(['1280x720', '1920x1080', '3840x2160'], 2), confirmed: 0 });",
         "const settings = { GetVar: async (_group, name) => vars[name] ?? null, ConfirmChanges: async () => { vars.confirmed++; } };",
-        "export const api = { GameInstance: { GetSettingsSystem: async () => settings } };",
+        "export const api = { GameInstance: { GetSettingsSystem: async () => settings }, GetPlayer: async () => globalThis.__noPlayer ? null : { GetWorldPosition: async () => ({ X: -1350.5, Y: 470.25, Z: 12 }), GetWorldForward: async () => ({ X: 0, Y: 1, Z: 0 }) } };",
       ].join("\n"),
     );
     fs.writeFileSync(path.join(pkg, "package.json"), JSON.stringify({ type: "module" }));
@@ -836,7 +844,31 @@ await check("redcode service: every window's project, the last focused first; a 
     assert.equal(globalThis.__display.confirmed, 1, "both values, one confirm");
     await assert.rejects(rs.requestDisplay({ resolution: "1000x700" }, 6000), /does not list the resolution 1000x700/);
     assert.equal((await svc.display()).resolution, "1920x1080", "a size the game does not list changes nothing");
-    assert.equal(manifest.version, "0.3.0");
+    assert.equal(manifest.version, "0.4.0");
+
+    // V's place for EDGEworld: Open Sector Here, through place-request.json (docs/design/sector-layers.md, L4).
+    assert.deepEqual(await rs.requestPlace(6000).then((p) => [p.position, p.forward]), [[-1350.5, 470.25, 12], [0, 1, 0]]);
+    globalThis.__noPlayer = true;
+    await assert.rejects(rs.requestPlace(6000), /load a save/);
+    globalThis.__noPlayer = false;
+
+    // openSector from the game: no window answers, then one of two takes it, the one with the project.
+    const none = await svc.openSector({ sector: "base\\worlds\\x\\exterior_1_2_0_0.streamingsector", entry: 7 });
+    assert.equal(none.opened, false, "no REDcode window: not opened, with why");
+    assert.match(none.why, /No REDcode window/);
+    rs.publishProject(ref("MineFirst"), true);
+    const opened = [];
+    const mine = rs.watchOpenRequests((r) => opened.push(["mine", r.sector, r.entry]), { focused: () => false, hasProject: () => true });
+    const bare = rs.watchOpenRequests((r) => opened.push(["bare", r.sector, r.entry]), { focused: () => true, hasProject: () => false });
+    const took = await svc.openSector("base/worlds/x/exterior_1_2_0_0.streamingsector", 7);
+    assert.equal(took.opened, true);
+    assert.equal(took.window, process.pid);
+    await new Promise((r) => setTimeout(r, 1500));
+    assert.deepEqual(opened, [["mine", "base\\worlds\\x\\exterior_1_2_0_0.streamingsector", 7]], "once, by the window last used with a project; slashes made backslashes");
+    await assert.rejects(svc.openSector({ sector: "base\\x.mesh" }), /streamingsector/);
+    await assert.rejects(svc.openSector({ sector: "base\\x.streamingsector", entry: -1 }), /node data index/);
+    mine.dispose();
+    bare.dispose();
 
     // The MCP server's game tools: the tab asked for through a file, and the player's values kept.
     const gr = require("../dist/gameRun.js");
@@ -853,6 +885,42 @@ await check("redcode service: every window's project, the last focused first; a 
     if (before === undefined) delete process.env.LOCALAPPDATA;
     else process.env.LOCALAPPDATA = before;
   }
+});
+
+// ---- EDGEworld: Open Sector Here's choice (docs/design/sector-layers.md, L4) ----
+
+await check("Open Sector Here: the interior V is inside, else the nearest level 0 exterior; the nearest thing with a resource", async () => {
+  const sh = require("../dist/sectorHere.js");
+  const box = (min, max) => ({ min, max });
+  const item = (index, position, extra = {}) => ({ index, kind: "worldMeshNode", resource: "base\\m.mesh", transform: { position }, ...extra });
+  const sectors = {
+    "int_big.streamingsector": { kind: "interior", level: 0, box: box([-500, -500, -100], [500, 500, 100]), items: [item(0, [200, 200, 0]), item(1, [250, 260, 5])] },
+    "int_small.streamingsector": { kind: "interior", level: 0, box: box([-50, -50, -10], [50, 50, 10]), items: [item(0, [20, 20, 0]), item(1, [30, 30, 3])] },
+    "ext_a_0.streamingsector": { kind: "exterior", level: 0, box: box([-10, -10, -50], [118, 118, 50]), items: [item(0, [3, 0, 0], { resource: null }), item(1, [6, 0, 0]), item(2, [40, 0, 0], { instances: [{ position: [1, 1, 0] }] })] },
+    "ext_b_0.streamingsector": { kind: "exterior", level: 0, box: box([-140, -140, -50], [10, 10, 50]), items: [item(0, [0, 0, 0])] },
+    "ext_a_1.streamingsector": { kind: "exterior", level: 1, box: box([-300, -300, -50], [300, 300, 50]), items: [] },
+  };
+  const calls = [];
+  const call = async (method, params) => {
+    calls.push(method);
+    if (method === "sector.find") return { sectors: Object.entries(sectors).map(([path, s]) => ({ path, kind: s.kind, level: s.level, box: s.box })) };
+    if (method === "sector.nodes") return { items: sectors[params.path].items };
+    throw new Error(method);
+  };
+  // Outside both interiors' things: the exterior whose middle is nearest across the ground (a, at 54,54, not b at -65,-65).
+  const out = await sh.sectorHere(call, [0, 0, 0]);
+  assert.equal(out.sector, "ext_a_0.streamingsector");
+  assert.equal(out.kind, "exterior");
+  assert.equal(out.entry, 2, "an instanced copy at 1.4 m beats a mesh at 6 m; the thing with no resource at 3 m is not picked");
+  // Inside the small interior's things (20..30): it wins over the big one, which is read only when the small one does not hold V.
+  calls.length = 0;
+  const inside = await sh.sectorHere(call, [24, 24, 1]);
+  assert.deepEqual([inside.sector, inside.kind, inside.entry], ["int_small.streamingsector", "interior", 0]);
+  assert.deepEqual(calls, ["sector.find", "sector.nodes"], "the smallest interior first, and only it");
+  // Two metres above the things still counts (V's head), three does not.
+  assert.equal((await sh.sectorHere(call, [24, 24, 4.9])).kind, "interior");
+  assert.equal((await sh.sectorHere(call, [24, 24, 6])).kind, "exterior");
+  await assert.rejects(sh.sectorHere(async () => ({ sectors: [] }), [0, 0, 0]), /No sector of the game's holds V's place/);
 });
 
 // ---- The world view's host half (packages/world-view, docs/design/sector-view.md) ----

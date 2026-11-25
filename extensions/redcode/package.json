@@ -617,6 +617,12 @@
         "icon": "$(comment-discussion)"
       },
       {
+        "command": "redcode.openSectorHere",
+        "title": "Open Sector Here",
+        "category": "EDGEworld",
+        "icon": "$(location)"
+      },
+      {
         "command": "redcode.newFile",
         "title": "New File...",
         "category": "REDcode",

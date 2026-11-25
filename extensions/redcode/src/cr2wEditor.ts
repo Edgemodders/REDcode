@@ -277,6 +277,10 @@ interface Request {
   value?: unknown;
   /** sectorLayers: the layers to draw beside the opened sector (docs/design/sector-layers.md). */
   layers?: string[];
+  /** sectorGame: Show in Game (focus) or the pick sent along (select), for a sector's node data entry. */
+  sector?: string;
+  entry?: number;
+  how?: "focus" | "select";
   /** light: the 3D views' light settings to keep for the window. */
   settings?: unknown;
   /** sideWidth: the side list's width in pixels, or none for the default. */
@@ -383,6 +387,8 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
   private readonly saved = new vscode.EventEmitter<Cr2wDocument>();
   /** Generate, Add and Replace Clip in the animation view, when extension.ts gives them. */
   animMaker?: AnimMaker;
+  /** The sector view and the game (src/sectorGame.ts), set by extension.ts. */
+  sectorGame?: import("./sectorGame").SectorGame;
   /** The Lip Sync editor (docs/design/lipsync.md): a lip sync set's animation view gets Open in Lip Sync. */
   lipSync?: LipSync;
   /** Fired after a document is saved, for views that read the file (the LocKeys view). */
@@ -889,7 +895,16 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
             if (overlapsRun) overlapsRun.stopped = true;
             const sector = meshGamePath();
             if (!sector) throw new Error("A sector is read by its game path: open the game's file, or a copy under the project's Archive folder");
-            return reply(m.id, { sector, dirty: document.log.length > 0, light: this.context.workspaceState.get(LightKey) });
+            this.sectorGame?.opened();
+            return reply(m.id, { sector, dirty: document.log.length > 0, light: this.context.workspaceState.get(LightKey), showInGame: !!this.sectorGame });
+          }
+          case "sectorGame": {
+            // Show in Game, and each pick sent along to EDGEbuilder (docs/design/sector-tools.md, L1).
+            if (!m.sector || !/\.streamingsector$/i.test(m.sector) || !Number.isInteger(m.entry)) throw new Error("No sector entry to show");
+            const how = m.how === "select" ? "select" : "focus";
+            if (how === "select") void this.sectorGame?.show(m.sector, m.entry!, how);
+            else await this.sectorGame?.show(m.sector, m.entry!, how);
+            return reply(m.id, null);
           }
           case "sectorLoad": {
             // The opened sector, from the project's loose files when it is a project's copy; the coarser

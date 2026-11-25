@@ -136,8 +136,6 @@ setInterval(check, 5000).unref?.();
 // The game's window mode and resolution, for REDcode's Run Game in Tab (docs/design/game-view.md).
 // REDcode asks by writing display-request.json beside project.json; the answer goes to display.json.
 // It is a file, not a tool, so the click in VS Code is the player's say and the game asks nothing more.
-const displayRequest = path.join(dir, 'display-request.json');
-const displayAnswer = path.join(dir, 'display.json');
 
 async function displayVars() {
   const settings = await api.GameInstance.GetSettingsSystem(game.instance);
@@ -190,44 +188,122 @@ async function setDisplay(want) {
   return { ...(await readDisplay(vars)), changed };
 }
 
-let displayDone = '';
-let displayBusy = false;
-async function checkDisplay() {
-  if (displayBusy) return;
-  let want;
+// A request file answered in an answer file: only a fresh request from a REDcode that still runs, so an
+// old file never acts on a later game.
+function answerRequests(requestName, answerName, handle) {
+  const request = path.join(dir, requestName);
+  const answerFile = path.join(dir, answerName);
+  let done = '';
+  let busy = false;
+  async function check() {
+    if (busy) return;
+    let want;
+    try {
+      want = JSON.parse(fs.readFileSync(request, 'utf8'));
+    } catch {
+      return; // none, or being written: the next change reads it
+    }
+    if (typeof want?.id !== 'string' || want.id === done) return;
+    done = want.id;
+    if (!Number.isInteger(want.pid) || !running(want.pid) || Math.abs(Date.now() - Date.parse(want.at)) > 30000) return;
+    busy = true;
+    let answer;
+    try {
+      answer = { id: want.id, ok: true, ...(await handle(want)) };
+    } catch (e) {
+      answer = { id: want.id, ok: false, error: e.message };
+    }
+    busy = false;
+    try {
+      const tmp = `${answerFile}.tmp`;
+      fs.writeFileSync(tmp, JSON.stringify({ ...answer, at: new Date().toISOString() }, null, 2));
+      fs.renameSync(tmp, answerFile);
+    } catch (e) {
+      console.log(`Cannot write ${answerFile}: ${e.message}`);
+    }
+    check();
+  }
   try {
-    want = JSON.parse(fs.readFileSync(displayRequest, 'utf8'));
+    fs.watch(dir, (_event, name) => {
+      if (!name || name.toLowerCase() === requestName) setTimeout(check, 50);
+    });
   } catch {
-    return; // none, or being written: the next change reads it
+    // The 2-second check below still sees a request.
   }
-  if (typeof want?.id !== 'string' || want.id === displayDone) return;
-  displayDone = want.id;
-  // Only a fresh request from a REDcode that still runs: an old file must not change a later game.
-  if (!Number.isInteger(want.pid) || !running(want.pid) || Math.abs(Date.now() - Date.parse(want.at)) > 30000) return;
-  displayBusy = true;
-  let answer;
-  try {
-    answer = { id: want.id, ok: true, ...(await setDisplay(want)) };
-    if (answer.changed) console.log(`REDcode set the game to ${answer.windowMode} ${answer.resolution}`);
-  } catch (e) {
-    answer = { id: want.id, ok: false, error: e.message };
-  }
-  displayBusy = false;
-  try {
-    const tmp = `${displayAnswer}.tmp`;
-    fs.writeFileSync(tmp, JSON.stringify({ ...answer, at: new Date().toISOString() }, null, 2));
-    fs.renameSync(tmp, displayAnswer);
-  } catch (e) {
-    console.log(`Cannot write ${displayAnswer}: ${e.message}`);
-  }
-  checkDisplay();
+  setInterval(check, 2000).unref?.();
 }
 
-try {
-  fs.watch(dir, (_event, name) => {
-    if (!name || name.toLowerCase() === 'display-request.json') setTimeout(checkDisplay, 50);
-  });
-} catch {
-  // The 2-second check below still sees a request.
+answerRequests('display-request.json', 'display.json', async (want) => {
+  const answer = await setDisplay(want);
+  if (answer.changed) console.log(`REDcode set the game to ${answer.windowMode} ${answer.resolution}`);
+  return answer;
+});
+
+// ---- V's place, for REDcode's EDGEworld: Open Sector Here (docs/design/sector-layers.md, L4) ----
+
+/**
+ * Where V stands in the world: the position in metres and the way V faces, in the game's axes (Z up).
+ * Needs a loaded save.
+ * @tool
+ * @readonly
+ * @returns {{ position: number[], forward: number[] }} V's place.
+ */
+export async function place() {
+  const player = await api.GetPlayer(game.instance);
+  if (!player) throw new Error('No player: load a save first.');
+  const p = await player.GetWorldPosition();
+  const f = await player.GetWorldForward();
+  return { position: [p.X, p.Y, p.Z], forward: [f.X, f.Y, f.Z] };
 }
-setInterval(checkDisplay, 2000).unref?.();
+
+answerRequests('place-request.json', 'place.json', () => place());
+
+// ---- Open in REDcode, from the game (docs/design/sector-layers.md, L4; docs/design/sector-tools.md) ----
+// openSector writes open-request.json beside project.json. Every REDcode window watches it; the one last
+// focused with a project open takes it first (the others a moment later, in case it does not answer),
+// and the window that takes it leaves open-<id>.claim with its process id.
+
+const openRequest = path.join(dir, 'open-request.json');
+
+/**
+ * Opens a streaming sector in REDcode (VS Code), in its 3D sector view with one node data entry picked: the
+ * project's copy when the project has one, else the game's. The REDcode window last used with a project
+ * takes it. VS Code does not come to the front by itself.
+ * @tool
+ * @param {string | { sector: string, entry?: number }} sector The sector's depot path (base\worlds\...\name.streamingsector), or { sector, entry }.
+ * @param {number} [entry] The node data entry's index to pick, when sector is the path.
+ * @returns {{ opened: boolean, window?: number, why?: string }} Whether a REDcode window took it, its process id, and why not.
+ */
+export async function openSector(sector, entry) {
+  const want = typeof sector === 'object' && sector ? sector : { sector, entry };
+  if (typeof want.sector !== 'string' || !/\.streamingsector$/i.test(want.sector)) throw new Error(`openSector takes a .streamingsector's depot path, not ${want.sector}`);
+  if (want.entry !== undefined && want.entry !== null && (!Number.isInteger(want.entry) || want.entry < 0)) throw new Error(`openSector's entry is a node data index (0 or more), not ${want.entry}`);
+  const id = `${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  fs.mkdirSync(dir, { recursive: true });
+  // Claims of earlier requests go.
+  for (const n of fs.readdirSync(dir)) {
+    const f = path.join(dir, n);
+    try {
+      if (/^open-.*\.claim$/.test(n) && Date.now() - fs.statSync(f).mtimeMs > 60000) fs.rmSync(f, { force: true });
+    } catch {
+      // Gone already.
+    }
+  }
+  const tmp = `${openRequest}.${process.pid}.tmp`;
+  const request = { id, at: new Date().toISOString(), sector: want.sector.replace(/\//g, '\\'), ...(Number.isInteger(want.entry) ? { entry: want.entry } : {}) };
+  fs.writeFileSync(tmp, JSON.stringify(request, null, 2));
+  fs.renameSync(tmp, openRequest);
+  const claim = path.join(dir, `open-${id}.claim`);
+  const end = Date.now() + 4000;
+  while (Date.now() < end) {
+    await new Promise((r) => setTimeout(r, 150));
+    try {
+      const pid = Number(fs.readFileSync(claim, 'utf8'));
+      return { opened: true, window: pid };
+    } catch {
+      // Not yet.
+    }
+  }
+  fs.rmSync(openRequest, { force: true });
+  return { opened: false, why: 'No REDcode window answered: open VS Code with REDcode 0.10.18 or later.' };
+}
