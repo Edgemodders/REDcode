@@ -4,7 +4,7 @@ title: Sector Tools
 
 # REDcode and Sector Tools
 
-Draft 0.3, 2026-11-20, for the owner. **Sector Tools** shows the sector renderer in the game, finds sectors and nodes, and flies a free camera to a node, with an **Edit** switch as EDGEbuilder has. The owner asked for it on 2026-11-20.
+Draft 0.3, 2026-11-20; **agreed 2026-11-25** (the three decisions below). **Sector Tools** shows the sector renderer in the game, finds sectors and nodes, and flies a free camera to a node, with an **Edit** switch as EDGEbuilder has. The owner asked for it on 2026-11-20.
 
 - **Draft 0.1:** REDcode drafted it first, as an app pack of REDcode's own.
 - **To EDGEbuilder:** the same day the owner agreed it fits better with EDGEbuilder. It went to EDGEbuilder's session in [EDGEbuilder #9](https://github.com/Edgemodders/EDGEbuilder/issues/9).
@@ -61,6 +61,8 @@ When REDnode or EDGEbuilder is not running, REDcode's Show in Game says so and o
 Each step with a hand test in the game, together with EDGEbuilder's matching step.
 
 ## Decisions for the owner
+
+**Decided by the owner on 2026-11-25:** 1 as (a), already the way since Sector layers' L4 (`openSector` writes `open-request.json` beside `project.json`, [Sector layers](sector-layers.html)), with (b) only to bring VS Code to the front if a link proves possible; **2 (a)**, a warning the modder can dismiss, never a block; **3 (a)**, offered once, not again after it is dismissed. REDcode's half is built after EDGEbuilder's S1.
 
 1. **How the game reaches REDcode.**
    - **(a)** The `redcode` service writes the request to a file for the window holding that project, which that REDcode window watches. This builds on #32's file of every window's project.
