@@ -270,6 +270,8 @@ body.mesh-mode #props { display: flex; flex-direction: column; overflow: hidden;
 .animedit .edittime { display: inline-flex; gap: 4px; align-items: center; }
 .animedit .editform { display: flex; flex-direction: column; gap: 6px; }
 .animedit .makerow[hidden] { display: none; }
+.animedit .makestatus.editpending { color: var(--accent); }
+.animedit button.editready { background: var(--accent); color: #000; border-color: var(--accent); }
 
 /* the .glb/.gltf viewer page */
 body.meshfile { display: flex; flex-direction: column; height: 100vh; margin: 0; }

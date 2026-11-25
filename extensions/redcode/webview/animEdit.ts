@@ -137,7 +137,11 @@ export function editPanel(api: EditApi, info: EditInfo, view: EditView): { box: 
     apply.disabled = busy || !dirty();
     revert.disabled = busy || !dirty();
     clear.disabled = busy || !steps.length;
-    if (dirty() && !busy) status.textContent = "Not applied yet: Apply rebuilds the clip.";
+    // Added steps change nothing until Apply: said in the accent colour, with Apply lit (the owner's AE2 run).
+    const pending = dirty() && !busy;
+    status.classList.toggle("editpending", pending);
+    apply.classList.toggle("editready", pending);
+    if (pending) status.textContent = `Not applied yet: ${steps.length} step${steps.length === 1 ? "" : "s"} wait for Apply, which rebuilds the clip.`;
   };
   const run = async (what: string, job: () => Promise<unknown>) => {
     busy = true;
@@ -225,7 +229,7 @@ export function editPanel(api: EditApi, info: EditInfo, view: EditView): { box: 
   /** The bone box the 3D view's picking fills, when a form has one. */
   let boneTarget: HTMLSelectElement | null = null;
   const boneSelect = (bones: string[], value: string) => {
-    const s = select(bones.map((b) => [b, b]), value, "The bone; or click a joint in the 3D view with Bones on");
+    const s = select(bones.map((b) => [b, b]), value, "The bone, marked yellow in the 3D view; or click near a joint there");
     s.addEventListener("change", () => view.showBone(s.value));
     s.addEventListener("focus", () => view.showBone(s.value));
     return s;
@@ -314,6 +318,8 @@ export function editPanel(api: EditApi, info: EditInfo, view: EditView): { box: 
       }
     }
     form.append(row(addButton));
+    // The form's bone is marked at once, not only after it changes.
+    if (boneTarget) view.showBone(boneTarget.value);
   };
   kind.addEventListener("change", buildForm);
   buildForm();

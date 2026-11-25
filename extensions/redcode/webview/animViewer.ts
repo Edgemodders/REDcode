@@ -592,8 +592,12 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
   // AE2: the Edit panel on a made clip's own set, shown by the bar's Edit button.
   const editInfo = source.edit ? await source.edit.info().catch(() => null) : null;
   // A marker on the bone a step's form names; clicking a joint in the view picks it.
-  const marker = new THREE.Mesh(new THREE.SphereGeometry(0.025, 16, 12), new THREE.MeshBasicMaterial({ color: cssColour("--accent", "#fcee0a"), depthTest: false, transparent: true, opacity: 0.9 }));
+  // A dot of a fixed size on screen, over the body: a small ball inside the head did not show (the owner's AE2 run).
+  const markerGeometry = new THREE.BufferGeometry();
+  markerGeometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array([0, 0, 0]), 3));
+  const marker = new THREE.Points(markerGeometry, new THREE.PointsMaterial({ color: 0xfcee0a, size: 14, sizeAttenuation: false, depthTest: false, transparent: true }));
   marker.renderOrder = 10;
+  marker.frustumCulled = false;
   const showBone = (name: string | null) => {
     marker.removeFromParent();
     const b = name ? bones.find((x) => x.name === name) : undefined;

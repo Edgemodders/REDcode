@@ -848,7 +848,7 @@ F5 with **Run REDcode**. In the Project view (the pack's project, `Documents\RED
 | D6 | **Undo** | The steps before the last Apply come back (the layer gone), rebuilt; Undo again takes the next ones back |
 | D7 | **Clear**, **Apply** | The clip as made: no steps, the feet sliding again |
 
-Run 1 (owner, 2026-11-24), in progress: no way to add a step but Pin All Sliding. Found: the side column clips what is taller than it, so the Add a Step form and its **Add Step** fell off the bottom with no scroll. Fixed the same day: the Make and Edit panels scroll inside the column, the clip list keeps 90 px below them (checked in a 520 px column: the panel 342 px, scrolling its 457 px).
+Run 1 (owner, 2026-11-24), in progress: no way to add a step but Pin All Sliding. Found: the side column clips what is taller than it, so the Add a Step form and its **Add Step** fell off the bottom with no scroll. Fixed the same day: the Make and Edit panels scroll inside the column, the clip list keeps 90 px below them (checked in a 520 px column: the panel 342 px, scrolling its 457 px). At D3 the head showed no marker: it showed only after the bone list changed, and was a 2.5 cm ball inside the head. Fixed: a yellow dot of fixed screen size over the body, shown as soon as the form names a bone; and steps not applied yet are said in the accent colour with Apply lit, since a step changes nothing until Apply.
 
 ## Animation Editor (AE1)
 
