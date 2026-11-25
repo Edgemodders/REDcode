@@ -68,12 +68,26 @@ Agreed by the owner on 2026-11-24, each as recommended.
 
 The ThirdPartyNotices need no new entry: three.js is already in them, and the core adds no other package.
 
+## The editing loop (the owner, 2026-11-25)
+
+The owner: viewing a line's lip sync, editing it, adding or changing its voice, and changing the line itself all belong to the editor's loop. Where each stands:
+
+| Part of the loop | Today (L1) | What it takes | Whose |
+|---|---|---|---|
+| **View** a line's lip sync | Built: lines by scene, the voice, the curves, the head | — | REDcode |
+| **Edit** the lip sync | Not built: the marker scrubs, the curves cannot be changed | Change a track's keys on the curves (drag, scale a stretch, smooth), and make it again from the words or the voice (the letter timing, or Audio2Face as L3) | REDcode |
+| **Add or change a voice** | Add a Line speaks new words in the character's voice through EDGEwave; heard in the tab only | A game line's voice replaced by a new take or a WAV, as a `.wem` in the project at the game's path. REDcode cannot write `.wem` (WolvenKit's WAV import is a stub, #5); EDGEwave's `.wem` route through the modder's own Wwise 2023.1.14 is spiked (EDGEwave's `docs/voice-lines.md`, step 5, "Next"). So the voice goes through EDGEwave | EDGEwave, called from the tab |
+| **Change the line** | Not built | New words for a game line: its subtitle (the localization entry, through the LocKeys code REDcode has), a new voice (above) and lip sync made from both, written together | REDcode, with EDGEwave for the voice |
+| **Into the game** | Not built | Each of the above written into the project as the game's own files (the lip sync `.anims` with float tracks, the `.wem`, the subtitle), packed and heard in the game | REDcode; REDbridge #14 for the float tracks |
+
+So L2 is this loop, not only writing a made line: its own design page, agreed before code, in stages, with EDGEwave asked for the `.wem` call.
+
 ## Phases
 
 | Phase | What | Needs |
 |---|---|---|
 | **L1: merge and wire** | **Built 2026-11-24, hand test pending.** Merge `lipsync`, move each file to its place (above), wire the command, the tab, the two links and the MCP tools. The checks without VS Code run again from their new places (they pass). Then the tab's first hand test in VS Code, which never ran in EDGEfab: see, the head, Add a Line | REDbridge 0.16.0 for the head (REDcode's minimum is 0.18.0 already). EDGEwave 0.3.0 for Add a Line: it has `speakLine` (EDGEwave #13, checked in its `v0.3.0` tag on 2026-11-24) |
-| L2: write a made line into a project | Add a Line's clip as the game's lip sync `.anims`, named and registered like the game's, so it plays in the game. Probably through `anim-core`'s `addClip` | REDbridge's `.anims` import keeping float tracks (REDbridge #14, open; whether its float track part is on main or released is **unverified**). Its own short design page |
+| L2: the editing loop | [The loop](#the-editing-loop-the-owner-2026-11-25): edit a line's lip sync, add or change its voice, change its words, and write each into a project so it plays in the game. The lip sync as the game's `.anims`, named and registered like the game's, probably through `anim-core`'s `addClip`; the voice through EDGEwave's `.wem` route | REDbridge's `.anims` import keeping float tracks (REDbridge #14, open; whether its float track part is on main or released is **unverified**). Its own short design page |
 | L3: Audio2Face as a choice | The A2F version as a way to make a line's lip sync, beside the letter timing: a button that makes one for any line, where today only the spike's versions show (`tools/probes/lipsync-a2f`). On the roadmap at the owner's wish (2026-11-25); the owner's look at the `multi` model against the game's clip comes first and picks the model | A local Docker container and the modder's NVIDIA NGC key (a key store service, `ngc`?). Its own page; it may stay a power-user path |
 | L4: live lip sync | LS2 in the game, then perhaps a REDnode pack that speaks a made line on a spawned NPC, as Animation Tools plays a made clip | LS2's run in the game first |
 
