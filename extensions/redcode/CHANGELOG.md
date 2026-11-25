@@ -24,6 +24,7 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 **Changed**
 
 - The animation view's side column has tabs, **Clip**, **Edit** and **Animations**, in place of the Make and Edit buttons in its bar: making a clip, editing one and the list of clips each get the column's whole height.
+- Checkboxes in the CR2W editor and the 3D views are the standard ones again, as in the other EDGE tools.
 - The animation view's playback buttons are the usual media buttons: jump to the beginning, step back a frame, play backward, stop, play forward, step forward a frame, jump to the end. With the 3D view clicked, Space plays or stops, the arrows step a frame, and Home and End jump.
 
 **Fixed**

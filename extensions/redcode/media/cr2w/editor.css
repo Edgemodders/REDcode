@@ -313,20 +313,10 @@ body.meshfile { display: flex; flex-direction: column; height: 100vh; margin: 0;
 .animset button { margin-top: 6px; }
 .animset .setnote { margin-top: 4px; white-space: normal; }
 
-/* Checkboxes in the theme's colours (the synced set, the submesh list, true/false values), not the browser's blue */
-input[type="checkbox"] {
-  appearance: none; -webkit-appearance: none; margin: 0; flex: none; position: relative; cursor: pointer;
-  width: 14px; height: 14px; border-radius: 3px; vertical-align: middle;
-  background: var(--vscode-checkbox-background, var(--vscode-input-background));
-  border: 1px solid var(--vscode-checkbox-border, var(--line));
-}
-input[type="checkbox"]:checked { border-color: var(--accent); }
-input[type="checkbox"]:checked::after {
-  content: ""; position: absolute; left: 4px; top: 1px; width: 4px; height: 8px;
-  border: solid var(--vscode-checkbox-foreground, var(--accent)); border-width: 0 2px 2px 0; transform: rotate(45deg);
-}
-input[type="checkbox"]:focus-visible { outline: 1px solid var(--vscode-focusBorder, var(--accent)); outline-offset: 1px; }
-input[type="checkbox"]:disabled { opacity: .5; cursor: default; }
+/* Checkboxes as the browser draws them, blue, as in the other EDGE tools (the owner, 2026-11-25): a theme's
+   checkbox colours reach only VS Code's own controls, not a page's. Only their spacing is set here. */
+input[type="checkbox"] { margin: 0; flex: none; cursor: pointer; vertical-align: middle; }
+input[type="checkbox"]:disabled { cursor: default; }
 /* The sector view takes the keyboard when clicked (Ctrl+A, F, Esc): no focus ring round the whole view. */
 .meshview:focus { outline: none; }
 /* The Make panel while a make runs: a spinner in the button, a bar through the stages. */
