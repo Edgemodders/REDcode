@@ -100,7 +100,7 @@ The way back, from a definition or an inner record to its placements, is a tree 
 | **The game** | The `redcode` REDnode package gets `openSector({ sector, entry })`. It writes `open-request.json` beside `project.json`, and the REDcode window that is open on a project (or the one used last) opens the sector at that entry. Game tabs and the size selector already work this way. EDGEbuilder adds **Open in REDcode** to its Sector drawer and to Picked in the world (its Sector Tools page lists it as missing) |
 | **REDcode** | **EDGEworld: Open Sector Here** (the sector view's commands take the category EDGEworld, the owner's name for it, 2026-11-24) asks the package where V stands, through a request file answered as `display()` is. REDcode finds the sector there with `sector.find`: the interior sector when V is inside one, else the level 0 exterior. It opens it with the nearest thing picked. EDGEbuilder's camera place goes through EDGEbuilder's own button, since it knows its camera |
 
-**Probe (P2):** which REDnode call gives V's position and facing inside a package, and whether the camera's place is readable too.
+**Probe (P2):** which REDnode call gives V's position and facing inside a package, and whether the camera's place is readable too. **Answered from EDGEbuilder's code** (2026-11-25), which passed in the game in its S1: `api.GetPlayer(game.instance)`, then `GetWorldPosition()` and `GetWorldForward()`. The camera's place is EDGEbuilder's (its own camera, or V's first-person camera component), so REDcode reads only V's.
 
 ## Order
 
@@ -110,7 +110,7 @@ The way back, from a definition or an inner record to its placements, is a tree 
 | **L1 Layers** | The tabs, the narrowed list, Off, Ghost and Shown, loading progress, picking a layer's thing |
 | **L2 Across layers** | Selections across sectors, scripts over layers, Apply into each project sector |
 | **L3 Links** | The picked panel's Links row and Select Placements in 3D |
-| **L4 Open in REDcode** | `openSector` in the package (its version bumped), Open Sector Here; the request to EDGEbuilder for its buttons |
+| **L4 Open in REDcode** (built 2026-11-25, hand test pending) | `openSector` in the package (its version bumped), Open Sector Here; the request to EDGEbuilder for its buttons |
 
 ## L1 as built (2026-11-24)
 
@@ -118,6 +118,14 @@ The way back, from a definition or an inner record to its placements, is a tree 
 - **REDcode:** `sectorOverlaps`, `sectorLayers` and `sectorOpen` in `src/cr2wEditor.ts` (the loader draws the opened sector, the coarser ones when on, and the layers on; a layer is the project's copy when the project has one); the tabs and the Overlaps list in `webview/sectorViewer.ts`. A new view starts with every layer off.
 - **Changed from the plan:** Ghost and Shown are the only states drawn; the layer states are not kept when the tab closes (nothing checked at first, as the owner asked). The **variants** tag was dropped from the rows, since most sectors have variants; the count is in the row's tooltip. Off is lit in grey, so only layers that are on stand out.
 - **Checked:** see `docs/testing.md`, Sector layers (L1).
+
+## L4 as built (2026-11-25)
+
+- **The package** (`extensions/redcode/rednode/redcode`, **0.4.0**): `openSector({ sector, entry })` (or `(sector, entry)`) writes `open-request.json` beside `project.json` and waits up to 4 seconds for a window's claim, answering `{ opened: true, window }` or `{ opened: false, why }`; `place()` gives V's position and facing. Both are tools for assistants (`redcode__openSector`, `redcode__place`). REDcode asks for V's place through `place-request.json`, answered in `place.json`, as the display is asked.
+- **Which window:** each REDcode window watches the request (`watchOpenRequests` in `src/rednodeService.ts`). The window last focused with a project takes it at once; other windows with a project after 0.3 s (with the focus) or 0.7 s, and windows with none after 1.2 s, so a request is still taken when that window does not answer. The first claim (`open-<id>.claim`) wins. VS Code does not come to the front: whether a REDnode app can open a `vscode://` link is still unverified (Sector Tools, decision 1 b).
+- **Open Sector Here** (`redcode.openSectorHere`, **EDGEworld: Open Sector Here**; `src/sectorHere.ts` without VS Code imports, `src/sectorGame.ts`): `sector.find` with a 2 m box around V. An interior counts when V is inside the box around its things (half a metre more each way, two up for the head); the six smallest interiors around V are read, smallest first. Else the level 0 exterior whose streaming box's middle is nearest V across the ground. The thing picked is the nearest one that shows a resource (a mesh, an entity), by its box, its nearest instanced copy or its place. The project's copy opens when the project has one.
+- **Not built:** EDGEbuilder's buttons (its side; told in its #9 with the package version).
+- **Checked:** `docs/testing.md`, Sector layers L4 and Sector Tools L1 (by script; the hand test pending).
 
 ## Requests to others
 

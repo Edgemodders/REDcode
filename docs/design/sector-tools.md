@@ -28,7 +28,7 @@ So REDcode keeps its read-only 3D sector mode for any sector. EDGEbuilder's Sect
 | Part | What | Where |
 |---|---|---|
 | **The drawing package** | The host half and the page half, as agreed with EDGEbuilder in [#8](https://github.com/Edgemodders/EDGEbuilder/issues/8). The page half has no VS Code parts: it takes the GLBs as bytes or URLs it is given, so it runs in a REDnode overlay page as in a webview. The host half takes any `Bridge` with `request`, so REDnode's shared `kernel.bridge()` serves it in the game | `@edgemodders/world-view`, built with the sector view |
-| **Open in REDcode, from the game** | The `redcode` REDnode package gets a `reveal({ sector, entry })` function. The REDcode window holding the open project shows the sector in its sector mode at that node, with **Add to Project** offered when the sector is not in the project | `rednode/redcode/service.mjs`, and a watched request file in each window (decision 1) |
+| **Open in REDcode, from the game** | The `redcode` REDnode package gets an `openSector({ sector, entry })` function (called `reveal` in drafts; EDGEbuilder named it `openSector` in #9, and it is one function with Sector layers' L4). The REDcode window holding the open project shows the sector in its sector mode at that node, with **Add to Project** offered when the sector is not in the project | `rednode/redcode/service.mjs`, and a watched request file in each window (decision 1) |
 | **Show in Game** | REDcode's sector mode gets **Show in Game** on a node (a button, and the context menu), which calls Sector Tools' `focus`. As nodes are picked in REDcode, it sends `select` | `src/sectorView.ts` |
 | **Live previews** | When the project's copy of a game sector is saved, REDcode works out the changed nodes against the game's own sector (moved, removed, added) and sends them to Sector Tools' `preview`. **Pack and Play** then makes them real | `src/sectorView.ts`, with the CR2W editor's save |
 | **A warning for replaced sectors** | A project that replaces a game sector can break EDGEbuilder's ArchiveXL node deletions on that sector (each checks `expectedNodes`), and two mods replacing one sector clash. REDcode says so when a game sector is added to a project, naming EDGEbuilder's scenes that edit it if its service can tell | Add to Project, and the sector mode's title |
@@ -47,7 +47,7 @@ The first four are `@tool` functions on EDGEbuilder's service (`edgebuilder/serv
 | `preview({ sector, nodes: [{ entry, action: "move" \| "remove" \| "add", mesh?, position?, orientation?, scale? }] })` (EDGEbuilder's S3) | Shows REDcode's edits: a removed node hidden, a moved node hidden with a stand-in mesh at its new place, an added mesh spawned. The place is in the node data's own form and the game's axes (Z up), as REDcode reads it from the sector: `position` [x, y, z], `orientation` the quaternion [i, j, k, r], `scale` [x, y, z]. `move` and `add` carry all three. `mesh` is a game path, left out for a move that keeps its mesh. Entry numbers are the project copy's, so an added node's is past the game's count | `{ shown, refused: [{ entry, why }] }`. A mesh only in the project is refused until it is packed into the game ("... is not in the game yet: Pack and Play first"), and REDcode then offers Pack and Play |
 | `clearPreviews({ sector? })` (S3) | Takes them away, for one sector or all | `{ cleared }` |
 | `scenesEditing(sector)` | The scenes (Library, the open project, This PC) whose world edits name that sector, for REDcode's warning | `[{ name, file, place, removals }]` |
-| `reveal({ sector, entry })`, the other way | On REDcode's `redcode` REDnode package: the REDcode window holding the project shows the sector at the node | Through a request file to the right window (decision 1) |
+| `openSector({ sector, entry })`, the other way | On REDcode's `redcode` REDnode package (0.4.0): the REDcode window holding the project shows the sector at the node | Through a request file to the right window (decision 1) |
 
 When REDnode or EDGEbuilder is not running, REDcode's Show in Game says so and offers **Run Game**, and nothing else changes.
 
@@ -55,10 +55,18 @@ When REDnode or EDGEbuilder is not running, REDcode's Show in Game says so and o
 
 | Step | What | Waits on |
 |---|---|---|
-| **L1 Show in Game and Open in REDcode** | `reveal` in the `redcode` package and its request file; Show in Game and `select` in the sector mode; the pack offer | REDcode's sector view; EDGEbuilder's S1 (`select`, `focus`, `scenesEditing`) |
+| **L1 Show in Game and Open in REDcode** (built 2026-11-25, hand test pending) | `openSector` in the `redcode` package and its request file; Show in Game and `select` in the sector mode; the pack offer | REDcode's sector view; EDGEbuilder's S1 (`select`, `focus`, `scenesEditing`) |
 | **L2 Live previews and the warning** | The changed nodes on save, sent to `preview`; the replaced-sector warning | L1; EDGEbuilder's S3 (`preview`, `clearPreviews`) |
 
 Each step with a hand test in the game, together with EDGEbuilder's matching step.
+
+## L1 as built (2026-11-25)
+
+- **Open in REDcode from the game:** the package's `openSector`, built as Sector layers' L4 ([L4 as built](sector-layers.html#l4-as-built-2026-11-25)).
+- **Show in Game** (`src/sectorGame.ts`): a button on the line under the sector view for the picked thing, and a button on each selected row (a screen with a play mark), for any thing with a sector and an entry, a layer's too. It calls `edgebuilder__focus` with `{ sector, entry }` through REDnode's MCP server (`callRednodeTool` in `src/hotSwap.ts`, beside Pack and Play's `archives_reload`), and says what came back: the camera there (and "not streamed in yet" when EDGEbuilder says so), EDGEbuilder's own why, or what is missing (REDnode not running, with **Run Game**; the MCP server switched off; EDGEbuilder not in the game, with **Get EDGEbuilder**).
+- **`select` as things are picked:** each pick, 0.4 s after it settles, goes to `edgebuilder__select`, quietly: nothing is shown when it fails, and after a failure no pick is sent for 30 seconds (60 when REDnode's settings say its MCP server cannot be reached).
+- **The offer** (decision 3): when a sector opens and the game folder's REDnode has no `apps\edgebuilder`, once: EDGEbuilder's Nexus page (**Get EDGEbuilder**). Global state `redcode.edgebuilderOffered`; not shown when the game has no REDnode.
+- **Not built:** the context menu (the sector view has none yet; the buttons are the way in), **Install with EDGEdeck** (EDGEdeck's API has no install from Nexus), and the warning and live previews (L2).
 
 ## Decisions for the owner
 

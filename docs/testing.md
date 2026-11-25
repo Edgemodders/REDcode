@@ -1448,6 +1448,28 @@ F5 with **Run REDcode**, and in Game Assets `base\worlds\03_night_city\_compiled
 
 Run by EDGEweb's session by script on 2026-11-24 (EDGEkit 1.143.1 trial on a scratch profile and project, the checkout's dist of 20:57 = a4b54fb, REDbridge 0.19.0, game 2.5 read only, real clicks and keys over CDP at 1920x1032; nothing that needs the owner's eye judged): **L1 to L9 pass**. L2: 66.5 s the first time, groups Neighbours 3, Other levels 12, Global 1 (collapsed). L3: 16 sectors; a row's tooltip names its level, "94 of its things reach into this sector (26 have no box and count by where they stand)" and its variants. L4: Ghost on exterior_-22_6_0_0 in about 2 s, 105 → 168 meshes, 8,986 → 9,621 copies, see-through bluish in the picture; **how it looks is the owner's to judge**. L5: Shown on exterior_-21_7_0_0, solid; its "1 thing(s) could not be drawn" is entry #62, `engine\meshes\editor\plane_occluder_twosided_xz.mesh`, an editor-only occluder WolvenKit does not export (expected). L6: a ghosted thing picked "(a layer's)", Ctrl+click added `exterior_-22_6_0_0#455.2`. L7: a group's Off and All Off, back to 8,986 copies, the layer's thing left the selection. L8: its own tab. L9: 16 sectors in 0.6 s, nothing on. **The ghosted look: passed** (the owner, 2026-11-25, with the sector tests).
 
+## Sector layers L4 and Sector Tools L1
+
+Built 2026-11-25 ([L4](design/sector-layers.html#l4-as-built-2026-11-25), [Sector Tools L1](design/sector-tools.html#l1-as-built-2026-11-25)): the `redcode` REDnode package 0.4.0 (`openSector`, `place`), **EDGEworld: Open Sector Here**, **Show in Game** and the pick sent to EDGEbuilder, the EDGEbuilder offer.
+
+Checked by script on 2026-11-25 (`npm test` in `extensions/redcode`, 93 pass): the package's `place` answered through `place-request.json` (and its refusal with no save), `openSector` unanswered with no window, then taken once by the window last used with a project with slashes made backslashes, and its argument checks; the choice of sector (the smallest interior holding V, two metres above its things still inside, else the level 0 exterior nearest across the ground; the nearest thing with a resource, an instanced copy by its copies); any tool's reply through REDnode's MCP server. The type checks of the extension, its webviews and redcode-mcp pass.
+
+By hand, with the game (REDnode with its MCP server on, EDGEbuilder 0.13.2 or later, a save loaded) and F5 with **Run REDcode** on a project:
+
+| # | Do | Expected |
+|---|---|---|
+| H1 | Start REDcode with the game folder set | The log says REDcode's REDnode package was updated to 0.4.0 (or installed) |
+| H2 | V in a street. **EDGEworld: Open Sector Here** | A level 0 `exterior_..._0` sector opens on 3D with a thing near V picked |
+| H3 | V inside a building with its own interior (V's apartment). The same | The interior sector opens, with a thing in the room picked |
+| H4 | From a Claude session with REDnode's MCP server: `redcode__openSector` with a sector and entry (H2's, say) | Answers `opened: true`; REDcode opens that sector at that entry. The project's copy when the project has one |
+| H5 | Two VS Code windows with projects; focus one, then call H4 again | The one focused last opens it, the other does nothing |
+| H6 | In the sector view, pick a thing, **Show in Game** | EDGEbuilder's camera flies to it with Edit on; a far one says it is not streamed in yet |
+| H7 | Pick other things in REDcode | EDGEbuilder's Sector drawer follows each pick |
+| H8 | **Show in Game** with the game closed | "The game is not running with REDnode", with **Run Game** |
+| H9 | With EDGEbuilder's folder moved out of `red4ext\plugins\REDnode\apps` (put it back after), open a sector; then open another | The offer of EDGEbuilder's Nexus page once, not on the second |
+
+Not run yet.
+
 ## The game tools for assistants (redcode-mcp `game_*`)
 
 Built 2026-11-23 ([design](design/game-testing.html)): `game_start`, `game_stop` and `game_status` in `packages/redcode-mcp` over `src/gameRun.ts`. Checked by script (`npm test`: a tab request taken by one window only, the player's values kept once and put back; `game_status` with no game answers `running: false`). Not run against the game: the tools start and stop it, so the first run is with the owner. Unverified: whether the game closes cleanly on `game_stop`'s first ask.
