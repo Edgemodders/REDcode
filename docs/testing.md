@@ -752,6 +752,28 @@ Run 1 (owner, 2026-11-22): **kept** played (he stretched his arms), but on **Pla
 
 Run 2 (owner, 2026-11-22), after Pack and Play of the refitted sets: **pass** ("It worked now"). **Animation Probe D passes:** a clip Uthana made from a text prompt, on the game's own skeleton, with no Blender and no retargeting of our own, plays in the game, both as a new clip and in place of a game clip, and the rewritten set's kept clip plays too. The paramedic still sank a little, less than in run 1 (the owner). Measured by forward kinematics on the written clips: Uthana puts the heel joints on its floor (the wave's lowest heel -0.9 cm, hips 90.5 cm), where the game's standing clips keep them about 3 cm up, the sole being below the joint (the stretch clip: heels 2.9 cm, toes 2.2 cm, hips 95.9 cm). Fixed the same day: the fit lifts the hips until the clip's lowest heel or toe is as high as the game idle's (3.1 cm here; heels now 2.2 and 3.0 cm, hips 93.8 cm). Uthana's toes stay a little higher than the game's (4 to 5 cm against 2.2 cm): its feet tip up slightly, a cleanup for later. Not yet seen in the game.
 
+## Animation Timeline TL1 (anim-core)
+
+`npm run build` in `packages/anim-core`, then `npm run check:timeline` ([design](design/animation-timeline.html#tl1-as-built-2026-11-25)). No game or REDbridge: made-up rigs, a person's (a swaying, bobbing base, and a clip of the right arm rising) and an AV's (a door on a hinge, a ramp that slides).
+
+| # | Checks |
+|---|---|
+| 1 | A move touching another starts on its last pose, with no jump; the hand reaches its key within 1 mm |
+| 2 | After a gap a move starts from what shows through; a move's end with nothing after it is a jump |
+| 3 | What shows through can be a cut piece of another clip on a lower track |
+| 4 | A cut piece plays its own frames |
+| 5 | A blend after a move: no jump at either end, the spine keeps swaying through it, the base plays as it is after it |
+| 6 | A move with a key at 0 s jumps in; a blend before it on its lane, or on a lower track, takes the jump away |
+| 7 | With no animation block, the rest pose |
+| 8 | A raise and a turn on the same hand both show |
+| 9 to 11 | The upper track wins on the same bone; weight 0.5 is halfway; Add puts a change on top |
+| 12 | An AV: no arms or legs found; a door turns 70 degrees on the smooth curve, a ramp slides 1 m and is written; a move by IK says why it cannot |
+| 13 | A lane turned off; overlapping blocks refused; the end marker |
+| 14 | `applyEdits` on a `.glb`: the timeline, then a trim |
+| 15 | The browser bundle has no Node imports |
+
+Run 2026-11-25: **pass, 34 of 34**, after four fixes the first runs found: a one-frame stall at a move's start, relative keys measured from the move's start (a blend before it moved them), the elbow flipping as the arm straightened, and a jump test that took a fast start for a jump. Also passed the same day: REDcode's unit checks (91) and the type checks of the extension, its webviews and redcode-mcp. AE1's check against the game was not run again (its steps' code moved to `pose.ts` unchanged).
+
 ## anim-core check
 
 `node packages/anim-core/scripts/check.mjs <REDbridge.exe> <game folder> <Probe D's project folder>` ([design](design/animation-tools.html#at1-as-built-2026-11-22)). It needs the game, the Uthana key in the shared store and Probe D's project; it starts no paid job and writes only into a scratch folder.

@@ -4,7 +4,7 @@ title: Animation Timeline
 
 # Animation Timeline: blocks on tracks, posed by hand
 
-Draft 0.4, **agreed with the owner on 2026-11-25**: three kinds of block (animation, move, blend), a block starts from **what shows through** before it, a move ends on its last pose with no implied return, **blends** carry one pose into the next, a new move comes with a blend after it, and the clip ends at the last block (the owner's design, with the recommendations under Decisions). Draft 0.3 (2026-11-25) took **EDGEwave's mix** look and lane behaviour in place of EDGEdir's; draft 0.2 (agreed 2026-11-24) had implied entry and exit keys, which 0.4 replaces. Details may change in testing. Nothing here is built, and it does not hold up the next release. It grows the [Animation Editor](animation-editor.html): AE1 and AE2 are its steps and its first panel. Its goal is [The Speaking Scene](speaking-scene.html) (the owner, 2026-11-25): a character's body, head and lip sync with the voice, together, which TL6 brings into the timeline.
+Draft 0.4, **agreed with the owner on 2026-11-25**: three kinds of block (animation, move, blend), a block starts from **what shows through** before it, a move ends on its last pose with no implied return, **blends** carry one pose into the next, a new move comes with a blend after it, and the clip ends at the last block (the owner's design, with the recommendations under Decisions). Draft 0.3 (2026-11-25) took **EDGEwave's mix** look and lane behaviour in place of EDGEdir's; draft 0.2 (agreed 2026-11-24) had implied entry and exit keys, which 0.4 replaces. Details may change in testing. **TL1 is built (2026-11-25)**: [TL1 as built](#tl1-as-built-2026-11-25); the rest is not, and it does not hold up the next release. It grows the [Animation Editor](animation-editor.html): AE1 and AE2 are its steps and its first panel. Its goal is [The Speaking Scene](speaking-scene.html) (the owner, 2026-11-25): a character's body, head and lip sync with the voice, together, which TL6 brings into the timeline.
 
 ## What the owner asked for
 
@@ -97,6 +97,20 @@ Averaging two blocks by default is left out on purpose: it gives a pose neither 
 - **Live preview**: the view plays the result while the modder drags, scrubs and plays, with no rebuild. **Apply** writes the clip as now (the steps, through anim-core's `editClip`), and the game sees it after the pack swaps it in.
 - **Today's steps show on the timeline**: a layer is an animation block on chosen bones, a pin a block on its foot's track, a trim the clip's start and end marker, a loop a mark on the ruler. The step list becomes the timeline.
 
+## Not only people (the owner, 2026-11-25)
+
+The timeline does not care whether a rig is a person or an AV with its doors: blocks, tracks, blends, the end marker and keys that turn or slide a bone work on any rig. What only a person's rig has comes from a **rig profile**, read from the bones' names:
+
+| | A person's rig (man_base, woman_base and the like) | Any other rig (an AV, a door, a prop) |
+|---|---|---|
+| Animation blocks, blends, tracks | Yes | Yes |
+| A move's keys: a bone turned or slid | Yes | Yes: a door turned on its hinge, a ramp slid out |
+| A hand or foot moved with its arm or leg by IK | Yes | No: there is no arm or leg; a move names its bones |
+| Bone groups (fingers, head and neck, legs) | Yes | One group, every bone |
+| Made from words (Uthana), hand poses, the head and lip sync | Yes | No |
+
+**Unverified**, for later stages: that REDcode's animation view draws a vehicle's or a prop's entity on its rig as it draws a character (A2 was tried on people only), and how such a clip plays in the game (a vehicle's doors are driven by its own animation graph, not a workspot; the scene's side is EDGEdir's).
+
 ## A line on the timeline (TL6)
 
 Asked by the owner on 2026-11-25 for [The Speaking Scene](speaking-scene.html): a spoken line made in the Lip Sync editor, played with the body's moves so the gestures can be timed to the words.
@@ -129,6 +143,26 @@ Blocks are steps in the clip's record, as AE1 keeps every edit, so the record, U
 - A record from before the timeline (no `anim` step) reads as the clip as made on track 0 under its steps.
 - Order: per frame, tracks from the bottom up, each block on what shows through below it; pins last, so a pin holds a foot whatever a block does.
 
+## TL1 as built (2026-11-25)
+
+In anim-core, with no Node imports, so the page runs the same code for the live preview (its browser bundle is 24 KB):
+
+| Part | Where |
+|---|---|
+| The blocks, the rules, the rig profile, jumps | `packages/anim-core/src/timeline.ts`: `evaluateTimeline(base, steps, { sources })` gives the frames, the profile and the **jumps** (seconds, the ruler's ticks); `rigProfile`, `withBase`, `isTimelineStep` |
+| The pose math, moved out of `edit.ts` so a page can bundle it | `src/pose.ts`: vectors and quaternions, `Frames`, forward kinematics, two-bone IK, the bone groups |
+| Records | `applyEdits` runs a record's timeline steps first (each animation block's clip read beforehand), then the other steps on the result, pins last. A record with no timeline steps runs as before |
+| The check | `npm run check:timeline` in `packages/anim-core` after `npm run build` there: 34 checks on made-up rigs, a person's and an AV's, no game needed |
+
+Settled while building, within the agreed rules:
+
+- **Relative keys** (degrees about the character's axes, metres along them: the form an assistant writes) are a change from **what is beneath the move** at its start, not from its start: a blend before a move would otherwise move where its keys land, and its jump with them. Poses (quaternions and places: the form the 3D handles will write) are where the bone goes.
+- **A move's start is the frame before it**, so its first frame is already on the way and nothing stalls for a frame. **A key at the move's end** lands on its last frame, since the frame at its end is the next block's.
+- **A blend's two ends both ride the live motion**: it fades the earlier pose's offset from the motion below into the later one's, so a swaying spine keeps swaying through it and the raised arm comes down into the moving animation.
+- **The elbow or knee keeps the way it pointed** at the move's start, in the body's frame, so it never flips as the arm straightens; a limb that starts straight bends elbows back and knees forward. Found: near full stretch the arm solver swings the elbow fast for a small change of the hand's place. That is how IK behaves, but a move from a straight arm starts with a quick elbow.
+- **A jump** is a bone turning or sliding at a block's edge far more than in the frames either side of it (over 3 degrees or 2 cm, and 2.5 times its neighbours): a fast start that carries on is not one.
+- **The clip as made** is an animation block like any other, written into the record when the timeline first changes it (`withBase`); a timeline with no animation block shows the rest pose.
+
 ## Built on what exists
 
 | Part | From |
@@ -144,7 +178,7 @@ Blocks are steps in the clip's record, as AE1 keeps every edit, so the record, U
 
 | Stage | What | Checked by |
 |---|---|---|
-| **TL1** | The three blocks in anim-core: animation blocks (pieces keeping their frames, chosen bones), moves (start from what shows through, keys of place and turn, stretches with their transitions, IK keeping the hand's turn from below), blends into the live motion, the rest pose under everything, tracks from the bottom up, weight and Add, the end; the frame math also running in a page | anim-core's check: a move touching another starts on its last pose; after a gap it starts on what shows through (a piece of a cut clip); a blend has no step at either edge and ends on the moving animation; a cut piece plays its own frames; nothing below gives the rest pose; a hand reaches its key's place within 1 mm; a raise and a turn on the same hand both show; on the same thing the upper track wins; weight 0.5 is halfway |
+| **TL1** (built 2026-11-25, its check passes) | The three blocks in anim-core: animation blocks (pieces keeping their frames, chosen bones), moves (start from what shows through, keys of place and turn, stretches with their transitions, IK keeping the hand's turn from below), blends into the live motion, the rest pose under everything, tracks from the bottom up, weight and Add, the end; the frame math also running in a page | anim-core's check: a move touching another starts on its last pose; after a gap it starts on what shows through (a piece of a cut clip); a blend has no step at either edge and ends on the moving animation; a cut piece plays its own frames; nothing below gives the rest pose; a hand reaches its key's place within 1 mm; a raise and a turn on the same hand both show; on the same thing the upper track wins; weight 0.5 is halfway |
 | **TL2** | The timeline under the view, showing today's steps as blocks and marks, with live preview; click a block to change it in the bar | A hand test |
 | **TL3** | Blocks made and edited on the timeline: Add (move, blend, animation), drag, trim, split, keys as diamonds with their transitions, jump ticks, the end marker | A hand test |
 | **TL4** | Grabbing a bone in the 3D view: handles, a key at the playhead, a new move with its blend when none is under it | A hand test |

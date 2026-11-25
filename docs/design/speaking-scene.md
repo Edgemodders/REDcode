@@ -16,7 +16,7 @@ The owner, 2026-11-25: an author "wants to animate a character body in the conte
 
 | # | Step | Tool | Where it stands |
 |---|---|---|---|
-| 1 | The body's moves: walking, gestures, posed by hand on tracks | REDcode, Animation Timeline (TL1 to TL4) | Designed (draft 0.4, agreed). **TL1 in progress** |
+| 1 | The body's moves: walking, gestures, posed by hand on tracks | REDcode, Animation Timeline (TL1 to TL4) | Designed (draft 0.4, agreed). **TL1 built** (2026-11-25, its check passes); TL2 to TL4 next |
 | 2 | The body's clip in the game | REDcode and anim-core (`addClip`, the Animation Tools pack) | **Passed in the game** (Probe A, Probe D, AT3) |
 | 3 | The line's words: a subtitle | REDcode (LocKeys) | Reading and adding entries built; writing a made line's entry is part of Lip Sync L2 |
 | 4 | The line's voice: a take in the character's voice | EDGEwave (`speakLine`, takes) | Built (EDGEwave 0.3.0). The `.wem` for the game through the modder's own Wwise is spiked, not built |
