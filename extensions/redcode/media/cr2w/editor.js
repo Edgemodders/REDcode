@@ -49,6 +49,8 @@
       onDocument(m);
     } else if (m.type === "reload") {
       reloadAll(m.reason);
+      // The sector view's Properties tab shows values: after undo and redo it reads them again.
+      if (mode === "sector") meshView?.refreshProps?.();
     } else if (m.type === "materialsChanged") {
       meshView?.refreshMaterials?.(m);
     } else if (m.type === "animsMakeStage") {
@@ -56,6 +58,7 @@
     } else if (m.type === "changed") {
       // Another page edited the document: refetch and redraw, keeping the selection and expansion.
       reloadAll("an edit elsewhere");
+      if (mode === "sector") meshView?.refreshProps?.();
     } else if (m.type === "select") {
       if (sidebar) { selected = m.path ?? ""; shownPath = selected || "(root)"; void renderGrid(); }
       // The table, atlas and 3D views fill the grid themselves: keep the selection for the tree, do not draw over them.

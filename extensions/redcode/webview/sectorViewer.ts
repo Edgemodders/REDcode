@@ -121,6 +121,8 @@ export interface SectorView {
   receive(m: SectorMessage): void;
   /** Selects a node data entry of this sector, or several, and frames them. */
   selectEntry(entry: number | number[]): void;
+  /** The document changed (an undo, a redo, another page's edit): the Properties tab reads it again when shown. */
+  refreshProps?(): void;
   dispose(): void;
   /** EDGEmat changed a material: the picked thing is drawn again when it shows that mesh (or when no mesh is named). */
   refreshMaterials(change?: { mesh?: string }): void;
@@ -574,11 +576,13 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
         commit(wrap(row.type === "Float" ? Math.fround(n) : IntTypes.test(row.type) ? (big ? String(Math.trunc(n)) : Math.trunc(n)) : n));
       } else commit(wrap(i.value));
     };
+    // One commit a value: Enter leaves the box and its change event commits (EDGEweb's scripted run: Enter and then
+    // the box losing focus to the question committed twice, and the question came twice).
     i.addEventListener("change", done);
     i.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
-        done();
+        i.blur();
       }
       if (e.key === "Escape") i.value = row.mixed ? "" : String(shown ?? "");
     });
@@ -1195,6 +1199,7 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
   void load(false);
 
   return {
+    refreshProps,
     receive(m) {
       switch (m.type) {
         case "sectorMesh":

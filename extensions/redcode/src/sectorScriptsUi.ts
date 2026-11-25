@@ -532,6 +532,6 @@ export class SectorScriptsUi {
     await document.edit(host.bridge, changes.map(changeToOp), `Script: ${s.name}`);
     host.changed();
     this.log.appendLine(`script: ${s.name}: ${changes.length} change(s) applied`);
-    host.post({ type: "sectorScript", state: "applied", name: s.name, line: `${s.name}: ${changes.length.toLocaleString()} changes applied; Ctrl+Z takes them back` });
+    host.post({ type: "sectorScript", state: "applied", name: s.name, line: `${s.name}: ${changes.length.toLocaleString()} change${changes.length === 1 ? "" : "s"} applied; Ctrl+Z takes ${changes.length === 1 ? "it" : "them"} back` });
   }
 }
