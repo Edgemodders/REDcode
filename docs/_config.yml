@@ -60,6 +60,8 @@ nav:
     url: /design/animation-tools.html
   - title: Animation Editor
     url: /design/animation-editor.html
+  - title: Animation Timeline
+    url: /design/animation-timeline.html
   - title: Lip Sync
     url: /design/lipsync.html
   - title: Game in a tab
