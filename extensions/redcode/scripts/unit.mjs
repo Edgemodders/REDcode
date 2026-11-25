@@ -1431,6 +1431,26 @@ await check("sector scripts: a written script is checked, named by its name, lis
   assert.throws(() => ss.writeScript(dir, "project", `export default { name: "B", visit() { ` ), /does not parse/);
   assert.equal(fs.existsSync(path.join(dir, "b.mjs")), false);
 });
+await check("sector scripts: a script is known by its text, so a changed one is asked about again", () => {
+  const file = write("known/a.mjs", ss.scriptTemplate("Alpha"));
+  assert.equal(ss.isKnownScript([], file), false);
+  let list = ss.withKnownScript([], file);
+  assert.match(list[0], /a\.mjs\|[0-9a-f]{64}$/);
+  assert.equal(ss.isKnownScript(list, file.toUpperCase()), true);
+  fs.writeFileSync(file, ss.scriptTemplate("Alpha") + "// changed\n");
+  assert.equal(ss.isKnownScript(list, file), false);
+  assert.equal(ss.knowsScriptFile(list, file), true);
+  list = ss.withKnownScript(list, file);
+  assert.equal(list.length, 1);
+  assert.equal(ss.isKnownScript(list, file), true);
+  // An entry of REDcode 0.10.17 and older, a bare path: the file is known of, its text is not.
+  const old = [path.resolve(file).toLowerCase()];
+  assert.equal(ss.isKnownScript(old, file), false);
+  assert.equal(ss.knowsScriptFile(old, file), true);
+  assert.equal(ss.withKnownScript(old, file).length, 1);
+  assert.equal(ss.isKnownScript(list, path.join(tmp, "known", "gone.mjs")), false);
+  assert.equal(ss.knowsScriptFile(list, path.join(tmp, "known", "a.mjs.bak")), false);
+});
 await check("sector scripts: a run in its own process selects, changes, calls REDcode and fails cleanly", async () => {
   const json = write("scripts/sector.json", JSON.stringify(sectorJson()));
   const runner = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "dist", "scriptRunner.js");

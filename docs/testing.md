@@ -56,6 +56,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Run Game in Tab](#run-game-in-tab-g2-redcodes-side) | By hand, in the game | Game in a tab G2 | 2026-11-22 | Pass (owner, 2026-11-23), steps 1 to 8; retests R1 and R2 not run; the size selector S1 to S5 not run |
 | [The game tools for assistants](#the-game-tools-for-assistants-redcode-mcp-game_) | By hand, with a Claude session | Game tests | 2026-11-23 | Not run (checked by script) |
 | [Sector scripts](#sector-scripts) | By hand | Sector scripts | 2026-11-23 | **Passed** (owner, 2026-11-24), steps 1 to 15 with 3b and 3c, with the fixes and changes run 1 raised |
+| [Sector scripts: a changed script](#sector-scripts-a-changed-script) | By hand | Sector scripts | 2026-11-25 | Not run (checked by script) |
 | [Sector layers (L1)](#sector-layers-l1) | By hand | Sector layers L1 | 2026-11-25 | **Passed** (EDGEweb by script, L1 to L9; the owner, the ghosted look) |
 | [Lip Sync L1](#lip-sync-l1-the-editor-in-redcode) | Scripts and an MCP client; by hand | Lip Sync L1 | 2026-11-25 | **Passed but step 9** (scripts, MCP and EDGEweb's script for 1 to 8 and 10; the owner, the sound, mouth and head); step 9 not run, shipped untested at the owner's word |
 | [Library view (#23)](#library-view-23) | By hand | Requests | 2026-11-15 | Pass, two fixes |
@@ -1391,6 +1392,19 @@ Run 1, more (the owner, 2026-11-24): at step 3 the run seemed to do nothing, sin
 Run 1, the rest (the owner, 2026-11-24): the row buttons were turned into icons (and later the theme's yellow), since their words covered the row. At steps 4 and 5 the old flow stopped after Add to Project and left the rest to the modder; built the same day at the owner's ask: on the game's sector one answer, **Add to Project and Apply** (or **Open the Project's Copy and Apply**), adds the sector, shows it in the Project view, opens the copy with the changed nodes selected and applies the changes there as one unsaved edit. In the owner's run the copy opened with the 68 nodes selected but the line under its view was missing (sent before its 3D view was up); fixed (4be37ff). Step 6 no longer has its own Apply. Retest of that line by EDGEweb's session by script on 2026-11-24 (EDGEkit 1.143.1 trial on a scratch profile and project, the checkout's dist of 20:57 = a4b54fb, REDbridge 0.19.0, game 2.5 read only, real clicks and keys over CDP at 1920x1032; nothing that needs the owner's eye judged): **passes** (the copy opened dirty with 68 selected and "Raise short streaming distances: 68 values changed in my_first_mod's copy (unsaved) · Ctrl+Z takes them back"; the game's tab said the changes went to the copy).
 
 **Result 2026-11-24, reported by the owner: steps 1 to 15 pass**, with 3b and 3c. **Sector scripts passes.** Not retested: the line under the copy's view after Add to Project and Apply (the fix above).
+
+## Sector scripts: a changed script
+
+Built 2026-11-25 ([design](design/sector-scripts.html)): REDcode knows a script by its file and its text. Checked by `npm test` (a changed text is not known, the list keeps one entry per file, a bare path of 0.10.17 knows nothing). **Not run:** in VS Code.
+
+F5 with **Run REDcode**, a project open, a sector on 3D, and a script of your own in the project (such as `big-entities.mjs` from the Sector scripts test).
+
+| # | Do | Expected |
+|---|---|---|
+| H1 | **Scripts**, run your script | Once only after this update: "Run … It has not run on this computer before" (0.10.17 knew it by its path alone), or "It was changed outside REDcode…". **Run**; a second run asks nothing |
+| H2 | **Scripts**, the script's **Edit** button; change a value in VS Code, save, run it | No question: your own save in the editor keeps it known |
+| H3 | Close the script's tab. Change the file outside VS Code (Notepad, or ask a Claude session to change it with `script_write` and `overwrite`), then run it | "Run … It was changed outside REDcode since it last ran here", with the script open beside showing the new text. **Cancel** runs nothing |
+| H4 | Run it again, **Run**; then once more | It runs; the next run asks nothing |
 
 ## Sector layers (L1)
 

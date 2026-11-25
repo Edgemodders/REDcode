@@ -4,6 +4,10 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 ## Unreleased
 
+**Changed**
+
+- Sector scripts: REDcode now knows a script by what it says, not only by its file. A script changed outside REDcode since you let it run, such as one an assistant rewrote, is shown and asked about again before it runs. A script you save in VS Code's editor stays known. Scripts let run in 0.10.17 are asked about once more.
+
 ## 0.10.17 (2026-11-25)
 
 The Lip Sync editor, editing made animations in REDcode and in Blender, and layers, mass edits, search and scripts in the sector view. Needs REDbridge 0.18.0, as 0.10.16 did.

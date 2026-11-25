@@ -11,9 +11,9 @@ import type { Cr2wDocument } from "./cr2wEditor";
 import { findProject, ProjectFolders, projectPathFor } from "./project";
 import type { PatchOp } from "./types";
 import { changeToOp, describeChange, type NodeChange } from "./sectorNodes";
-import { listScripts, myScriptsDir, projectScriptsDir, runScript, scriptFileName, scriptTemplate, ScriptStopped, type ScriptInfo, type ScriptPlace, type ScriptResult, type ScriptRun } from "./sectorScripts";
+import { isKnownScript, knowsScriptFile, withKnownScript, listScripts, myScriptsDir, projectScriptsDir, runScript, scriptFileName, scriptTemplate, ScriptStopped, type ScriptInfo, type ScriptPlace, type ScriptResult, type ScriptRun } from "./sectorScripts";
 
-/** The scripts that have run on this machine, by file: one from elsewhere is read before its first run. */
+/** The scripts the modder has let run on this machine, by file and text (sectorScripts.ts): another is read before it runs. */
 const KnownKey = "redcode.scriptsKnown";
 
 /** What a run needs of the editor page it was started from. */
@@ -45,7 +45,15 @@ export class SectorScriptsUi {
     private readonly log: vscode.OutputChannel,
     /** The editor's: opens a project's copy of a sector and applies a run's changes there as one edit. */
     private readonly applyToCopy: (file: string, ops: PatchOp[], label: string, entries: number[], line: { name: string; line: string }) => Promise<void>,
-  ) {}
+  ) {
+    // A known script saved in VS Code's editor is the modder's own change: it stays known. A file changed any
+    // other way (an assistant, a download) does not pass through here, and is asked about before it runs again.
+    context.subscriptions.push(
+      vscode.workspace.onDidSaveTextDocument((d) => {
+        if (d.uri.scheme === "file" && /\.mjs$/i.test(d.uri.fsPath) && knowsScriptFile(this.knownList(), d.uri.fsPath)) void this.remember(d.uri.fsPath);
+      }),
+    );
+  }
 
   /**
    * A run on the game's copy, which cannot change (the owner, 2026-11-24): one question, then the whole job. The
@@ -127,13 +135,16 @@ export class SectorScriptsUi {
     ];
   }
 
+  private knownList(): string[] {
+    return this.context.globalState.get<string[]>(KnownKey, []);
+  }
+
   private known(file: string): boolean {
-    return this.context.globalState.get<string[]>(KnownKey, []).includes(file.toLowerCase());
+    return isKnownScript(this.knownList(), file);
   }
 
   private async remember(file: string): Promise<void> {
-    const list = this.context.globalState.get<string[]>(KnownKey, []);
-    if (!list.includes(file.toLowerCase())) await this.context.globalState.update(KnownKey, [...list, file.toLowerCase()]);
+    await this.context.globalState.update(KnownKey, withKnownScript(this.knownList(), file));
   }
 
   isRunning(document: Cr2wDocument): boolean {
@@ -300,10 +311,16 @@ export class SectorScriptsUi {
       return false;
     }
     if (s.place === "example" || this.known(s.file)) return true;
+    const changed = knowsScriptFile(this.knownList(), s.file);
     await vscode.window.showTextDocument(vscode.Uri.file(s.file), { preview: true, viewColumn: vscode.ViewColumn.Beside });
     const pick = await vscode.window.showWarningMessage(
-      `Run "${s.name}"? It has not run on this computer before.`,
-      { modal: true, detail: "A script runs as you, with your files and network. It is open beside: read it first, above all one from someone else." },
+      changed ? `Run "${s.name}"? It was changed outside REDcode since it last ran here.` : `Run "${s.name}"? It has not run on this computer before.`,
+      {
+        modal: true,
+        detail: changed
+          ? "A script runs as you, with your files and network. It is open beside: read what it says now. A script you save in this editor stays known."
+          : "A script runs as you, with your files and network. It is open beside: read it first, above all one from someone else.",
+      },
       "Run",
     );
     if (pick !== "Run") return false;

@@ -2,6 +2,7 @@
 // its own process (dist/scriptRunner.js). No VS Code imports: the MCP server lists and runs scripts too.
 
 import { fork, spawnSync, type ChildProcess } from "node:child_process";
+import { createHash } from "node:crypto";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -147,6 +148,37 @@ export function writeScript(dir: string, place: ScriptPlace, source: string, ove
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(file, source.endsWith("\n") ? source : `${source}\n`);
   return { file, place, name, description, replaced };
+}
+
+// The scripts the modder has let run, each as "<file, lower case>|<SHA-256 of its text>": a script is known by
+// what it says, so one changed outside REDcode (by an assistant, a download, a sync) is shown and asked about
+// again. An entry without a hash (REDcode 0.10.17 and older) knows nothing: its script is asked about once more.
+
+const knownPath = (file: string) => path.resolve(file).toLowerCase();
+
+/** A script as the known list holds it, or undefined when its file cannot be read. */
+export function scriptKey(file: string): string | undefined {
+  try {
+    return `${knownPath(file)}|${createHash("sha256").update(fs.readFileSync(file)).digest("hex")}`;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Whether the list has an entry for this file, whatever its text was then. */
+export const knowsScriptFile = (list: readonly string[], file: string) => list.some((e) => e === knownPath(file) || e.startsWith(`${knownPath(file)}|`));
+
+/** Whether the script is known as it is now. */
+export function isKnownScript(list: readonly string[], file: string): boolean {
+  const key = scriptKey(file);
+  return !!key && list.includes(key);
+}
+
+/** The list with the script known as it is now, in place of what it held for that file. */
+export function withKnownScript(list: readonly string[], file: string): string[] {
+  const key = scriptKey(file);
+  const rest = list.filter((e) => e !== knownPath(file) && !e.startsWith(`${knownPath(file)}|`));
+  return key ? [...rest, key] : rest;
 }
 
 /** What a run gives back. */
