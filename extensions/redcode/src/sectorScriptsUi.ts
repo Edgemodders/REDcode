@@ -10,7 +10,7 @@ import type { BridgeClient } from "./bridgeClient";
 import type { Cr2wDocument } from "./cr2wEditor";
 import { findProject, ProjectFolders, projectPathFor } from "./project";
 import type { PatchOp } from "./types";
-import { changeToOp, describeChange, type NodeChange } from "./sectorNodes";
+import { changeToOp, describeChange, sectorOfChange, type NodeChange } from "./sectorNodes";
 import { isKnownScript, knowsScriptFile, withKnownScript, listScripts, myScriptsDir, projectScriptsDir, runScript, scriptFileName, scriptTemplate, ScriptStopped, type ScriptInfo, type ScriptPlace, type ScriptResult, type ScriptRun } from "./sectorScripts";
 
 /** The scripts the modder has let run on this machine, by file and text (sectorScripts.ts): another is read before it runs. */
@@ -26,6 +26,12 @@ export interface ScriptHost {
   post(message: unknown): void;
   /** To every page of the document: an edit was made. */
   changed(): void;
+  /** The layers turned on in the view, by game path (docs/design/sector-layers.md, L2). */
+  layers?: string[];
+  /** The view's selection by id (`<sector>#<entry>`), the layers' things too. */
+  selectedIds?: string[];
+  /** Writes a layer's CR2W JSON to a file: the project's copy (with its unsaved edits when open) or the game's. */
+  layerJson?(sector: string, file: string): Promise<void>;
 }
 
 const PlaceLabel: Record<ScriptPlace, string> = { project: "This project", mine: "My scripts", example: "Examples" };
@@ -162,7 +168,8 @@ export class SectorScriptsUi {
       return;
     }
     const scripts = listScripts(this.places(host.document));
-    const n = selection.length;
+    const layerPicks = (host.selectedIds ?? []).filter((id) => !id.startsWith(`${host.sector}#`)).length;
+    const n = selection.length + layerPicks;
     const items: ScriptItem[] = [];
     let place: ScriptPlace | undefined;
     for (const s of scripts) {
@@ -333,6 +340,22 @@ export class SectorScriptsUi {
     if (!(await this.trusted(s))) return;
     const { document } = host;
     const only = o.only;
+    // Layers on: asked each run (docs/design/sector-layers.md, decision 3).
+    let layers: string[] = [];
+    if (host.layers?.length && host.layerJson) {
+      const name = (p: string) => p.slice(p.lastIndexOf("\\") + 1).replace(/\.streamingsector$/i, "");
+      const pick = await vscode.window.showQuickPick(
+        [
+          { label: "This Sector", detail: name(host.sector), on: false },
+          { label: `This Sector and Its Layers On (${host.layers.length})`, detail: host.layers.map(name).join(", "), on: true },
+        ],
+        { title: `Run "${s.name}" on` },
+      );
+      if (!pick) return;
+      if (pick.on) layers = host.layers;
+    }
+    const inLayers = (id: string) => layers.some((l) => id.toLowerCase().startsWith(`${l.toLowerCase()}#`));
+    const layerIds = (host.selectedIds ?? []).filter(inLayers);
     const scratch = path.join(this.context.globalStorageUri.fsPath, "scripts");
     fs.mkdirSync(scratch, { recursive: true });
     const json = path.join(scratch, "sector.json");
@@ -354,6 +377,14 @@ export class SectorScriptsUi {
     this.running.set(document, placeholder);
     try {
       await document.snapshotJson(host.bridge, json, path.join(scratch, "sector.streamingsector"));
+      const layerFiles: { sector: string; json: string }[] = [];
+      for (const [i, l] of layers.entries()) {
+        if (cancelled) throw new ScriptStopped();
+        host.post({ type: "sectorScript", state: "running", name: s.name, done: 0, total: 0, note: `Reading the layers… ${i + 1} of ${layers.length}` });
+        const file = path.join(scratch, `layer-${i}.json`);
+        await host.layerJson!(l, file);
+        layerFiles.push({ sector: l, json: file });
+      }
       if (cancelled) throw new ScriptStopped();
       run = runScript({
         runner: path.join(this.context.extensionPath, "dist", "scriptRunner.js"),
@@ -362,6 +393,7 @@ export class SectorScriptsUi {
         json,
         only,
         selection: o.selection,
+        ...(layerFiles.length ? { layers: layerFiles, selectionIds: layerIds, ...(only ? { onlyIds: layerIds } : {}) } : {}),
         debug: o.debug,
         onLog: (line) => {
           lastLog = line;
@@ -497,7 +529,7 @@ export class SectorScriptsUi {
     const line = `${s.name}: ${picked}${r.changes.length.toLocaleString()} changed, ${on}, ${secs}`;
     this.log.appendLine(`script: ${line}`);
     const said = lastLog ? ` · ${lastLog.length > 160 ? `${lastLog.slice(0, 157)}…` : lastLog}` : "";
-    host.post({ type: "sectorScript", state: "done", name: s.name, selected: r.selected, line: `${line}${said}` });
+    host.post({ type: "sectorScript", state: "done", name: s.name, selected: r.selected, selectedIds: r.selectedIds ?? null, line: `${line}${said}` });
     if (r.changes.length) await this.preview(host, s, r.changes);
   }
 
@@ -513,6 +545,89 @@ export class SectorScriptsUi {
     await this.preview(host, { file: "", place: "example", name: label, description: "" }, changes);
   }
 
+  /**
+   * Changes in several sectors (a run over layers, docs/design/sector-layers.md L2): one question naming each
+   * sector and where its changes go, the game's sectors added to the project together, then each sector's changes
+   * as one edit in its own tab (this one in place), each with its own Undo.
+   */
+  private async applyAcross(host: ScriptHost, s: ScriptInfo, changes: NodeChange[], title: string): Promise<void> {
+    const bySector = new Map<string, NodeChange[]>();
+    for (const c of changes) {
+      const k = sectorOfChange(c);
+      bySector.set(k, [...(bySector.get(k) ?? []), c]);
+    }
+    const dir = this.projectDir(host.document);
+    const project = dir ? findProject(dir) : undefined;
+    const name = (p: string) => p.slice(p.lastIndexOf("\\") + 1).replace(/\.streamingsector$/i, "");
+    type Target = { sector: string; changes: NodeChange[]; here: boolean; copy?: string; add: boolean };
+    const targets: Target[] = [];
+    for (const [sector, list] of bySector) {
+      const here = sector.toLowerCase() === host.sector.toLowerCase() && !host.document.gamePath;
+      if (here) {
+        targets.push({ sector, changes: list, here, add: false });
+        continue;
+      }
+      if (!project) {
+        void vscode.window.showInformationMessage(`${title} Values change only in a project's copy of a sector: open or make a project first. The list is in the REDcode output.`);
+        return;
+      }
+      const copy = projectPathFor(project, sector);
+      targets.push({ sector, changes: list, here, copy, add: !fs.existsSync(copy) });
+    }
+    const adds = targets.filter((t) => t.add);
+    const lines = targets.map((t) => {
+      const n = `${t.changes.length.toLocaleString()} in ${name(t.sector)}`;
+      return t.here ? `${n}: here, in this tab` : t.add ? `${n}: the game's, added to ${project!.name} and changed there in its own tab` : `${n}: ${project!.name}'s copy, in its own tab`;
+    });
+    const go = adds.length ? `Add ${adds.length === 1 ? "It" : `${adds.length} Sectors`} to Project and Apply` : "Apply";
+    for (;;) {
+      const pick = await vscode.window.showInformationMessage(
+        title,
+        {
+          modal: true,
+          detail:
+            `${lines.join("\n")}\n\nEach sector's changes are one edit in its own tab, unsaved: one Undo there takes them back. The list is in the REDcode output.\n\n` +
+            "Packed, a project's copy replaces the game's whole sector, which undoes what other mods change in it, such as EDGEbuilder's ArchiveXL deletions.",
+        },
+        go,
+        "Show List",
+      );
+      if (pick === "Show List") {
+        this.log.show(true);
+        continue;
+      }
+      if (pick !== go) {
+        this.log.appendLine(`script: ${s.name}: not applied`);
+        return;
+      }
+      break;
+    }
+    if (adds.length) {
+      // REDcode's own Add to Project, for all of them at once: one question if any is there already.
+      await vscode.commands.executeCommand("redcode.addToProject", { kind: "file", file: { name: adds[0].sector } }, { files: adds.map((t) => ({ name: t.sector })) });
+    }
+    const label = `Script: ${s.name}`;
+    let done = 0;
+    for (const t of targets) {
+      const ops = t.changes.map(changeToOp);
+      const entries = [...new Set(t.changes.map((c) => c.entry))];
+      if (t.here) {
+        await host.document.edit(host.bridge, ops, label);
+        host.changed();
+      } else {
+        if (!fs.existsSync(t.copy!)) {
+          this.log.appendLine(`script: ${s.name}: ${t.sector} was not added to ${project!.name}; its ${t.changes.length} change(s) were not applied`);
+          continue;
+        }
+        const line = `${s.name}: ${t.changes.length.toLocaleString()} value${t.changes.length === 1 ? "" : "s"} changed here (unsaved) · Ctrl+Z takes them back`;
+        await this.applyToCopy(t.copy!, ops, label, entries, { name: s.name, line });
+      }
+      done += t.changes.length;
+      this.log.appendLine(`script: ${s.name}: ${t.changes.length} change(s) applied to ${t.here ? host.sector : t.copy}`);
+    }
+    host.post({ type: "sectorScript", state: "applied", name: s.name, line: `${s.name}: ${done.toLocaleString()} change${done === 1 ? "" : "s"} applied in ${targets.length} sectors, each in its own tab; Ctrl+Z there takes them back` });
+  }
+
   private async preview(host: ScriptHost, s: ScriptInfo, changes: NodeChange[]): Promise<void> {
     const MaxLines = 2000;
     this.log.appendLine(`script: ${s.name} would change:`);
@@ -523,6 +638,7 @@ export class SectorScriptsUi {
     const what = [...counts].map(([p, k]) => `${p} on ${k.toLocaleString()} node${k === 1 ? "" : "s"}`).join(", ");
     const title = `"${s.name}" would change ${changes.length.toLocaleString()} value${changes.length === 1 ? "" : "s"}: ${what}.`;
     const { document } = host;
+    if (changes.some((c) => sectorOfChange(c).toLowerCase() !== host.sector.toLowerCase())) return this.applyAcross(host, s, changes, title);
     if (document.gamePath) return this.applyInProject(host, s, changes, title);
     for (;;) {
       const pick = await vscode.window.showInformationMessage(

@@ -6,6 +6,7 @@
 
 import { readNode, type Cr2wNode } from "./cr2wValues";
 import { nodeIndexOf, propChanges, sharedProps, type PropsNode } from "./sectorProps";
+import { entryLinks, placementsOf } from "./sectorNodes";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as vscode from "vscode";
@@ -258,6 +259,8 @@ interface Request {
   id?: number;
   /** sectorScripts: the sector view's selected node data entries. */
   entries?: number[];
+  /** sectorScripts: the whole selection by id (`<sector>#<entry>`), the layers' things too (docs/design/sector-layers.md, L2). */
+  ids?: string[];
   path?: string;
   paths?: string[];
   /** An animation by its place in the file, for animClip. */
@@ -679,6 +682,45 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
       const root = document.gamePath ? null : archiveRootOf(document.uri.fsPath);
       return root && fs.existsSync(path.join(root, gamePath)) ? { path: gamePath, root } : { path: gamePath };
     };
+    /**
+     * A sector's CR2W JSON written to a file (docs/design/sector-layers.md, L2 and L3): the opened sector with its
+     * unsaved edits; another, the project's copy (an open tab's, with its unsaved edits) or else the game's.
+     */
+    const sectorJsonTo = async (sector: string, file: string): Promise<void> => {
+      const bridge = this.requireBridge();
+      if (sector.toLowerCase() === (meshGamePath() ?? "").toLowerCase()) return document.snapshotJson(bridge, file, file.replace(/\.json$/i, ".streamingsector"));
+      const own = layerRef(sector);
+      if (own.root) {
+        const full = path.join(own.root, sector);
+        const open = this.documents.get(vscode.Uri.file(full).toString());
+        if (open) return open.snapshotJson(bridge, file, file.replace(/\.json$/i, ".streamingsector"));
+        await bridge.fileToJson(full, file);
+        return;
+      }
+      await bridge.toJson(sector, file);
+    };
+    /** Parsed sectors for the picked panel's Links, kept while the document does not change. */
+    const linkJson = new Map<string, unknown>();
+    // A save or a revert reads the file again: so do the links.
+    document.onDidReload(() => linkJson.clear());
+    const sectorJson = async (sector: string): Promise<unknown> => {
+      const key = sector.toLowerCase();
+      // The opened sector with unsaved edits is read each time: an Undo can bring back the same number of edits.
+      const live = key === (meshGamePath() ?? "").toLowerCase() && document.log.length > 0;
+      if (!live && linkJson.has(key)) return linkJson.get(key);
+      const dir = path.join(this.context.globalStorageUri.fsPath, "links");
+      fs.mkdirSync(dir, { recursive: true });
+      const file = path.join(dir, `${process.pid}-${Date.now()}.json`);
+      try {
+        await sectorJsonTo(sector, file);
+        const json = JSON.parse(fs.readFileSync(file, "utf8"));
+        if (!live) linkJson.set(key, json);
+        return json;
+      } finally {
+        fs.rmSync(file, { force: true });
+        fs.rmSync(file.replace(/\.json$/i, ".streamingsector"), { force: true });
+      }
+    };
     /** The opened sector as the drawing package reads it: a project's copy from the project's loose files. */
     const sectorRef = (sector: string): SectorRef => (document.gamePath ? { path: sector } : { path: sector, root: archiveRootOf(document.uri.fsPath) ?? undefined });
     /** The sector view's cache: one per game version, in a folder named by the stamp's hash. */
@@ -1029,6 +1071,38 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
             await vscode.commands.executeCommand("vscode.openWith", uri, cr2wViewTypeFor(m.path));
             return reply(m.id, null);
           }
+          case "sectorLinks": {
+            // The picked panel's Links (docs/design/sector-layers.md, L3): its definition, placements, inner record and files.
+            if (!m.sector || !Number.isInteger(m.entry)) throw new Error("No sector entry");
+            const links = entryLinks(m.sector, await sectorJson(m.sector), m.entry!);
+            return reply(m.id, { ...links, opened: m.sector.toLowerCase() === (meshGamePath() ?? "").toLowerCase() });
+          }
+          case "sectorPlacements": {
+            // The tree's Select Placements in 3D: the entries that place the node, or the inner record, the path is in.
+            const sector = meshGamePath();
+            if (!sector || !m.path) return reply(m.id, null);
+            return reply(m.id, placementsOf(sector, await sectorJson(sector), m.path) ?? null);
+          }
+          case "sectorOpenAt": {
+            // A layer's thing in its own sector's tab, picked there: the project's copy when it has one.
+            if (!m.sector || !/\.streamingsector$/i.test(m.sector)) throw new Error("No sector to open");
+            const own = layerRef(m.sector);
+            const uri = own.root ? vscode.Uri.file(path.join(own.root, m.sector)) : gameUri(m.sector);
+            if (Number.isInteger(m.entry)) this.showSectorEntry(uri, m.entry!);
+            await vscode.commands.executeCommand("vscode.openWith", uri, cr2wViewTypeFor(m.sector));
+            return reply(m.id, null);
+          }
+          case "sectorFile": {
+            // A file a thing uses, from the Links row: the project's copy when it has one, else the game's.
+            if (!m.path) throw new Error("No file");
+            const root = sectorRef(meshGamePath() ?? "").root;
+            const loose = root ? path.join(root, ...m.path.split(/[\\/]/)) : undefined;
+            if (loose && fs.existsSync(loose)) {
+              if (opensInCr2wEditor(loose)) await vscode.commands.executeCommand("vscode.openWith", vscode.Uri.file(loose), cr2wViewTypeFor(loose));
+              else await vscode.commands.executeCommand("vscode.open", vscode.Uri.file(loose));
+            } else await this.openGameFile(m.path);
+            return reply(m.id, null);
+          }
           case "sectorMeshInfo": {
             // A drawn mesh's appearances and the material each names per submesh: for By material and the picked panel.
             const sector = meshGamePath();
@@ -1081,6 +1155,9 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
               changed: () => {
                 for (const w of this.pages.get(document) ?? []) void w.postMessage({ type: "changed", path: "" });
               },
+              layers: [...layersOn],
+              selectedIds: m.ids ?? [],
+              layerJson: sectorJsonTo,
             };
             reply(m.id, null);
             void this.scripts.menu(host, m.entries ?? []).catch((e) => {

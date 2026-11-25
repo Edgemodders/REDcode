@@ -23,6 +23,14 @@ export interface StartMessage {
   only?: number[];
   /** The entries selected in the view when the run started: ctx.selected(), however it runs. Defaults to only. */
   selection?: number[];
+  /**
+   * The layers turned on, when the modder ran on This Sector and Its Layers On (docs/design/sector-layers.md, L2):
+   * each sector's game path and its CR2W JSON. Their nodes follow the opened sector's in ctx.nodes().
+   */
+  layers?: { sector: string; json: string }[];
+  /** Run on Selection and the selection, by id (`<sector>#<entry>`): things of the layers too. */
+  onlyIds?: string[];
+  selectionIds?: string[];
   debug?: boolean;
 }
 
@@ -33,7 +41,7 @@ export type RunnerMessage =
   | { type: "progress"; done: number; total: number }
   | { type: "log"; line: string }
   | { type: "call"; id: number; method: string; params: unknown }
-  | { type: "done"; visited: number; total: number; selected: number[] | null; changes: NodeChange[]; ms: number }
+  | { type: "done"; visited: number; total: number; selected: number[] | null; selectedIds: string[] | null; changes: NodeChange[]; ms: number }
   | { type: "failed"; error: string };
 
 /** REDcode's answer to a call. */
@@ -78,31 +86,38 @@ async function run(m: StartMessage): Promise<RunnerMessage> {
     inspector.waitForDebugger();
   }
   const changes = new Map<string, NodeChange>();
-  const all = sectorNodes(m.sector, JSON.parse(fs.readFileSync(m.json, "utf8")), changes);
-  const only = m.only ? new Set(m.only) : undefined;
-  const chosen = new Set(m.selection ?? m.only ?? []);
-  const selectedAtStart = all.filter((n) => chosen.has(n.entry));
-  const visitList = only ? all.filter((n) => only.has(n.entry)) : all;
+  const own = sectorNodes(m.sector, JSON.parse(fs.readFileSync(m.json, "utf8")), changes);
+  // The layers' nodes after the opened sector's: each names its own sector (node.sector, node.id).
+  const all = [...own, ...(m.layers ?? []).flatMap((l) => sectorNodes(l.sector, JSON.parse(fs.readFileSync(l.json, "utf8")), changes))];
+  const ownId = (e: number) => `${m.sector}#${e}`;
+  const ids = (entries?: number[], more?: string[]) => (entries || more ? new Set([...(entries ?? []).map(ownId), ...(more ?? [])]) : undefined);
+  const only = ids(m.only, m.onlyIds);
+  const chosen = ids(m.selection ?? m.only, m.selectionIds ?? m.onlyIds) ?? new Set<string>();
+  const selectedAtStart = all.filter((n) => chosen.has(n.id));
+  const visitList = only ? all.filter((n) => only.has(n.id)) : all;
   // A script's own file, by URL: a Windows path is not an import specifier.
   const mod = (await import(pathToFileURL(m.script).href)) as { default?: Script } & Script;
   const script: Script = mod.default ?? mod;
   if (typeof script.visit !== "function" && typeof script.run !== "function") throw new Error("The script's default export has neither visit(node, ctx) nor run(ctx)");
   send({ type: "loaded", total: all.length, name: script.name ?? "" });
 
-  const picked = new Set<number>();
+  const picked = new Set<string>();
   let touched = false;
-  const entryOf = (n: SectorNode | number) => (typeof n === "number" ? n : n?.entry);
+  /** A node, or a number: an entry of the opened sector. */
+  const idOf = (n: SectorNode | number) => (typeof n === "number" ? ownId(n) : n?.id);
   const ctx = {
     sector: m.sector,
+    /** The sectors in this run: the opened one first, then the layers turned on. */
+    sectors: () => [m.sector, ...(m.layers ?? []).map((l) => l.sector)],
     nodes: () => all,
     selected: () => selectedAtStart,
     select(n: SectorNode | number) {
       touched = true;
-      picked.add(entryOf(n));
+      picked.add(idOf(n));
     },
     deselect(n: SectorNode | number) {
       touched = true;
-      picked.delete(entryOf(n));
+      picked.delete(idOf(n));
     },
     log: (...args: unknown[]) => send({ type: "log", line: text(args) }),
     game: {
@@ -140,7 +155,9 @@ async function run(m: StartMessage): Promise<RunnerMessage> {
       }
     }
   }
-  return { type: "done", visited: list.length, total: all.length, selected: touched ? [...picked].sort((a, b) => a - b) : null, changes: [...changes.values()], ms: Date.now() - started };
+  const mine = `${m.sector}#`;
+  const selected = touched ? [...picked].filter((id) => id.startsWith(mine)).map((id) => Number(id.slice(mine.length))).sort((a, b) => a - b) : null;
+  return { type: "done", visited: list.length, total: all.length, selected, selectedIds: touched ? [...picked] : null, changes: [...changes.values()], ms: Date.now() - started };
 }
 
 // console.log in a script goes to REDcode's output, as ctx.log does.

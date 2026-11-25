@@ -39,7 +39,7 @@ export type SectorMessage =
   | { type: "sectorUnload"; sector: string }
   | { type: "sectorProgress"; phase?: "reading" | "exporting"; done: number; total: number; etaMs?: number; current?: string }
   | { type: "sectorDone"; skipped: { id: string; why: string }[]; sectors: string[] }
-  | { type: "sectorScript"; state: "running" | "done" | "applied"; name: string; done?: number; total?: number; note?: string; selected?: number[] | null; line?: string }
+  | { type: "sectorScript"; state: "running" | "done" | "applied"; name: string; done?: number; total?: number; note?: string; selected?: number[] | null; selectedIds?: string[] | null; line?: string }
   | { type: "sectorOverlapLayer"; layer: OverlapLayer }
   | { type: "sectorOverlapProgress"; done: number; total: number }
   | { type: "sectorOverlapDone"; count: number; error?: string };
@@ -84,8 +84,14 @@ export interface SectorSource {
   light?: Partial<LightSettings>;
   onLight?: (settings: LightSettings) => void;
   say?(message: string): void;
-  /** The Scripts button: the host's menu, given the selected node data entries of this sector. */
-  scripts?(entries: number[]): Promise<unknown>;
+  /** The Scripts button: the host's menu, given the selected node data entries of this sector, and the whole selection by id (layers' things too). */
+  scripts?(entries: number[], ids?: string[]): Promise<unknown>;
+  /** The picked panel's Links (docs/design/sector-layers.md, L3): a thing's definition, placements, inner record and files. */
+  links?(sector: string, entry: number): Promise<LinksInfo>;
+  /** A layer's thing in its own sector's tab, picked there. */
+  openAt?(sector: string, entry: number): Promise<unknown>;
+  /** A file a thing uses, opened in REDcode. */
+  openFile?(path: string): Promise<unknown>;
   /** Stop: ends the running script. */
   stopScript?(): Promise<unknown>;
   /** The Overlaps tab: the host finds the sectors whose things reach in, and sends them as it finds them. */
@@ -100,6 +106,19 @@ export interface SectorSource {
   props?(entries: number[]): Promise<PropsInfo>;
   /** Sets one property on every selected entry or node; the host asks first. */
   setProp?(entries: number[], target: "entry" | "node", property: string, value: unknown): Promise<unknown>;
+}
+
+/** What the host reads of a thing for the Links row (src/sectorNodes.ts, entryLinks). */
+export interface LinksInfo {
+  entry: number;
+  type: string;
+  node: number;
+  nodePath: string;
+  placements: number[];
+  inner?: { index: number; path: string; type: string };
+  files: string[];
+  /** The thing is the opened sector's: its tree is this tab's. */
+  opened: boolean;
 }
 
 /** A property every selected thing has (src/sectorProps.ts). */
@@ -257,12 +276,15 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
   toTree.hidden = true;
   const toGame = button("Show in Game", "Fly EDGEbuilder's camera to this thing in the running game, with Edit on. Needs REDnode and EDGEbuilder in the game");
   toGame.hidden = true;
+  // The Links row (docs/design/sector-layers.md, part 3): what the picked thing is made of and where else it stands.
+  const linksRow = el("div", "sectorlinks");
+  linksRow.hidden = true;
   const openMesh = button("Open Mesh", "Open the mesh in REDcode's mesh view");
   const toEdgemat = button("Open in EDGEmat", "Put the mesh on EDGEmat's Desk at this node's appearance, to choose or make another material");
   const addMesh = button("Add Mesh to Project", "Copy the mesh into the project. A change to it shows everywhere the game uses this mesh, not only here");
   const meshButtons = [openMesh, toEdgemat, addMesh];
   for (const b of meshButtons) b.hidden = true;
-  info.append(progress, hint, scriptLine, pickedLine, pickedMeta, toTree, toGame, ...meshButtons, realNote);
+  info.append(progress, hint, scriptLine, pickedLine, pickedMeta, toTree, toGame, ...meshButtons, realNote, linksRow);
 
   // ---- the camera's row: each move while its button is held (Shift faster, Ctrl slower), as the keys do ----
   const group = (label: string, ...items: HTMLElement[]) => {
@@ -368,6 +390,56 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
     const at = gameEntryOf(id);
     if (at) source.showInGame?.(at.sector, at.entry, "focus").catch((e) => source.say?.(e instanceof Error ? e.message : String(e)));
   };
+  /** The Links row for the picked thing, read by the host a moment after the pick settles. */
+  let linksTimer: ReturnType<typeof setTimeout> | undefined;
+  let linksAsked = 0;
+  const linkButton = (text: string, title: string, run: () => void) => {
+    const b = el("button", "linkbtn", text);
+    b.title = title;
+    b.addEventListener("click", run);
+    return b;
+  };
+  const showLinks = (id: string | null) => {
+    clearTimeout(linksTimer);
+    const mine = ++linksAsked;
+    const at = id ? gameEntryOf(id) : null;
+    if (!at || !source.links) {
+      linksRow.hidden = true;
+      return;
+    }
+    linksTimer = setTimeout(() => {
+      source.links!(at.sector, at.entry).then(
+        (l) => {
+          if (mine !== linksAsked) return;
+          linksRow.replaceChildren(el("span", "dim", "Links"));
+          const own = (path: string) => () => (l.opened ? source.showInTree(path) : void source.openAt?.(at.sector, at.entry));
+          linksRow.append(
+            linkButton(`Node ${l.node}`, l.opened ? `Its definition, nodes[${l.node}] (${l.type}), in the tree` : `Its definition is nodes[${l.node}] (${l.type}) of its own sector: open it there`, own(l.nodePath)),
+          );
+          if (l.placements.length > 1) {
+            linksRow.append(
+              linkButton(`${l.placements.length} placements`, `Every node data entry that places ${l.inner ? `inner record ${l.inner.index} of nodes[${l.node}]` : `nodes[${l.node}]`}: select them all`, () => {
+                const ids = l.placements.flatMap((e) => idsOfId(`${at.sector}#${e}`));
+                select(ids, ids.find((x) => x.startsWith(`${at.sector}#${at.entry}`)) ?? ids[0] ?? null);
+              }),
+            );
+          }
+          if (l.inner) linksRow.append(linkButton(`Inner ${l.inner.index}`, `The ${l.inner.type} this entry places, in the tree`, own(l.inner.path)));
+          if (!l.opened && source.openAt) linksRow.append(linkButton("Open Its Sector", `${at.sector}\nOpens in its own tab with this thing picked`, () => void source.openAt!(at.sector, at.entry)));
+          for (const f of l.files) {
+            const b = linkButton(f.slice(f.lastIndexOf("\\") + 1), `${f}\nOpen it in REDcode`, () => source.openFile?.(f).catch((e) => source.say?.(e instanceof Error ? e.message : String(e))));
+            b.hidden = !source.openFile;
+            linksRow.append(b);
+          }
+          linksRow.hidden = false;
+        },
+        () => {
+          if (mine === linksAsked) linksRow.hidden = true;
+        },
+      );
+    }, 250);
+  };
+
   /** Each pick goes along to EDGEbuilder in the game, a moment after it settles. */
   let sendTimer: ReturnType<typeof setTimeout> | undefined;
   const sendPick = (id: string | null) => {
@@ -384,6 +456,7 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
     toTree.hidden = !path;
     toGame.hidden = !id || !source.showInGame || !gameEntryOf(id);
     sendPick(id);
+    showLinks(id);
     pickedLine.textContent = id ? `${id.slice(id.lastIndexOf("\\") + 1)}${path ? "" : layerOf(id.slice(0, id.lastIndexOf("#"))) ? "  (a layer's)" : "  (a coarser sector's)"}` : "";
     pickedLine.title = id ?? "";
     const what = id ? drawnAs.get(id) : undefined;
@@ -1179,13 +1252,15 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
         .map((p) => Number(p.slice("nodeData.Data.".length))),
     ),
   ];
-  /** A node data entry's ids as drawn: itself, or each copy of an instanced mesh. */
-  const idsOfEntry = (n: number) => {
-    const own = `${source.sector}#${n}`;
+  /** A node data entry's ids as drawn, by its id in any sector: itself, or each copy of an instanced mesh. */
+  const idsOfId = (own: string) => {
     if (drawnAs.has(own) || markerOf.has(own)) return [own];
     const copies = [...drawnAs.keys()].filter((id) => id.startsWith(`${own}.`));
     return copies.length ? copies : [own];
   };
+  const idsOfEntry = (n: number) => idsOfId(`${source.sector}#${n}`);
+  /** The selection as node data entries by id, each once (an instanced mesh's copies are one entry). */
+  const selectedIdsOfEntries = () => [...new Set(selection.map((id) => id.replace(/(#\d+)\.\d+$/, "$1")))];
   const showScript = (m: Extract<SectorMessage, { type: "sectorScript" }>) => {
     scriptRunning = m.state === "running";
     scriptsButton.classList.toggle("on", scriptRunning);
@@ -1203,7 +1278,7 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
     scriptLine.title = m.line ?? "";
     if (m.state === "done" && m.selected) {
       const before = selection.length;
-      const ids = m.selected.flatMap(idsOfEntry);
+      const ids = m.selectedIds ? m.selectedIds.flatMap(idsOfId) : m.selected.flatMap(idsOfEntry);
       select(ids, ids[0] ?? null);
       // How the list changed, in rows (an instanced node is a row per copy it draws): a run that adds copies to a
       // selection already holding many could not be told apart from one that did nothing (the owner, 2026-11-24).
@@ -1217,7 +1292,7 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
       source.stopScript?.().catch((e) => source.say?.(e instanceof Error ? e.message : String(e)));
       return;
     }
-    source.scripts?.(selectedEntries()).catch((e) => source.say?.(e instanceof Error ? e.message : String(e)));
+    source.scripts?.(selectedEntries(), selectedIdsOfEntries()).catch((e) => source.say?.(e instanceof Error ? e.message : String(e)));
   });
 
   const pendingSelect = source.select;

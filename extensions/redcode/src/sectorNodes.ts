@@ -198,10 +198,12 @@ export class SectorNode {
     const to = wrapValue(r.value, value);
     if (JSON.stringify(to) === JSON.stringify(r.value)) return;
     const docPath = [...(t.on === "node" ? ["nodes", String(this.nodeIndex), "Data"] : ["nodeData", "Data", String(this.entry)]), ...r.path].join(".");
-    const was = this.changes.get(docPath);
+    // By sector and path: a run over layers changes the same path in several sectors.
+    const key = `${this.sector}|${docPath}`;
+    const was = this.changes.get(key);
     (r.parent as Record<string | number, unknown>)[r.key] = to;
-    if (was && JSON.stringify(was.from) === JSON.stringify(to)) this.changes.delete(docPath);
-    else this.changes.set(docPath, { id: this.id, entry: this.entry, property: path, path: docPath, from: was ? was.from : r.value, to });
+    if (was && JSON.stringify(was.from) === JSON.stringify(to)) this.changes.delete(key);
+    else this.changes.set(key, { id: this.id, entry: this.entry, property: path, path: docPath, from: was ? was.from : r.value, to });
   }
 
   /** What a log line or JSON shows of it. */
@@ -232,4 +234,80 @@ export function describeChange(c: NodeChange, node?: SectorNode): string {
     return s.length > 80 ? `${s.slice(0, 77)}…` : s;
   };
   return `#${c.entry}${node ? ` ${node.type}${node.mesh ? ` ${node.mesh.slice(node.mesh.lastIndexOf("\\") + 1)}` : ""}` : ""}: ${c.property} ${show(c.from)} → ${show(c.to)}`;
+}
+
+/** The sector a change is in: its id's part before the #. */
+export const sectorOfChange = (c: NodeChange) => c.id.slice(0, c.id.lastIndexOf("#"));
+
+/** Every resource path in a value, each once, in the order met (a node's mesh, entity, materials, effects). */
+export function resourcesIn(v: unknown, out: string[] = [], depth = 0): string[] {
+  if (depth > 8 || out.length >= 24) return out;
+  if (Array.isArray(v)) for (const x of v) resourcesIn(x, out, depth + 1);
+  else if (isObject(v)) {
+    const depot = v.DepotPath;
+    if (isObject(depot) && typeof depot.$value === "string" && depot.$value && depot.$value !== "0") {
+      if (!out.includes(depot.$value)) out.push(depot.$value);
+      return out;
+    }
+    if (v.$type === "ResourcePath" && typeof v.$value === "string" && v.$value && v.$value !== "0") {
+      if (!out.includes(v.$value)) out.push(v.$value);
+      return out;
+    }
+    for (const [k, x] of Object.entries(v)) if (k !== "$type") resourcesIn(x, out, depth + 1);
+  }
+  return out;
+}
+
+/** The inner record an entry of a cooked node places: its instanceIndex, else the first. */
+function innerIndexOf(n: SectorNode, count: number): number {
+  const i = Number(plainValue(n.json.entry.instanceIndex) ?? 0xffffffff);
+  return Number.isInteger(i) && i >= 0 && i < count && i < 0xffffffff ? i : 0;
+}
+
+/** The picked panel's Links (docs/design/sector-layers.md, part 3): a node data entry's definition, placements, inner record and files. */
+export interface EntryLinks {
+  entry: number;
+  type: string;
+  /** Its node's place in the sector's nodes, and the tree path to it. */
+  node: number;
+  nodePath: string;
+  /** Every node data entry that places the same node, this one included. */
+  placements: number[];
+  /** A cooked node's inner record this entry places, with its tree path. */
+  inner?: { index: number; path: string; type: string };
+  /** The files it uses, by game path. */
+  files: string[];
+}
+
+export function entryLinks(sector: string, json: unknown, entry: number): EntryLinks {
+  const all = sectorNodes(sector, json);
+  const n = all[entry];
+  if (!n) throw new Error(`${sector} has no node data entry ${entry}`);
+  const list = (((n.json.node?.buffer as Json | undefined)?.Data as Json | undefined)?.InnerNodes ?? undefined) as Json[] | undefined;
+  let inner: EntryLinks["inner"];
+  if (Array.isArray(list) && list.length) {
+    const index = innerIndexOf(n, list.length);
+    inner = { index, path: `nodes.${n.nodeIndex}.Data.buffer.Data.InnerNodes.${index}`, type: String(list[index]?.$type ?? "") };
+  }
+  // A cooked node's definition is the inner record each entry places: its placements are the entries placing that record.
+  const placements = all.filter((x) => x.nodeIndex === n.nodeIndex && (!inner || innerIndexOf(x, list!.length) === inner.index)).map((x) => x.entry);
+  // Its files: the inner record's, then the node's own outside its buffer (a destructible's effect), not every record's.
+  const files = inner ? resourcesIn(list![inner.index]) : [];
+  for (const f of resourcesIn({ ...(n.json.node ?? {}), buffer: undefined })) if (!files.includes(f)) files.push(f);
+  return { entry, type: n.type, node: n.nodeIndex, nodePath: `nodes.${n.nodeIndex}`, placements, ...(inner ? { inner } : {}), files: files.slice(0, 24) };
+}
+
+/**
+ * The node data entries that place what a tree path names (Select Placements in 3D): a node (`nodes.<k>`, or
+ * anything inside it), or a cooked node's inner record (`nodes.<k>.Data.buffer.Data.InnerNodes.<i>`, or inside
+ * it), whose placements are the entries of that node with that instance index. Undefined for any other path.
+ */
+export function placementsOf(sector: string, json: unknown, path: string): number[] | undefined {
+  const m = /^nodes\.(\d+)(?:\.Data\.buffer\.Data\.InnerNodes\.(\d+))?/.exec(path);
+  if (!m) return undefined;
+  const k = Number(m[1]);
+  const all = sectorNodes(sector, json).filter((x) => x.nodeIndex === k);
+  if (m[2] === undefined) return all.map((x) => x.entry);
+  const i = Number(m[2]);
+  return all.filter((x) => innerIndexOf(x, Number.MAX_SAFE_INTEGER) === i).map((x) => x.entry);
 }

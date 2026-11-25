@@ -188,6 +188,8 @@ export interface ScriptResult {
   total: number;
   /** The entries it selected, or null when it did not select (the view's selection stays). */
   selected: number[] | null;
+  /** What it selected by id, the layers' things too (`<sector>#<entry>`), or null. */
+  selectedIds?: string[] | null;
   changes: NodeChange[];
   ms: number;
 }
@@ -202,6 +204,10 @@ export interface RunOptions {
   only?: number[];
   /** The view's selection at the start, for ctx.selected(); defaults to only. */
   selection?: number[];
+  /** The layers turned on, each with its CR2W JSON file; and the selections by id, the layers' things too. */
+  layers?: { sector: string; json: string }[];
+  onlyIds?: string[];
+  selectionIds?: string[];
   debug?: boolean;
   onLog?(line: string): void;
   onProgress?(done: number, total: number): void;
@@ -281,7 +287,7 @@ export function runScript(o: RunOptions): ScriptRun {
           return;
         }
         case "done":
-          finish(() => resolve({ visited: m.visited, total: m.total, selected: m.selected, changes: m.changes, ms: m.ms }));
+          finish(() => resolve({ visited: m.visited, total: m.total, selected: m.selected, selectedIds: m.selectedIds, changes: m.changes, ms: m.ms }));
           return;
         case "failed":
           finish(() => reject(new Error(m.error)));
@@ -290,7 +296,7 @@ export function runScript(o: RunOptions): ScriptRun {
     });
     child.on("error", (e) => finish(() => reject(e)));
     child.on("exit", (code, signal) => finish(() => reject(stopped ? new ScriptStopped() : new Error(`The script's process ended (${signal ?? `exit code ${code}`}) before it finished`))));
-    const start: StartMessage = { type: "start", script: o.script, sector: o.sector, json: o.json, ...(o.only ? { only: o.only } : {}), ...(o.selection ? { selection: o.selection } : {}), ...(o.debug ? { debug: true } : {}) };
+    const start: StartMessage = { type: "start", script: o.script, sector: o.sector, json: o.json, ...(o.only ? { only: o.only } : {}), ...(o.selection ? { selection: o.selection } : {}), ...(o.layers?.length ? { layers: o.layers } : {}), ...(o.onlyIds ? { onlyIds: o.onlyIds } : {}), ...(o.selectionIds ? { selectionIds: o.selectionIds } : {}), ...(o.debug ? { debug: true } : {}) };
     child.send(start);
   });
   return {

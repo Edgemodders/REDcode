@@ -1572,6 +1572,44 @@ await check("sector scripts: a run in its own process selects, changes, calls RE
   setTimeout(() => run.stop(), 300);
   await assert.rejects(run.result, (e) => e instanceof ss.ScriptStopped);
 });
+await check("sector layers L2 and L3: a run over layers, selections by id, changes per sector; Links and Select Placements", async () => {
+  const runner = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "dist", "scriptRunner.js");
+  const json = write("scripts/l2-own.json", JSON.stringify(sectorJson()));
+  const other = write("scripts/l2-layer.json", JSON.stringify(sectorJson()));
+  const raise = write("scripts/l2-raise.mjs", `export default { visit(node, ctx) { if (node.streamingDistance < 45) { ctx.select(node); node.set("streamingDistance", 90); } } };`);
+  const r = await ss.runScript({ runner, script: raise, sector: "a", json, layers: [{ sector: "b", json: other }] }).result;
+  assert.equal(r.visited, 6, "the layer's nodes after the opened sector's");
+  assert.deepEqual(r.selected, [0, 2], "selected: the opened sector's entries, as before");
+  assert.deepEqual(r.selectedIds, ["a#0", "a#2", "b#0", "b#2"]);
+  assert.deepEqual(r.changes.map((c) => c.id), ["a#0", "a#2", "b#0", "b#2"], "the same path in two sectors is two changes");
+  assert.deepEqual([...new Set(r.changes.map(sn.sectorOfChange))], ["a", "b"]);
+  // On the selection by id: only the layer's entry 1, and ctx.selected() gives it; a number selects in the opened sector.
+  const sel = write("scripts/l2-sel.mjs", `export default { run(ctx) { ctx.log(ctx.sectors().join(","), ctx.selected().map((n) => n.id).join(",")); ctx.select(1); ctx.select(ctx.selected()[0]); } };`);
+  const said = [];
+  const s = await ss.runScript({ runner, script: sel, sector: "a", json, layers: [{ sector: "b", json: other }], only: [], onlyIds: ["b#1"], selectionIds: ["b#1"], onLog: (l) => said.push(l) }).result;
+  assert.deepEqual(said, ["a,b b#1"]);
+  assert.deepEqual(s.selectedIds, ["a#1", "b#1"]);
+  assert.deepEqual(s.selected, [1]);
+  // Links: the cooked node's two entries share it; each places its own inner record; the files it uses.
+  const cooked = sectorJson();
+  const inner = (m) => ({ $type: "worldInstancedMeshInnerNode", mesh: depot(m), meshAppearance: cname("default") });
+  cooked.Data.RootChunk.nodes.push({ HandleId: "3", Data: { $type: "worldInstancedMeshNode", debugName: cname("None"), buffer: { BufferId: "1", Data: { InnerNodes: [inner("base\\props\\rail.mesh"), inner("base\\props\\crate.mesh")] } } } });
+  const at = (k) => ({ ...entry(2, 50, 9), instanceIndex: k });
+  cooked.Data.RootChunk.nodeData.Data.push(at(4294967295), at(1));
+  const crate = sn.entryLinks("s", cooked, 2);
+  assert.deepEqual([crate.node, crate.nodePath, crate.placements, crate.inner, crate.files], [0, "nodes.0", [0, 2], undefined, ["base\\props\\crate.mesh"]]);
+  const token = sn.entryLinks("s", cooked, 1);
+  assert.deepEqual(token.files, ["base\\gameplay\\token.ent"]);
+  const c4 = sn.entryLinks("s", cooked, 4);
+  assert.deepEqual([c4.placements, c4.inner?.index, c4.inner?.path, c4.files], [[4], 1, "nodes.2.Data.buffer.Data.InnerNodes.1", ["base\\props\\crate.mesh"]], "a cooked node: the entries placing the same inner record, and that record's files only");
+  assert.equal(sn.entryLinks("s", cooked, 3).inner?.index, 0, "no instanceIndex: the first inner record");
+  assert.deepEqual(sn.placementsOf("s", cooked, "nodes.0"), [0, 2]);
+  assert.deepEqual(sn.placementsOf("s", cooked, "nodes.0.Data.mesh"), [0, 2], "anything inside a node");
+  assert.deepEqual(sn.placementsOf("s", cooked, "nodes.2.Data.buffer.Data.InnerNodes.1"), [4]);
+  assert.deepEqual(sn.placementsOf("s", cooked, "nodes.2.Data.buffer.Data.InnerNodes.0.mesh"), [3]);
+  assert.equal(sn.placementsOf("s", cooked, "nodeData.Data.0"), undefined);
+  assert.throws(() => sn.entryLinks("s", cooked, 99), /no node data entry 99/);
+});
 
 await check("sector layers: findOverlaps keeps sectors whose things reach in, in groups, nearest first, and caches their boxes", async () => {
   const box = (a, b) => ({ min: a, max: b });

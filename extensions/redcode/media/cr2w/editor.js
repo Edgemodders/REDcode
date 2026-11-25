@@ -398,7 +398,11 @@
         addMeshes: (meshes) => request("sectorAction", { action: "addMeshes", meshes }),
         copy: (text) => request("sectorAction", { action: "copy", text }),
         // Sector scripts (docs/design/sector-scripts.md): the host's menu, and Stop.
-        scripts: (entries) => request("sectorScripts", { entries }),
+        scripts: (entries, ids) => request("sectorScripts", { entries, ids }),
+        // Sector layers L3: the picked panel's Links, a layer's thing in its own tab, a file a thing uses.
+        links: (sector, entry) => request("sectorLinks", { sector, entry }),
+        openAt: (sector, entry) => request("sectorOpenAt", { sector, entry }),
+        openFile: (path) => request("sectorFile", { path }),
         stopScript: () => request("sectorScriptStop"),
         // Sector layers (docs/design/sector-layers.md): find them, turn them on, open one.
         overlaps: () => request("sectorOverlaps"),
@@ -526,6 +530,14 @@
     row.append(toggle, name, preview);
     row.title = `${path}\n${child.type}`;
     row.addEventListener("click", (e) => { e.stopPropagation(); void select(path); });
+    // A sector's node, or a cooked node's inner record: the way back to the things that place it (sector layers, L3).
+    if (home === "sector" && /^nodes\.\d+(\.Data\.buffer\.Data\.InnerNodes\.\d+)?$/.test(path)) {
+      row.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        treeMenu(e, [{ label: "Select Placements in 3D", run: () => selectPlacements(path) }]);
+      });
+    }
     toggle.addEventListener("click", async (e) => {
       e.stopPropagation();
       if (!canExpand) return;
@@ -581,6 +593,36 @@
    * expandTo, but it first loads the pages of long arrays on the way until the row is there, then scrolls
    * to it (found 2026-11-20: Show in Tree on nodeData.Data.729 stopped at the first 200 entries).
    */
+  /** A small menu at the mouse, for the tree. */
+  function treeMenu(e, items) {
+    document.querySelector(".treemenu")?.remove();
+    const menu = el("div", "treemenu");
+    for (const it of items) {
+      const b = el("button", "", it.label);
+      b.addEventListener("click", () => { menu.remove(); it.run(); });
+      menu.appendChild(b);
+    }
+    menu.style.left = `${e.clientX}px`;
+    menu.style.top = `${e.clientY}px`;
+    document.body.appendChild(menu);
+    const close = (ev) => { if (!menu.contains(ev.target)) { menu.remove(); document.removeEventListener("pointerdown", close, true); } };
+    document.addEventListener("pointerdown", close, true);
+  }
+
+  /** The entries that place a node (or a cooked node's inner record), selected in the 3D view. */
+  async function selectPlacements(path) {
+    try {
+      const entries = await request("sectorPlacements", { path });
+      if (!entries || !entries.length) { status("Nothing in this sector places it", "error"); return; }
+      pendingSectorEntry = entries;
+      mode = "sector";
+      await render(true);
+      status(`${entries.length} placement${entries.length === 1 ? "" : "s"} selected`);
+    } catch (err) {
+      status(err.message, "error");
+    }
+  }
+
   async function revealInTree(path) {
     const parts = path.split(".");
     let parent = "";
