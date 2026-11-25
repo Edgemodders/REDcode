@@ -70,11 +70,12 @@ The ThirdPartyNotices need no new entry: three.js is already in them, and the co
 
 ## The editing loop (the owner, 2026-11-25)
 
-The owner: viewing a line's lip sync, editing it, adding or changing its voice, and changing the line itself all belong to the editor's loop. Where each stands:
+The owner: viewing a line's lip sync, swapping heads to see how it plays on each, editing it, adding or changing its voice, and changing the line itself all belong to the editor's loop. Where each stands:
 
 | Part of the loop | Today (L1) | What it takes | Whose |
 |---|---|---|---|
 | **View** a line's lip sync | Built: lines by scene, the voice, the curves, the head | — | REDcode |
+| **Swap heads** to see a line on another | Not built: the line plays on the head it was made for (or a sketch) | A **Head** picker in the tab: any character's head, V's male and female heads among them, the line on it at once. The game keeps lip sync per line, not per head, so any clip plays on any head; the head solver (`faceSolve.ts`) already reads each head's own poses. EDGEfab's notes had it as Change Head | REDcode |
 | **Edit** the lip sync | Not built: the marker scrubs, the curves cannot be changed | Change a track's keys on the curves (drag, scale a stretch, smooth), and make it again from the words or the voice (the letter timing, or Audio2Face as L3) | REDcode |
 | **Add or change a voice** | Add a Line speaks new words in the character's voice through EDGEwave; heard in the tab only | A game line's voice replaced by a new take or a WAV, as a `.wem` in the project at the game's path. REDcode cannot write `.wem` (WolvenKit's WAV import is a stub, #5); EDGEwave's `.wem` route through the modder's own Wwise 2023.1.14 is spiked (EDGEwave's `docs/voice-lines.md`, step 5, "Next"). So the voice goes through EDGEwave | EDGEwave, called from the tab |
 | **Change the line** | Not built | New words for a game line: its subtitle (the localization entry, through the LocKeys code REDcode has), a new voice (above) and lip sync made from both, written together | REDcode, with EDGEwave for the voice |
