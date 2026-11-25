@@ -257,6 +257,15 @@ body.mesh-mode #props { display: flex; flex-direction: column; overflow: hidden;
 .animmake .makename { flex: 1; min-width: 8em; }
 .animmake .makecheck { display: inline-flex; align-items: center; gap: 2px; font-size: 12px; white-space: nowrap; }
 .animmake .makestatus { white-space: normal; font-size: 12px; }
+/* The Edit panel (AE2): the steps and the feet as rows, times with a Now button. */
+.animedit .editsteps, .animedit .editfeet { display: flex; flex-direction: column; gap: 1px; }
+.animedit .editstep { display: flex; gap: 4px; align-items: center; font-size: 12px; }
+.animedit .editstep .edittext { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.animedit .editstep button.icon { padding: 0 5px; }
+.animedit .editnum { width: 4.5em; }
+.animedit .edittime { display: inline-flex; gap: 4px; align-items: center; }
+.animedit .editform { display: flex; flex-direction: column; gap: 6px; }
+.animedit .makerow[hidden] { display: none; }
 
 /* the .glb/.gltf viewer page */
 body.meshfile { display: flex; flex-direction: column; height: 100vh; margin: 0; }

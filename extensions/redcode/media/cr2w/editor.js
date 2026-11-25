@@ -456,6 +456,8 @@
         make: payload.make
           ? { why: payload.make.why, game: !!payload.make.game, made: payload.make.made, from: payload.make.from, run: (make) => request("animsMake", { make }) }
           : undefined,
+        // AE2: a made clip's edit steps (docs/design/animation-editor.md).
+        edit: { info: () => request("animsEditInfo"), apply: (steps) => request("animsEdit", { steps }), undo: () => request("animsEditUndo") },
         // A lip sync set: its character's lines in the Lip Sync editor, at the shown clip's line.
         lipSync: payload.lipSync ? (clip) => request("animsLipSync", { clip }).catch((e) => status(e.message, "error")) : undefined,
         note: payload.dirty ? "Shows the saved file; save to see your edits" : "",

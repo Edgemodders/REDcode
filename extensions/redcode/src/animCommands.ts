@@ -3,8 +3,9 @@
 
 import * as path from "node:path";
 import * as vscode from "vscode";
-import { madeClips, projectAt, Rigs, type Model } from "../../../packages/anim-core/src/index";
-import { Cancelled, makeClip, makeRig, StageText, type MakeDeps, type MakeRequest, type MakeResult } from "./animMake";
+import * as fs from "node:fs";
+import { asBridge, BoneGroups, bonesOf, editClip, footContacts, IkBones, madeClips, projectAt, readGlb, Rigs, suggestPins, type EditStep, type Model } from "../../../packages/anim-core/src/index";
+import { Cancelled, closeTabsOn, makeClip, makeRig, StageText, type MakeDeps, type MakeRequest, type MakeResult } from "./animMake";
 import type { AnimMaker } from "./cr2wEditor";
 import { gamePathOfUri } from "./gameFs";
 import { ProjectFolders } from "./project";
@@ -17,6 +18,26 @@ export interface AnimCommandsHost {
   open(file: string, clip: string): Promise<void>;
   /** A key for another tool, asking the modder (REDcodeApi.keys). */
   keyFor(caller: string): Promise<string | undefined>;
+}
+
+/** A made clip's edits for the animation view's Edit panel (AE2). */
+export interface EditInfo {
+  clip: string;
+  seconds: number;
+  steps: EditStep[];
+  edited?: string;
+  canUndo: boolean;
+  /** Just rebuilt from the panel: the reopened tab shows the panel again. */
+  open: boolean;
+  /** The rig's bones by name, and its bone groups. */
+  bones: string[];
+  groups: Record<string, string[]>;
+  /** The bones a pin or a move works on. */
+  ikBones: string[];
+  /** Where each foot rests and how far it slides there, and the pins that would hold the sliding ones. */
+  feet: { contacts: { bone: string; from: number; to: number; slide: number }[]; suggestedPins: EditStep[] };
+  /** The project's other made clips on this rig, for a Layer. */
+  others: string[];
 }
 
 /** What REDcodeApi.generateAnimation takes (since the release with AT2). */
@@ -172,6 +193,61 @@ export function registerAnimCommands(context: vscode.ExtensionContext, host: Ani
   };
   /** One make at a time, from any animation view: two at once would write the same project together. */
   let making = false;
+
+  // ---- the Animation Editor in the animation view (docs/design/animation-editor.md, AE2) ----
+  /** Each edited clip's earlier step lists, newest last, by its record's id: Undo puts the last back. Kept while REDcode runs. */
+  const history = new Map<string, EditStep[][]>();
+  /** The file rebuilt last and when: its tab, opening again, shows the Edit panel where the modder left it. */
+  let rebuilt: { file: string; at: number } | undefined;
+  const editInfo = (file: string): EditInfo | undefined => {
+    const m = madeOf(file);
+    if (!m) return undefined;
+    const glb = readGlb(fs.readFileSync(m.glb));
+    const names = glb.json.nodes.map((n) => n.name ?? "").filter(Boolean);
+    // The skeleton's joints only, in the rig's order: the file's other nodes (Armature, the meshes) are no bones.
+    const joints = (glb.json.skins?.[0]?.joints ?? []).map((i) => glb.json.nodes[i]?.name ?? "").filter(Boolean);
+    const contacts = footContacts(glb);
+    const dir = host.projectDir()!;
+    return {
+      clip: m.name,
+      seconds: m.anim.seconds,
+      steps: (m.edits ?? []) as EditStep[],
+      edited: m.edited,
+      canUndo: (history.get(m.id)?.length ?? 0) > 0,
+      open: !!rebuilt && rebuilt.file === path.resolve(file).toLowerCase() && Date.now() - rebuilt.at < 30000,
+      bones: (joints.length ? joints : names).filter((n) => !["Root", "Trajectory", "reference_joint"].includes(n)),
+      groups: Object.fromEntries(BoneGroups.map((g) => [g, bonesOf(g, names)])),
+      ikBones: IkBones,
+      feet: { contacts: contacts.map((c) => ({ bone: c.bone, from: c.from, to: c.to, slide: c.slide })), suggestedPins: suggestPins(contacts) },
+      others: madeClips(projectAt(dir)).filter((x) => x.name !== m.name && x.anim.rig.toLowerCase() === m.anim.rig.toLowerCase()).map((x) => x.name),
+    };
+  };
+  /** Rebuilds the clip from its steps, then reopens its tab at it (the set on disk is new). */
+  const applySteps = async (file: string, steps: EditStep[], remember: boolean) => {
+    const m = madeOf(file);
+    if (!m) throw new Error("This file is not a made clip's own set: only made clips can be edited here for now");
+    const dir = host.projectDir()!;
+    const before = (m.edits ?? []) as EditStep[];
+    const r = await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: `Editing ${m.name}` }, () =>
+      editClip(asBridge(host.deps.bridge()), projectAt(dir), m.name, steps, { cacheDir: host.deps.cacheDir, set: m.set }),
+    );
+    if (remember) {
+      const list = history.get(m.id) ?? [];
+      list.push(before);
+      if (list.length > 30) list.shift();
+      history.set(m.id, list);
+    }
+    host.deps.log.appendLine(`Animation Editor: ${m.name}, ${steps.length} step(s): ${r.report.steps.map((x) => x.did).join("; ") || "as made"}`);
+    host.deps.refresh();
+    rebuilt = { file: path.resolve(file).toLowerCase(), at: Date.now() };
+    // After the answer goes back to the page: the tab closes and opens again on the new set, at the clip.
+    setTimeout(() => {
+      void (async () => {
+        if (await closeTabsOn(file)) await host.open(file, m.name);
+      })();
+    }, 50);
+    return { clip: m.name, seconds: r.report.seconds, did: r.report.steps };
+  };
   const maker: AnimMaker = {
     why: (rig) => (!host.projectDir() ? "Open a project first: made clips go into it." : makeRig(rig).why),
     run: async (req, onStage) => {
@@ -194,6 +270,15 @@ export function registerAnimCommands(context: vscode.ExtensionContext, host: Ani
       }
     },
     madeClipOf: (file) => madeOf(file)?.name,
+    editInfo,
+    edit: (file, steps) => applySteps(file, steps, true),
+    undo: async (file) => {
+      const m = madeOf(file);
+      const list = m ? history.get(m.id) : undefined;
+      const last = list?.pop();
+      if (!m || !last) throw new Error("Nothing to undo");
+      return applySteps(file, last, false);
+    },
     madeFromOf: (file) => {
       const m = madeOf(file);
       return m ? { ...(m.source ?? {}), made: (m.source?.made as string | undefined) ?? m.made } : undefined;

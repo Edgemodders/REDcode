@@ -9,6 +9,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { cssColour, el, lightControls, sideSplitter, type LightSettings } from "./viewerKit";
 import { createStage } from "../../../packages/world-view/src/stage";
+import { editPanel, type EditApi } from "./animEdit";
 
 export interface AnimClipInfo {
   name: string;
@@ -51,6 +52,8 @@ export interface AnimsSource {
   onSideWidth?: (width: number | undefined) => void;
   /** Making clips (docs/design/animation-tools.md, AT2). Without it, no Make panel. */
   make?: MakeApi;
+  /** Editing a made clip (docs/design/animation-editor.md, AE2). Without it, or on a file that is not a made clip's own set, no Edit panel. */
+  edit?: EditApi;
   /** A lip sync set (docs/design/lipsync.md): opens the Lip Sync editor at the shown clip's line. */
   lipSync?: (clip: string | undefined) => void;
 }
@@ -585,6 +588,61 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
       make.box.hidden = false;
       makeButton.classList.add("on");
     }
+  }
+  // AE2: the Edit panel on a made clip's own set, shown by the bar's Edit button.
+  const editInfo = source.edit ? await source.edit.info().catch(() => null) : null;
+  // A marker on the bone a step's form names; clicking a joint in the view picks it.
+  const marker = new THREE.Mesh(new THREE.SphereGeometry(0.025, 16, 12), new THREE.MeshBasicMaterial({ color: cssColour("--accent", "#fcee0a"), depthTest: false, transparent: true, opacity: 0.9 }));
+  marker.renderOrder = 10;
+  const showBone = (name: string | null) => {
+    marker.removeFromParent();
+    const b = name ? bones.find((x) => x.name === name) : undefined;
+    if (b) b.add(marker);
+  };
+  const editor = editInfo && source.edit
+    ? editPanel(source.edit, editInfo, {
+        now: () => action?.time ?? 0,
+        seek: (t: number) => {
+          setPlaying(false);
+          seek(t);
+        },
+        showBone,
+        say: (message: string) => source.say?.(message),
+      })
+    : undefined;
+  if (editor) {
+    const editButton = el("button", "", "Edit");
+    editButton.title = "Edit this made clip: pin a sliding foot, key a bone, lay another clip on some bones, trim, loop. The clip as made is kept";
+    editButton.addEventListener("click", () => {
+      editor.box.hidden = !editor.box.hidden;
+      editButton.classList.toggle("on", !editor.box.hidden);
+      if (editor.box.hidden) showBone(null);
+    });
+    bar.insertBefore(editButton, bar.firstChild);
+    side.append(editor.box);
+    // A clip just rebuilt from the panel opens with it shown, where the modder left it; an edited clip too, since
+    // its steps are what it is about.
+    if (editInfo?.open || editInfo?.edited) {
+      editor.box.hidden = false;
+      editButton.classList.add("on");
+    }
+    // A click (not a drag) near a joint fills the form's bone, when the form has one.
+    let down: { x: number; y: number } | null = null;
+    renderer.domElement.addEventListener("pointerdown", (e) => (down = { x: e.clientX, y: e.clientY }));
+    renderer.domElement.addEventListener("pointerup", (e) => {
+      const from = down;
+      down = null;
+      if (!from || Math.hypot(e.clientX - from.x, e.clientY - from.y) > 4 || !editor.wantsBone()) return;
+      const r = renderer.domElement.getBoundingClientRect();
+      let best: { name: string; d: number } | null = null;
+      for (const b of framed.length ? framed : bones) {
+        const p = b.getWorldPosition(new THREE.Vector3()).project(camera);
+        if (p.z > 1) continue;
+        const d = Math.hypot(((p.x + 1) / 2) * r.width - (e.clientX - r.left), ((1 - p.y) / 2) * r.height - (e.clientY - r.top));
+        if (d < 14 && (!best || d < best.d)) best = { name: b.name, d };
+      }
+      if (best) editor.pickBone(best.name);
+    });
   }
   side.append(el("div", "label", "Animations"), filter, list, setBox);
   const rows: HTMLElement[] = source.animations.map((a, i) => {

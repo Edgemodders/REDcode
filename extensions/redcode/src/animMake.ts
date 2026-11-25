@@ -78,7 +78,7 @@ export function makeRig(rigPath: string): { rig?: anim.Rig; why?: string } {
 }
 
 /** Closes every editor tab on a file; false when one was not closed (its unsaved changes kept). */
-async function closeTabsOn(file: string): Promise<boolean> {
+export async function closeTabsOn(file: string): Promise<boolean> {
   const want = path.resolve(file).toLowerCase();
   const tabs = vscode.window.tabGroups.all.flatMap((g) => g.tabs).filter((t) => {
     const input = t.input;

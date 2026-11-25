@@ -299,6 +299,8 @@ interface Request {
   meshes?: string[];
   /** sectorAction copy: the text for the clipboard. */
   text?: string;
+  /** animsEdit: a made clip's whole list of edit steps (docs/design/animation-editor.md, AE2). */
+  steps?: import("../../../packages/anim-core/src/index").EditStep[];
   /** animsMake: what to make (docs/design/animation-tools.md, AT2); replace is the clip the view shows, by name. */
   make?: { action: "generate" | "glb"; prompt?: string; length?: number; model?: string; inPlace?: boolean; upperBodyOnly?: boolean; asWritten?: boolean; name?: string; replace?: string };
 }
@@ -313,6 +315,12 @@ export interface AnimMaker {
   madeClipOf(file: string): string | undefined;
   /** How that made clip was made, from its record's source (the words, model and length for Uthana; the file for a .glb). */
   madeFromOf(file: string): Record<string, unknown> | undefined;
+  /** AE2: a made clip's edits, or undefined when this file is not a made clip's own set. */
+  editInfo(file: string): import("./animCommands").EditInfo | undefined;
+  /** AE2: the clip rebuilt from these steps; its tab opens again on the new set. */
+  edit(file: string, steps: import("../../../packages/anim-core/src/index").EditStep[]): Promise<unknown>;
+  /** AE2: the steps before the last edit, put back. */
+  undo(file: string): Promise<unknown>;
 }
 
 /** Where the localization table's column widths are kept, for every file. */
@@ -825,6 +833,17 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
               (stage, detail) => post({ type: "animsMakeStage", stage, detail }),
             );
             return reply(m.id, result);
+          }
+          case "animsEditInfo":
+            // The Edit panel (AE2): only a project's made clip, in its own set.
+            if (!this.animMaker || document.gamePath) return reply(m.id, null);
+            return reply(m.id, this.animMaker.editInfo(document.uri.fsPath) ?? null);
+          case "animsEdit":
+          case "animsEditUndo": {
+            if (!this.animMaker) throw new Error("Editing clips is not available");
+            if (document.log.length > 0) throw new Error("This file has unsaved changes: save or revert them first");
+            const r = m.type === "animsEdit" ? await this.animMaker.edit(document.uri.fsPath, m.steps ?? []) : await this.animMaker.undo(document.uri.fsPath);
+            return reply(m.id, r);
           }
           case "light":
             await this.context.workspaceState.update(LightKey, m.settings);
