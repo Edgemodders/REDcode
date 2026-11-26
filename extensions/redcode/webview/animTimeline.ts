@@ -905,14 +905,20 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
       const k = keys.findIndex((key) => Math.abs(px - x(b.s.start + key.at)) < 6);
       if (k >= 0 && py > Ruler + li * LaneH + LaneH / 2) return { kind: "key", index: b.index, key: k, track: lane.track };
     }
+    // Where two blocks meet (a move and the blend after it), the one the pointer is inside wins: its edge is the
+    // one taken, not the neighbour's within its 3 px margin.
+    let near: Hit | null = null;
     for (const b of blocks) {
       const x0 = x(b.s.start);
       const x1 = x(endOf(b.s));
       if (px < x0 - 3 || px > x1 + 3) continue;
       const part = px - x0 < Edge && x1 - x0 > 3 * Edge ? "left" : x1 - px < Edge && x1 - x0 > 3 * Edge ? "right" : px >= x0 && px <= x1 ? "body" : null;
-      if (part) return { kind: "block", index: b.index, part, track: lane.track };
+      if (!part) continue;
+      const hit: Hit = { kind: "block", index: b.index, part, track: lane.track };
+      if (px >= x0 && px <= x1) return hit;
+      near ??= hit;
     }
-    return { kind: "lane", track: lane.track };
+    return near ?? { kind: "lane", track: lane.track };
   };
 
   let drag:
