@@ -1569,7 +1569,7 @@ Built 2026-11-23 ([design](design/game-testing.html)): `game_start`, `game_stop`
 | Test | Why |
 |---|---|
 | New File's files read by the game | An atlas from New File drawn by an ink widget, or its material instance on a mesh, in the game. Needs a small test mod; it was step 14 of the New File test, optional, and not run |
-| The EDGEmat material hook in the mesh viewer | Waits on EDGEmat shipping `renderMaterials`; checked only with a stand-in |
+| The EDGEmat material hook in the mesh viewer | Checked only with a stand-in. No longer waits: EDGEmat has had `renderMaterials` since 0.3.0 (the sector view's Materials switch uses it, passed in Sector materials M1). Runs in VS Code with EDGEmat (**Run REDcode with Opens Test and EDGEmat**): a mesh with EDGEmat changes, opened on 3D |
 | The .NET runtime prompt | Needs a machine without .NET 10 |
 | Open in EDGEwave with EDGEwave from a store | Run only with EDGEwave from source (F5, 2026-10-16), where it works |
 | A custom sound from a REDmod pack, or a sound override, in game | Not tried in the game |
