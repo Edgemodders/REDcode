@@ -56,7 +56,10 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Run Game in Tab](#run-game-in-tab-g2-redcodes-side) | By hand, in the game | Game in a tab G2 | 2026-11-22 | Pass (owner, 2026-11-23), steps 1 to 8; retests R1 and R2 not run; the size selector S1 to S5 not run |
 | [The game tools for assistants](#the-game-tools-for-assistants-redcode-mcp-game_) | By hand, with a Claude session | Game tests | 2026-11-23 | Not run (checked by script) |
 | [Sector scripts](#sector-scripts) | By hand | Sector scripts | 2026-11-23 | **Passed** (owner, 2026-11-24), steps 1 to 15 with 3b and 3c, with the fixes and changes run 1 raised |
-| [Sector scripts: a changed script](#sector-scripts-a-changed-script) | By hand | Sector scripts | 2026-11-25 | Not run (checked by script) |
+| [Sector scripts: a changed script](#sector-scripts-a-changed-script) | By hand | Sector scripts | 2026-11-25 | **Passed** (EDGEweb by script, H1 to H4); one fix not run again |
+| [Sector layers L2 and L3](#sector-layers-l2-and-l3) | By hand | Sector layers L2 and L3 | 2026-11-25 | **Passed** (EDGEweb by script, L2-1 to L3-6); three fixes not run again |
+| [Sector layers L4 and Sector Tools L1](#sector-layers-l4-and-sector-tools-l1) | By hand, in the game | Sector layers L4 | | Not run (checked by script) |
+| [Animation Timeline TL2 to TL4](#animation-timeline-tl2-to-tl4) | By hand | Animation Timeline | | Not run (checked in Chrome) |
 | [Sector layers (L1)](#sector-layers-l1) | By hand | Sector layers L1 | 2026-11-25 | **Passed** (EDGEweb by script, L1 to L9; the owner, the ghosted look) |
 | [Lip Sync L1](#lip-sync-l1-the-editor-in-redcode) | Scripts and an MCP client; by hand | Lip Sync L1 | 2026-11-25 | **Passed but step 9** (scripts, MCP and EDGEweb's script for 1 to 8 and 10; the owner, the sound, mouth and head); step 9 not run, shipped untested at the owner's word |
 | [Library view (#23)](#library-view-23) | By hand | Requests | 2026-11-15 | Pass, two fixes |
@@ -1452,6 +1455,8 @@ F5 with **Run REDcode**, a project open, a sector on 3D, and a script of your ow
 | H3 | Close the script's tab. Change the file outside VS Code (Notepad, or ask a Claude session to change it with `script_write` and `overwrite`), then run it | "Run … It was changed outside REDcode since it last ran here", with the script open beside showing the new text. **Cancel** runs nothing |
 | H4 | Run it again, **Run**; then once more | It runs; the next run asks nothing |
 
+Result, EDGEweb's session by script on 2026-11-25 (EDGEkit 1.143.1 trial on a scratch profile, the checkout at 29bb383, REDbridge 0.19.0 from a scratch copy, the scratch project my_first_mod, game 2.5 read only, real clicks and keys over CDP at 1920x1032; nothing judged by eye): **H1 to H4 pass.** A script of its own in `.redcode\scripts` selecting by streaming distance, its limit changed each step. H1 on the fresh profile: "It has not run on this computer before", Run, 86 selected; the second run asked nothing. H2: changed and saved in the editor, no question, 34. H3: changed with `sed`, its tab closed: "It was changed outside REDcode since it last ran here", the new text open beside; Cancel ran nothing. H4: Run, 24; once more, no question. Found: at H4 the question opened the script beside a second time while H3's tab was still open (two tabs of it). Fixed the same day: a script already open in a tab is shown there (the question and Debug). Not run again in VS Code.
+
 ## Sector layers (L1)
 
 Built 2026-11-24 ([design](design/sector-layers.html), stage L1): the side panel's **Selections** and **Overlaps** tabs, the sectors whose things reach into the opened one, and their layers. Checked before: a unit check of `findOverlaps` (groups, narrowing, a thing with no box counted by where it stands, the cache), and the page in Chrome over the real game on `exterior_-22_7_0_0`: the first search took 64 s and found 16 sectors (3 neighbours, 12 other levels, 1 quest sector); the second took 0.5 s from the cache; Ghost on `exterior_-22_6_0_0` loaded it in 5.4 s. **Not run:** anything in VS Code, and the look of a ghosted layer in 3D (the browser cannot take pictures of the 3D view).
@@ -1493,7 +1498,15 @@ By hand, F5 with **Run REDcode** on a project, `exterior_-22_7_0_0` opened from 
 | L3-5 | A layer's thing: Node, and Open Its Sector | Its sector opens in its own tab with it picked |
 | L3-6 | In the tree, right-click `nodes.39`, then one of its inner records | **Select Placements in 3D**: the view goes to 3D with its entries selected |
 
-Not run yet.
+Result, EDGEweb's session by script on 2026-11-25 (EDGEkit 1.143.1 trial on a scratch profile, the checkout at 29bb383, REDbridge 0.19.0 from a scratch copy, the scratch project my_first_mod, game 2.5 read only, real clicks and keys over CDP at 1920x1032; nothing judged by eye): **all ten pass.** Overlaps listed 16 sectors in 2.6 s (from the cache); Ghost on `exterior_-22_6_0_0`.
+
+- L2-1: the question named both sectors; with the layers, 41 selected, 15 of them the layer's. The start selection held only the layer's thing (the first plain click did not stay when the Ctrl+click followed), so "a thing of each sector" was not exactly met; the copies in both sectors were found.
+- L2-2: **Raise short streaming distances**: one question, 337 values, 68 in the opened sector and 269 in the layer, each "the game's, added to my_first_mod and changed there in its own tab", with the ArchiveXL warning; **Add 2 Sectors to Project and Apply** added both and opened two dirty tabs; the game's tab stayed clean.
+- L2-3: Ctrl+Z in the layer's copy undid only it; Ctrl+Y again.
+- L2-4: from the project's copy, the layer's row has the project badge; the question said "here, in this tab" and "my_first_mod's copy, in its own tab"; **Apply** changed the opened copy in place and the open tab of the layer's copy.
+- L3-1: a `worldInstancedMeshNode`: Node 39, Inner 238, its mesh; no placements button. L3-2: a `worldAmbientAreaNode`: 16 placements, all selected. L3-3: the tree at `nodes.39` and at `InnerNodes.238`. L3-4: the mesh opened on its 3D view. L3-5: a layer's thing: Node 49, Inner 109, Open Its Sector; each opened the layer's sector in its own tab with a thing picked. L3-6: Select Placements in 3D: 662 for `nodes.39`, 1 for one of its inner records.
+
+Found, three fixed the same day (not run again in VS Code): after Ctrl+Z the line under the view still said the values were changed (it now clears on undo and redo); Open Its Sector picked the instanced node's first copy (#469.0, not #469.3: it now picks the same copy). Seen and as meant: from the game's sector the layers drawn are the game's, so Open Its Sector opens the game's copy of the layer, even with the project's copy open (from the project's copy, the project's).
 
 ## Sector layers L4 and Sector Tools L1
 

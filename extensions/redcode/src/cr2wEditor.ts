@@ -283,6 +283,7 @@ interface Request {
   /** sectorGame: Show in Game (focus) or the pick sent along (select), for a sector's node data entry. */
   sector?: string;
   entry?: number;
+  copy?: number;
   how?: "focus" | "select";
   /** light: the 3D views' light settings to keep for the window. */
   settings?: unknown;
@@ -383,7 +384,7 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
   /** A set to play once the editor page of the document is ready, by URI. */
   private readonly pendingSets = new Set<string>();
   /** A sector's node data entry to select once the editor page is ready, by URI (REDcodeApi.openSector). */
-  private readonly pendingSectorEntries = new Map<string, number | number[]>();
+  private readonly pendingSectorEntries = new Map<string, number | number[] | string>();
   /** A sector script's line to show under the view once the editor page is ready, by URI (a run applied to a project's copy). */
   private readonly pendingScriptLines = new Map<string, { name: string; line: string }>();
   /** Sector scripts (docs/design/sector-scripts.md), made when the Scripts button is first used. */
@@ -453,7 +454,7 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
    * Opens a .streamingsector's 3D view at a node data entry: the open pages of the document go to it, or the
    * editor page does when it opens. For REDcodeApi.openSector.
    */
-  showSectorEntry(uri: vscode.Uri, entry: number | number[]): void {
+  showSectorEntry(uri: vscode.Uri, entry: number | number[] | string): void {
     const key = uri.toString();
     const document = this.documents.get(key);
     const pages = document ? [...(this.pages.get(document) ?? [])] : [];
@@ -1088,7 +1089,8 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
             if (!m.sector || !/\.streamingsector$/i.test(m.sector)) throw new Error("No sector to open");
             const own = layerRef(m.sector);
             const uri = own.root ? vscode.Uri.file(path.join(own.root, m.sector)) : gameUri(m.sector);
-            if (Number.isInteger(m.entry)) this.showSectorEntry(uri, m.entry!);
+            // An instanced mesh's copy by its number, so the same copy is picked there.
+            if (Number.isInteger(m.entry)) this.showSectorEntry(uri, Number.isInteger(m.copy) ? `${m.entry}.${m.copy}` : m.entry!);
             await vscode.commands.executeCommand("vscode.openWith", uri, cr2wViewTypeFor(m.sector));
             return reply(m.id, null);
           }

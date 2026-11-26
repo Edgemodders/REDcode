@@ -69,7 +69,8 @@ export interface SectorSource {
   /** Show in Tree: the tree at that path. */
   showInTree(path: string): void;
   /** The entry or entries to select at first (REDcodeApi.openSector's select). */
-  select?: number | number[];
+  /** Node data entries; an instanced mesh's copy as "<entry>.<copy>". */
+  select?: number | number[] | string;
   /** A drawn mesh's appearances, each with the material it names per submesh. */
   meshInfo?(mesh: string): Promise<PageAppearance[]>;
   /** A mesh with its materials, for the picked thing: the .glb as base64, and EDGEmat's maps by material name when it is there. */
@@ -89,7 +90,7 @@ export interface SectorSource {
   /** The picked panel's Links (docs/design/sector-layers.md, L3): a thing's definition, placements, inner record and files. */
   links?(sector: string, entry: number): Promise<LinksInfo>;
   /** A layer's thing in its own sector's tab, picked there. */
-  openAt?(sector: string, entry: number): Promise<unknown>;
+  openAt?(sector: string, entry: number, copy?: number): Promise<unknown>;
   /** A file a thing uses, opened in REDcode. */
   openFile?(path: string): Promise<unknown>;
   /** Stop: ends the running script. */
@@ -143,7 +144,9 @@ export interface PropsInfo {
 export interface SectorView {
   receive(m: SectorMessage): void;
   /** Selects a node data entry of this sector, or several, and frames them. */
-  selectEntry(entry: number | number[]): void;
+  selectEntry(entry: number | number[] | string): void;
+  /** An undo or redo of the document: a script's "changed here" line no longer holds. */
+  undone?(): void;
   /** The document changed (an undo, a redo, another page's edit): the Properties tab reads it again when shown. */
   refreshProps?(): void;
   dispose(): void;
@@ -412,7 +415,9 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
         (l) => {
           if (mine !== linksAsked) return;
           linksRow.replaceChildren(el("span", "dim", "Links"));
-          const own = (path: string) => () => (l.opened ? source.showInTree(path) : void source.openAt?.(at.sector, at.entry));
+          const copy = /#\d+\.(\d+)$/.exec(id!)?.[1];
+          const openThere = () => void source.openAt?.(at.sector, at.entry, copy === undefined ? undefined : Number(copy));
+          const own = (path: string) => () => (l.opened ? source.showInTree(path) : openThere());
           linksRow.append(
             linkButton(`Node ${l.node}`, l.opened ? `Its definition, nodes[${l.node}] (${l.type}), in the tree` : `Its definition is nodes[${l.node}] (${l.type}) of its own sector: open it there`, own(l.nodePath)),
           );
@@ -425,7 +430,7 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
             );
           }
           if (l.inner) linksRow.append(linkButton(`Inner ${l.inner.index}`, `The ${l.inner.type} this entry places, in the tree`, own(l.inner.path)));
-          if (!l.opened && source.openAt) linksRow.append(linkButton("Open Its Sector", `${at.sector}\nOpens in its own tab with this thing picked`, () => void source.openAt!(at.sector, at.entry)));
+          if (!l.opened && source.openAt) linksRow.append(linkButton("Open Its Sector", `${at.sector}\nOpens in its own tab with this thing picked`, openThere));
           for (const f of l.files) {
             const b = linkButton(f.slice(f.lastIndexOf("\\") + 1), `${f}\nOpen it in REDcode`, () => source.openFile?.(f).catch((e) => source.say?.(e instanceof Error ? e.message : String(e))));
             b.hidden = !source.openFile;
@@ -1296,10 +1301,11 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
   });
 
   const pendingSelect = source.select;
-  const selectEntry = (entry: number | number[]) => {
-    // An instanced mesh's node is drawn as its copies: its first copy stands for it.
+  const selectEntry = (entry: number | number[] | string) => {
+    // An instanced mesh's node is drawn as its copies: its first copy stands for it, unless one is named.
     const ids = (Array.isArray(entry) ? entry : [entry]).map((n) => {
       const own = `${source.sector}#${n}`;
+      if (typeof n === "string") return drawnAs.has(own) || markerOf.has(own) ? own : `${source.sector}#${n.split(".")[0]}`;
       return !drawnAs.has(own) && drawnAs.has(`${own}.0`) ? `${own}.0` : own;
     });
     select(ids, ids[0]);
@@ -1400,6 +1406,12 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
       }
     },
     selectEntry,
+    undone() {
+      if (/Ctrl\+Z/.test(scriptLine.textContent ?? "")) {
+        scriptLine.textContent = "";
+        scriptLine.title = "";
+      }
+    },
     dispose() {
       clearInterval(statsTimer);
       if (volumeTimer) clearTimeout(volumeTimer);

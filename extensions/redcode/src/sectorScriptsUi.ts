@@ -11,6 +11,19 @@ import type { Cr2wDocument } from "./cr2wEditor";
 import { findProject, ProjectFolders, projectPathFor } from "./project";
 import type { PatchOp } from "./types";
 import { changeToOp, describeChange, sectorOfChange, type NodeChange } from "./sectorNodes";
+/** A script shown beside the view: in its own tab when one is open already, else in a new one beside. */
+async function showBeside(file: string): Promise<void> {
+  const uri = vscode.Uri.file(file);
+  for (const g of vscode.window.tabGroups.all) {
+    const tab = g.tabs.find((t) => t.input instanceof vscode.TabInputText && t.input.uri.toString() === uri.toString());
+    if (tab) {
+      await vscode.window.showTextDocument(uri, { viewColumn: g.viewColumn, preserveFocus: false });
+      return;
+    }
+  }
+  await vscode.window.showTextDocument(uri, { preview: true, viewColumn: vscode.ViewColumn.Beside });
+}
+
 import { isKnownScript, knowsScriptFile, withKnownScript, listScripts, myScriptsDir, projectScriptsDir, runScript, scriptFileName, scriptTemplate, ScriptStopped, type ScriptInfo, type ScriptPlace, type ScriptResult, type ScriptRun } from "./sectorScripts";
 
 /** The scripts the modder has let run on this machine, by file and text (sectorScripts.ts): another is read before it runs. */
@@ -319,7 +332,7 @@ export class SectorScriptsUi {
     }
     if (s.place === "example" || this.known(s.file)) return true;
     const changed = knowsScriptFile(this.knownList(), s.file);
-    await vscode.window.showTextDocument(vscode.Uri.file(s.file), { preview: true, viewColumn: vscode.ViewColumn.Beside });
+    await showBeside(s.file);
     const pick = await vscode.window.showWarningMessage(
       changed ? `Run "${s.name}"? It was changed outside REDcode since it last ran here.` : `Run "${s.name}"? It has not run on this computer before.`,
       {
@@ -432,7 +445,7 @@ export class SectorScriptsUi {
 
   private async attach(s: ScriptInfo, port: number): Promise<void> {
     this.log.appendLine(`script: ${s.name} waits for the debugger on port ${port}`);
-    await vscode.window.showTextDocument(vscode.Uri.file(s.file), { preview: true, viewColumn: vscode.ViewColumn.Beside });
+    await showBeside(s.file);
     const ok = await vscode.debug.startDebugging(undefined, {
       type: "node",
       request: "attach",

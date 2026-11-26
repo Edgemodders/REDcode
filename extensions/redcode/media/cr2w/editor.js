@@ -49,8 +49,12 @@
       onDocument(m);
     } else if (m.type === "reload") {
       reloadAll(m.reason);
-      // The sector view's Properties tab shows values: after undo and redo it reads them again.
-      if (mode === "sector") meshView?.refreshProps?.();
+      // The sector view's Properties tab shows values: after undo and redo it reads them again, and a script's
+      // line about what it applied no longer holds.
+      if (mode === "sector") {
+        meshView?.refreshProps?.();
+        if (m.reason === "undo" || m.reason === "redo") meshView?.undone?.();
+      }
     } else if (m.type === "materialsChanged") {
       meshView?.refreshMaterials?.(m);
     } else if (m.type === "animsMakeStage") {
@@ -401,7 +405,7 @@
         scripts: (entries, ids) => request("sectorScripts", { entries, ids }),
         // Sector layers L3: the picked panel's Links, a layer's thing in its own tab, a file a thing uses.
         links: (sector, entry) => request("sectorLinks", { sector, entry }),
-        openAt: (sector, entry) => request("sectorOpenAt", { sector, entry }),
+        openAt: (sector, entry, copy) => request("sectorOpenAt", { sector, entry, copy }),
         openFile: (path) => request("sectorFile", { path }),
         stopScript: () => request("sectorScriptStop"),
         // Sector layers (docs/design/sector-layers.md): find them, turn them on, open one.
