@@ -54,6 +54,8 @@ nav:
     url: /design/sector-scripts.html
   - title: Sector layers
     url: /design/sector-layers.html
+  - title: Sector overlaps and the world index
+    url: /design/sector-overlaps.html
   - title: Keys
     url: /design/keys.html
   - title: Animation Tools

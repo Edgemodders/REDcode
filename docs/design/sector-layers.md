@@ -4,7 +4,7 @@ title: Sector layers
 
 # Sector layers: what else is in this place
 
-Draft 0.2. Agreed with the owner on 2026-11-24, with all five recommendations under Decisions; details may change in testing. **L1 to L4 are built** (L1 released in 0.10.17; L2, L3 and L4 on 2026-11-25, hand tests pending): see each stage's as built section.
+Draft 0.2. Agreed with the owner on 2026-11-24, with all five recommendations under Decisions; details may change in testing. **L1 to L4 are built** (L1 released in 0.10.17; L2, L3 and L4 on 2026-11-25, hand tests pending): see each stage's as built section. **The Overlaps tab's matching is being redone** after a modder's report (2026-11-26): see [Sector overlaps and the world index](sector-overlaps.html).
 
 A modder sent the owner a feature request for a world editor that understands data across sectors (the "EDGEkit World Editor" request, 2026-11-24). Its point: one sector on its own does not show what the player sees. Many sectors, from several kinds and levels, add to one place. This page is REDcode's first part of the answer: the sectors that reach into the one you opened, drawn as layers you switch on, select in and edit.
 
