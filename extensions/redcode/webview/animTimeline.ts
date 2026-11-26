@@ -49,6 +49,8 @@ export interface TimelinePanel {
   profile(): RigProfile | undefined;
   /** Grabbing (TL4): a bone is picked in the 3D view. */
   grab(bone: string | null): void;
+  /** A bone that ends a chain (a hand or a foot), which a click near it prefers. */
+  isChain(bone: string): boolean;
   /** A drag of the grabbed bone starts, goes on (with its new value at the playhead) and ends. */
   grabStart(): void;
   grabMove(value: { place?: number[]; turn?: number[] }): void;
@@ -678,7 +680,9 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
     const f = clip === "base" ? base : undefined;
     const length = f ? (f.count - 1) / f.fps : 1;
     if (clip !== "base") readSource(clip);
-    const track = freeTrack(list, start, start + length);
+    // On a new track above the others, as the button says: another clip's length is not known until it is read.
+    const lanes = lanesOf(list).map((l) => l.track);
+    const track = lanes.length ? Math.max(...lanes) + 1 : 0;
     const block: Block = { step: "anim", track, start, clip, ...(clip === "base" ? { length: r3(length) } : {}) };
     addAt(list, block);
     commit(list);
@@ -914,7 +918,7 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
   let drag:
     | { kind: "scrub" }
     | { kind: "end"; before: EditStep[] }
-    | { kind: "block"; index: number; part: "body" | "left" | "right"; x0: number; y0: number; mode: "time" | "lane" | null; orig: Block; list: EditStep[]; laneAt0: number; before: EditStep[] }
+    | { kind: "block"; index: number; part: "body" | "left" | "right"; x0: number; y0: number; mode: "time" | "lane" | null; orig: Block; list: EditStep[]; laneAt0: number; before: EditStep[]; follower?: number }
     | { kind: "key"; index: number; key: number; x0: number; orig: Block; list: EditStep[]; before: EditStep[] }
     | null = null;
 
@@ -967,7 +971,9 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
           const k = keys.findIndex((key) => key.at >= at);
           if (keys.length) sel.stretch = k < 0 ? undefined : k;
         }
-        drag = { kind: "block", index: hit.index, part: hit.part, x0: px, y0: py, mode: hit.part === "body" ? null : "time", orig: clone(s), list, laneAt0: laneAt(py), before: clone(list) };
+        // The blend after a move or an animation (starting where it ends, on its track) goes along with its end.
+        const follower = s.step === "blend" ? -1 : list.findIndex((x, i) => i !== hit.index && isTimeline(x) && x.step === "blend" && x.track === s.track && Math.abs(x.start - endOf(s)) < 1e-3);
+        drag = { kind: "block", index: hit.index, part: hit.part, x0: px, y0: py, mode: hit.part === "body" ? null : "time", orig: clone(s), list, laneAt0: laneAt(py), before: clone(list), ...(follower >= 0 ? { follower } : {}) };
         redraw();
         break;
       }
@@ -1053,12 +1059,19 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
       // A move's keys stay where they are in time.
       if (s.step === "move") s.keys = (o as Extract<Block, { step: "move" }>).keys.map((k) => ({ ...k, at: r3(k.at - by) })).filter((k) => k.at >= 0 && k.at <= s.length!);
     } else s.length = r3(Math.max(1 / Fps, snap(o.start + len + dt, e.altKey, drag.index) - s.start));
+    // Its blend follows its end (not when only its start was dragged).
+    const fi = drag.follower;
+    const follower = fi === undefined ? undefined : (drag.list[fi] as Extract<Block, { step: "blend" }>);
+    if (follower && drag.part !== "left") follower.start = r3(endOf(s));
     // No overlap on its lane: it stops at its neighbours.
     const moving = drag.index;
-    const others = blocksOf(drag.list).filter((b) => b.index !== moving && b.s.track === s.track);
-    const clash = others.some((b) => b.s.start < endOf(s) - 1e-6 && endOf(b.s) > s.start + 1e-6);
-    if (clash) Object.assign(s, clone(prevOk.get(drag.index) ?? o));
-    else prevOk.set(drag.index, clone(s));
+    const others = blocksOf(drag.list).filter((b) => b.index !== moving && b.index !== fi && b.s.track === s.track);
+    const overlaps = (x: Block) => others.some((b) => b.s.start < endOf(x) - 1e-6 && endOf(b.s) > x.start + 1e-6);
+    const clash = overlaps(s) || (!!follower && overlaps(follower));
+    if (clash) {
+      Object.assign(s, clone(prevOk.get(drag.index) ?? o));
+      if (follower) follower.start = r3(endOf(s));
+    } else prevOk.set(drag.index, clone(s));
     host.setSteps(clone(drag.list));
     draw();
     schedule();
@@ -1181,6 +1194,7 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
     },
     tick: () => draw(),
     profile: () => profile,
+    isChain: (bone) => !!profile?.chains[bone],
     grab: (bone) => {
       grabbedBone = bone;
       if (bone) grabMode = profile?.chains[bone] ? "move" : "turn";

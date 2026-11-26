@@ -128,7 +128,7 @@ export function moveOnText(on: { ik: string } | { bones: string[] } | { group: s
 /** The Edit panel: shown by the bar's Edit button on a made clip. */
 export interface EditPanel {
   box: HTMLElement;
-  pickBone(name: string): void;
+  pickBone(name: string, quiet?: boolean): void;
   wantsBone(): boolean;
   /** The steps as the panel has them now, applied or not: shared with the timeline. */
   steps(): EditStep[];
@@ -505,9 +505,9 @@ Click: go to its time, mark its bone, and change it in the form below`;
     },
     apply: () => apply.click(),
     dirty,
-    pickBone: (name: string) => {
+    pickBone: (name: string, quiet?: boolean) => {
       if (!boneTarget) return;
-      if (![...boneTarget.options].some((o) => o.value === name)) return view.say(`${name} cannot be used here`);
+      if (![...boneTarget.options].some((o) => o.value === name)) return quiet ? undefined : view.say(`${name} cannot be used here`);
       boneTarget.value = name;
       boneTarget.dispatchEvent(new Event("change"));
     },

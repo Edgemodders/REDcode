@@ -813,17 +813,22 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
       const forForm = editor.wantsBone();
       if (!forForm && (!timeline || timeline.box.hidden)) return;
       const r = renderer.domElement.getBoundingClientRect();
+      const grabbing = !!timeline && !timeline.box.hidden;
       let best: { name: string; d: number } | null = null;
+      let chain: { name: string; d: number } | null = null;
       for (const b of framed.length ? framed : bones) {
         const p = b.getWorldPosition(new THREE.Vector3()).project(camera);
         if (p.z > 1) continue;
         const d = Math.hypot(((p.x + 1) / 2) * r.width - (e.clientX - r.left), ((1 - p.y) / 2) * r.height - (e.clientY - r.top));
         if (d < 14 && (!best || d < best.d)) best = { name: b.name, d };
+        if (d < 14 && timeline?.isChain(b.name) && (!chain || d < chain.d)) chain = { name: b.name, d };
       }
+      // A hand or a foot among the joints there wins over the helper joints crowded round a wrist or an ankle.
+      if (chain) best = chain;
       if (!best) return;
       // Both: the form's bone, and the timeline's handles on it.
-      if (forForm) editor.pickBone(best.name);
-      if (timeline && !timeline.box.hidden) timeline.grab(best.name);
+      if (forForm) editor.pickBone(best.name, grabbing);
+      if (grabbing) timeline!.grab(best.name);
     });
   }
   // The side column's tabs (the owner, 2026-11-25): Clip, Edit and Animations, each with the column's whole height,

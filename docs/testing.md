@@ -59,7 +59,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Sector scripts: a changed script](#sector-scripts-a-changed-script) | By hand | Sector scripts | 2026-11-25 | **Passed** (EDGEweb by script, H1 to H4); one fix not run again |
 | [Sector layers L2 and L3](#sector-layers-l2-and-l3) | By hand | Sector layers L2 and L3 | 2026-11-25 | **Passed** (EDGEweb by script, L2-1 to L3-6); three fixes not run again |
 | [Sector layers L4 and Sector Tools L1](#sector-layers-l4-and-sector-tools-l1) | By hand, in the game | Sector layers L4 | | Not run (checked by script) |
-| [Animation Timeline TL2 to TL4](#animation-timeline-tl2-to-tl4) | By hand | Animation Timeline | | Not run (checked in Chrome) |
+| [Animation Timeline TL2 to TL4](#animation-timeline-tl2-to-tl4) | By hand | Animation Timeline | 2026-11-25 | **Partly run**: T1 to T10 pass (EDGEweb by script), four fixes not run again; the look (T2 to T4) is the owner's; T11 needs the game |
 | [Sector layers (L1)](#sector-layers-l1) | By hand | Sector layers L1 | 2026-11-25 | **Passed** (EDGEweb by script, L1 to L9; the owner, the ghosted look) |
 | [Lip Sync L1](#lip-sync-l1-the-editor-in-redcode) | Scripts and an MCP client; by hand | Lip Sync L1 | 2026-11-25 | **Passed but step 9** (scripts, MCP and EDGEweb's script for 1 to 8 and 10; the owner, the sound, mouth and head); step 9 not run, shipped untested at the owner's word |
 | [Library view (#23)](#library-view-23) | By hand | Requests | 2026-11-15 | Pass, two fixes |
@@ -799,7 +799,14 @@ By hand, with F5 **Run REDcode** on a project with a made clip (Probe D's projec
 | T10 | **Apply** | The clip rebuilds with the timeline and the other steps; the view reopens on it, as applied |
 | T11 | In the game (the pack's Swap or Pack and Play) | The clip plays as it did in the view after Apply |
 
-Not run yet.
+Result, EDGEweb's session by script on 2026-11-25 (EDGEkit 1.143.1 trial on a scratch profile, the checkout at 29bb383, REDbridge 0.19.0, a copy of AnimProbeD, real clicks, drags and keys over CDP at 1920x1032): **T1 to T10 pass** on what a script can read, after one finding in T7. **Not judged** (the owner's): whether T3 is smooth with no snap, how the arm and hand look in T2 and T4. **T11 not run** (the game).
+
+- T1: Track 0 "as made 0.00 s-4.97 s", the Steps lane with the Pin and the Head key. T2: at 2.00 s a click on the right wrist grabbed RightHand; a drag up made "Move RightHand (by IK) on track 1, 1.00 s-3.00 s, 1 key" with its blend at 3.00 s; the hand up beside the head in the picture. T3: Play ran and looped. T4: Turn and a ring drag changed the hand, still one key.
+- T5: a sideways drag, the right edge and a diamond each changed it; **Ctrl+Z and Ctrl+Y went to the timeline, not to VS Code**, one change each. T6: S split the move at 1.50 s, Delete took the second piece. T8: the checkbox off and on; Move Down swapped the tracks. T9: the end marker to 4.70 s. T10: Apply in under 6 s, the same tab, the record's `edits` with the anim, pin, key, both blends, the move, the added clip and `end` 4.70.
+- **T7, found:** with the playhead at the end of the move, Add put `crossed_arms_copy` on the move's track (a clip's length is not known until it is read, so it was taken as 1 s), over the blend there. With the playhead inside the move it went on a new track, with its jump tick; a click on the tick added a blend.
+- Noted: a move's blend stayed where it was when the move was dragged or trimmed, leaving a gap; the red line "RightHandRing3 cannot be used here" (the Edit form, from clicks on finger joints) stayed for the whole test; the right wrist was hard to hit among the helper joints round it (RightHand answered at one point of a 4 px grid). As meant: T6's Delete took the piece with the only key, so the applied move has no keys.
+
+Fixed the same day (not run again in VS Code or Chrome): Add, an animation goes on a new track above the others, as its button says; a move's or an animation's blend (the one starting where it ends) follows its end when it is dragged or its end trimmed, and stops it at a neighbour too; a click near a hand or a foot takes it over the helper joints within reach; and when the timeline takes the joint, the Edit form says nothing about a bone it cannot use.
 
 ## anim-core check
 
