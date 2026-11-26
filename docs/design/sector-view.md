@@ -159,6 +159,18 @@ REDcode's camera row under the toolbar: **Zoom** + and −, **Move** (Forward, B
 
 Checked in Chrome over the real bridge: every held move goes the right way (forward and back along the view, strafing level, height along the world's up, zoom changing the distance only, orbit keeping the target), Top looks straight down, Reset comes back to the opening side, a double-click on node 848.7 picked it and glided to 2.5 m from it, a right click kept the pick, the wheel with the right button held raised the speed to ×1.3. Chrome drew 2 frames a second in that window, so how the moves feel is the hand test's.
 
+### Part 4: the tree in its own tab (2026-11-26)
+
+The owner asked, from a modder's idea of the tree in the bottom panel beside Output and Terminal. An editor tab cannot go into the bottom panel (it holds views only), so there are two ways out of the editor, both the editor's own page in a tree mode (`data-mode="tree"`) and one more page on the open file:
+
+| | **To Tab** | The **Sector** view |
+|---|---|---|
+| What | A button beside **Tree**, on a file that has a view of its own (a sector's or mesh's 3D, a table) | A view in a **Sector** container of the bottom panel, shown while a CR2W file is open |
+| Where it goes | Any editor group, beside or below the 3D view, or its own window | The bottom panel by default, or a sidebar |
+| Which file | The one it was opened from; it closes with that file | The one in the active editor, as the Properties view follows it |
+
+The selection goes both ways. A pick in 3D moves the tree to its node data entry. A click in the tree selects the entry it is in, or every entry placing a `nodes.<n>`, in 3D and frames it, quietly (`selectEntry`'s `quiet`, so the tree keeps its deeper path), and only when the entry changes, so opening fields inside one leaves the camera alone. A tree page's redraws send no selection. As built: `openTreeTab` (view type `redcode.cr2wTree`) and a second `Cr2wPropertiesView` (`redcode.tree`, in the container `redcodePanel`, `when` the context `redcode.cr2wOpen`) in `src/cr2wEditor.ts`, `treeOnly` and `followInSector` in `media/cr2w/editor.js`. Hand-tested by the owner on 2026-11-26 (`docs/testing.md`, The tree in its own tab); the container's title went from "REDcode Tree" to "Sector" after it. Not built: undo from the tree tab, and the tab coming back after a window reload.
+
 ## Order
 
 1. **EDGEbuilder's E0** (done 2026-11-19, above) runs with REDcode's mesh viewer code as it is, from a script, and answers the timing question. The package's shape follows from its answer: how many meshes a downtown sector has, how long their exports take, and whether instancing and culling are enough.

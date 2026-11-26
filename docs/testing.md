@@ -59,7 +59,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Sector scripts: a changed script](#sector-scripts-a-changed-script) | By hand | Sector scripts | 2026-11-25 | **Passed** (EDGEweb by script, H1 to H4, and its fix) |
 | [Sector layers L2 and L3](#sector-layers-l2-and-l3) | By hand | Sector layers L2 and L3 | 2026-11-25 | **Passed** (EDGEweb by script, L2-1 to L3-6, and its three fixes) |
 | [Sector layers L4 and Sector Tools L1](#sector-layers-l4-and-sector-tools-l1) | By hand, in the game | Sector layers L4 | | Not run (checked by script) |
-| [The tree in its own tab](#the-tree-in-its-own-tab) | By hand | Sector view | | Not run (the tree page checked in Chrome over the real REDbridge) |
+| [The tree in its own tab](#the-tree-in-its-own-tab) | By hand | Sector view | 2026-11-26 | **Passed** (owner: "looks good"; the panel tab renamed Sector after it) |
 | [Animation Timeline TL2 to TL4](#animation-timeline-tl2-to-tl4) | By hand | Animation Timeline | 2026-11-25 | **Partly run**: T1 to T10 pass (EDGEweb by script) with their fixes, but trimming a move's end, fixed again and not run; the look (T2 to T4) is the owner's; T11 needs the game |
 | [Sector layers (L1)](#sector-layers-l1) | By hand | Sector layers L1 | 2026-11-25 | **Passed** (EDGEweb by script, L1 to L9; the owner, the ghosted look) |
 | [Lip Sync L1](#lip-sync-l1-the-editor-in-redcode) | Scripts and an MCP client; by hand | Lip Sync L1 | 2026-11-25 | **Passed but step 9** (scripts, MCP and EDGEweb's script for 1 to 8 and 10; the owner, the sound, mouth and head); step 9 not run, shipped untested at the owner's word |
@@ -1583,7 +1583,7 @@ Result, EDGEweb's session by script on 2026-11-25 (EDGEkit 1.143.1 trial on a sc
 
 ## The tree in its own tab
 
-The owner, 2026-11-26, from a modder's idea of the tree in the bottom panel. Two ways out of the editor: **To Tab** (an editor tab, which can go beside or below the 3D view or into its own window) and the **REDcode Tree** view in the bottom panel (an editor tab cannot go there: the panel holds views only). Both are the editor's page in a tree mode (`data-mode="tree"` in `media/cr2w/editor.js`), one more page on the open file (`openTreeTab` and a second `Cr2wPropertiesView` in `src/cr2wEditor.ts`). Not yet in `docs/design/sector-view.md`: it goes there if the owner likes how it feels.
+The owner, 2026-11-26, from a modder's idea of the tree in the bottom panel. Two ways out of the editor: **To Tab** (an editor tab, which can go beside or below the 3D view or into its own window) and the **Sector** view in the bottom panel (an editor tab cannot go there: the panel holds views only; titled "REDcode Tree" until the owner renamed it after the test). Both are the editor's page in a tree mode (`data-mode="tree"` in `media/cr2w/editor.js`), one more page on the open file (`openTreeTab` and a second `Cr2wPropertiesView` in `src/cr2wEditor.ts`). Design: `docs/design/sector-view.md`, part 4.
 
 Checked 2026-11-26 in Chrome with a live harness (the page in tree mode over REDbridge 0.19.0 on `exterior_-22_7_0_0`): it opens on the editor's selection and reveals it, without sending it back; a click sends one selection; a selection from another page moves the tree and sends nothing back.
 
@@ -1597,11 +1597,11 @@ Steps (F5, a sector such as `exterior_-22_7_0_0` from Game Assets):
 6. Drag the tab below the 3D view, then right-click its tab, **Move into New Window**: it keeps working there.
 7. Edit a value in the tab's grid: the editor shows it as unsaved, and Ctrl+S in the editor saves it.
 8. Close the sector's editor: the tree tab closes with it.
-9. The bottom panel has a **REDcode Tree** tab while a CR2W file is open, and none when no CR2W file is open. It shows the tree of the file in the active editor and follows the 3D view like the tab. Drag it next to Output or Terminal, or into a sidebar.
+9. The bottom panel has a **Sector** tab while a CR2W file is open, and none when no CR2W file is open. It shows the tree of the file in the active editor and follows the 3D view like the tab. Drag it next to Output or Terminal, or into a sidebar.
 
 Not built: undo from the tree tab (Ctrl+Z there does nothing; undo in the editor), and the tree tab surviving a window reload.
 
-**Result:** not run.
+**Result (owner, 2026-11-26, F5 on main 14c3030):** passed ("looks good"; the owner did not list the steps run). The change it raised: the bottom panel's tab renamed from "REDcode Tree" to "Sector".
 
 ## Never run
 

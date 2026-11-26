@@ -330,7 +330,7 @@
       "panel": [
         {
           "id": "redcodePanel",
-          "title": "REDcode Tree",
+          "title": "Sector",
           "icon": "images/activity.svg"
         }
       ]
