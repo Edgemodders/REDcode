@@ -752,12 +752,105 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
       return x;
     };
     const chain = t.isChain(bone);
+    const hand = handOf(bone);
+    const curls: HTMLElement[] = [];
+    if (hand && t.profile()?.kind === "person") {
+      if (hand.finger) curls.push(curlSlider("Curl", `Curl: bend the ${hand.finger.toLowerCase()} toward the palm (right) or open it (left), every joint of it together`, hand.side, [hand.finger]));
+      curls.push(curlSlider("Fist", "Fist: bend every finger and the thumb toward the palm (right) or open the hand (left)", hand.side, FingerNames));
+    }
     grabBox.replaceChildren(
       el("span", "animgrabname", bone),
       ...(t.canMove(bone) ? [b("Move", chain ? "Move: drag the hand or foot by its arrows; the arm or leg bends after it (W)" : "Move: slide the bone by its arrows (W)", mode === "move", () => t.setGrabMode("move"))] : []),
       b("Turn", "Turn: drag a ring to turn the bone about that axis (E)", mode === "turn", () => t.setGrabMode("turn")),
+      ...curls,
       b("Let Go", "Let Go: take the handles away (Esc)", false, () => t.grab(null)),
     );
+  };
+
+  // ---- Curl and Fist (the owner, 2026-11-26): a finger's joints, or the whole hand's, bent toward the palm at once ----
+  const FingerNames = ["Thumb", "Index", "Middle", "Ring", "Pinky"];
+  /**
+   * How far each joint bends at full curl, in degrees, on top of the pose shown: the thumb less than the fingers. Checked
+   * on man_base's rig from its relaxed rest pose (2026-11-26): the index tip comes back to the knuckle, tucked in.
+   */
+  const MaxBend: Record<string, number[]> = { Thumb: [30, 50, 40], other: [70, 90, 60] };
+  /** The hand a bone belongs to, and its finger: LeftHand, RightHandIndex2, RightInHandPinky. */
+  const handOf = (bone: string): { side: "Left" | "Right"; finger: string | null } | null => {
+    const m = /^(Left|Right)(?:Hand|InHand)(Thumb|Index|Middle|Ring|Pinky)?(?:\d*)$/.exec(bone);
+    return m ? { side: m[1] as "Left" | "Right", finger: m[2] ?? null } : null;
+  };
+  const jointsOf = (side: string, finger: string) => [1, 2, 3].map((n) => boneNamed(`${side}Hand${finger}${n}`)).filter((x): x is THREE.Bone => !!x);
+  type CurlJoint = { bone: THREE.Bone; base: THREE.Quaternion; axis: THREE.Vector3; max: number };
+  /**
+   * Each joint's bend: the palm faces along the hand's forward (wrist to middle knuckle) crossed with its width
+   * (index to pinky knuckle), the order set by the side; a joint bends about its own direction crossed with that,
+   * so a positive turn takes the fingertip toward the palm. The axis is kept in the joint's own frame, from the
+   * pose at the playhead, so the turn is that pose and the bend.
+   */
+  const curlPlan = (side: "Left" | "Right", fingers: string[]): CurlJoint[] => {
+    const hand = boneNamed(`${side}Hand`);
+    const index1 = boneNamed(`${side}HandIndex1`);
+    const pinky1 = boneNamed(`${side}HandPinky1`);
+    const middle1 = boneNamed(`${side}HandMiddle1`);
+    if (!hand || !index1 || !pinky1 || !middle1) return [];
+    hand.updateWorldMatrix(true, true);
+    const at = (b: THREE.Object3D) => b.getWorldPosition(new THREE.Vector3());
+    const width = at(pinky1).sub(at(index1)).normalize();
+    const forward = at(middle1).sub(at(hand)).normalize();
+    const palm = (side === "Right" ? forward.clone().cross(width) : width.clone().cross(forward)).normalize();
+    const plan: CurlJoint[] = [];
+    for (const finger of fingers) {
+      const joints = jointsOf(side, finger);
+      joints.forEach((j, i) => {
+        const next = joints[i + 1];
+        const dir = next ? at(next).sub(at(j)) : i > 0 ? at(j).sub(at(joints[i - 1])) : forward.clone();
+        const axisWorld = dir.normalize().cross(palm);
+        if (axisWorld.lengthSq() < 1e-8) return;
+        axisWorld.normalize();
+        const axis = axisWorld.applyQuaternion(j.getWorldQuaternion(new THREE.Quaternion()).invert()).normalize();
+        const max = ((MaxBend[finger] ?? MaxBend.other)[i] * Math.PI) / 180;
+        plan.push({ bone: j, base: j.quaternion.clone(), axis, max });
+      });
+    }
+    return plan;
+  };
+  /** A slider's own bend: the pose it started from, kept while the same slider stays at the same moment. */
+  let curl: { key: string; time: number; plan: CurlJoint[]; value: number } | null = null;
+  let curling = false;
+  const curlSlider = (label: string, title: string, side: "Left" | "Right", fingers: string[]) => {
+    const key = `${side}:${fingers.join(",")}`;
+    const box = el("label", "animcurl");
+    box.title = title;
+    const input = el("input");
+    input.type = "range";
+    input.min = "-0.3";
+    input.max = "1";
+    input.step = "0.01";
+    const now = () => Math.round((action?.time ?? 0) * 1000) / 1000;
+    input.value = curl && curl.key === key && curl.time === now() ? String(curl.value) : "0";
+    input.addEventListener("input", () => {
+      if (!timeline) return;
+      if (!curling) {
+        // A new slider or another moment: the bend starts again from the pose now shown.
+        if (!curl || curl.key !== key || curl.time !== now()) curl = { key, time: now(), plan: curlPlan(side, fingers), value: 0 };
+        if (!curl.plan.length) return;
+        setPlaying(false);
+        timeline.poseStart(curl.plan.map((p) => p.bone.name));
+        curling = true;
+      }
+      const v = Number(input.value);
+      curl!.value = v;
+      const turns: Record<string, number[]> = {};
+      for (const p of curl!.plan) turns[p.bone.name] = p.base.clone().multiply(new THREE.Quaternion().setFromAxisAngle(p.axis, v * p.max)).toArray();
+      timeline.poseSet(turns);
+    });
+    input.addEventListener("change", () => {
+      if (!curling) return;
+      curling = false;
+      timeline?.poseEnd();
+    });
+    box.append(document.createTextNode(label), input);
+    return box;
   };
   // The grabbed bone's handles (TL4): three.js's TransformControls on a stand-in that sits on the bone.
   let handles: TransformControls | undefined;

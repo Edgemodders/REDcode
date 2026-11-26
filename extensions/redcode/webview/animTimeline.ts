@@ -55,6 +55,13 @@ export interface TimelinePanel {
   canMove(bone: string): boolean;
   /** Move or Turn for the grabbed bone, as the W and E keys set it. */
   setGrabMode(mode: "move" | "turn"): void;
+  /**
+   * Several bones turned at once (Curl, the owner, 2026-11-26): a move on these bones at the playhead, found or made,
+   * keyed with each bone's turn (its rotation from its parent, x y z w). Start, set as a slider moves, end: one Undo.
+   */
+  poseStart(bones: string[]): void;
+  poseSet(turns: Record<string, number[]>): void;
+  poseEnd(): void;
   /** A drag of the grabbed bone starts, goes on (with its new value at the playhead) and ends. */
   grabStart(): void;
   grabMove(value: { place?: number[]; turn?: number[] }): void;
@@ -603,6 +610,10 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
     if (!s) {
       bar.append(label(grabbedBone ? `Grabbed ${grabbedBone}` : "Click a block, or a joint in the view to pose it"));
       if (grabbedBone) bar.append(...grabButtons());
+      else if (selLane !== null && lanesOf(display()).some((l) => l.track === selLane)) {
+        const lane = selLane;
+        bar.append(button("Delete Track", `Take track ${lane} out, with everything on it (Delete; Undo brings it back)`, () => deleteTrack(lane)));
+      }
       return;
     }
     if (!isTimeline(s)) {
@@ -731,6 +742,17 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
     addAt(list, move);
     return list.length - 1;
   };
+  /** A move on several bones (Curl's fingers), shaped as newMove's: a frame each side of t, a blend after it. */
+  const newBonesMove = (list: EditStep[], bones: string[], t: number) => {
+    const start = r3(Math.max(0, snapFrame(t - 1)));
+    const length = r3(Math.max(2 / Fps, snapFrame(t + 1) - start));
+    const track = freeTrack(list, start, start + length + 0.5);
+    const move: Block = { step: "move", track, start, length, on: { bones: [...bones] }, keys: [] };
+    list.push({ step: "blend", track, start: r3(start + length), length: 0.5, ease: "smooth" });
+    addAt(list, move);
+    return list.length - 1;
+  };
+  let poseTarget: { index: number; list: EditStep[]; before: EditStep[] } | null = null;
   const deleteSelected = () => {
     if (!sel) return;
     const list = working();
@@ -863,6 +885,7 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
     item("Move Down", () => swapTracks(track, lanes[i + 1].track), i >= lanes.length - 1);
     item("Rename…", () => renameTrack(track));
     item("Add Blend Here", () => addBlend(host.now(), 0.5, track));
+    item("Delete Track", () => deleteTrack(track));
     menu.style.left = `${ev.clientX}px`;
     menu.style.top = `${ev.clientY}px`;
     document.body.append(menu);
@@ -882,6 +905,13 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
       if (e.key === "Escape") showBar();
     });
     input.focus();
+  };
+  /** A track and everything on it goes (the owner, 2026-11-26: no way to delete a track); Undo brings it back. */
+  const deleteTrack = (track: number) => {
+    const list = working().filter((s) => !(isTimeline(s) && "track" in s && s.track === track));
+    sel = null;
+    if (selLane === track) selLane = null;
+    commit(list);
   };
   /** Two lanes trade places: the upper one wins. */
   const swapTracks = (a: number, b: number) => {
@@ -1196,7 +1226,8 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
     if (ctrl && e.key.toLowerCase() === "c") return run(copy);
     if (ctrl && e.key.toLowerCase() === "v") return run(paste);
     if (ctrl || e.altKey) return false;
-    if (e.key === "Delete" || e.key === "Backspace") return run(() => (sel?.key !== undefined ? deleteKey() : deleteSelected()));
+    // Delete: the selected key, else the selected block, else the selected track (a click on an empty part of its lane).
+    if (e.key === "Delete" || e.key === "Backspace") return run(() => (sel?.key !== undefined ? deleteKey() : sel ? deleteSelected() : selLane !== null ? deleteTrack(selLane) : undefined));
     if (e.key.toLowerCase() === "s") return run(split);
     if (e.key.toLowerCase() === "w" && grabbedBone) return run(() => setGrabMode("move"));
     if (e.key.toLowerCase() === "e" && grabbedBone) return run(() => setGrabMode("turn"));
@@ -1237,6 +1268,57 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
     isChain: (bone) => !!profile?.chains[bone],
     canMove: (bone) => canMove(bone),
     setGrabMode: (mode) => setGrabMode(mode),
+    poseStart: (bones) => {
+      if (!bones.length) return;
+      const before = clone(display());
+      const list = clone(before);
+      const t = snapFrame(host.now());
+      // A move at the playhead that already turns every one of these bones, else a new one.
+      let index = findMove(list, bones[0], t);
+      const found = index >= 0 ? list[index] : undefined;
+      if (!found || found.step !== "move" || !("bones" in found.on) || !bones.every((b) => (found.on as { bones: string[] }).bones.includes(b))) index = newBonesMove(list, bones, t);
+      sel = { index };
+      poseTarget = { index, list, before };
+    },
+    poseSet: (turns) => {
+      if (!poseTarget) return;
+      const m = poseTarget.list[poseTarget.index] as Extract<Block, { step: "move" }>;
+      if (!("bones" in m.on)) return;
+      const on = m.on;
+      const at = r3(Math.max(0, Math.min(m.length, snapFrame(host.now()) - m.start)));
+      m.keys.sort((p, q) => p.at - q.at);
+      let k = m.keys.findIndex((x) => Math.abs(x.at - at) < 0.5 / Fps);
+      if (k < 0) {
+        const key: MoveKey = { at };
+        m.keys.push(key);
+        m.keys.sort((p, q) => p.at - q.at);
+        k = m.keys.indexOf(key);
+        if (Array.isArray(m.ease)) m.ease.splice(k, 0, "smooth");
+      }
+      const key = m.keys[k];
+      for (const [bone, turn] of Object.entries(turns)) {
+        if (!on.bones.includes(bone)) on.bones.push(bone);
+        if (bone === on.bones[0]) key.turn = r4(turn);
+        else {
+          key.bones = key.bones ?? {};
+          key.bones[bone] = { ...(key.bones[bone] ?? {}), turn: r4(turn) };
+        }
+      }
+      sel = { index: poseTarget.index, key: k };
+      host.setSteps(clone(poseTarget.list));
+      redraw();
+      schedule();
+    },
+    poseEnd: () => {
+      if (!poseTarget) return;
+      if (JSON.stringify(poseTarget.list) !== JSON.stringify(poseTarget.before)) {
+        history.push(poseTarget.before);
+        future.length = 0;
+      }
+      poseTarget = null;
+      redraw();
+      showStatus();
+    },
     grab: (bone) => {
       grabbedBone = bone;
       if (bone) grabMode = profile?.chains[bone] ? "move" : "turn";

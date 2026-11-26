@@ -818,6 +818,15 @@ Fixed the same day (not run again in VS Code or Chrome): Add, an animation goes 
 
 Retest (owner): R1 grab the right wrist, click **Turn** in the view's corner, drag a ring (T4 again); R2 add tracks past the box's height (Add, Animation: this clip as made, several times) and scroll them with the wheel; R3 Play, Pause, Play, Stop, then Play Backward and Pause.
 
+Asked the same day after R1 to R3 were given, built and checked, not yet run by the owner:
+
+- **Curl and Fist** (in the view's corner, on a person's hand or finger): Curl bends the grabbed finger's joints together, Fist every finger and the thumb; right closes, left opens; one move on those bones at the playhead, keyed with each joint's turn, one Undo a drag. Checked: in Chrome, Fist on LeftHand made "Move 14 bones" with one key; in Node with three.js on man_base's rig (a scratch script), each joint alone bends its fingertip toward the palm, the palm side confirmed by the rig's own relaxed fingers leaning to it, and a full curl brings the index tip back to its knuckle, tucked in (the bends then lowered to 70, 90 and 60 degrees, the thumb's 30, 50, 40).
+- **Delete Track**: in a lane's right-click menu, as a button in the bar when a track is selected with no block, and Delete with the track selected (a click on an empty part of its lane). Undo brings it back. Checked in Chrome: 3 lanes, the menu took one, Delete took another.
+
+Retests: R4 grab the right hand, drag **Fist** right and back; grab a finger joint, drag **Curl**; Undo once a drag. R5 right-click a lane, **Delete Track**; click an empty part of another lane, press Delete; Undo.
+
+**A game clip on the fingers only** (G1 to G6, the owner's test of laying a game clip on some bones): the game's `base\animations\npc\generic_characters\male_average\interactive_scene\generic_male_average__stand__2h_fists__01.anims` holds one clip, `stand__2h_fists__01` (6.53 s, on `man_base.rig`, as Probe D's made clip). G1 Stop, so the playhead is at 0. G2 Add, Animation: a game clip…, that set path and clip name, Add: a block on a new track, its jump marks red. G3 in its bar, **On**: `rightFingers`: the right hand closes into the game clip's fist, the arms still crossed as made. G4 Play: the fist holds through the clip; the block runs past 4.97 s, so drag its right edge (or the end marker) back to the clip's end. G5 a second block for `leftFingers`, or the first set to `rightHand` to take the wrist's turn too. G6 Apply: the clip rebuilds with the fist; Undo or Revert puts it back.
+
 Retest of those fixes, EDGEweb's session by script on 2026-11-25 (e3fd0b8, a fresh copy of AnimProbeD): T7 passes (Add at the end of the move went on track 2, with its jump); the move dragged sideways took its blend along (3.00-3.50 s to 2.80-3.30 s); five clicks round the right wrist each grabbed RightHand, with no red line. **Not confirmed:** trimming the move's end, since its edge now meets the blend's and a drag 2 px inside the move took the blend's edge, which stopped at the move. Fixed the same day: where two blocks meet, the one the pointer is inside takes the drag. Not run again.
 
 ## anim-core check
