@@ -403,16 +403,24 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
   // The transport's buttons as the usual media icons (the owner's AE5 run, 2026-11-25).
   const transportButton = (shape: string, title: string) => {
     const b = el("button", "icon animtbtn");
+    setIcon(b, shape, title);
+    return b;
+  };
+  const setIcon = (b: HTMLButtonElement, shape: string, title: string) => {
     b.title = title;
     b.setAttribute("aria-label", title.split(" (")[0]);
     b.innerHTML = `<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="${shape}"/></svg>`;
-    return b;
+  };
+  const Shapes = {
+    play: "M3.5 2.5v11L12.5 8z",
+    playBack: "M12.5 2.5v11L3.5 8z",
+    pause: "M4 3h3v10H4zM9 3h3v10H9z",
   };
   const toStart = transportButton("M2 3h1.6v10H2zM9.4 3v10L3.8 8zM15 3v10L9.4 8z", "Jump to the beginning (Home)");
   const back = transportButton("M3 3h1.6v10H3zM13 3v10L5.4 8z", "Step back one frame (Left arrow)");
-  const playBack = transportButton("M12.5 2.5v11L3.5 8z", "Play backward");
-  const stop = transportButton("M3.5 3.5h9v9h-9z", "Stop at this frame (Space plays again)");
-  const play = transportButton("M3.5 2.5v11L12.5 8z", "Play forward (Space)");
+  const playBack = transportButton(Shapes.playBack, "Play backward");
+  const stop = transportButton("M3.5 3.5h9v9h-9z", "Stop, back to the beginning");
+  const play = transportButton(Shapes.play, "Play forward (Space)");
   const forward = transportButton("M3 3v10L10.6 8zM11.4 3H13v10h-1.6z", "Step forward one frame (Right arrow)");
   const toEnd = transportButton("M1 3v10L6.6 8zM6.6 3v10L12.2 8zM12.4 3H14v10h-1.6z", "Jump to the end (End)");
   const scrub = el("input", "animscrub");
@@ -532,8 +540,13 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
   };
   const setPlaying = (on: boolean) => {
     playing = on;
-    play.classList.toggle("on", on && direction > 0);
-    playBack.classList.toggle("on", on && direction < 0);
+    const forwards = on && direction > 0;
+    const backwards = on && direction < 0;
+    play.classList.toggle("on", forwards);
+    playBack.classList.toggle("on", backwards);
+    // The button playing shows Pause, and pauses (the owner, 2026-11-26).
+    setIcon(play, forwards ? Shapes.pause : Shapes.play, forwards ? "Pause at this frame (Space)" : "Play forward (Space)");
+    setIcon(playBack, backwards ? Shapes.pause : Shapes.playBack, backwards ? "Pause at this frame (Space)" : "Play backward");
     if (action) {
       action.paused = !on;
       action.timeScale = direction;
@@ -577,9 +590,14 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
     setPlaying(true);
     showTime();
   };
-  play.addEventListener("click", () => playWay(1));
-  playBack.addEventListener("click", () => playWay(-1));
-  stop.addEventListener("click", () => setPlaying(false));
+  // Play while playing that way pauses; the other way turns round.
+  play.addEventListener("click", () => (playing && direction > 0 ? setPlaying(false) : playWay(1)));
+  playBack.addEventListener("click", () => (playing && direction < 0 ? setPlaying(false) : playWay(-1)));
+  // Stop: no more playing, and back to the beginning (the owner, 2026-11-26).
+  stop.addEventListener("click", () => {
+    setPlaying(false);
+    seek(0);
+  });
   toStart.addEventListener("click", () => {
     setPlaying(false);
     seek(0);
@@ -715,6 +733,32 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
     moveDots();
     showTime();
   };
+  // The grabbed bone's buttons in the view itself, where the eye is (the owner, 2026-11-26: Turn was not found in the
+  // timeline's bar). Move only where it means something: a hand or foot, the root or hips.
+  const grabBox = el("div", "animgrab");
+  grabBox.hidden = true;
+  stage.appendChild(grabBox);
+  const showGrabBox = (bone: string | null, mode: "move" | "turn") => {
+    grabBox.hidden = !bone || !timeline;
+    if (!bone || !timeline) return;
+    const t = timeline;
+    const b = (label: string, title: string, on: boolean, run: () => void) => {
+      const x = el("button", on ? "on" : "", label);
+      x.title = title;
+      x.addEventListener("click", (e) => {
+        e.stopPropagation();
+        run();
+      });
+      return x;
+    };
+    const chain = t.isChain(bone);
+    grabBox.replaceChildren(
+      el("span", "animgrabname", bone),
+      ...(t.canMove(bone) ? [b("Move", chain ? "Move: drag the hand or foot by its arrows; the arm or leg bends after it (W)" : "Move: slide the bone by its arrows (W)", mode === "move", () => t.setGrabMode("move"))] : []),
+      b("Turn", "Turn: drag a ring to turn the bone about that axis (E)", mode === "turn", () => t.setGrabMode("turn")),
+      b("Let Go", "Let Go: take the handles away (Esc)", false, () => t.grab(null)),
+    );
+  };
   // The grabbed bone's handles (TL4): three.js's TransformControls on a stand-in that sits on the bone.
   let handles: TransformControls | undefined;
   const handleAt = new THREE.Object3D();
@@ -762,6 +806,7 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
           grabMode = mode;
           grabbedBone = bone ? boneNamed(bone) : undefined;
           showBone(bone);
+          showGrabBox(grabbedBone ? bone : null, mode);
           if (!grabbedBone) {
             handles?.detach();
             return;

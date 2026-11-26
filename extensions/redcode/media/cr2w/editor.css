@@ -279,6 +279,10 @@ body.mesh-mode #props { display: flex; flex-direction: column; overflow: hidden;
 .animrow[hidden] { display: none; }
 .animtransport { flex-wrap: nowrap; padding-top: 6px; }
 .meshstage:focus { outline: none; }
+.meshstage .animgrab { position: absolute; top: 8px; left: 8px; display: flex; gap: 4px; align-items: center; padding: 3px 4px 3px 8px; font-size: 12px; background: color-mix(in srgb, var(--vscode-editor-background) 88%, transparent); border: 1px solid var(--line); border-radius: 3px; z-index: 2; }
+.meshstage .animgrab[hidden] { display: none; }
+.meshstage .animgrab .animgrabname { color: var(--accent); margin-right: 4px; font-family: var(--mono); }
+.meshstage .animgrab button.on { border-color: var(--accent); color: var(--accent); }
 .animtbuttons { display: inline-flex; gap: 2px; flex: none; }
 .animtransport button.animtbtn { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 24px; padding: 0; }
 .animtransport button.animtbtn svg { display: block; }
@@ -354,11 +358,15 @@ input[type="checkbox"]:disabled { cursor: default; }
 .animtimeline .tlbar input.editnum { width: 60px; }
 .animtimeline .tlbar select { background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border, var(--line)); padding: 1px 4px; font: inherit; font-size: 12px; }
 .animtimeline .tlbar button.on { border-color: var(--accent); color: var(--accent); }
-.animtimeline .tllanes { display: flex; align-items: flex-start; height: 150px; overflow-y: auto; margin: 0 8px; border: 1px solid var(--line); }
+.animtimeline .tllanes { display: flex; align-items: flex-start; height: 150px; overflow-y: auto; overflow-x: hidden; margin: 0 8px; border: 1px solid var(--line); scrollbar-gutter: stable; }
+.animtimeline .tllanes::-webkit-scrollbar { width: 10px; }
+.animtimeline .tllanes::-webkit-scrollbar-thumb { background: var(--vscode-scrollbarSlider-background, rgba(121,121,121,.4)); }
+.animtimeline .tllanes::-webkit-scrollbar-thumb:hover { background: var(--vscode-scrollbarSlider-hoverBackground, rgba(100,100,100,.7)); }
 .animtimeline .tllanes canvas { display: block; flex: 1; min-width: 0; width: 100%; touch-action: none; outline: none; }
 .animtimeline .tllanes canvas:focus-visible { box-shadow: inset 0 0 0 1px var(--accent); }
 .animtimeline .tlchecks { flex: none; width: 22px; border-right: 1px solid var(--line); }
 .animtimeline .tlchecks > div { display: flex; align-items: center; justify-content: center; }
+.animtimeline .tlchecks > .tlcheckhead { position: sticky; top: 0; z-index: 1; background: var(--vscode-editor-background); }
 .animtimeline .tlstatus { padding: 2px 8px; font-size: 12px; min-height: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .animtimeline .tlstatus.tlerror { color: var(--red); }
 .tlmenu { position: fixed; z-index: 20; display: flex; flex-direction: column; min-width: 200px; padding: 3px; background: var(--vscode-menu-background, var(--vscode-editorWidget-background)); border: 1px solid var(--line); box-shadow: 0 2px 8px rgba(0,0,0,.4); }

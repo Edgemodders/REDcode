@@ -51,6 +51,10 @@ export interface TimelinePanel {
   grab(bone: string | null): void;
   /** A bone that ends a chain (a hand or a foot), which a click near it prefers. */
   isChain(bone: string): boolean;
+  /** Whether a bone can be moved (a hand or foot by its arm or leg, the root or hips by sliding); the rest only turn. */
+  canMove(bone: string): boolean;
+  /** Move or Turn for the grabbed bone, as the W and E keys set it. */
+  setGrabMode(mode: "move" | "turn"): void;
   /** A drag of the grabbed bone starts, goes on (with its new value at the playhead) and ends. */
   grabStart(): void;
   grabMove(value: { place?: number[]; turn?: number[] }): void;
@@ -86,6 +90,7 @@ const colours = () => ({
   line: css("--line", "#262c3d"),
   fg: css("--vscode-foreground", "#cccccc"),
   shade: css("--vscode-editorWidget-background", "rgba(128,128,128,.08)"),
+  bg: css("--vscode-editor-background", "#0d1017"),
   font: css("--vscode-editor-font-family", "monospace"),
 });
 
@@ -266,7 +271,9 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
     left = 0;
   };
   /** Which lane a y is in (by its place in the lanes), -1 on the ruler. The Steps lane, when there is one, is last. */
-  const laneAt = (y: number) => (y < Ruler ? -1 : Math.floor((y - Ruler) / LaneH));
+  /** How far the lanes are scrolled down: the ruler is drawn this far down the canvas, over them. */
+  const scrollY = () => lanesBox.scrollTop;
+  const laneAt = (y: number) => (y - scrollY() < Ruler ? -1 : Math.floor((y - Ruler) / LaneH));
 
   // ---- drawing ----
   /** Everything: the lanes, their checkboxes and the selected block's bar. */
@@ -296,19 +303,6 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
     g.clearRect(0, 0, w, h);
     const k = colours();
     g.font = `10px ${k.font}`;
-    // The ruler: seconds, with finer ticks as it zooms in.
-    const step = [0.1, 0.25, 0.5, 1, 2, 5, 10, 30].find((s) => s / spp >= 60) ?? 60;
-    g.fillStyle = k.dim;
-    for (let t = Math.floor(left / step) * step; x(t) < w; t += step) {
-      const px = Math.round(x(t));
-      if (px < 0) continue;
-      g.fillRect(px, Ruler - 6, 1, 6);
-      g.fillText(step < 1 ? `${t.toFixed(2)}s` : `${Math.round(t)}s`, px + 3, 10);
-      for (let m = 1; m < 5; m++) g.fillRect(Math.round(x(t + (step * m) / 5)), Ruler - 3, 1, 3);
-    }
-    if (1 / Fps / spp > 6) for (let f = Math.ceil(left * Fps); x(f / Fps) < w; f++) g.fillRect(Math.round(x(f / Fps)), Ruler - 2, 1, 2);
-    g.fillStyle = k.line;
-    g.fillRect(0, Ruler - 1, w, 1);
     // Trim: what is cut away, shaded; a loop, a mark at the end.
     for (const { s } of steps) {
       if (s.step === "trim") {
@@ -353,10 +347,32 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
         else if (s.step === "loop") g.fillText("⟲ loop", Math.max(4, x(resultSeconds) - 44), top + LaneH - 7);
       }
     }
-    // The end marker, the jumps, the playhead.
+    // The end line and the playhead through the lanes.
     const end = clipEnd(list);
     g.fillStyle = k.dim;
     g.fillRect(Math.round(x(end)), Ruler, 1, h);
+    g.fillStyle = k.accent;
+    g.fillRect(Math.round(x(host.now())), 0, 1, h);
+    // The ruler last, at the top of what shows: the lanes scroll under it (the owner, 2026-11-26).
+    const ry = scrollY();
+    g.save();
+    g.translate(0, ry);
+    g.fillStyle = k.bg;
+    g.fillRect(0, 0, w, Ruler);
+    // Seconds, with finer ticks as it zooms in.
+    const step = [0.1, 0.25, 0.5, 1, 2, 5, 10, 30].find((s) => s / spp >= 60) ?? 60;
+    g.fillStyle = k.dim;
+    for (let t = Math.floor(left / step) * step; x(t) < w; t += step) {
+      const px = Math.round(x(t));
+      if (px < 0) continue;
+      g.fillRect(px, Ruler - 6, 1, 6);
+      g.fillText(step < 1 ? `${t.toFixed(2)}s` : `${Math.round(t)}s`, px + 3, 10);
+      for (let m = 1; m < 5; m++) g.fillRect(Math.round(x(t + (step * m) / 5)), Ruler - 3, 1, 3);
+    }
+    if (1 / Fps / spp > 6) for (let f = Math.ceil(left * Fps); x(f / Fps) < w; f++) g.fillRect(Math.round(x(f / Fps)), Ruler - 2, 1, 2);
+    g.fillStyle = k.line;
+    g.fillRect(0, Ruler - 1, w, 1);
+    // The end marker, the jumps, the playhead's top.
     g.beginPath();
     g.moveTo(x(end) - 5, 0);
     g.lineTo(x(end) + 5, 0);
@@ -374,7 +390,8 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
       g.fill();
     }
     g.fillStyle = k.accent;
-    g.fillRect(Math.round(x(host.now())), 0, 1, h);
+    g.fillRect(Math.round(x(host.now())), 0, 1, Ruler);
+    g.restore();
   };
 
   const diamond = (g: CanvasRenderingContext2D, cx: number, cy: number, r: number, fill: boolean) => {
@@ -451,8 +468,11 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
 
   // ---- the lanes' checkboxes ----
   const syncChecks = (lanes: Lane[]) => {
-    checks.style.paddingTop = `${Ruler}px`;
+    // A header the height of the ruler that stays at the top as the ruler does, so a lane's box scrolls under it with the lane.
+    const head = el("div", "tlcheckhead");
+    head.style.height = `${Ruler}px`;
     checks.replaceChildren(
+      head,
       ...lanes.map((lane) => {
         const row = el("div", "");
         row.style.height = `${LaneH}px`;
@@ -554,7 +574,7 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
     undo.disabled = !history.length;
     const redo = button("↷", "Redo on the timeline (Ctrl+Y)", () => redoStep());
     redo.disabled = !future.length;
-    const fitButton = button("Fit", "Fit the whole clip in the timeline (Ctrl+wheel zooms, the wheel scrolls)", () => {
+    const fitButton = button("Fit", "Fit the whole clip in the timeline (Ctrl+wheel zooms; Shift+wheel scrolls time; the wheel scrolls the tracks when they do not all show)", () => {
       fit();
       redraw();
     });
@@ -625,9 +645,15 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
     const mv = button("Move", chain ? "Drag the hand or foot; the arm or leg bends (W)" : "Slide the bone (W)", () => setGrabMode("move"), grabMode === "move");
     const tn = button("Turn", "Turn the bone (E)", () => setGrabMode("turn"), grabMode === "turn");
     const go = button("Let Go", "Take the handles away (Esc)", () => panel.grab(null));
-    return [mv, tn, go];
+    return grabbedBone && canMove(grabbedBone) ? [mv, tn, go] : [tn, go];
   };
+  /**
+   * Moving makes sense for a hand or a foot (the arm or leg bends after it) and for the root or hips (the body
+   * slides). A finger, the spine or the head only turns: sliding one pulls it off its parent (the owner, 2026-11-26).
+   */
+  const canMove = (bone: string) => profile?.kind === "rig" || !!profile?.chains[bone] || bone === profile?.root || /^(root|hips|pelvis|trajectory)$/i.test(bone);
   const setGrabMode = (m: "move" | "turn") => {
+    if (m === "move" && grabbedBone && !canMove(grabbedBone)) m = "turn";
     grabMode = m;
     host.grabbed(grabbedBone, grabMode);
     showBar();
@@ -881,10 +907,12 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
   const hitAt = (px: number, py: number): Hit | null => {
     const list = display();
     const lanes = lanesOf(list);
-    if (py < Ruler) {
-      if (Math.abs(px - x(clipEnd(list))) < 6 && py < 10) return { kind: "end" };
+    // The ruler stays at the top of what shows, however far the lanes are scrolled.
+    const ry = py - scrollY();
+    if (ry < Ruler) {
+      if (Math.abs(px - x(clipEnd(list))) < 6 && ry < 10) return { kind: "end" };
       const j = jumps.find((t) => Math.abs(px - x(t)) < 5);
-      if (j !== undefined && py > Ruler - 10) return { kind: "jump", t: j };
+      if (j !== undefined && ry > Ruler - 10) return { kind: "jump", t: j };
       return { kind: "ruler" };
     }
     const li = laneAt(py);
@@ -1106,6 +1134,10 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
   canvas.addEventListener(
     "wheel",
     (e) => {
+      // Up and down scroll the tracks when they do not all show (the owner, 2026-11-26: tracks fell out of view);
+      // Shift, or a sideways wheel, scrolls time; Ctrl zooms. With every track in view, the wheel scrolls time as before.
+      const overflows = lanesBox.scrollHeight > lanesBox.clientHeight + 1;
+      if (!e.ctrlKey && !e.shiftKey && overflows && Math.abs(e.deltaY) > Math.abs(e.deltaX)) return;
       e.preventDefault();
       const r = canvas.getBoundingClientRect();
       const at = tAt(e.clientX - r.left);
@@ -1117,6 +1149,8 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
     },
     { passive: false },
   );
+  // The ruler follows the scroll.
+  lanesBox.addEventListener("scroll", () => draw());
 
   // ---- the height: the grip above the timeline, kept for the window ----
   let heightDrag: { y: number; h: number } | null = null;
@@ -1201,6 +1235,8 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
     tick: () => draw(),
     profile: () => profile,
     isChain: (bone) => !!profile?.chains[bone],
+    canMove: (bone) => canMove(bone),
+    setGrabMode: (mode) => setGrabMode(mode),
     grab: (bone) => {
       grabbedBone = bone;
       if (bone) grabMode = profile?.chains[bone] ? "move" : "turn";
