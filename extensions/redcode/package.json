@@ -326,9 +326,24 @@
           "title": "REDcode",
           "icon": "images/activity.svg"
         }
+      ],
+      "panel": [
+        {
+          "id": "redcodePanel",
+          "title": "REDcode Tree",
+          "icon": "images/activity.svg"
+        }
       ]
     },
     "views": {
+      "redcodePanel": [
+        {
+          "type": "webview",
+          "id": "redcode.tree",
+          "name": "Tree",
+          "when": "redcode.cr2wOpen"
+        }
+      ],
       "redcode": [
         {
           "id": "redcode.project",

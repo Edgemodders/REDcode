@@ -191,6 +191,7 @@ export function activate(context: vscode.ExtensionContext): REDcodeApi | undefin
     textures.register(),
     cr2w.register(),
     new Cr2wPropertiesView(cr2w).register(),
+    new Cr2wPropertiesView(cr2w, Cr2wPropertiesView.treeViewType, "tree").register(),
     (meshViewer = new MeshViewer(context.extensionUri, log, context.workspaceState)).register(),
     new AudioPlayer(context.extensionUri, path.join(storage.fsPath, "cache", "audio"), () => bridge, log, () => (project ? replaceSoundWithWav : undefined), () => lipSync, (file) => (project ? gamePathOf(project, file) : undefined)).register(),
     (tweakView = tweakTree.view = vscode.window.createTreeView("redcode.tweakdb", { treeDataProvider: tweakTree, showCollapseAll: true })),

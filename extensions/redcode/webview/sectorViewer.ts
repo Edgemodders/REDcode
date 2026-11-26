@@ -143,8 +143,11 @@ export interface PropsInfo {
 
 export interface SectorView {
   receive(m: SectorMessage): void;
-  /** Selects a node data entry of this sector, or several, and frames them. */
-  selectEntry(entry: number | number[] | string): void;
+  /**
+   * Selects a node data entry of this sector, or several, and frames them. Quiet: the pick is not sent back as
+   * a selection, for a tree elsewhere that chose it and stays on its own deeper path (the tree in its own tab).
+   */
+  selectEntry(entry: number | number[] | string, options?: { quiet?: boolean }): void;
   /** An undo or redo of the document: a script's "changed here" line no longer holds. */
   undone?(): void;
   /** The document changed (an undo, a redo, another page's edit): the Properties tab reads it again when shown. */
@@ -489,8 +492,10 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
       pickedMeta.title = mk.resource ?? "";
     }
     void showMaterials();
-    source.picked(path);
+    if (!quietPick) source.picked(path);
   };
+  /** Set while a quiet selectEntry runs: the tree that asked already shows it. */
+  let quietPick = false;
 
   // ---- the selection (docs/design/sector-selection.md): many things, one of them current ----
   let selection: string[] = [];
@@ -1301,14 +1306,19 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
   });
 
   const pendingSelect = source.select;
-  const selectEntry = (entry: number | number[] | string) => {
+  const selectEntry = (entry: number | number[] | string, options?: { quiet?: boolean }) => {
     // An instanced mesh's node is drawn as its copies: its first copy stands for it, unless one is named.
     const ids = (Array.isArray(entry) ? entry : [entry]).map((n) => {
       const own = `${source.sector}#${n}`;
       if (typeof n === "string") return drawnAs.has(own) || markerOf.has(own) ? own : `${source.sector}#${n.split(".")[0]}`;
       return !drawnAs.has(own) && drawnAs.has(`${own}.0`) ? `${own}.0` : own;
     });
-    select(ids, ids[0]);
+    quietPick = !!options?.quiet;
+    try {
+      select(ids, ids[0]);
+    } finally {
+      quietPick = false;
+    }
     view.frame(ids);
   };
 

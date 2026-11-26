@@ -37,6 +37,11 @@
   // The Properties view runs this same page with everything but the grid hidden. It follows the
   // editor's selection and edits through the same document; the editor hears about its edits as "changed".
   const sidebar = document.body.dataset.mode === "sidebar";
+  // The tree on its own (To Tab, and the Tree view in the panel): the tree and grid only, never the file's own view.
+  // It edits and selects like the editor; the editor's 3D view follows what it selects.
+  const treeOnly = document.body.dataset.mode === "tree";
+  /** The node data entries the sector view last selected for the tree, so moving inside one entry does not frame it again. */
+  let followedEntries = "";
 
   window.addEventListener("message", (e) => {
     const m = e.data;
@@ -67,15 +72,26 @@
       if (sidebar) { selected = m.path ?? ""; shownPath = selected || "(root)"; void renderGrid(); }
       // The table, atlas and 3D views fill the grid themselves: keep the selection for the tree, do not draw over them.
       // So do the first moments of opening, while the editor still works out which view the file gets.
-      else if (opening || isSpecial()) { selected = m.path ?? ""; shownPath = selected || "(root)"; }
+      else if (opening || isSpecial()) {
+        selected = m.path ?? "";
+        shownPath = selected || "(root)";
+        if (mode === "sector") void followInSector(selected);
+      }
       else { expandTo(m.path ?? ""); void select(m.path ?? "", true, true); }
     } else if (m.type === "attach") {
       nodes.clear();
-      vscode.postMessage({ type: "ready", sidebar });
+      if (treeOnly) { expanded.clear(); expanded.add(""); }
+      vscode.postMessage({ type: "ready", sidebar: sidebar || treeOnly });
     } else if (m.type === "none") {
       info = null;
       $("propsLabel").textContent = "Properties";
-      $("grid").replaceChildren(el("div", "dim", "Open a game file in the CR2W editor to see its properties here."));
+      $("grid").replaceChildren(el("div", "dim", `Open a game file in the CR2W editor to see its ${treeOnly ? "tree" : "properties"} here.`));
+      if (treeOnly) {
+        $("treeRoot").replaceChildren();
+        $("file").textContent = "No file";
+        $("type").textContent = "";
+        $("size").textContent = "";
+      }
     } else if (m.type === "reveal") {
       // The host opens the file at a node (REDcodeApi.openFile): the tree, expanded to it and selected.
       if (sidebar) return;
@@ -139,7 +155,7 @@
   let selected = "";
   const expanded = new Set([""]);
   let mode = "tree";
-  let opening = !sidebar;       // true until onDocument has decided the view; a selection from another page waits
+  let opening = !sidebar && !treeOnly; // true until onDocument has decided the view; a selection from another page waits
   let revealing = false;        // a node to open at arrived while opening: show the tree, not the file's own view
   let table = null;             // { path, type, entryType, keys } when the file is a localization table
   let atlas = null;             // { slots, slot, parts, image } when the file is an inkTextureAtlas (see the atlas section)
@@ -185,6 +201,19 @@
       selected = m.selected ?? "";
       shownPath = selected || "(root)";
       await reloadAll("open");
+      return;
+    }
+    if (treeOnly) {
+      // The tree, at whatever the editor has selected; the file's own view stays in the editor.
+      mode = "tree";
+      home = null;
+      table = null;
+      atlas = null;
+      selected = m.selected ?? "";
+      shownPath = selected || "(root)";
+      if (selected) expandTo(selected);
+      await reloadAll("open");
+      if (selected) await revealInTree(selected);
       return;
     }
     opening = true;
@@ -259,6 +288,8 @@
     document.body.classList.toggle("atlas-mode", mode === "atlas");
     document.body.classList.toggle("mesh-mode", mode === "mesh" || mode === "anims" || mode === "sector");
     $("view").textContent = isSpecial() ? "Tree" : HomeLabels[home] ?? "Tree";
+    // To Tab: on the tree of a file that has a view of its own (a sector's 3D, a mesh, a table), the tree moves to its own tab.
+    $("toTab").hidden = sidebar || treeOnly || !home || isSpecial();
     // The 3D view stays while the tree shows (the owner, 2026-11-20: Show in Tree lost the camera and the
     // coarser sectors); it is built again only after a save or revert, or for another body.
     const in3d = mode === "mesh" || mode === "anims" || mode === "sector";
@@ -291,7 +322,8 @@
       }
     } else {
       // The Properties view draws the selection the host gave it; sending it back would make the editor draw the grid.
-      await select(selected, force, sidebar);
+      // The tree on its own redraws quietly too: only a click there moves the editor's 3D view.
+      await select(selected, force, sidebar || treeOnly);
     }
   }
 
@@ -373,6 +405,23 @@
     return mountOnce(buildSector);
   }
 
+  /**
+   * A path selected in another page's tree (To Tab, the Tree view): the sector view selects the things it belongs
+   * to, quietly, so the tree keeps its own deeper path. Moving within the same entry leaves the view alone.
+   */
+  async function followInSector(path) {
+    if (!meshView?.selectEntry || !/^(nodeData\.Data|nodes)\.\d+(\.|$)/.test(path)) return;
+    try {
+      const entries = await request("sectorEntriesOf", { paths: [path] });
+      const key = entries.join(",");
+      if (!entries.length || key === followedEntries || mode !== "sector") return;
+      followedEntries = key;
+      meshView.selectEntry(entries.length === 1 ? entries[0] : entries, { quiet: true });
+    } catch (e) {
+      status(e.message, "error");
+    }
+  }
+
   async function buildSector() {
     if (meshShown) return;
     const grid = $("view3d");
@@ -387,7 +436,7 @@
         sector: payload.sector,
         load: (coarser) => request("sectorLoad", { coarser }),
         // The Properties view follows what is picked; the tree stays where it was until Show in Tree.
-        picked: (path) => { if (path) vscode.postMessage({ type: "selected", path }); },
+        picked: (path) => { followedEntries = ""; if (path) vscode.postMessage({ type: "selected", path }); },
         showInTree: (path) => {
           selected = path;
           mode = "tree";
@@ -1815,6 +1864,11 @@
     if (mode === "tree" && selected) expandTo(selected);
     void render(true);
   });
+  // The tree goes to its own tab, and this one goes back to the file's own view; the two follow each other's selection.
+  $("toTab").addEventListener("click", () => {
+    vscode.postMessage({ type: "toTab" });
+    if (home) { mode = home; void render(true); }
+  });
   const searchBox = $("search");
   searchBox.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
@@ -1830,5 +1884,5 @@
     status("");
     if (!isSpecial()) void renderGrid();
   });
-  vscode.postMessage({ type: "ready", sidebar });
+  vscode.postMessage({ type: "ready", sidebar: sidebar || treeOnly });
 })();

@@ -31,6 +31,11 @@ export const Cr2wViewType = "redcode.cr2w";
  * keeps one manifest entry per view type, so a default and an option registration need two names.
  */
 export const Cr2wOptionViewType = "redcode.cr2wOption";
+/** The tree in its own tab (To Tab). */
+export const Cr2wTreeTabType = "redcode.cr2wTree";
+
+/** Which page the editor's markup makes: the editor, the Properties view's grid, or the tree on its own. */
+type PageMode = "editor" | "sidebar" | "tree";
 
 /** The view type to open a file with: the default one for the editor's own types, else the option one. */
 export function cr2wViewTypeFor(file: string): string {
@@ -592,10 +597,13 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
     const document = new Cr2wDocument(uri, this.log);
     document.onDidChange((e) => this.changed.fire(e));
     this.documents.set(uri.toString(), document);
+    // The Tree view in the panel shows while a file is open in the editor (its "when").
+    void vscode.commands.executeCommand("setContext", "redcode.cr2wOpen", true);
     document.onDidDispose(() => {
       if (this.documents.get(uri.toString()) === document) this.documents.delete(uri.toString());
       this.pages.delete(document);
       this.selection.delete(document);
+      if (this.documents.size === 0) void vscode.commands.executeCommand("setContext", "redcode.cr2wOpen", false);
     });
     if (openContext.backupId) {
       try {
@@ -619,7 +627,7 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
 
   async resolveCustomEditor(document: Cr2wDocument, panel: vscode.WebviewPanel): Promise<void> {
     panel.webview.options = { enableScripts: true, localResourceRoots: this.resourceRoots };
-    panel.webview.html = this.html(panel.webview, false);
+    panel.webview.html = this.html(panel.webview, "editor");
     const page = this.attachPage(document, panel.webview);
     const state = panel.onDidChangeViewState((e) => {
       if (e.webviewPanel.active) this.opened.fire(document);
@@ -629,6 +637,37 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
       state.dispose();
     });
     this.opened.fire(document);
+  }
+
+  /** The tree tabs opened by To Tab, one per document: To Tab again shows the one there is. */
+  private readonly treeTabs = new Map<Cr2wDocument, vscode.WebviewPanel>();
+
+  /**
+   * To Tab: the document's tree in an editor tab of its own, beside the editor, which the modder can move to
+   * another group or its own window. It is one more page on the document: edits and the selection go both ways.
+   */
+  openTreeTab(document: Cr2wDocument): void {
+    const open = this.treeTabs.get(document);
+    if (open) {
+      open.reveal();
+      return;
+    }
+    const panel = vscode.window.createWebviewPanel(Cr2wTreeTabType, `${document.name} · Tree`, { viewColumn: vscode.ViewColumn.Beside, preserveFocus: false }, {
+      enableScripts: true,
+      localResourceRoots: this.resourceRoots,
+      retainContextWhenHidden: true,
+    });
+    panel.iconPath = vscode.Uri.joinPath(this.context.extensionUri, "images", "activity.svg");
+    panel.webview.html = this.html(panel.webview, "tree");
+    this.treeTabs.set(document, panel);
+    const page = this.attachPage(document, panel.webview);
+    // The file closed in the editor: its tree goes with it.
+    const closed = document.onDidDispose(() => panel.dispose());
+    panel.onDidDispose(() => {
+      page.dispose();
+      closed.dispose();
+      if (this.treeTabs.get(document) === panel) this.treeTabs.delete(document);
+    });
   }
 
   /**
@@ -798,6 +837,9 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
           case "selected":
             this.selection.set(document, m.path ?? "");
             others({ type: "select", path: m.path ?? "" });
+            return;
+          case "toTab":
+            this.openTreeTab(document);
             return;
           case "texture": {
             const png = await this.texturePng(this.requireBridge(), document.gamePath ? undefined : document.uri.fsPath, m.depot ?? "");
@@ -1632,8 +1674,12 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
     };
   }
 
-  /** The page. The same markup serves the editor and, with sidebar set, the Properties view, which hides everything but the grid. */
-  html(webview: vscode.Webview, sidebar: boolean): string {
+  /**
+   * The page. The same markup serves the editor, the Properties view ("sidebar": the grid only) and the tree on its
+   * own ("tree": To Tab and the Tree view in the panel, the tree and grid without the file's own view).
+   */
+  html(webview: vscode.Webview, pageMode: PageMode): string {
+    const sidebar = pageMode !== "editor";
     const media = this.media;
     const nonce = Array.from({ length: 24 }, () => "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"[Math.floor(Math.random() * 62)]).join("");
     const script = webview.asWebviewUri(vscode.Uri.joinPath(media, "editor.js"));
@@ -1649,7 +1695,7 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
 <link rel="stylesheet" href="${style}">
 <title>CR2W</title>
 </head>
-<body${sidebar ? ' data-mode="sidebar"' : ""}>
+<body${sidebar ? ` data-mode="${pageMode}"` : ""}>
 <header id="header">
   <span class="name" id="file">Loading</span>
   <span class="meta" id="type"></span>
@@ -1657,6 +1703,7 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
   <span class="spacer"></span>
   <button id="addToProject" hidden title="Copy this game file into the open project, at its game path, to edit it there">Add to Project</button>
   <button id="view" hidden title="Switch between this file's own view and the tree">Tree</button>
+  <button id="toTab" hidden title="Open the tree in its own tab, which can sit beside or below this one or go to its own window; it and this view follow each other's selection">To Tab</button>
   <button id="json" title="Open this file as WolvenKit JSON in a text editor">JSON</button>
 </header>
 <div id="body">
@@ -1682,14 +1729,20 @@ ${viewer}<script nonce="${nonce}" src="${script}"></script>
  */
 export class Cr2wPropertiesView implements vscode.WebviewViewProvider {
   static readonly viewType = "redcode.properties";
+  /** The Tree view (in the panel, beside Output and Terminal, by default): the same follower, on the tree page. */
+  static readonly treeViewType = "redcode.tree";
   private view: vscode.WebviewView | undefined;
   private attached: { document: Cr2wDocument; page: vscode.Disposable; closed: vscode.Disposable } | undefined;
 
-  constructor(private readonly editor: Cr2wEditorProvider) {}
+  constructor(
+    private readonly editor: Cr2wEditorProvider,
+    private readonly viewType: string = Cr2wPropertiesView.viewType,
+    private readonly pageMode: "sidebar" | "tree" = "sidebar",
+  ) {}
 
   register(): vscode.Disposable {
     return vscode.Disposable.from(
-      vscode.window.registerWebviewViewProvider(Cr2wPropertiesView.viewType, this, { webviewOptions: { retainContextWhenHidden: true } }),
+      vscode.window.registerWebviewViewProvider(this.viewType, this, { webviewOptions: { retainContextWhenHidden: true } }),
       vscode.window.tabGroups.onDidChangeTabs(() => this.follow()),
       vscode.window.tabGroups.onDidChangeTabGroups(() => this.follow()),
       // The tab events can fire before the document is registered; the editor says when it is really showing.
@@ -1701,7 +1754,7 @@ export class Cr2wPropertiesView implements vscode.WebviewViewProvider {
   resolveWebviewView(view: vscode.WebviewView): void {
     this.view = view;
     view.webview.options = { enableScripts: true, localResourceRoots: this.editor.resourceRoots };
-    view.webview.html = this.editor.html(view.webview, true);
+    view.webview.html = this.editor.html(view.webview, this.pageMode);
     view.onDidDispose(() => {
       this.detach();
       this.view = undefined;
