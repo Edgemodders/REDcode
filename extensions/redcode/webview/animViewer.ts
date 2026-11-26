@@ -738,7 +738,10 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
   const grabBox = el("div", "animgrab");
   grabBox.hidden = true;
   stage.appendChild(grabBox);
+  /** The Bones tab's row for the bone selected in the view, set once the tab is built. */
+  let markBone: (name: string | null) => void = () => undefined;
   const showGrabBox = (bone: string | null, mode: "move" | "turn") => {
+    markBone(bone);
     grabBox.hidden = !bone || !timeline;
     if (!bone || !timeline) return;
     const t = timeline;
@@ -1007,6 +1010,59 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
     ? addTab("Edit", "Edit this made clip: pin a sliding foot, key a bone, lay another clip on some bones, trim, loop. The clip as made is kept", editor.box, undefined, () => showBone(null))
     : undefined;
   const animsTab = addTab("Animations", "The clips in this file", animPane);
+  // ---- the Bones tab (the owner, 2026-11-26): every bone by name, filtered; a click selects it in the view ----
+  const bonesPane = el("div", "animpane");
+  const boneFilter = el("input", "animfilter");
+  boneFilter.type = "text";
+  boneFilter.spellcheck = false;
+  const boneList = el("div", "animlist bonelist");
+  bonesPane.append(el("div", "label", "Bones"), boneFilter, boneList);
+  const boneRows = new Map<string, HTMLElement>();
+  let markedBone: string | null = null;
+  const selectBone = (name: string) => {
+    // With the timeline, the bone is grabbed, handles and all; without it (a game clip), marked in the view.
+    if (timeline) timeline.grab(name);
+    else showBone(name);
+    markBone(name);
+  };
+  const fillBones = () => {
+    if (boneRows.size || !bones.length) return;
+    const named = bones.filter((b) => b.name);
+    const inSet = new Set(named);
+    const depthOf = (b: THREE.Object3D) => {
+      let d = 0;
+      for (let p = b.parent; p && inSet.has(p as THREE.Bone); p = p.parent) d++;
+      return d;
+    };
+    boneFilter.placeholder = `Filter ${named.length.toLocaleString()} bones`;
+    for (const b of named) {
+      const row = el("div", "part animrow bonerow");
+      row.style.paddingLeft = `${6 + Math.min(depthOf(b), 12) * 8}px`;
+      row.append(el("span", "name", b.name));
+      row.title = `${b.name}${b.parent?.name ? `\nIn ${b.parent.name}` : ""}\nClick to select it in the view`;
+      row.addEventListener("click", () => selectBone(b.name));
+      boneRows.set(b.name, row);
+      boneList.append(row);
+    }
+    markBone(markedBone);
+  };
+  markBone = (name) => {
+    markedBone = name;
+    for (const [n, row] of boneRows) row.classList.toggle("selected", n === name);
+    if (name && !bonesPane.hidden) boneRows.get(name)?.scrollIntoView({ block: "nearest" });
+  };
+  boneFilter.addEventListener("input", () => {
+    // Words in any order, as the Animations filter; while filtered, the list is flat, so a deep bone is easy to see.
+    const words = boneFilter.value.toLowerCase().split(/\s+/).filter(Boolean);
+    for (const [n, row] of boneRows) {
+      row.hidden = !words.every((w) => n.toLowerCase().includes(w));
+      row.classList.toggle("flat", words.length > 0);
+    }
+  });
+  addTab("Bones", "Every bone of the rig by name, with a filter: a click selects it in the view", bonesPane, () => {
+    fillBones();
+    boneFilter.focus();
+  });
   tabRow.hidden = sideTabs.length < 2;
   // A clip just rebuilt from the Edit panel opens on Edit, where the modder left it, and an edited clip too, since its
   // steps are what it is about; a made clip's own tab opens on Clip, its words and how it was made.

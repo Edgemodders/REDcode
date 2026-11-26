@@ -501,7 +501,32 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
     }
     return t;
   };
-  const tidyTrack = (list: EditStep[]) => list.filter((s) => s.step !== "track" || s.off || s.name);
+  /** A track's own step goes when it says nothing, unless the track is empty: then it is what keeps the lane (New Track). */
+  const tidyTrack = (list: EditStep[]) => list.filter((s) => s.step !== "track" || s.off || s.name || !blocksOf(list).some((b) => b.s.track === s.track));
+  /** Tracks from this number up go one higher, so the number is free for a new track there. */
+  const makeRoom = (list: EditStep[], from: number) => {
+    for (const s of list) if (isTimeline(s) && "track" in s && s.track >= from) s.track += 1;
+  };
+  /** Whether a block (and the blend that follows it) fits on a track at its own time, besides the steps left out. */
+  const fitsOn = (list: EditStep[], s: Block, follower: Block | undefined, track: number, leave: number[]) => {
+    const a = s.start;
+    const z = follower ? Math.max(endOf(s), endOf(follower)) : endOf(s);
+    return blocksOf(list).every((b) => leave.includes(b.index) || b.s.track !== track || endOf(b.s) <= a + 1e-6 || b.s.start >= z - 1e-6);
+  };
+  /**
+   * A track a clip left stays as an empty lane until it is removed (the owner, 2026-11-26: tracks are the modder's, so a
+   * clip moved or deleted off one does not take the track with it, nor shift the lanes under the pointer).
+   */
+  const keepTrack = (list: EditStep[], track: number) => {
+    const used = list.some((s) => isTimeline(s) && "track" in s && s.track === track);
+    if (!used) list.push({ step: "track", track });
+  };
+  /** The blend after a move or an animation (starting where it ends, on its track): it goes where its block goes. */
+  const followerOf = (list: EditStep[], index: number): number => {
+    const s = list[index];
+    if (!s || !isBlock(s) || s.step === "blend") return -1;
+    return list.findIndex((x, i) => i !== index && isTimeline(x) && x.step === "blend" && x.track === s.track && Math.abs(x.start - endOf(s)) < 1e-3);
+  };
   const setOff = (track: number, off: boolean) => {
     const list = working();
     trackStep(list, track).off = off || undefined;
@@ -612,7 +637,7 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
       if (grabbedBone) bar.append(...grabButtons());
       else if (selLane !== null && lanesOf(display()).some((l) => l.track === selLane)) {
         const lane = selLane;
-        bar.append(button("Delete Track", `Take track ${lane} out, with everything on it (Delete; Undo brings it back)`, () => deleteTrack(lane)));
+        bar.append(button("Remove Track", `Take track ${lane} out, with everything on it (Delete; Undo brings it back)`, () => deleteTrack(lane)));
       }
       return;
     }
@@ -759,6 +784,8 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
     const s = list[sel.index];
     if (!s || !isTimeline(s)) return;
     list.splice(sel.index, 1);
+    // Its track stays, empty, until it is removed.
+    if ("track" in s) keepTrack(list, s.track);
     sel = null;
     commit(list);
   };
@@ -857,7 +884,7 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
     menu?.remove();
     menu = null;
   };
-  const openMenu = (ev: MouseEvent, track: number) => {
+  const openMenu = (ev: MouseEvent, track: number, block?: number) => {
     closeMenu();
     menu = el("div", "tlmenu");
     const item = (text: string, run: () => void, off = false) => {
@@ -871,6 +898,14 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
     };
     const lanes = lanesOf(display());
     const i = lanes.findIndex((l) => l.track === track);
+    // A clip's own: to the track above or below, a new one made when that one has no room.
+    if (block !== undefined) {
+      item("Move Clip Up", () => moveClip(block, "up"));
+      item("Move Clip Down", () => moveClip(block, "down"));
+      menu.append(el("div", "tlmenusep"));
+    }
+    item("New Track Above", () => newTrack(track, "above"));
+    item("New Track Below", () => newTrack(track, "below"));
     item("Only This Track", () => {
       const list = working();
       for (const l of lanes) trackStep(list, l.track).off = l.track === track ? undefined : true;
@@ -885,7 +920,7 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
     item("Move Down", () => swapTracks(track, lanes[i + 1].track), i >= lanes.length - 1);
     item("Rename…", () => renameTrack(track));
     item("Add Blend Here", () => addBlend(host.now(), 0.5, track));
-    item("Delete Track", () => deleteTrack(track));
+    item("Remove Track", () => deleteTrack(track));
     menu.style.left = `${ev.clientX}px`;
     menu.style.top = `${ev.clientY}px`;
     document.body.append(menu);
@@ -905,6 +940,53 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
       if (e.key === "Escape") showBar();
     });
     input.focus();
+  };
+  /** A new, empty track just above or below one (the owner, 2026-11-26); the tracks over it move up a number. */
+  const newTrack = (track: number, where: "above" | "below") => {
+    const list = working();
+    const at = where === "above" ? track + 1 : track;
+    makeRoom(list, at);
+    list.push({ step: "track", track: at });
+    sel = null;
+    selLane = at;
+    commit(list);
+  };
+  /**
+   * A clip to the track above or below (the owner, 2026-11-26): the next track that way when it has room at the
+   * clip's time, else a new track made next to it. Its blend goes with it.
+   */
+  const moveClip = (index: number, way: "up" | "down") => {
+    const list = working();
+    const s = list[index];
+    if (!s || !isBlock(s)) return;
+    const fi = followerOf(list, index);
+    const follower = fi >= 0 ? (list[fi] as Block) : undefined;
+    const lanes = lanesOf(list);
+    const li = lanes.findIndex((l) => l.track === s.track);
+    const next = lanes[way === "up" ? li - 1 : li + 1];
+    let target: number;
+    if (next && fitsOn(list, s, follower, next.track, [index, fi])) target = next.track;
+    else {
+      // A new track next to it: above, one number higher; below, its own number, with it and the rest moved up.
+      target = way === "up" ? s.track + 1 : s.track;
+      makeRoom(list, target);
+    }
+    const from = s.track;
+    s.track = target;
+    if (follower) follower.track = target;
+    keepTrack(list, from);
+    sel = { index };
+    selLane = target;
+    commit(tidyTrack(list));
+  };
+  /** A lane dragged to another place in the order (top wins): the tracks keep their numbers, given out in the new order. */
+  const reorderLane = (list: EditStep[], track: number, toIndex: number): number => {
+    const lanes = lanesOf(list).map((l) => l.track);
+    const order = lanes.filter((t) => t !== track);
+    order.splice(Math.max(0, Math.min(order.length, toIndex)), 0, track);
+    const map = new Map(order.map((t, i) => [t, lanes[i]]));
+    for (const s of list) if (isTimeline(s) && "track" in s) s.track = map.get(s.track) ?? s.track;
+    return map.get(track) ?? track;
   };
   /** A track and everything on it goes (the owner, 2026-11-26: no way to delete a track); Undo brings it back. */
   const deleteTrack = (track: number) => {
@@ -984,13 +1066,22 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
     | { kind: "end"; before: EditStep[] }
     | { kind: "block"; index: number; part: "body" | "left" | "right"; x0: number; y0: number; mode: "time" | "lane" | null; orig: Block; list: EditStep[]; laneAt0: number; before: EditStep[]; follower?: number }
     | { kind: "key"; index: number; key: number; x0: number; orig: Block; list: EditStep[]; before: EditStep[] }
+    /** Empty track space: a click moves the playhead; a drag up or down takes the track to another place in the order. */
+    | { kind: "lane"; track: number; x0: number; y0: number; moved: boolean; at: number; before: EditStep[] }
     | null = null;
 
   canvas.addEventListener("contextmenu", (e) => {
     e.preventDefault();
     const r = canvas.getBoundingClientRect();
     const hit = hitAt(e.clientX - r.left, e.clientY - r.top);
-    if (hit && "track" in hit) openMenu(e, hit.track);
+    if (!hit || !("track" in hit)) return;
+    // On a clip: it is selected, and the menu has its own Move Clip Up and Down.
+    if (hit.kind === "block" || hit.kind === "key") {
+      sel = { index: hit.index };
+      selLane = hit.track;
+      redraw();
+      openMenu(e, hit.track, hit.index);
+    } else openMenu(e, hit.track);
   });
   canvas.addEventListener("pointerdown", (e) => {
     if (e.button !== 0) return;
@@ -1013,12 +1104,14 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
       case "jump":
         blendAtJump(hit.t);
         break;
-      case "lane":
+      case "lane": {
         sel = null;
         selLane = hit.track;
-        host.seek(Math.max(0, snap(tAt(px), e.altKey)));
+        const before = clone(display());
+        drag = { kind: "lane", track: hit.track, x0: px, y0: py, moved: false, at: lanesOf(before).findIndex((l) => l.track === hit.track), before };
         redraw();
         break;
+      }
       case "step":
         sel = { index: hit.index };
         redraw();
@@ -1028,6 +1121,11 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
         sel = { index: hit.index };
         selLane = hit.track;
         const s = list[hit.index] as Block;
+        // A move's bone is selected in the view too, with its handles (the owner, 2026-11-26).
+        if (s.step === "move") {
+          const bone = "ik" in s.on ? s.on.ik : "bones" in s.on ? s.on.bones[0] : null;
+          if (bone && bone !== grabbedBone) panel.grab(bone);
+        }
         // A click on a move's stretch picks it, for its ease.
         if (s.step === "move" && hit.part === "body") {
           const at = tAt(px) - s.start;
@@ -1060,7 +1158,24 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
     const py = e.clientY - r.top;
     if (!drag) {
       const hit = hitAt(px, py);
-      canvas.style.cursor = !hit ? "default" : hit.kind === "block" ? (hit.part === "body" ? "grab" : "ew-resize") : hit.kind === "end" || hit.kind === "key" ? "ew-resize" : hit.kind === "jump" ? "pointer" : "default";
+      // Empty track space takes the track (grab), as a clip's body takes the clip.
+      canvas.style.cursor = !hit ? "default" : hit.kind === "block" ? (hit.part === "body" ? "grab" : "ew-resize") : hit.kind === "lane" ? "grab" : hit.kind === "end" || hit.kind === "key" ? "ew-resize" : hit.kind === "jump" ? "pointer" : "default";
+      return;
+    }
+    if (drag.kind === "lane") {
+      if (!drag.moved && Math.abs(py - drag.y0) < 4) return;
+      drag.moved = true;
+      canvas.style.cursor = "grabbing";
+      const lanes = lanesOf(drag.before);
+      const to = Math.max(0, Math.min(lanes.length - 1, laneAt(py)));
+      if (to === drag.at) return;
+      const list = clone(drag.before);
+      selLane = reorderLane(list, drag.track, to);
+      drag.at = to;
+      host.setSteps(list);
+      draw();
+      syncChecks(lanesOf(list));
+      schedule();
       return;
     }
     if (drag.kind === "scrub") return host.seek(Math.max(0, snap(tAt(px), e.altKey)));
@@ -1093,15 +1208,19 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
     const s = drag.list[drag.index] as Block;
     const o = drag.orig;
     if (drag.mode === "lane") {
+      // Only the clip moves (the owner, 2026-11-26), with its blend, and only onto a track with room at its time: no
+      // track is made by a drag (Move Clip Up and Down make one).
       const lanes = lanesOf(display());
       const to = Math.max(0, Math.min(lanes.length - 1, laneAt(py)));
-      if (to !== drag.laneAt0 && lanes[to] && lanes[drag.laneAt0]) {
-        // The whole lane moves: which track wins is its order.
-        const a = lanes[drag.laneAt0].track;
-        const b = lanes[to].track;
-        for (const x of drag.list) if (isTimeline(x) && "track" in x) x.track = x.track === a ? b : x.track === b ? a : x.track;
-        selLane = b;
-        drag.laneAt0 = to;
+      const target = lanes[to]?.track;
+      const fi = drag.follower;
+      const follower = fi === undefined ? undefined : (drag.list[fi] as Block);
+      if (target !== undefined && target !== s.track && fitsOn(drag.list, s, follower, target, [drag.index, fi ?? -1])) {
+        const from = s.track;
+        s.track = target;
+        if (follower) follower.track = target;
+        keepTrack(drag.list, from);
+        selLane = target;
         host.setSteps(clone(drag.list));
         draw();
         schedule();
@@ -1141,7 +1260,10 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
     schedule();
   });
   const prevOk = new Map<number, Block>();
-  const endDrag = () => {
+  const endDrag = (e?: PointerEvent) => {
+    // A click on empty track space, not dragged: the playhead goes there.
+    if (drag?.kind === "lane" && !drag.moved && e) host.seek(Math.max(0, snap(tAt(drag.x0), e.altKey)));
+    if (drag?.kind === "lane") canvas.style.cursor = "grab";
     // One Undo for the whole drag: the list from before it.
     if (drag && drag.kind !== "scrub" && JSON.stringify(drag.before) !== JSON.stringify(display())) {
       history.push(drag.before);

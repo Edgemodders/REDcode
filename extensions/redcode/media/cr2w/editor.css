@@ -277,6 +277,8 @@ body.mesh-mode #props { display: flex; flex-direction: column; overflow: hidden;
 .animfilter { margin: 0 8px 6px; background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border, var(--line)); padding: 2px 6px; }
 .animrow.selected { background: var(--vscode-list-activeSelectionBackground); color: var(--vscode-list-activeSelectionForeground); }
 .animrow[hidden] { display: none; }
+.bonerow { cursor: pointer; }
+.bonerow.flat { padding-left: 6px !important; }
 .animtransport { flex-wrap: nowrap; padding-top: 6px; }
 .meshstage:focus { outline: none; }
 .meshstage .animgrab { position: absolute; top: 8px; left: 8px; display: flex; gap: 4px; align-items: center; padding: 3px 4px 3px 8px; font-size: 12px; background: color-mix(in srgb, var(--vscode-editor-background) 88%, transparent); border: 1px solid var(--line); border-radius: 3px; z-index: 2; }
@@ -375,6 +377,7 @@ input[type="checkbox"]:disabled { cursor: default; }
 .tlmenu button { text-align: left; border: 0; padding: 3px 10px; background: none; color: var(--vscode-menu-foreground, var(--vscode-foreground)); }
 .tlmenu button:hover:not(:disabled) { background: var(--vscode-menu-selectionBackground, var(--vscode-list-hoverBackground)); color: var(--vscode-menu-selectionForeground, var(--vscode-foreground)); }
 .tlmenu button:disabled { opacity: .45; }
+.tlmenu .tlmenusep { height: 1px; margin: 3px 6px; background: var(--line); }
 
 /* Sector layers L3: the picked thing's Links row, and the tree's menu on a sector. */
 .sectorlinks { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; width: 100%; font-size: 12px; }
