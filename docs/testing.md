@@ -1564,12 +1564,27 @@ Built 2026-11-23 ([design](design/game-testing.html)): `game_start`, `game_stop`
 | 7 | Quit the game. Open the game's Video settings on the next normal start, or read `UserSettings.json` | Your own window mode and resolution are back (the REDcode log says so a few seconds after the game ends) |
 | 8 | With the game already running full screen, **Run Game in Tab** | It docks the game as it is and says to set Windowed and a size; nothing in the settings file changes |
 
+## The mesh viewer's EDGEmat materials (#6)
+
+Built 2026-10-16 (REDcode #6): with EDGEmat installed, the mesh view asks it for each submesh's material (`renderMaterials` in EDGEmat's API) and redraws when EDGEmat says a material changed (`onDidChangeMaterials`). Checked then only with a stand-in for EDGEmat's API; EDGEmat has had `renderMaterials` since 0.3.0.
+
+F5 with **Run REDcode with Opens Test and EDGEmat** (the EDGEmat clone at `../EDGEmat/extensions/edgemat`), a project with a mesh of its own:
+
+| # | Do | Expected |
+|---|---|---|
+| E1 | Open the project's mesh from the Project view (it opens on 3D) | The bar's shading list has **EDGEmat** chosen (beside Flat colours, and Own textures when the GLB has any); the submeshes are drawn with EDGEmat's textures; the bar's note says "EDGEmat: approximate" when a material is drawn by approximation, nothing when all are checked, "EDGEmat: " and the reason when it failed |
+| E2 | Flat colours, then EDGEmat again | A colour per material name, then EDGEmat's look back |
+| E3 | The same mesh from the game (Search game files) | EDGEmat's look of the game's copy |
+| E4 | **Open in EDGEmat** in the bar; change a colour there and save it to the project (or on the Desk) | REDcode's view redraws by itself with the new colour, with the tab left open |
+| E5 | Disable EDGEmat (or run **Run REDcode with Opens Test (no other extensions)**), open the mesh again | No EDGEmat in the shading list; Own textures or Flat colours |
+
+Not run yet.
+
 ## Never run
 
 | Test | Why |
 |---|---|
 | New File's files read by the game | An atlas from New File drawn by an ink widget, or its material instance on a mesh, in the game. Needs a small test mod; it was step 14 of the New File test, optional, and not run |
-| The EDGEmat material hook in the mesh viewer | Checked only with a stand-in. No longer waits: EDGEmat has had `renderMaterials` since 0.3.0 (the sector view's Materials switch uses it, passed in Sector materials M1). Runs in VS Code with EDGEmat (**Run REDcode with Opens Test and EDGEmat**): a mesh with EDGEmat changes, opened on 3D |
 | The .NET runtime prompt | Needs a machine without .NET 10 |
 | Open in EDGEwave with EDGEwave from a store | Run only with EDGEwave from source (F5, 2026-10-16), where it works |
 | A custom sound from a REDmod pack, or a sound override, in game | Not tried in the game |
