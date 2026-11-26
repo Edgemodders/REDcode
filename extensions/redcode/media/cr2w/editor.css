@@ -204,6 +204,17 @@ body.mesh-mode #props { display: flex; flex-direction: column; overflow: hidden;
 .sectorside .laystate button.on:first-child { border-color: var(--line); color: var(--vscode-foreground); background: var(--vscode-list-hoverBackground, rgba(128,128,128,.15)); }
 .sectorside .ovrow button.icon { display: inline-flex; align-items: center; padding: 1px 2px; line-height: 0; flex: none; }
 .sectorside .ovrow button.icon svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; }
+.sectorside .ovrow { cursor: pointer; }
+.sectorside .ovcontrols, .sectorside .ovarea { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; padding: 4px 6px; font-size: 12px; border-bottom: 1px solid var(--line); }
+.sectorside .ovarea[hidden] { display: none; }
+.sectorside .ovcontrols button.on { border-color: var(--accent); color: var(--accent); }
+.sectorside .ovcheck { display: inline-flex; gap: 3px; align-items: center; white-space: nowrap; }
+.sectorside .ovnum { width: 4.5em; }
+.sectorside .ovarea .ovnum { width: 5.5em; }
+.sectorside .ovnote { padding: 2px 6px 4px; font-size: 11px; }
+.sectorside .ovwhy { display: flex; gap: 6px; padding: 1px 6px 1px 38px; font-size: 11px; font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; color: var(--vscode-descriptionForeground); }
+.sectorside .ovwhy:hover { background: var(--vscode-list-hoverBackground); color: var(--vscode-foreground); }
+.sectorside .ovwhy .ovmeets { flex: none; }
 .sectorside .ovrow .makespin, .sectorside .ovstatus .makespin { display: inline-block; width: 9px; height: 9px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: makespin .8s linear infinite; flex: none; }
 .sectorside .selhead { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; padding: 4px 6px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--vscode-editor-background); }
 .sectorside .selhead .selcount { flex: 1; min-width: 4em; font-weight: 500; white-space: nowrap; }

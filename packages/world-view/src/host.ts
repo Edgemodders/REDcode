@@ -396,17 +396,66 @@ export async function sectorsNear(bridge: Bridge, point: number[], distance: num
   return (r.sectors ?? []).map((s) => s.path);
 }
 
-// ---- overlaps: the sectors whose things reach into one (REDcode's docs/design/sector-layers.md) ----
+// ---- overlaps: the sectors whose things reach into one (REDcode's docs/design/sector-layers.md and
+// docs/design/sector-overlaps.md, O1: thing to thing, by role, with the reasons) ----
 
 /** How a sector that reaches in stands to the one in focus. */
 export type OverlapGroup = "neighbours" | "levels" | "interiors" | "exteriors" | "global" | "other";
+
+/**
+ * What a placed thing is for, by its node class: REDcode's labels, not the game's. detail: what the game draws
+ * up close; proxy: a stand-in mesh for distance; helper: occluders, collision, sound, navigation, crowds, areas,
+ * light and fog volumes, never drawn as geometry; unknown: none of these, treated as detail.
+ */
+export type ThingRole = "detail" | "proxy" | "helper" | "unknown";
+
+const HelperClass = /occluder|collision|acoustic|aispot|community|area|^worldgi|traffic|crowd|sound|fog|reflectionprobe|interiormap|lightchannel|population|smartobject|navigation|marker|trigger|spawn|cover|nav|splinenode/;
+const DetailClass = /mesh|decal|light|entity|particle|device|advertisement|destruction|cloth|water|foliage|terrain/;
+/** Detail with no box of its own still counts by where it stands. */
+const ByPositionClass = /entity|decal|light|particle|device|decoration/;
+
+/** A node class's role (sector-overlaps.md, O1). Checked on game 2.5's sectors: proxies are the *Proxy* classes. */
+export function roleOf(cls: string): ThingRole {
+  const c = cls.toLowerCase();
+  if (c.includes("proxy")) return "proxy";
+  if (HelperClass.test(c)) return "helper";
+  if (DetailClass.test(c)) return "detail";
+  return "unknown";
+}
+
+/** One thing in a match: its node data entry, class and file, and the box the test used (game axes, Z up). */
+export interface OverlapThing {
+  entry: number;
+  class: string;
+  role: ThingRole;
+  resource?: string;
+  box: Box;
+  /** It has no box: its position stood in for one. */
+  byPosition?: boolean;
+  /** An instanced mesh's box covers all its copies (REDbridge gives one box a group). */
+  group?: boolean;
+}
+
+/** Why a layer is listed: one of its things, and the opened sector's thing it meets (null: the area searched). */
+export interface OverlapMatch {
+  thing: OverlapThing;
+  meets: OverlapThing | null;
+}
+
+/** A thing whose box takes no part in matching, and why. */
+export interface LeftOutThing {
+  entry: number;
+  class: string;
+  resource?: string;
+  why: string;
+}
 
 export interface OverlapLayer {
   path: string;
   kind: string;
   level: number;
   group: OverlapGroup;
-  /** Its things whose boxes meet the box around the focused sector's things. */
+  /** Its things that meet one of the opened sector's things (or the area). */
   reach: number;
   /** Of those, the things with no box, counted by their position. */
   byPosition: number;
@@ -414,6 +463,32 @@ export interface OverlapLayer {
   replaces: boolean;
   /** Metres from the middle of the focused sector's things to the middle of its streaming box. */
   distance: number;
+  /** The first matches, for Why (matchLimit of them). */
+  matches: OverlapMatch[];
+  /** Its things whose boxes were left out. */
+  leftOut: number;
+}
+
+/** What a search was, for Copy Diagnostics and the tab's note. */
+export interface OverlapQuery {
+  sector: string;
+  scope: "sector" | "area";
+  area?: Box;
+  margin: number;
+  helpers: boolean;
+  proxies: boolean;
+  /** The opened sector's things that make the footprint (0 for an area). */
+  footprint: number;
+  /** Of the opened sector's things: with a box, by position only, left out. */
+  things: { total: number; boxes: number; byPosition: number; leftOut: number };
+  /** The opened sector's things left out, with why. */
+  leftOut: LeftOutThing[];
+  /** The box candidates were found by (the footprint's extent, or the area). */
+  box: Box | null;
+  /** Sectors whose streaming box meets that box, read to test. */
+  candidates: number;
+  /** How the candidates were found: by streaming boxes until the world index is built. */
+  via: "streaming";
 }
 
 export interface OverlapOptions {
@@ -424,69 +499,211 @@ export interface OverlapOptions {
   onProgress?(done: number, total: number): void;
   /** True stops the search between sectors. */
   stopped?(): boolean;
+  /** Metres every footprint box (or the area) grows by: Nearby. 0, the strict test, by default. */
+  margin?: number;
+  /** Helpers (occluders, collision, areas...) take part, on both sides. Off by default. */
+  helpers?: boolean;
+  /** Proxies take part, on both sides. Off by default. */
+  proxies?: boolean;
+  /** Search this box (game axes, Z up) instead of the sector's footprint: Area. */
+  area?: Box | null;
+  /** How many matches each layer keeps for Why; 50 by default. */
+  matchLimit?: number;
+  /** The search as set up, once its footprint is known and before the candidates are read. */
+  onQuery?(query: OverlapQuery): void;
 }
 
 const GroupOrder: OverlapGroup[] = ["neighbours", "levels", "interiors", "exteriors", "other", "global"];
 
-/** A sector's things as boxes (six numbers each) and, for things with no box, positions (three each). */
-interface ThingBoxes {
-  b: number[];
-  p: number[];
+/**
+ * A sector's things, kept per sector in the cache (version 2: 1 kept boxes and positions only). Per thing i:
+ * e[i] its node data entry, c[i] its class (an index into classes), r[i] its file (an index into resources, -1
+ * for none), f[i] flags (ThingFlag), and six numbers at b[6i]: its box, or its position twice when it has none.
+ * A number that is not one (NaN or infinite in REDbridge's answer) is stored as null.
+ */
+interface ThingTable {
+  v: 2;
+  classes: string[];
+  resources: string[];
+  e: number[];
+  c: number[];
+  r: number[];
+  f: number[];
+  b: (number | null)[];
 }
 
-const meetsBox = (a: Box, b: Box) => [0, 1, 2].every((i) => a.min[i] <= b.max[i] && a.max[i] >= b.min[i]);
+const ThingFlag = {
+  /** b holds its box; else its position. */
+  box: 1,
+  /** Its node data places it at exactly 0, 0, 0. */
+  origin: 2,
+  /** REDbridge read its copies (an instanced mesh's group): its box covers them all. */
+  copies: 4,
+} as const;
 
-/** A sector's things' boxes, kept in cacheDir for a game sector (a project's or mod's copy is read each time). */
-async function thingBoxes(bridge: Bridge, ref: SectorRef, cacheDir: string | null): Promise<ThingBoxes> {
-  const file = cacheDir && !ref.root && !ref.archive ? path.join(cacheDir, `${createHash("sha1").update(ref.path.toLowerCase()).digest("hex").slice(0, 24)}.json`) : null;
+/** Larger than this on any side, a box is taken as wrong. */
+const MaxBoxSide = 2000;
+
+const meetsBox = (a: Box, b: Box) => [0, 1, 2].every((i) => a.min[i] <= b.max[i] && a.max[i] >= b.min[i]);
+const grown = (b: Box, m: number): Box => (m ? { min: b.min.map((v) => v - m), max: b.max.map((v) => v + m) } : b);
+
+/** A sector's things, kept in cacheDir for a game sector (a project's or mod's copy is read each time). */
+async function thingTable(bridge: Bridge, ref: SectorRef, cacheDir: string | null): Promise<ThingTable> {
+  const file = cacheDir && !ref.root && !ref.archive ? path.join(cacheDir, `${createHash("sha1").update(ref.path.toLowerCase()).digest("hex").slice(0, 24)}-v2.json`) : null;
   if (file) {
     try {
-      return JSON.parse(fs.readFileSync(file, "utf8")) as ThingBoxes;
+      const t = JSON.parse(fs.readFileSync(file, "utf8")) as ThingTable;
+      if (t.v === 2) return t;
     } catch {
       // Not read yet.
     }
   }
   const r = await bridge.request<{ items: SectorItem[] }>("sector.nodes", { path: ref.path, bounds: true, ...(ref.archive ? { archive: ref.archive } : {}), ...(ref.root ? { root: ref.root } : {}) });
-  const out: ThingBoxes = { b: [], p: [] };
-  const round = (v: number) => Math.round(v * 100) / 100;
+  const out: ThingTable = { v: 2, classes: [], resources: [], e: [], c: [], r: [], f: [], b: [] };
+  const classIndex = new Map<string, number>();
+  const resourceIndex = new Map<string, number>();
+  const indexIn = (map: Map<string, number>, list: string[], s: string) => {
+    let n = map.get(s);
+    if (n === undefined) {
+      n = list.length;
+      list.push(s);
+      map.set(s, n);
+    }
+    return n;
+  };
+  const num = (v: number) => (Number.isFinite(v) ? Math.round(v * 100) / 100 : null);
   for (const i of r.items ?? []) {
-    if (i.bounds) out.b.push(...i.bounds.min.slice(0, 3).map(round), ...i.bounds.max.slice(0, 3).map(round));
-    else out.p.push(...i.transform.position.slice(0, 3).map(round));
+    const p = i.transform.position.slice(0, 3);
+    out.e.push(i.index);
+    out.c.push(indexIn(classIndex, out.classes, i.kind));
+    out.r.push(i.resource ? indexIn(resourceIndex, out.resources, i.resource) : -1);
+    out.f.push((i.bounds ? ThingFlag.box : 0) | (p.every((v) => v === 0) ? ThingFlag.origin : 0) | (i.instances?.length ? ThingFlag.copies : 0));
+    if (i.bounds) out.b.push(...i.bounds.min.slice(0, 3).map(num), ...i.bounds.max.slice(0, 3).map(num));
+    else out.b.push(...p.map(num), ...p.map(num));
   }
   if (file) {
     fs.mkdirSync(path.dirname(file), { recursive: true });
-    fs.writeFileSync(file, JSON.stringify(out));
+    // Written beside and renamed, so a cut-off write never leaves half a file.
+    const part = `${file}.${process.pid}.part`;
+    fs.writeFileSync(part, JSON.stringify(out));
+    fs.renameSync(part, file);
   }
   return out;
 }
 
-/** The box around a sector's things, in the game's axes (Z up); null when it has none. */
-function boxAround(t: ThingBoxes): Box | null {
-  const min = [Infinity, Infinity, Infinity];
-  const max = [-Infinity, -Infinity, -Infinity];
-  for (let i = 0; i < t.b.length; i += 6)
-    for (let k = 0; k < 3; k++) {
-      min[k] = Math.min(min[k], t.b[i + k]);
-      max[k] = Math.max(max[k], t.b[i + 3 + k]);
-    }
-  for (let i = 0; i < t.p.length; i += 3)
-    for (let k = 0; k < 3; k++) {
-      min[k] = Math.min(min[k], t.p[i + k]);
-      max[k] = Math.max(max[k], t.p[i + k]);
-    }
-  return min[0] === Infinity ? null : { min, max };
+/** One thing of a table, ready to test: its box (null when left out) and why it is left out. */
+interface Thing extends OverlapThing {
+  leftOut?: string;
+}
+
+function thingsOf(t: ThingTable): Thing[] {
+  const out: Thing[] = [];
+  for (let i = 0; i < t.e.length; i++) {
+    const cls = t.classes[t.c[i]];
+    const f = t.f[i];
+    const raw = t.b.slice(i * 6, i * 6 + 6);
+    const box: Box = { min: raw.slice(0, 3) as number[], max: raw.slice(3, 6) as number[] };
+    const thing: Thing = { entry: t.e[i], class: cls, role: roleOf(cls), box, ...(t.r[i] >= 0 ? { resource: t.resources[t.r[i]] } : {}), ...(f & ThingFlag.box ? {} : { byPosition: true }), ...(f & ThingFlag.copies ? { group: true } : {}) };
+    if (raw.some((v) => typeof v !== "number")) thing.leftOut = "its box is not a number";
+    else if (box.min.some((v, k) => v > box.max[k])) thing.leftOut = "its box is inside out";
+    else if (box.max.some((v, k) => v - box.min[k] > MaxBoxSide)) thing.leftOut = `its box is over ${MaxBoxSide / 1000} km`;
+    // A node that keeps its places in a buffer REDbridge does not read (an occluder's copies): placed at the origin, its box is worked out there.
+    else if (f & ThingFlag.origin && !(f & ThingFlag.copies) && /instanced/i.test(cls)) thing.leftOut = "placed at 0, 0, 0: its copies are in a buffer REDbridge does not read";
+    out.push(thing);
+  }
+  return out;
+}
+
+/** Which things take part, by role. Unknown goes with detail. */
+const takesPart = (t: Thing, helpers: boolean, proxies: boolean) => !t.leftOut && (t.role === "helper" ? helpers : t.role === "proxy" ? proxies : t.byPosition ? ByPositionClass.test(t.class.toLowerCase()) : true);
+
+/** Boxes in a grid of square cells over the game's X and Y, so a test looks only at the boxes near it. Big boxes are kept apart and always looked at. */
+class BoxGrid {
+  private readonly cells = new Map<string, number[]>();
+  private readonly big: number[] = [];
+  constructor(
+    readonly boxes: Box[],
+    private readonly cell = 16,
+    private readonly bigSide = 256,
+  ) {
+    boxes.forEach((b, i) => {
+      if (b.max[0] - b.min[0] > bigSide || b.max[1] - b.min[1] > bigSide) {
+        this.big.push(i);
+        return;
+      }
+      for (const key of this.keys(b)) {
+        const list = this.cells.get(key);
+        if (list) list.push(i);
+        else this.cells.set(key, [i]);
+      }
+    });
+  }
+  private *keys(b: Box) {
+    const c = this.cell;
+    for (let x = Math.floor(b.min[0] / c); x <= Math.floor(b.max[0] / c); x++) for (let y = Math.floor(b.min[1] / c); y <= Math.floor(b.max[1] / c); y++) yield `${x},${y}`;
+  }
+  /** The first box that meets b, or -1. */
+  firstMeeting(b: Box): number {
+    for (const i of this.big) if (meetsBox(this.boxes[i], b)) return i;
+    // A box bigger than the grid is meant for: every box, once.
+    if (b.max[0] - b.min[0] > this.bigSide || b.max[1] - b.min[1] > this.bigSide) return this.boxes.findIndex((x) => meetsBox(x, b));
+    let best = -1;
+    for (const key of this.keys(b)) for (const i of this.cells.get(key) ?? []) if ((best < 0 || i < best) && meetsBox(this.boxes[i], b)) best = i;
+    return best;
+  }
+  /** The box around them all; null when there are none. */
+  extent(): Box | null {
+    if (!this.boxes.length) return null;
+    const min = [Infinity, Infinity, Infinity];
+    const max = [-Infinity, -Infinity, -Infinity];
+    for (const b of this.boxes)
+      for (let k = 0; k < 3; k++) {
+        min[k] = Math.min(min[k], b.min[k]);
+        max[k] = Math.max(max[k], b.max[k]);
+      }
+    return { min, max };
+  }
 }
 
 /**
- * The sectors whose things reach into a sector: every sector whose streaming box meets the box around this
- * sector's things, kept when at least one of its things' boxes meets that box too (or, with no box, stands
- * in it). Groups in order: neighbours (same kind and level), other levels, interiors or exteriors, other,
- * and global (quest and always loaded) last; nearest first within each.
+ * The sectors whose things reach into a sector (sector-overlaps.md, O1). The footprint is the sector's own
+ * detail things, each by its own box (helpers and proxies only when asked, wrong boxes never), grown by the
+ * margin; with an area, the area alone. A candidate is a sector whose streaming box meets the footprint's
+ * extent; it is kept when one of its things (by the same roles) meets a footprint box, or, with no box of its
+ * own, stands in one. Each kept sector carries its first matches, for Why. Groups in order: neighbours (same
+ * kind and level), other levels, interiors or exteriors, other, and global (quest and always loaded) last;
+ * nearest first within each.
  */
 export async function findOverlaps(bridge: Bridge, sector: SectorRef | string, o: OverlapOptions): Promise<OverlapLayer[]> {
   const ref = typeof sector === "string" ? { path: sector } : sector;
-  const own = boxAround(await thingBoxes(bridge, ref, null));
-  if (!own) return [];
+  const margin = Math.max(0, o.margin ?? 0);
+  const helpers = !!o.helpers;
+  const proxies = !!o.proxies;
+  const matchLimit = o.matchLimit ?? 50;
+  const mine = thingsOf(await thingTable(bridge, ref, null));
+  const footprintThings = o.area ? [] : mine.filter((t) => !t.byPosition && takesPart(t, helpers, proxies));
+  const area: Box | null = o.area ? { min: o.area.min.slice(0, 3), max: o.area.max.slice(0, 3) } : null;
+  const grid = new BoxGrid(area ? [grown(area, margin)] : footprintThings.map((t) => grown(t.box, margin)));
+  const own = grid.extent();
+  const leftOut = mine.filter((t) => t.leftOut).map((t) => ({ entry: t.entry, class: t.class, ...(t.resource ? { resource: t.resource } : {}), why: t.leftOut! }));
+  const query: OverlapQuery = {
+    sector: ref.path,
+    scope: area ? "area" : "sector",
+    ...(area ? { area } : {}),
+    margin,
+    helpers,
+    proxies,
+    footprint: footprintThings.length,
+    things: { total: mine.length, boxes: mine.filter((t) => !t.byPosition && !t.leftOut).length, byPosition: mine.filter((t) => t.byPosition && !t.leftOut).length, leftOut: leftOut.length },
+    leftOut,
+    box: own,
+    candidates: 0,
+    via: "streaming",
+  };
+  if (!own) {
+    o.onQuery?.(query);
+    return [];
+  }
   const all = await allSectors(bridge);
   const me = all.find((s) => s.path.toLowerCase() === ref.path.toLowerCase());
   const kind = me?.kind ?? "exterior";
@@ -510,6 +727,14 @@ export async function findOverlaps(bridge: Bridge, sector: SectorRef | string, o
   const candidates = [...byPath.values()]
     .map((s) => ({ s, group: groupOf(s), distance: Math.hypot(...mid(s.box).map((v, i) => v - ownMid[i])) }))
     .sort((a, b) => GroupOrder.indexOf(a.group) - GroupOrder.indexOf(b.group) || a.distance - b.distance);
+  query.candidates = candidates.length;
+  o.onQuery?.(query);
+  /** A footprint box's thing, for Why: null for the area. */
+  const footprintThing = (i: number): OverlapThing | null => {
+    if (area) return null;
+    const { leftOut: _l, ...t } = footprintThings[i];
+    return t;
+  };
   const found: OverlapLayer[] = [];
   let done = 0;
   o.onProgress?.(0, candidates.length);
@@ -517,19 +742,19 @@ export async function findOverlaps(bridge: Bridge, sector: SectorRef | string, o
     if (o.stopped?.()) break;
     let reach = 0;
     let byPosition = 0;
+    let leftOutThere = 0;
+    const matches: OverlapMatch[] = [];
     try {
-      const t = await thingBoxes(bridge, { path: c.s.path }, o.cacheDir);
-      const b: Box = { min: [0, 0, 0], max: [0, 0, 0] };
-      for (let i = 0; i < t.b.length; i += 6) {
-        b.min = t.b.slice(i, i + 3);
-        b.max = t.b.slice(i + 3, i + 6);
-        if (meetsBox(b, own)) reach++;
-      }
-      for (let i = 0; i < t.p.length; i += 3) {
-        const q = t.p.slice(i, i + 3);
-        if ([0, 1, 2].every((k) => q[k] >= own.min[k] && q[k] <= own.max[k])) {
-          reach++;
-          byPosition++;
+      for (const t of thingsOf(await thingTable(bridge, { path: c.s.path }, o.cacheDir))) {
+        if (t.leftOut) leftOutThere++;
+        if (!takesPart(t, helpers, proxies)) continue;
+        const hit = grid.firstMeeting(t.box);
+        if (hit < 0) continue;
+        reach++;
+        if (t.byPosition) byPosition++;
+        if (matches.length < matchLimit) {
+          const { leftOut: _l, ...thing } = t;
+          matches.push({ thing, meets: footprintThing(hit) });
         }
       }
     } catch {
@@ -537,7 +762,7 @@ export async function findOverlaps(bridge: Bridge, sector: SectorRef | string, o
     }
     done++;
     if (reach) {
-      const layer: OverlapLayer = { path: c.s.path, kind: c.s.kind, level: c.s.level, group: c.group, reach, byPosition, variants: c.s.variants ?? 0, replaces: !!c.s.replaces, distance: Math.round(c.distance) };
+      const layer: OverlapLayer = { path: c.s.path, kind: c.s.kind, level: c.s.level, group: c.group, reach, byPosition, variants: c.s.variants ?? 0, replaces: !!c.s.replaces, distance: Math.round(c.distance), matches, leftOut: leftOutThere };
       found.push(layer);
       o.onLayer?.(layer);
     }

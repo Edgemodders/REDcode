@@ -458,7 +458,7 @@
         openFile: (path) => request("sectorFile", { path }),
         stopScript: () => request("sectorScriptStop"),
         // Sector layers (docs/design/sector-layers.md): find them, turn them on, open one.
-        overlaps: () => request("sectorOverlaps"),
+        overlaps: (options) => request("sectorOverlaps", { options }),
         layers: (paths) => request("sectorLayers", { layers: paths }),
         openSector: (path) => request("sectorOpen", { path }),
         // Show in Game, and each pick sent along to EDGEbuilder in the game (docs/design/sector-tools.md, L1).

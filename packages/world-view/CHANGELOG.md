@@ -4,6 +4,15 @@ What changed in each release of `@edgemodders/world-view`. Changes are grouped a
 
 ## Unreleased
 
+**Changed**
+
+- `findOverlaps` matches thing to thing (REDcode's `docs/design/sector-overlaps.md`, O1): the footprint is the sector's own detail things, each by its own box, in a grid; helpers and proxies take part only with `helpers` or `proxies`; boxes that are not numbers, inside out, over 2 km or worked out at the origin are left out. New options `margin`, `area`, `matchLimit` and `onQuery`. Each layer carries its first `matches` (its thing and the thing it meets, or null for the area) and a `leftOut` count. The per-sector cache is a new version (`<hash>-v2.json`, with each thing's entry, class and file); the old files are not read.
+
+**New**
+
+- `roleOf(class)`: detail, proxy, helper or unknown, by node class.
+- The page half's `volume.set(box)` puts a box there as if drawn, with its handles.
+
 ## 0.1.0 (2026-11-25)
 
 The first release: what draws the sector view of REDcode 0.10.17.

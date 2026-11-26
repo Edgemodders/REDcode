@@ -11,6 +11,8 @@ export interface Volume {
   start(): void;
   /** Takes the box out, or stops a drawing under way. */
   clear(): void;
+  /** Puts a box there as if drawn (typed numbers, a box around the camera), with its handles; onChange fires. */
+  set(box: THREE.Box3): void;
   /** The box, once its base is drawn; null when there is none. */
   readonly box: THREE.Box3 | null;
   /** Armed or drawing: the pointer belongs to the tool until the box is done. */
@@ -273,6 +275,15 @@ export function createVolume(host: VolumeHost): Volume {
       phase = "armed";
     },
     clear,
+    set(b) {
+      phase = "done";
+      base = null;
+      height = null;
+      drag = null;
+      box = b.clone();
+      show();
+      emit();
+    },
     get box() {
       return box ? box.clone() : null;
     },

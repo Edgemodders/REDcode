@@ -40,11 +40,25 @@ export type SectorMessage =
   | { type: "sectorProgress"; phase?: "reading" | "exporting"; done: number; total: number; etaMs?: number; current?: string }
   | { type: "sectorDone"; skipped: { id: string; why: string }[]; sectors: string[] }
   | { type: "sectorScript"; state: "running" | "done" | "applied"; name: string; done?: number; total?: number; note?: string; selected?: number[] | null; selectedIds?: string[] | null; line?: string }
+  | { type: "sectorOverlapQuery"; query: OverlapQuery }
   | { type: "sectorOverlapLayer"; layer: OverlapLayer }
   | { type: "sectorOverlapProgress"; done: number; total: number }
   | { type: "sectorOverlapDone"; count: number; error?: string };
 
-/** A sector whose things reach into the opened one (docs/design/sector-layers.md). */
+type GameBox = { min: number[]; max: number[] };
+
+/** A thing in a match (the package's OverlapThing): game axes, Z up. */
+export interface OverlapThing {
+  entry: number;
+  class: string;
+  role: "detail" | "proxy" | "helper" | "unknown";
+  resource?: string;
+  box: GameBox;
+  byPosition?: boolean;
+  group?: boolean;
+}
+
+/** A sector whose things reach into the opened one (docs/design/sector-layers.md, sector-overlaps.md O1). */
 export interface OverlapLayer {
   path: string;
   kind: string;
@@ -55,8 +69,36 @@ export interface OverlapLayer {
   variants: number;
   replaces: boolean;
   distance: number;
+  /** Why it is listed: its first things that matched, each with the opened sector's thing it meets (null: the area). */
+  matches: { thing: OverlapThing; meets: OverlapThing | null }[];
+  leftOut: number;
   /** The project has its own copy, which is the one drawn. */
   project?: boolean;
+}
+
+/** The search as the host ran it (the package's OverlapQuery), for Copy Diagnostics. */
+export interface OverlapQuery {
+  sector: string;
+  scope: "sector" | "area";
+  area?: GameBox;
+  margin: number;
+  helpers: boolean;
+  proxies: boolean;
+  footprint: number;
+  things: { total: number; boxes: number; byPosition: number; leftOut: number };
+  leftOut: { entry: number; class: string; resource?: string; why: string }[];
+  box: GameBox | null;
+  candidates: number;
+  via: "streaming";
+}
+
+/** The Overlaps tab's settings, sent with each search. */
+export interface OverlapSettings {
+  margin: number;
+  helpers: boolean;
+  proxies: boolean;
+  /** Area: the box in the game's axes; null for the whole sector. */
+  area: GameBox | null;
 }
 
 export interface SectorSource {
@@ -95,8 +137,8 @@ export interface SectorSource {
   openFile?(path: string): Promise<unknown>;
   /** Stop: ends the running script. */
   stopScript?(): Promise<unknown>;
-  /** The Overlaps tab: the host finds the sectors whose things reach in, and sends them as it finds them. */
-  overlaps?(): Promise<unknown>;
+  /** The Overlaps tab: the host finds the sectors whose things reach in, and sends them as it finds them. A new search stops the last. */
+  overlaps?(settings?: OverlapSettings): Promise<unknown>;
   /** The layers turned on (Ghost or Shown), by game path: the host loads them beside the opened sector. */
   layers?(paths: string[]): Promise<unknown>;
   /** A layer's Open: its sector in its own tab. */
@@ -769,17 +811,132 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
   const collapsed = new Set<string>(["global"]);
   let overlapsStarted = false;
   let overlapRun: { done: number; total: number; finished: boolean; error?: string } = { done: 0, total: 0, finished: false };
+  /** The search as the host ran it, for Copy Diagnostics. */
+  let overlapQuery: OverlapQuery | null = null;
+  /** The tab's settings (docs/design/sector-overlaps.md, O1): helpers and proxies out, the strict test, the whole sector. */
+  const ovSettings = { scope: "sector" as "sector" | "area", margin: 0, helpers: false, proxies: false };
+  /** Layers whose Why list is open. */
+  const whyOpen = new Set<string>();
+  /** A Why line clicked on a layer that was off: what to select once the layer is drawn. */
+  let pendingWhy: { sector: string; entry: number }[] | null = null;
   const stateOf = (p: string): LayerState => layerState.get(p.toLowerCase()) ?? "off";
   const layerOf = (sector: string) => layers.find((l) => l.path.toLowerCase() === sector.toLowerCase());
   const shortSector = (p: string) => p.slice(p.lastIndexOf("\\") + 1).replace(/\.streamingsector$/i, "");
 
   const ovHead = el("div", "selhead ovhead");
   const ovStatus = el("span", "selcount ovstatus", "");
+  const ovCopy = iconButton(Icons.copy, "Copy Diagnostics: the search, its counts, what was left out and each layer's matches, as text");
   const ovAllOff = iconButton(Icons.clear, "All Off: turn every layer off");
-  ovHead.append(ovStatus, ovAllOff);
+  ovHead.append(ovStatus, ovCopy, ovAllOff);
+  // The search's settings: Sector or Area, Nearby, Helpers, Proxies.
+  const ovControls = el("div", "ovcontrols");
+  const scopeSector = button("Sector", "Sector: the sectors whose things meet this sector's own things, each by its own box", true);
+  const scopeArea = button("Area", "Area: the sectors whose things are in a box: the Volume, numbers typed below, or a box around the camera");
+  const checkBox = (label: string, title: string) => {
+    const box = el("label", "ovcheck");
+    box.title = title;
+    const input = el("input");
+    input.type = "checkbox";
+    box.append(input, document.createTextNode(label));
+    return { box, input };
+  };
+  const nearbyBox = el("label", "ovcheck");
+  nearbyBox.title = "Nearby: metres every box grows by before the test. 0 finds only things that touch";
+  const nearby = el("input");
+  nearby.type = "number";
+  nearby.min = "0";
+  nearby.step = "1";
+  nearby.value = "0";
+  nearby.className = "num ovnum";
+  nearbyBox.append(document.createTextNode("Nearby"), nearby, document.createTextNode("m"));
+  const helpersCheck = checkBox("Helpers", "Helpers: occluders, collision, sound, navigation, crowds, areas and light volumes take part. Off: only what the game draws");
+  const proxiesCheck = checkBox("Proxies", "Proxies: the stand-in meshes the game draws from far take part");
+  ovControls.append(scopeSector, scopeArea, nearbyBox, helpersCheck.box, proxiesCheck.box);
+  // Area: the Volume's box in the game's axes, typed or set around the camera; the same box the Volume tool draws.
+  const ovArea = el("div", "ovarea");
+  ovArea.hidden = true;
+  const areaInputs = ["min X", "min Y", "min Z", "max X", "max Y", "max Z"].map((name) => {
+    const i = el("input");
+    i.type = "number";
+    i.step = "1";
+    i.className = "num ovnum";
+    i.placeholder = name;
+    i.title = `The area's ${name}, in the game's metres (Z up)`;
+    return i;
+  });
+  const camButton = button("Camera", "Camera: the area as a box around what the camera looks at (the point it orbits), the radius each way");
+  const radiusBox = el("label", "ovcheck");
+  radiusBox.title = "The box around the camera: metres each way";
+  const radius = el("input");
+  radius.type = "number";
+  radius.min = "1";
+  radius.value = "50";
+  radius.className = "num ovnum";
+  radiusBox.append(radius, document.createTextNode("m"));
+  ovArea.append(el("span", "dim", "Min"), ...areaInputs.slice(0, 3), el("span", "dim", "Max"), ...areaInputs.slice(3), camButton, radiusBox);
+  const ovNote = el("div", "dim ovnote", "Found by streaming boxes: a thing past its own sector's box is not seen.");
+  ovNote.title = "Sectors are tested when their streaming box meets the searched box. The world index, still to come, finds the rest";
   const ovList = el("div", "selrows ovlist");
   const ovEmpty = el("div", "dim selempty", "");
-  ovPane.append(ovHead, ovList, ovEmpty);
+  ovPane.append(ovHead, ovControls, ovArea, ovNote, ovList, ovEmpty);
+
+  /** The volume (glTF axes, Y up) as a box in the game's axes (Z up), and back. */
+  const gameBoxOf = (b: THREE.Box3): GameBox => ({ min: [b.min.x, -b.max.z, b.min.y], max: [b.max.x, -b.min.z, b.max.y] });
+  const gltfBoxOf = (g: GameBox) => new THREE.Box3(new THREE.Vector3(g.min[0], g.min[2], -g.max[1]), new THREE.Vector3(g.max[0], g.max[2], -g.min[1]));
+  const fillArea = () => {
+    const b = view.volume.box;
+    const g = b ? gameBoxOf(b) : null;
+    areaInputs.forEach((i, k) => {
+      if (document.activeElement !== i) i.value = g ? String(Math.round((k < 3 ? g.min[k] : g.max[k - 3]) * 10) / 10) : "";
+    });
+  };
+  let runTimer: ReturnType<typeof setTimeout> | undefined;
+  const scheduleRun = (ms = 400) => {
+    clearTimeout(runTimer);
+    runTimer = setTimeout(() => runOverlaps(), ms);
+  };
+  const setScope = (scope: "sector" | "area") => {
+    ovSettings.scope = scope;
+    scopeSector.classList.toggle("on", scope === "sector");
+    scopeArea.classList.toggle("on", scope === "area");
+    ovArea.hidden = scope !== "area";
+    fillArea();
+    scheduleRun(0);
+  };
+  scopeSector.addEventListener("click", () => setScope("sector"));
+  scopeArea.addEventListener("click", () => setScope("area"));
+  nearby.addEventListener("change", () => {
+    const n = Number(nearby.value);
+    ovSettings.margin = Number.isFinite(n) && n > 0 ? n : 0;
+    nearby.value = String(ovSettings.margin);
+    scheduleRun(0);
+  });
+  helpersCheck.input.addEventListener("change", () => {
+    ovSettings.helpers = helpersCheck.input.checked;
+    scheduleRun(0);
+  });
+  proxiesCheck.input.addEventListener("change", () => {
+    ovSettings.proxies = proxiesCheck.input.checked;
+    scheduleRun(0);
+  });
+  for (const i of areaInputs)
+    i.addEventListener("change", () => {
+      const v = areaInputs.map((x) => Number(x.value));
+      if (areaInputs.some((x) => x.value.trim() === "") || !v.every(Number.isFinite)) return;
+      const g = { min: v.slice(0, 3).map((x, k) => Math.min(x, v[k + 3])), max: v.slice(0, 3).map((x, k) => Math.max(x, v[k + 3])) };
+      view.volume.set(gltfBoxOf(g));
+    });
+  camButton.addEventListener("click", () => {
+    const r = Math.max(1, Number(radius.value) || 50);
+    // The point it orbits: a framed view's camera stands far off, often in the air.
+    const [x, y, z] = view.camera.pose.target;
+    view.volume.set(new THREE.Box3(new THREE.Vector3(x - r, y - r, z - r), new THREE.Vector3(x + r, y + r, z + r)));
+  });
+  // The volume drawn, moved or typed: the numbers follow, and Area searches again once it settles.
+  view.volume.onChange(() => {
+    fillArea();
+    if (ovSettings.scope === "area" && overlapsStarted) scheduleRun(800);
+  });
 
   const sendLayers = () => {
     const on = layers.filter((l) => stateOf(l.path) !== "off").map((l) => l.path);
@@ -826,12 +983,23 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
       ovStatus.replaceChildren(el("span", "makespin"), document.createTextNode(overlapRun.total ? ` Checking ${overlapRun.done.toLocaleString()} of ${overlapRun.total.toLocaleString()}…` : " Finding the sectors…"));
       ovStatus.title = "Each sector is read once and kept, so this place is quicker next time";
     } else {
-      ovStatus.textContent = overlapRun.error ? `Could not finish: ${overlapRun.error}` : `${n.toLocaleString()} sector${n === 1 ? "" : "s"} reach in`;
-      ovStatus.title = "";
+      const area = ovSettings.scope === "area";
+      ovStatus.textContent = overlapRun.error ? `Could not finish: ${overlapRun.error}` : area && !overlapQuery ? "Area: no box yet" : `${n.toLocaleString()} sector${n === 1 ? "" : "s"} ${area ? "in the area" : "reach in"}`;
+      const q = overlapQuery;
+      ovStatus.title = q
+        ? `${q.scope === "area" ? "The area" : `${q.footprint.toLocaleString()} of this sector's things`} tested against ${q.candidates.toLocaleString()} sectors.${q.things.leftOut ? ` ${q.things.leftOut} of this sector's things left out (Copy Diagnostics names them).` : ""}`
+        : "";
     }
+    ovCopy.hidden = !overlapQuery || !overlapRun.finished || !source.copy;
     ovAllOff.hidden = !layers.some((l) => stateOf(l.path) !== "off");
     ovEmpty.hidden = n > 0 || !overlapRun.finished;
-    ovEmpty.textContent = overlapRun.error ? "" : "No other sector's things reach into this one.";
+    ovEmpty.textContent = overlapRun.error
+      ? ""
+      : ovSettings.scope === "area"
+        ? overlapQuery
+          ? "No other sector's things are in the area."
+          : "Draw a Volume, type a box above, or click Camera."
+        : "No other sector's things reach into this one.";
     const out: HTMLElement[] = [];
     for (const g of GroupOrder) {
       const list = layers.filter((l) => l.group === g);
@@ -854,7 +1022,16 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
       for (const l of list) {
         const row = el("div", "ovrow");
         const state = stateOf(l.path);
-        row.title = `${l.path}\nLevel ${l.level}, ${l.kind}. ${l.reach.toLocaleString()} of its things reach into this sector${l.byPosition ? ` (${l.byPosition.toLocaleString()} have no box and count by where they stand)` : ""}.${l.variants ? `\n${l.variants} named variant(s): node ranges a quest switches on or off.` : ""}${l.replaces ? "\nPhantom Liberty's copy, which the game streams in place of the base game's." : ""}${l.project ? "\nThe project's own copy is the one drawn." : ""}`;
+        const open = whyOpen.has(l.path.toLowerCase());
+        const where = ovSettings.scope === "area" ? "are in the area" : "meet this sector's things";
+        row.title = `${l.path}\nLevel ${l.level}, ${l.kind}. ${l.reach.toLocaleString()} of its things ${where}${l.byPosition ? ` (${l.byPosition.toLocaleString()} have no box and count by where they stand)` : ""}.${l.leftOut ? `\n${l.leftOut.toLocaleString()} of its things have a box that is wrong and were left out.` : ""}${l.variants ? `\n${l.variants} named variant(s): node ranges a quest switches on or off.` : ""}${l.replaces ? "\nPhantom Liberty's copy, which the game streams in place of the base game's." : ""}${l.project ? "\nThe project's own copy is the one drawn." : ""}\nClick for why it is listed.`;
+        row.addEventListener("click", () => {
+          const key = l.path.toLowerCase();
+          if (whyOpen.has(key)) whyOpen.delete(key);
+          else whyOpen.add(key);
+          renderOverlaps();
+        });
+        row.appendChild(el("span", "ovcaret", open ? "▾" : "▸"));
         const name = el("span", "selname", shortSector(l.path));
         const meta = el("span", "dim ovmeta", `${l.reach.toLocaleString()}`);
         meta.title = "Things that reach in";
@@ -872,18 +1049,107 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
           row.appendChild(open);
         }
         out.push(row);
+        if (open) out.push(...whyLines(l));
       }
     }
     ovList.replaceChildren(...out);
   };
-  const startOverlaps = () => {
-    if (overlapsStarted || !source.overlaps) return;
+
+  // ---- Why: each layer's matches, a click selecting both things (sector-overlaps.md, O1) ----
+  const fmtBox = (b: GameBox) => `${b.min.map((v) => Math.round(v * 10) / 10).join(", ")} .. ${b.max.map((v) => Math.round(v * 10) / 10).join(", ")}`;
+  const thingName = (t: OverlapThing) => (t.resource ? fileName(t.resource) : t.class.replace(/^world/, ""));
+  const thingTip = (t: OverlapThing, sector: string) =>
+    `${shortSector(sector)} #${t.entry}: ${t.class} (${t.role})${t.resource ? `\n${t.resource}` : ""}\n${t.byPosition ? `stands at ${t.box.min.map((v) => Math.round(v * 10) / 10).join(", ")} (no box: its position counts)` : `box ${fmtBox(t.box)}`}${t.group ? "\nAn instanced mesh: its box covers all its copies" : ""}`;
+  const whyLines = (l: OverlapLayer): HTMLElement[] => {
+    const lines: HTMLElement[] = [];
+    for (const m of l.matches) {
+      const line = el("div", "ovwhy");
+      line.append(el("span", "", `#${m.thing.entry} ${thingName(m.thing)}${m.thing.byPosition ? " (position)" : ""}${m.thing.group ? " (group)" : ""}`), el("span", "ovmeets", "↔"), el("span", "", m.meets ? `#${m.meets.entry} ${thingName(m.meets)}` : "the area"));
+      line.title = `${thingTip(m.thing, l.path)}\n\nmeets ${m.meets ? thingTip(m.meets, source.sector) : `the area ${overlapQuery?.area ? fmtBox(overlapQuery.area) : ""}`}${overlapQuery?.margin ? `\n(each box grown by ${overlapQuery.margin} m: Nearby)` : ""}\n\nClick to select ${m.meets ? "both" : "it"}${stateOf(l.path) === "off" ? "; the layer is turned on first" : ""}.`;
+      line.addEventListener("click", () => whyPick(l, m));
+      lines.push(line);
+    }
+    if (l.reach > l.matches.length) lines.push(el("div", "dim ovwhy", `and ${(l.reach - l.matches.length).toLocaleString()} more`));
+    return lines;
+  };
+  /** A sector's node data entry as the id it is drawn with: an instanced mesh by its first copy. */
+  const idIn = (sector: string, entry: number) => {
+    const own = `${sector}#${entry}`;
+    return drawnAs.has(own) || markerOf.has(own) || !drawnAs.has(`${own}.0`) ? own : `${own}.0`;
+  };
+  const selectThings = (things: { sector: string; entry: number }[]) => {
+    const ids = things.map((t) => idIn(t.sector, t.entry));
+    select(ids, ids[0]);
+    view.frame(ids);
+  };
+  const whyPick = (l: OverlapLayer, m: OverlapLayer["matches"][number]) => {
+    const things = [...(m.meets ? [{ sector: source.sector, entry: m.meets.entry }] : []), { sector: l.path, entry: m.thing.entry }];
+    if (stateOf(l.path) === "off") {
+      // Drawn first: the selection waits for the layer to load.
+      pendingWhy = things;
+      setLayers([l], "shown");
+      return;
+    }
+    selectThings(things);
+  };
+
+  ovCopy.addEventListener("click", () => {
+    const q = overlapQuery;
+    if (!q || !source.copy) return;
+    const lines = [
+      `Overlaps of ${q.sector}`,
+      `Scope: ${q.scope === "area" && q.area ? `area ${fmtBox(q.area)}` : "the whole sector"}; Nearby ${q.margin} m; Helpers ${q.helpers ? "on" : "off"}; Proxies ${q.proxies ? "on" : "off"}`,
+      `This sector: ${q.things.total} things, ${q.things.boxes} with a box, ${q.things.byPosition} by position only, ${q.things.leftOut} left out; the footprint ${q.footprint} things${q.box ? `, extent ${fmtBox(q.box)}` : ""}`,
+      `Candidates: ${q.candidates} sectors whose streaming box meets that extent (found by streaming boxes: a thing past its own sector's box is not seen)`,
+      ...(q.leftOut.length ? ["Left out in this sector:", ...q.leftOut.map((t) => `  #${t.entry} ${t.class}${t.resource ? ` ${t.resource}` : ""}: ${t.why}`)] : []),
+      `Layers: ${layers.length}`,
+    ];
+    for (const g of GroupOrder)
+      for (const l of layers.filter((x) => x.group === g)) {
+        lines.push(`${GroupInfo[g].name}: ${l.path} (level ${l.level}, ${l.kind}): ${l.reach} things${l.byPosition ? `, ${l.byPosition} by position` : ""}${l.leftOut ? `, ${l.leftOut} left out there` : ""}`);
+        for (const m of l.matches) lines.push(`  #${m.thing.entry} ${m.thing.class}${m.thing.resource ? ` ${m.thing.resource}` : ""} [${fmtBox(m.thing.box)}]${m.thing.byPosition ? " by position" : ""}${m.thing.group ? " group box" : ""} meets ${m.meets ? `#${m.meets.entry} ${m.meets.class}${m.meets.resource ? ` ${m.meets.resource}` : ""} [${fmtBox(m.meets.box)}]` : "the area"}`);
+        if (l.reach > l.matches.length) lines.push(`  and ${l.reach - l.matches.length} more`);
+      }
+    source.copy(lines.join("\n")).catch((e) => source.say?.(e instanceof Error ? e.message : String(e)));
+  });
+
+  /** A search with the tab's settings; a new one stops the last. Layers still found keep their state, the rest go off when it ends. */
+  const runOverlaps = () => {
+    if (!source.overlaps) return;
     overlapsStarted = true;
+    const box = view.volume.box;
+    const area = ovSettings.scope === "area" ? (box ? gameBoxOf(box) : null) : null;
+    layers.length = 0;
+    overlapQuery = null;
+    whyOpen.clear();
+    if (ovSettings.scope === "area" && !area) {
+      overlapRun = { done: 0, total: 0, finished: true };
+      dropGoneLayers();
+      renderOverlaps();
+      return;
+    }
+    overlapRun = { done: 0, total: 0, finished: false };
     renderOverlaps();
-    source.overlaps().catch((e) => {
+    source.overlaps({ margin: ovSettings.margin, helpers: ovSettings.helpers, proxies: ovSettings.proxies, area }).catch((e) => {
       overlapRun = { ...overlapRun, finished: true, error: e instanceof Error ? e.message : String(e) };
       renderOverlaps();
     });
+  };
+  /** After a search: a layer turned on that it no longer lists is turned off and unloaded. */
+  const dropGoneLayers = () => {
+    let gone = false;
+    for (const [key, state] of layerState) {
+      if (state === "off" || layerOf(key)) continue;
+      layerState.set(key, "off");
+      view.setSectorLook(key, null);
+      loadingLayers.delete(key);
+      gone = true;
+    }
+    if (gone) sendLayers();
+  };
+  const startOverlaps = () => {
+    if (overlapsStarted || !source.overlaps) return;
+    runOverlaps();
   };
   ovTab.hidden = !source.overlaps;
   const MaxRows = 500;
@@ -1383,6 +1649,10 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
         case "sectorScript":
           showScript(m);
           return;
+        case "sectorOverlapQuery":
+          overlapQuery = m.query;
+          renderOverlaps();
+          return;
         case "sectorOverlapLayer":
           if (!layerOf(m.layer.path)) layers.push(m.layer);
           renderOverlaps();
@@ -1393,6 +1663,7 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
           return;
         case "sectorOverlapDone":
           overlapRun = { ...overlapRun, finished: true, error: m.error };
+          dropGoneLayers();
           renderOverlaps();
           return;
         case "sectorDone":
@@ -1400,6 +1671,12 @@ export async function mountSector(container: HTMLElement, source: SectorSource):
           if (loadingLayers.size) {
             loadingLayers.clear();
             renderOverlaps();
+          }
+          // A Why line clicked while its layer was off: once a load that drew the layer ends.
+          if (pendingWhy && m.sectors.some((s) => pendingWhy!.some((t) => t.sector.toLowerCase() === s.toLowerCase() && t.sector.toLowerCase() !== source.sector.toLowerCase()))) {
+            const things = pendingWhy;
+            pendingWhy = null;
+            selectThings(things);
           }
           {
             const all = [...m.skipped, ...failed];

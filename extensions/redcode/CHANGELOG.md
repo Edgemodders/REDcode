@@ -16,6 +16,9 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 **Changed**
 
+- **Overlaps match thing to thing** (a modder's report): a sector is listed when one of its things meets one of the opened sector's own things, each by its own box, not a box around the whole sector. Occluders, collision and other helpers, and the stand-in meshes for distance (proxies), take part only when **Helpers** or **Proxies** is ticked. A box that is plainly wrong, such as an occluder placed at the world's origin, is left out and named. Lists are shorter and right: `exterior_-11_11_0_1` no longer lists `exterior_-6_6_0_1`. The first search after the update reads each sector once more.
+- **Why** under each listed sector: its things that matched and the opened sector's things they meet; a click selects both. **Copy Diagnostics** copies the search, its counts, what was left out and every match.
+- **Nearby** grows each box by a few metres, and **Area** searches a box: the Volume, typed numbers, or a box round the point the camera looks at.
 - Sector scripts: REDcode now knows a script by what it says, not only by its file. A script changed outside REDcode since you let it run, such as one an assistant rewrote, is shown and asked about again before it runs. A script you save in VS Code's editor stays known. Scripts let run in 0.10.17 are asked about once more.
 
 ## 0.10.17 (2026-11-25)

@@ -1658,6 +1658,65 @@ await check("sector layers: findOverlaps keeps sectors whose things reach in, in
   assert.deepEqual(calls.filter((c) => c.startsWith("sector.nodes")), ["sector.nodes own.streamingsector"]);
 });
 
+await check("sector overlaps O1: thing to thing, by role, wrong boxes left out, Nearby, Area, and why", async () => {
+  const box = (a, b) => ({ min: a, max: b });
+  let n = 0;
+  const thing = (kind, min, max, extra = {}) => ({ index: n++, node: 0, kind, resource: `${kind}.mesh`, transform: { position: extra.position ?? min, rotation: [0, 0, 0, 1] }, bounds: max ? box(min, max) : null, ...extra });
+  const world = box([-2000, -2000, -2000], [2000, 2000, 2000]);
+  const sectors = ["own", "gap", "above", "helper", "bridge", "far", "proxy", "near"].map((p) => ({ path: `${p}.streamingsector`, kind: "exterior", level: 0, box: world }));
+  const items = {
+    // Two groups 1 km apart, and an occluder at the origin whose box is worked out there (probe O0's case).
+    "own.streamingsector": [
+      thing("worldMeshNode", [0, 0, 0.5], [10, 10, 10]),
+      thing("worldMeshNode", [1000, 0, 0], [1010, 10, 10]),
+      thing("worldInstancedOccluderNode", [0, 0, 0], [0, 1, 1]),
+      thing("worldCookedCollisionNode", [500, 0, 0], [510, 10, 10]),
+    ],
+    // In the gap between the groups: inside the box around them, touching neither.
+    "gap.streamingsector": [thing("worldMeshNode", [500, 0, 0], [510, 10, 10])],
+    // Straight above the first group, with Z ranges apart.
+    "above.streamingsector": [thing("worldMeshNode", [0, 0, 20], [10, 10, 30])],
+    // A helper on the first group: only with Helpers on.
+    "helper.streamingsector": [thing("worldCookedCollisionNode", [2, 2, 2], [4, 4, 4])],
+    // A long thing from elsewhere reaching into the second group.
+    "bridge.streamingsector": [thing("worldCookedStaticMeshNode", [900, 2, 2], [1005, 4, 4])],
+    // 3 m from the first group: only with Nearby 5.
+    "near.streamingsector": [thing("worldMeshNode", [13, 0, 0], [15, 10, 10])],
+    "far.streamingsector": [thing("worldMeshNode", [-1500, -1500, 0], [-1490, -1490, 10]), thing("worldEntityNode", [5, 5, 5], null, { resource: "x.ent" })],
+    "proxy.streamingsector": [thing("worldCookedGenericProxyMeshNode", [0, 0, 0], [12, 12, 12])],
+  };
+  const bridge = { request: async (method, params) => (method === "sector.find" ? { sectors } : { items: items[params.path] }) };
+  const cacheDir = path.join(tmp, "overlaps-o1");
+  const paths = (list) => list.map((l) => l.path.replace(".streamingsector", ""));
+  let query;
+  const strict = await wv.findOverlaps(bridge, "own.streamingsector", { cacheDir, onQuery: (q) => (query = q) });
+  assert.deepEqual(paths(strict).sort(), ["bridge", "far"], "the gap, the thing above, the helper, the near one and the proxy are not listed");
+  assert.equal(query.footprint, 2, "the two meshes make the footprint; the occluder and the collision do not");
+  assert.deepEqual(query.leftOut.map((t) => [t.class, /0, 0, 0/.test(t.why)]), [["worldInstancedOccluderNode", true]]);
+  const bridgeLayer = strict.find((l) => l.path === "bridge.streamingsector");
+  assert.equal(bridgeLayer.matches[0].meets.class, "worldMeshNode", "Why names the opened sector's thing it meets");
+  assert.deepEqual(bridgeLayer.matches[0].meets.box, box([1000, 0, 0], [1010, 10, 10]));
+  const farLayer = strict.find((l) => l.path === "far.streamingsector");
+  assert.equal(farLayer.reach, 1);
+  assert.equal(farLayer.byPosition, 1, "an entity counts by where it stands");
+  // Helpers, Proxies and Nearby each bring their own back.
+  assert.ok(paths(await wv.findOverlaps(bridge, "own.streamingsector", { cacheDir, helpers: true })).includes("helper"));
+  assert.ok(paths(await wv.findOverlaps(bridge, "own.streamingsector", { cacheDir, helpers: true })).includes("gap"), "with Helpers, the collision in the gap makes footprint");
+  assert.ok(paths(await wv.findOverlaps(bridge, "own.streamingsector", { cacheDir, proxies: true })).includes("proxy"));
+  const nearby = paths(await wv.findOverlaps(bridge, "own.streamingsector", { cacheDir, margin: 5 }));
+  assert.ok(nearby.includes("near") && !nearby.includes("above"), "Nearby 5 m finds the one 3 m off, not the one 10 m above");
+  // Area: the box alone, whatever the footprint.
+  let areaQuery;
+  const area = await wv.findOverlaps(bridge, "own.streamingsector", { cacheDir, area: box([495, -5, -5], [515, 15, 15]), onQuery: (q) => (areaQuery = q) });
+  assert.deepEqual(paths(area), ["gap"]);
+  assert.equal(area[0].matches[0].meets, null, "an area match meets the area");
+  assert.equal(areaQuery.scope, "area");
+  assert.equal(wv.roleOf("worldCookedGenericProxyMeshNode"), "proxy");
+  assert.equal(wv.roleOf("worldStaticOccluderMeshNode"), "helper");
+  assert.equal(wv.roleOf("worldStaticLightNode"), "detail");
+  assert.equal(wv.roleOf("worldLightChannelVolumeNode"), "helper");
+});
+
 await check("cr2wValues: a buffer REDbridge sends whole becomes a read-only tree, read below from the value", async () => {
   const cv = require("../dist/cr2wValues.js");
   const buffer = {

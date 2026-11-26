@@ -4,7 +4,7 @@ title: Sector overlaps and the world index
 
 # Sector overlaps and the world index
 
-Draft 0.1 for the owner, 2026-11-26. Not agreed yet; the decisions at the end are open.
+Agreed with the owner on 2026-11-26, with all five recommendations (the decisions at the end). O1 is built (2026-11-26, [as built](#o1-as-built)), hand test pending.
 
 A modder sent a bug report and a plan on 2026-11-26: the sector view's **Overlaps** tab ([Sector layers](sector-layers.html), L1) lists sectors that are nowhere near the one opened, and turning one on draws the whole other sector. The plan goes further: a shared index of the game's sectors and placed things, a Night City map over it, and reusable assemblies. This page is REDcode's answer: what is wrong, what changes, and how the index is built.
 
@@ -76,6 +76,31 @@ Also found:
 | **Groups and levels** | As now: Neighbours, Coarser, Interiors, Global, Other, each level in its own colour. Coarser levels are never mixed into the detail view without being switched on. |
 
 Candidates still come from streaming boxes until the index is built: the box around the footprint meets their streaming box. With helpers out and bad boxes left out, that box is the sector's real extent. The tab says when a list came this way: **Found by streaming boxes; things past their own sector's box are not seen.**
+
+### O1 as built
+
+Built 2026-11-26. In the package (`packages/world-view/src/host.ts`): `roleOf`, the per-sector cache in a second version (`<hash>-v2.json`: each thing's entry, class, file, flags and box; the old files are read no more), `BoxGrid` (16 m cells, boxes over 256 m kept apart), and `findOverlaps` with `margin`, `helpers`, `proxies`, `area`, `matchLimit` and `onQuery`. Each layer carries its first 50 `matches` and a `leftOut` count; the query carries the footprint, the counts and the opened sector's left-out things. In REDcode (`webview/sectorViewer.ts`): the tab's controls, Why, and Copy Diagnostics. The package's `volume.set` puts a box there as if drawn.
+
+**Roles** from the classes in five sectors (probe `tools/probes/sector-overlaps/classes.mjs`, 2026-11-26):
+
+| Role | Classes seen |
+|---|---|
+| Proxy | Any class with *Proxy* in its name: `worldCookedGenericProxyMeshNode` (617 in five sectors), `worldEntityProxyMeshNode`, `worldDestructibleProxyMeshNode`, `worldDestructibleEntityProxyMeshNode`, `worldBuildingProxyMeshNode` |
+| Helper | Occluders (`worldInstancedOccluderNode`, `worldStaticOccluderMeshNode`), collision, acoustics, AI spots, community and other areas, GI, traffic, crowd parking, sound emitters, fog volumes, reflection probes, interior maps, light channel volumes, population spawners, smart objects |
+| Detail | Meshes (instanced, cooked static, bended, rotating, terrain, `worldMeshNode`), advertisements, physical destruction, decals, lights, particles, entities and devices |
+
+Things with no box count **by position** only when they are entities, devices, decals, lights, particles or decorations. The only class seen at 0, 0, 0 with no copies read is `worldInstancedOccluderNode`: those are the things left out today (117 in `exterior_-3_2_0_3`). A box that is not a number, inside out or over 2 km on a side is left out too.
+
+**Changed from the page above:** Include proxies came forward from O3 as a **Proxies** checkbox in the tab, beside Helpers, since decision 2 keeps proxies out of searches and the matching had to know them already. O3 keeps the drawing switch. **Camera** in Area takes the box round the point the camera orbits, not the camera: a framed view's camera stands far off, often in the air. Area, typed numbers and Camera all set the Volume, so the box is drawn, its handles work, and it selects what is in it as the Volume tool does.
+
+**Measured** (REDbridge 0.19.0, `tools/probes/sector-overlaps/o1-check.mjs`):
+
+| Opened | Before | Now |
+|---|---|---|
+| `exterior_-11_11_0_1` | Lists `exterior_-6_6_0_1`; the box 1,440 × 1,549 m | 27 layers, `-6_6_0_1` not among them; the footprint 1,215 things, its extent 173 × 160 × 114 m; one thing left out (entry 899, the occluder) |
+| `exterior_-22_7_0_0` | 13 to 16 layers; `-21_7_0_0` with 10 things | 4 layers; `-21_7_0_0` with 3 things |
+
+The first search after the update reads every candidate again for the new cache: 47 s on `exterior_-22_7_0_0` (3,105 candidates, most of them quest sectors whose streaming box covers the city), then about 5 s.
 
 ## O2: draw only what matched
 
@@ -160,14 +185,14 @@ O1 and O2 come first, since they fix a released feature (Sector layers, 0.10.17)
 
 ## Requests to others
 
-- **REDbridge:** read the copies of every node kind that keeps its places in a buffer, starting with `worldInstancedOccluderNode`, so no box is worked out at the origin; a box per instanced copy; and a field saying where each box came from (the mesh, the group, none). To file when this page is agreed.
+- **REDbridge:** read the copies of every node kind that keeps its places in a buffer, starting with `worldInstancedOccluderNode`, so no box is worked out at the origin; a box per instanced copy; and a field saying where each box came from (the mesh, the group, none). Filed as [REDbridge #25](https://github.com/Edgemodders/REDbridge/issues/25) on 2026-11-26. REDcode does not wait on it.
 - **EDGEbuilder** (on [#11](https://github.com/Edgemodders/EDGEbuilder/issues/11)): its world map over this index (W2's calls and the shared folder), and assemblies from REDcode's selection, which keep each thing's id and transform.
 
 ## Tests
 
 From the modder's list, with what this page changes:
 
-1. **The example:** with `exterior_-11_11_0_1` open, `exterior_-6_6_0_1` is not listed. Copy Diagnostics names the two occluders under Left out.
+1. **The example:** with `exterior_-11_11_0_1` open, `exterior_-6_6_0_1` is not listed. Copy Diagnostics names the opened sector's occluder under Left out (the other sector's, no longer listed, is not named).
 2. **Two groups far apart:** things at x 0 to 10 and x 1000 to 1010 in the opened sector; a thing at x 500 to 510 elsewhere does not match.
 3. **A long thing over a boundary:** a bridge or road from a neighbour that reaches into the opened sector matches, and Why names both things.
 4. **Height:** things straight above or below each other with Z ranges apart do not match.
@@ -179,7 +204,9 @@ From the modder's list, with what this page changes:
 10. **The tools agree:** the same box gives the same things to REDcode, the MCP tools and EDGEbuilder.
 11. **Nothing else changed:** Frame All, selection, Volume, materials, coarser levels and a whole-sector layer work as before.
 
-## Decisions for the owner
+## Decisions
+
+All five agreed by the owner on 2026-11-26, as recommended.
 
 1. **Helpers out by default.** Occluders, collision, acoustics, navigation, crowd and light volumes take no part in matching unless Helpers is ticked. *Recommended.* This replaces L1's decision 1 (the box around the sector's things).
 2. **Proxies by default.** Off in searches and in layers. In the opened sector, Shown, as it is now, since that is the file being edited and hiding part of it would surprise. The switch turns them off there too. *Recommended.* The other choice is Off everywhere, the modder's own preference.

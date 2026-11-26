@@ -285,6 +285,8 @@ interface Request {
   value?: unknown;
   /** sectorLayers: the layers to draw beside the opened sector (docs/design/sector-layers.md). */
   layers?: string[];
+  /** sectorOverlaps: the Overlaps tab's settings (docs/design/sector-overlaps.md, O1). */
+  options?: { margin?: number; helpers?: boolean; proxies?: boolean; area?: { min: number[]; max: number[] } | null };
   /** sectorGame: Show in Game (focus) or the pick sent along (select), for a sector's node data entry. */
   sector?: string;
   entry?: number;
@@ -1061,16 +1063,27 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
             const cacheDir = path.join(await worldCacheDir(), "overlaps");
             let lastPost = 0;
             const t0 = Date.now();
+            // The tab's settings (docs/design/sector-overlaps.md, O1): Nearby, Helpers, Proxies, and an area for Area.
+            const opts = (m.options ?? {}) as { margin?: number; helpers?: boolean; proxies?: boolean; area?: { min: number[]; max: number[] } | null };
+            const area = opts.area && [...opts.area.min, ...opts.area.max].length === 6 && [...opts.area.min, ...opts.area.max].every(Number.isFinite) ? opts.area : null;
             void findOverlaps(bridge, sectorRef(sector), {
               cacheDir,
               stopped: () => run.stopped,
+              margin: Number.isFinite(opts.margin) ? Math.max(0, Number(opts.margin)) : 0,
+              helpers: !!opts.helpers,
+              proxies: !!opts.proxies,
+              area,
+              onQuery: (query) => {
+                if (!run.stopped) post({ type: "sectorOverlapQuery", query });
+              },
               onLayer: (layer) => {
+                if (run.stopped) return;
                 const own = layerRef(layer.path);
                 post({ type: "sectorOverlapLayer", layer: { ...layer, project: !!own.root } });
               },
               onProgress: (done, total) => {
                 const now = Date.now();
-                if (now - lastPost < 200 && done < total) return;
+                if (run.stopped || (now - lastPost < 200 && done < total)) return;
                 lastPost = now;
                 post({ type: "sectorOverlapProgress", done, total });
               },

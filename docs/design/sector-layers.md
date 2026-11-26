@@ -4,7 +4,7 @@ title: Sector layers
 
 # Sector layers: what else is in this place
 
-Draft 0.2. Agreed with the owner on 2026-11-24, with all five recommendations under Decisions; details may change in testing. **L1 to L4 are built** (L1 released in 0.10.17; L2, L3 and L4 on 2026-11-25, hand tests pending): see each stage's as built section. **The Overlaps tab's matching is being redone** after a modder's report (2026-11-26): see [Sector overlaps and the world index](sector-overlaps.html).
+Draft 0.2. Agreed with the owner on 2026-11-24, with all five recommendations under Decisions; details may change in testing. **L1 to L4 are built** (L1 released in 0.10.17; L2, L3 and L4 on 2026-11-25, hand tests pending): see each stage's as built section. **The Overlaps tab's matching was redone** after a modder's report (2026-11-26, O1 built, hand test pending): see [Sector overlaps and the world index](sector-overlaps.html).
 
 A modder sent the owner a feature request for a world editor that understands data across sectors (the "EDGEkit World Editor" request, 2026-11-24). Its point: one sector on its own does not show what the player sees. Many sectors, from several kinds and levels, add to one place. This page is REDcode's first part of the answer: the sectors that reach into the one you opened, drawn as layers you switch on, select in and edit.
 
@@ -150,7 +150,7 @@ The comparison (part 2, its own page next), copies that keep every field (4), as
 
 ## Decisions (taken 2026-11-24: the recommended one each time)
 
-1. **What "reaches in" means.** A thing whose bounds meet the box around the opened sector's own things. *Recommended:* this one. The other choice, the sector's streaming box, is a little larger and lists more.
+1. **What "reaches in" means.** A thing whose bounds meet the box around the opened sector's own things. *Recommended:* this one. The other choice, the sector's streaming box, is a little larger and lists more. **Replaced on 2026-11-26** by [Sector overlaps](sector-overlaps.html) decision 1 and O1: a thing that meets one of the opened sector's own detail things, each by its own box, helpers and proxies out unless asked, wrong boxes left out.
 2. **Undo across sectors.** Each sector changed gets its own undo step in its own tab. *Recommended:* this one, since it uses what VS Code already does. One Undo for a change over several sectors is possible, but REDcode would keep its own undo for it.
 3. **Scripts over layers.** Ask **This Sector** or **This Sector and Its Layers On** each run when layers are on. *Recommended.*
 4. **The Global group** (quest and always loaded): listed, collapsed, narrowed the same way. *Recommended.* Many quest sectors load only while their quest runs, so the group's heading says so.

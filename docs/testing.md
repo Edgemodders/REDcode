@@ -59,6 +59,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Sector scripts: a changed script](#sector-scripts-a-changed-script) | By hand | Sector scripts | 2026-11-25 | **Passed** (EDGEweb by script, H1 to H4, and its fix) |
 | [Sector layers L2 and L3](#sector-layers-l2-and-l3) | By hand | Sector layers L2 and L3 | 2026-11-25 | **Passed** (EDGEweb by script, L2-1 to L3-6, and its three fixes) |
 | [Sector layers L4 and Sector Tools L1](#sector-layers-l4-and-sector-tools-l1) | By hand, in the game | Sector layers L4 | | Not run (checked by script) |
+| [Sector overlaps O1](#sector-overlaps-o1) | By hand | Sector overlaps O1 | | Not run (checked by script and in Chrome over the real REDbridge) |
 | [The tree in its own tab](#the-tree-in-its-own-tab) | By hand | Sector view | 2026-11-26 | **Passed** (owner: "looks good"; the panel tab renamed Sector after it) |
 | [Animation Timeline TL2 to TL4](#animation-timeline-tl2-to-tl4) | By hand | Animation Timeline | 2026-11-25 | **Partly run**: T1 to T10 pass (EDGEweb by script) with their fixes, but trimming a move's end, fixed again and not run; the look (T2 to T4) is the owner's; T11 needs the game |
 | [Sector layers (L1)](#sector-layers-l1) | By hand | Sector layers L1 | 2026-11-25 | **Passed** (EDGEweb by script, L1 to L9; the owner, the ghosted look) |
@@ -1580,6 +1581,33 @@ F5 with **Run REDcode with Opens Test and EDGEmat** (the EDGEmat clone at `../ED
 | E5 | Disable EDGEmat (or run **Run REDcode with Opens Test (no other extensions)**), open the mesh again | No EDGEmat in the shading list; Own textures or Flat colours |
 
 Result, EDGEweb's session by script on 2026-11-25 (EDGEkit 1.143.1 trial on a scratch profile, REDcode at 30796ef, EDGEmat 0.3.4 at its main 0d32b58, both as dev paths, REDbridge 0.19.0, `q306__metal_pin_badge.mesh` in the scratch project; EDGEkit's built-in EDGEfab, EDGEhack, EDGEwave and REDsave ran beside them): **E1 to E5 pass**, the pictures looked at by this session. E1: "Flat colours, EDGEmat" with EDGEmat chosen, "EDGEmat: approximate", the badge in its orange-yellow metal. E2: a pale colour per material, then the look back. E3: the game's copy the same. E4: Open in EDGEmat opened the project's `.mlsetup` (multilayered) and put the mesh on the Desk; layer 0 recoloured to a light greyish blue and saved: REDcode's tab, never closed, drew the body grey-blue (the lit pixels' mean from (168,150,116) to (161,162,165)). E5: with REDcode alone the bar has no shading list (one choice only), and Open in EDGEmat stays, offering to install it. Found: with Flat colours chosen the note still said "EDGEmat: approximate"; it now shows only while EDGEmat's look is chosen (not run again).
+
+## Sector overlaps O1
+
+The Overlaps tab matched thing to thing (`docs/design/sector-overlaps.md`, O1, from a modder's report, agreed 2026-11-26).
+
+Checked 2026-11-26:
+
+- **Unit:** `npm test` in `extensions/redcode`, "sector overlaps O1" over a fake bridge: two groups 1 km apart with nothing matched in the gap, a thing above with Z ranges apart, a helper only with Helpers, a proxy only with Proxies, Nearby 5 m, the occluder at the origin under Left out, Area, and Why naming the thing met. 95 passed.
+- **Against the game** (`tools/probes/sector-overlaps/o1-check.mjs`, REDbridge 0.19.0): `exterior_-11_11_0_1` lists 27 sectors, not `exterior_-6_6_0_1`, with entry 899 the one thing left out; `exterior_-22_7_0_0` lists 4 (13 to 16 before), `-21_7_0_0` with 3 things (10 before).
+- **In Chrome** (the sector view's harness over the real REDbridge, on `exterior_-11_11_0_1`): the same 27; Copy Diagnostics' text names entry 899; a Why line on a layer that was off turned it on and selected both things once it loaded (fixed in the run: it first fired on the opened sector's own load); Area with no box says so; six typed numbers set the Volume and searched once (6 sectors); Camera searched round the point the camera orbits (16 sectors; round the camera itself, first, it was in the air and found none); Helpers on listed 34.
+
+Steps (F5, a sector from Game Assets; the first search after this update reads every sector again, about a minute):
+
+1. Open `exterior_-11_11_0_1`, the Overlaps tab. About 27 sectors are listed, and `exterior_-6_6_0_1` is not among them.
+2. Hover the status line: it says how many of this sector's things were tested against how many sectors, and that one thing was left out.
+3. Click Copy Diagnostics (the copy icon) and paste: the search, the counts, entry 899 `worldInstancedOccluderNode` under Left out, and each layer's matches with boxes.
+4. Click a row: its Why lines open, each thing of that sector beside the opened sector's thing it meets. Hover one for both boxes.
+5. Click a Why line on a layer that is Off: the layer turns Shown and, once drawn, both things are selected and framed.
+6. Tick **Helpers**: the list grows (about 34). Untick it. Tick **Proxies**: proxies take part. Untick it.
+7. Set **Nearby** to 10: more sectors. Back to 0.
+8. Click **Area**: with no Volume, it says to draw one, type one or click Camera. Click **Camera**: a 50 m box round the point the view orbits is drawn and searched. Drag its handles: the numbers follow and it searches again once it settles.
+9. Type the same six numbers again after clearing the Volume: the same list as step 8.
+10. Click **Sector**: the whole sector's list comes back. A layer that was on and is still listed stays on; one no longer listed goes off.
+11. Open `exterior_-22_7_0_0`: about 4 sectors, `exterior_-21_7_0_0` with about 3 things.
+12. Nothing else changed: Frame All, selection, Volume, materials, coarser levels and a layer turned on work as before.
+
+**Result:** not run.
 
 ## The tree in its own tab
 
