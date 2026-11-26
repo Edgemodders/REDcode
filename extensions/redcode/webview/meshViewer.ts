@@ -283,6 +283,8 @@ export async function mount(container: HTMLElement, source: MeshSource, title = 
     pick.addEventListener("change", async () => {
       shading = pick.value as Shading;
       if (shading === "edgemat" && rendered.size === 0) await loadRendered();
+      // EDGEmat's note speaks of its look: shown only while that look is chosen.
+      if (note2) note2.hidden = shading !== "edgemat";
       paint();
       setWireframe();
       renderSide();

@@ -1578,7 +1578,7 @@ F5 with **Run REDcode with Opens Test and EDGEmat** (the EDGEmat clone at `../ED
 | E4 | **Open in EDGEmat** in the bar; change a colour there and save it to the project (or on the Desk) | REDcode's view redraws by itself with the new colour, with the tab left open |
 | E5 | Disable EDGEmat (or run **Run REDcode with Opens Test (no other extensions)**), open the mesh again | No EDGEmat in the shading list; Own textures or Flat colours |
 
-Not run yet.
+Result, EDGEweb's session by script on 2026-11-25 (EDGEkit 1.143.1 trial on a scratch profile, REDcode at 30796ef, EDGEmat 0.3.4 at its main 0d32b58, both as dev paths, REDbridge 0.19.0, `q306__metal_pin_badge.mesh` in the scratch project; EDGEkit's built-in EDGEfab, EDGEhack, EDGEwave and REDsave ran beside them): **E1 to E5 pass**, the pictures looked at by this session. E1: "Flat colours, EDGEmat" with EDGEmat chosen, "EDGEmat: approximate", the badge in its orange-yellow metal. E2: a pale colour per material, then the look back. E3: the game's copy the same. E4: Open in EDGEmat opened the project's `.mlsetup` (multilayered) and put the mesh on the Desk; layer 0 recoloured to a light greyish blue and saved: REDcode's tab, never closed, drew the body grey-blue (the lit pixels' mean from (168,150,116) to (161,162,165)). E5: with REDcode alone the bar has no shading list (one choice only), and Open in EDGEmat stays, offering to install it. Found: with Flat colours chosen the note still said "EDGEmat: approximate"; it now shows only while EDGEmat's look is chosen (not run again).
 
 ## Never run
 
