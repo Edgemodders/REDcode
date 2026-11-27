@@ -16,6 +16,7 @@ What changed in each REDcode release. The release notes on GitHub, the stores an
 
 **Changed**
 
+- **Muscles** on the base male and female bodies in the animation view: the body's muscle and twist helpers move as the game moves them (its deformation graph, matched to the game's own pose within a median of 1.6 mm), so the shoulders and chest no longer fold with the arms crossed. Muscles turns it off to compare. The first animation on each body takes a few seconds longer while REDcode reads the graph once.
 - The animation view's **Play** and **Play Backward** turn into **Pause** while they play, and **Stop** goes back to the start.
 - **Overlaps match thing to thing** (a modder's report): a sector is listed when one of its things meets one of the opened sector's own things, each by its own box, not a box around the whole sector. Occluders, collision and other helpers, and the stand-in meshes for distance (proxies), take part only when **Helpers** or **Proxies** is ticked. A box that is plainly wrong, such as an occluder placed at the world's origin, is left out and named. Lists are shorter and right: `exterior_-11_11_0_1` no longer lists `exterior_-6_6_0_1`. The first search after the update reads each sector once more.
 - **Why** under each listed sector: its things that matched and the opened sector's things they meet; a click selects both. **Copy Diagnostics** copies the search, its counts, what was left out and every match.

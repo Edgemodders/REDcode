@@ -514,6 +514,8 @@
         animations: payload.animations,
         clip: async (index, rootMotion) => base64ToBuffer(await request("animClip", { index, rootMotion })),
         body: payload.body ? { data: base64ToBuffer(payload.body.data), label: payload.body.label, notes: payload.body.notes ?? [] } : undefined,
+        // The body's deformation graph (docs/design/bodies.md, B2): its muscle and twist helpers move as the game moves them.
+        deform: payload.deform,
         bodyNote: payload.bodyNote,
         rootMotion: !!payload.rootMotion,
         light: payload.light,

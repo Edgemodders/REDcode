@@ -14,6 +14,7 @@ import type { BridgeClient } from "./bridgeClient";
 import { gameUri, gamePathOfUri } from "./gameFs";
 import { meshGlbFor, meshPayload } from "./meshExport";
 import { animsClip, animsGlbFor, animsList, animsSkeleton, baseBodyFor, baseBodyGlb, entityBodyGlb, readAnimsGlb, type AnimsGlb, type BodyGlb } from "./animsGlb";
+import { deformGraphFor, type DeformGraphData } from "./deformGraphData";
 import { listSet, memberGlb, newSetSession, placeSet, toMatrix, type SetMember } from "./animsSet";
 import { SectorScriptsUi, type ScriptHost } from "./sectorScriptsUi";
 import { appearanceOf, cachedGlb, createSectorLoader, findOverlaps, meshMaterials, sectorsOver, texturedGlb, type SectorLoader, type SectorRef } from "../../../packages/world-view/src/host";
@@ -881,7 +882,7 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
               a.frames = t?.frames ?? a.frames;
               if (t?.duration && t.duration > 0) a.duration = t.duration;
             }
-            const { body, bodyNote } = await this.animsBody(document, rig);
+            const { body, deform, bodyNote } = await this.animsBody(document, rig);
             // Making clips (AT2): offered on the rigs anim-core knows, with a project open.
             const makeWhy = this.animMaker ? this.animMaker.why(rig) : "Making clips is not available";
             const madeClip = document.gamePath ? undefined : this.animMaker?.madeClipOf(document.uri.fsPath);
@@ -898,6 +899,7 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
               light: this.context.workspaceState.get(LightKey),
               sideWidth: this.context.workspaceState.get(SideWidthKey),
               ...(body ? { body: { data: fs.readFileSync(body.glb).toString("base64"), label: body.label, notes: body.notes } } : {}),
+              ...(deform ? { deform } : {}),
               ...(bodyNote ? { bodyNote } : {}),
             });
           }
@@ -1561,12 +1563,12 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
    * What an .anims plays on (docs/design/animation.md, A2): the entity REDcodeApi.openAnimation gave, or
    * the base body of a man's or woman's base rig, or nothing (the bones alone). bodyNote says why not.
    */
-  private animsBody(document: Cr2wDocument, rig: string): Promise<{ body?: BodyGlb; bodyNote?: string }> {
+  private animsBody(document: Cr2wDocument, rig: string): Promise<{ body?: BodyGlb; deform?: DeformGraphData; bodyNote?: string }> {
     return this.bodyFor(this.animationBodies.get(document.uri.toString()), rig);
   }
 
-  /** The body for a rig: the entity asked for, else the base body of a man's or woman's base rig, else none. */
-  private async bodyFor(wanted: AnimationBody | undefined, rig: string): Promise<{ body?: BodyGlb; bodyNote?: string }> {
+  /** The body for a rig: the entity asked for, else the base body of a man's or woman's base rig (with its deformation graph), else none. */
+  private async bodyFor(wanted: AnimationBody | undefined, rig: string): Promise<{ body?: BodyGlb; deform?: DeformGraphData; bodyNote?: string }> {
     const cache = path.join(this.textures.root.fsPath, "mesh");
     const bridge = this.requireBridge();
     let note: string | undefined;
@@ -1587,7 +1589,20 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
     try {
       const body = await baseBodyGlb(bridge, cache, base);
       if (!body.cached) this.log.appendLine(`cr2w editor: exported ${body.label} to ${body.glb} for the animation view`);
-      return { body, ...(note ? { bodyNote: note } : {}) };
+      // Its deformation graph, which moves its muscle and twist helpers as the game does (docs/design/bodies.md, B2).
+      // Without it the body still draws, as before.
+      let deform: DeformGraphData | undefined;
+      const deformations = base.rigs.find((r) => /_deformations\.rig$/i.test(r));
+      if (deformations) {
+        try {
+          const t0 = Date.now();
+          deform = await deformGraphFor(bridge, cache, deformations);
+          if (Date.now() - t0 > 1000) this.log.appendLine(`cr2w editor: read the deformation graph of ${path.basename(deformations)} (${deform.nodes.length} nodes) in ${Date.now() - t0} ms`);
+        } catch (err) {
+          this.log.appendLine(`cr2w editor: no deformation graph for ${path.basename(deformations)}: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      }
+      return { body, ...(deform ? { deform } : {}), ...(note ? { bodyNote: note } : {}) };
     } catch (err) {
       const why = `Could not put the ${base.label.toLowerCase()} on the rig: ${err instanceof Error ? err.message : String(err)}`;
       this.log.appendLine(`cr2w editor: ${why}`);
