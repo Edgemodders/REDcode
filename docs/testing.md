@@ -60,7 +60,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Sector layers L2 and L3](#sector-layers-l2-and-l3) | By hand | Sector layers L2 and L3 | 2026-11-25 | **Passed** (EDGEweb by script, L2-1 to L3-6, and its three fixes) |
 | [Sector layers L4 and Sector Tools L1](#sector-layers-l4-and-sector-tools-l1) | By hand, in the game | Sector layers L4 | | Not run (checked by script) |
 | [Sector overlaps O1](#sector-overlaps-o1) | By hand | Sector overlaps O1 | | Not run (checked by script and in Chrome over the real REDbridge) |
-| [Body deformation graph](#body-deformation-graph-probe) | Scripts against the game; by hand | Bodies B2a | 2026-11-26 | Against the game: median 1.6 mm (the bulges' rule not settled); the hand test (Muscles in REDcode) not run |
+| [Body deformation graph](#body-deformation-graph-probe) | Scripts against the game; by hand | Bodies B2a | 2026-11-26 | **Passed** (owner, steps 1 to 5); against the game a median 1.6 mm, the bulges' rule not settled |
 | [The tree in its own tab](#the-tree-in-its-own-tab) | By hand | Sector view | 2026-11-26 | **Passed** (owner: "looks good"; the panel tab renamed Sector after it) |
 | [Animation Timeline TL2 to TL4](#animation-timeline-tl2-to-tl4) | By hand | Animation Timeline | 2026-11-26 | **Partly run**: T1 to T10 pass (EDGEweb by script) with their fixes, but trimming a move's end, fixed again and not run; T2 and T3 pass (owner); T4 waits on retest R1 (Turn now in the view), with R2 (scrolling tracks) and R3 (Pause, Stop); T11 needs the game |
 | [Sector layers (L1)](#sector-layers-l1) | By hand | Sector layers L1 | 2026-11-25 | **Passed** (EDGEweb by script, L1 to L9; the owner, the ghosted look) |
@@ -1693,7 +1693,7 @@ Steps (F5, a clip on `man_base.rig`, such as AnimProbeD's `man_stands_relaxed_cr
 4. Play it: the helpers follow with no jumps or spikes.
 5. A clip on `woman_base.rig`: the same, with her graph.
 
-**Result:** not run.
+**Result (owner, 2026-11-26, F5 on main a3d5111):** steps 1 to 5 pass: "It looks a lot better", everything fine.
 
 **Result:** probe, not a hand test.
 
