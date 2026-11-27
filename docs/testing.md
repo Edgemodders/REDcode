@@ -834,6 +834,8 @@ Asked the same day after R4 and R5 were given, built and checked in Chrome on th
 - **Dragging empty track space** (a grab cursor) moves the track up or down the order; a click there still moves the playhead. Checked: the top track dragged to the bottom, the grabbing cursor while dragged.
 - **Dragging a clip up or down** moves only the clip (and its blend), onto a track with room at its time; no track is made by a drag. Checked: onto a track with an overlapping clip it stayed; onto a free track it moved.
 
+Retests: R6 the Bones tab, its filter, a click on a bone; R7 click a move's block; R8 New Track Above and Below, Move Clip Up and Down (to a free track, and with none: a new one), Remove Track; R9 drag a track by its empty space; drag a clip up and down onto a free track and onto one with no room.
+
 Asked the same day after R6 to R9 were given, built and checked in Chrome on the timeline harness, not yet run by the owner:
 
 - **The Bones tab as a tree**, with the CR2W tree's rows and twisties: each bone with children folds; at first every bone is open but the hands, so the fingers wait under them; selecting a bone in the view opens its parents. A thin yellow scrollbar (Chromium ignores the `::-webkit-scrollbar` styles when `scrollbar-width` or `scrollbar-color` is set, and drew its arrows: found in the check), and a × at the filter's end (Esc clears it too). Checked: 31 of 71 rows at first, the root's twisty folded all to 1 and back, "pinky" left 8, × cleared it.
@@ -841,8 +843,6 @@ Asked the same day after R6 to R9 were given, built and checked in Chrome on the
 - **The time marker on the ruler** shows a grab cursor, grabbing while dragged. Checked: grab at the marker, the plain cursor 600 px away.
 
 Retests: R10 the Bones tree (fold and open, the filter's ×, a bone selected in the view opening its parents, the yellow scrollbar); R11 Add Clip greyed with no track selected and with the marker inside a clip, then on an empty track; R12 the ruler's grab cursor on the time marker.
-
-Retests: R6 the Bones tab, its filter, a click on a bone; R7 click a move's block; R8 New Track Above and Below, Move Clip Up and Down (to a free track, and with none: a new one), Remove Track; R9 drag a track by its empty space; drag a clip up and down onto a free track and onto one with no room.
 
 **A game clip on the fingers only** (G1 to G6, the owner's test of laying a game clip on some bones): the game's `base\animations\npc\generic_characters\male_average\interactive_scene\generic_male_average__stand__2h_fists__01.anims` holds one clip, `stand__2h_fists__01` (6.53 s, on `man_base.rig`, as Probe D's made clip). G1 Stop, so the playhead is at 0. G2 Add, Animation: a game clip…, that set path and clip name, Add: a block on a new track, its jump marks red. G3 in its bar, **On**: `rightFingers`: the right hand closes into the game clip's fist, the arms still crossed as made. G4 Play: the fist holds through the clip; the block runs past 4.97 s, so drag its right edge (or the end marker) back to the clip's end. G5 a second block for `leftFingers`, or the first set to `rightHand` to take the wrist's turn too. G6 Apply: the clip rebuilds with the fist; Undo or Revert puts it back.
 
