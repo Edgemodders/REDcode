@@ -195,6 +195,24 @@ Not built, or not as the screen sketch has it:
 
 Checked: anim-core's checks (`check-timeline` 35 of 35, `check.mjs` all pass against the game), REDcode's unit checks and type checks, and the page in Chrome on Probe D's made clip (`docs/testing.md`, Animation Timeline TL2 to TL4).
 
+## Choosing bones, and finding and using game clips (the owner, 2026-11-26)
+
+The owner's aim: work on part of the body (a hand closing into a fist) by picking just those bones, finding a game clip or a made one that does it, and laying it on them. The data model already allows it: an animation block plays on a group or on a list of bones (`group`, `bones`), and the **On** list in the timeline's bar picks one of the named groups. What is missing is choosing a set of bones by hand, and finding the clip.
+
+### Finding and using game clips
+
+- **Use in Timeline** (built 2026-11-26): a **Use** button on each clip row in the animation view's Animations tab. It puts that clip on the timeline of the made clip last worked on in another tab, at its time marker, on a new track, and shows that tab. A clip of a project file goes by its game path. With no made clip open, it says to open one. The host keeps which pages have a timeline (`timelineHere`) and which tab was active last.
+- **Clip search** (next): in the timeline's **Animation: a game clip…** form, a search by words over every game clip's name, with its file, rig and length; a pick fills the form, and a preview plays it. It needs every clip's name: REDbridge's `anims.info` reads a file's clips without decoding them, about 300 files in 4 s. The game has 14,016 `.anims` (probe `tools/probes/anims/clip-index.mjs`); the index is built once, asked first as the world index is, kept in the cache, and searched in the page. Rigs other than the open clip's are shown, and marked.
+
+### Choosing bones (draft, the owner's decisions below)
+
+- In the **Bones** tab: a click selects one bone, Ctrl+click adds or takes one out, Shift+click a range in the tree; selected rows lit yellow. Ctrl+click on joints in the view does the same.
+- Under the list, icon buttons: **Grow** (the next ring of connected bones: parents and children), **Shrink**, **Children** (everything below: RightHand and Children is the whole hand), **Only** (the view shows those bones, the body see-through), **Clear**, and a list of the named groups to start from.
+- Using it: **Lay a clip on these bones** (Add, an animation, played on the selection), and **On: the selected bones** in a block's bar.
+- **Uthana:** it cannot make a motion for one body part (its documentation), so **Make for these bones** generates the whole body and keeps the selected bones. Whether its fingers move in any detail is unverified: one paid generation answers it, asked of the owner first.
+
+Decisions for the owner: (1) selection lives in the Bones tab, and Ctrl+click on joints; (2) the buttons as above; (3) Only as a see-through body with the selected bones bold; (4) Uthana for a hand: generate the whole body and keep the selection, after the one paid probe. *Recommended*, each.
+
 ## Built on what exists
 
 | Part | From |
