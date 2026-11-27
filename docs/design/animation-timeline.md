@@ -25,7 +25,7 @@ So: an editor where the modder **clicks a bone and drags it** into place, the mo
 | **Move** | Keys posed by hand: which bones it drives, where it starts, how long it lasts, and its keys (the owner's "clip on the timeline"; called a move so it is not confused with an animation clip) |
 | **Blend** | A block with a length and a transition that carries what shows through before it into what shows through after it |
 | **Key** | A pose for a move's bones at a moment inside the move |
-| **Stretch** | The part of a move between two keys, each with its own transition |
+| **Segment** | The part of a move between two keys (or from its left edge to its first key), each with its own transition. Named by the owner on 2026-11-26; this page called it a stretch before |
 | **Shows through** | At a moment, everything on a track and the tracks below it, combined |
 | **Rest pose** | The rig's own pose, under everything: what shows through when nothing is below |
 | **Jump** | A moment where the pose changes from one frame to the next because one block ends and what shows through is somewhere else |
@@ -84,13 +84,13 @@ Averaging two blocks by default is left out on purpose: it gives a pose neither 
 │ ☑ Clip C   [ walk 0–3 s ][≈≈][ walk 5–8 s ]                         │
 │ ☑ Base     [ stand_idle ══════════════════════════════════════ ]   │
 ├ splitter ───────────────────────────────────────────────────────────┤
-│ the selected block's keys and stretches over time                    │
+│ the selected block's keys and segments over time                     │
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
 - **Grab a joint** in the 3D view: rotate handles on it, and move handles on a hand or foot. Dragging **at the playhead** sets a key there: in the selected move when the playhead is inside it, or in a **new move** on a free track around the playhead (1 s either side, stretched by dragging its edges). A new move comes with a **0.5 s Smooth blend after it**, an ordinary block that can be changed or deleted, so the first move a modder makes does not snap back.
 - **The timeline**, in EDGEwave's mix look and behaviour (its A2 Mix, `webview/editor.ts` and `media/editor.css` in EDGEwave): the ruler in seconds and frames; one lane per track, the selected one shaded with the accent bar at its left and its block outlined in the accent colour, the others plain (no colour per lane); a **checkbox** at each lane's left for in the clip or not, with right-click **Only This Track** and **All Tracks**; a lane dragged **up or down** moves it (the order is which track wins), **sideways** moves its block in time, the first 4 px deciding; **Move Up** and **Move Down** in the lane's menu; the **selected block's controls** in a bar above the lanes (its bones, Replace or Add, Weight, its transitions, a blend's type); a **splitter** between the lanes and the selected block's detail below, its height kept per tab. Added to EDGEwave's mix: a block trimmed by an edge, snap to frames and edges (Alt holds it off), Space plays, S splits (an animation block's pieces keep their frames), Delete removes, copy and paste.
-- **The three kinds look different** in the same palette: an animation block as a plain bar with its clip's name and stretch, a move with its keys as diamonds (drag one in time; click a stretch to pick its transition), a blend hatched.
+- **The three kinds look different** in the same palette: an animation block as a plain bar with its clip's name and stretch, a move with its keys as diamonds (drag one in time; click a segment to pick its transition), a blend hatched.
 - **Jumps are marked** with a tick on the ruler; clicking one adds a blend there. Touching means within a frame: snap makes it easy, and a one-frame gap is a jump, which the tick shows.
 - **Add** in the timeline's menu: Move, Blend, Animation (from a file, the game, or a prompt through Make, dropped at the playhead).
 - **The end marker** on the ruler: the clip's end, at the last block unless dragged.
@@ -136,9 +136,9 @@ Blocks are steps in the clip's record, as AE1 keeps every edit, so the record, U
 ```
 
 - `anim`: `clip` is `"base"` (the clip as made) or another clip; `from` is where in that clip the block starts, so a cut piece keeps its frames; `bones` limits it (left out: all).
-- `move`: `on` is `{ "ik": "RightHand" }` (the arm by IK), `{ "bones": ["Head", "Neck"] }` or `{ "group": "rightFingers" }`. A key's `at` is from the move's start and holds only `place` (a hand or foot, in the character's frame, as AE1's `move` is) and `turn`. With n keys there are n stretches: from the start to the first key, and between keys; after its last key a move holds it to its end; a key at `at` 0 replaces the start taken from what shows through.
+- `move`: `on` is `{ "ik": "RightHand" }` (the arm by IK), `{ "bones": ["Head", "Neck"] }` or `{ "group": "rightFingers" }`. A key's `at` is from the move's start and holds only `place` (a hand or foot, in the character's frame, as AE1's `move` is) and `turn`. With n keys there are n segments: from the start to the first key, and between keys; after its last key a move holds it to its end; a key at `at` 0 replaces the start taken from what shows through.
 - `blend`: its `ease` is one of the transitions.
-- Transitions, for stretches and blends alike: `smooth`, `linear`, `in`, `out`, `hold`.
+- Transitions, for segments and blends alike: `smooth`, `linear`, `in`, `out`, `hold`.
 - `mode` is `replace` (left out) or `add`; `weight` defaults to 1. `end` is written only when the marker was dragged.
 - A record from before the timeline (no `anim` step) reads as the clip as made on track 0 under its steps.
 - Order: per frame, tracks from the bottom up, each block on what shows through below it; pins last, so a pin holds a foot whatever a block does.
