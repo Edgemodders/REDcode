@@ -677,15 +677,15 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
       const k = sel!.stretch ?? (sel!.key !== undefined ? sel!.key : undefined);
       if (k !== undefined && keys.length && k >= keys.length) {
         // After the last key (the owner, 2026-11-26: a click there seemed to do nothing): it holds, with no ease to set.
-        const hold = el("span", "", `After key ${keys.length}: holds it to the clip's end`);
+        const hold = el("span", "", `Segment after key ${keys.length}: holds it to the clip's end`);
         hold.title = "A move ends on its last pose. The blend after the clip carries it back into the motion; select the blend to set its ease";
         bar.append(hold);
       } else if (k !== undefined && keys.length) {
         const ease = Array.isArray(s.ease) ? s.ease[k] ?? s.ease[s.ease.length - 1] : s.ease;
-        // Plain text, not dim: it says which stretch the ease is for (the first runs from the clip's left edge).
-        const into = el("span", "", `Ease into key ${k + 1}`);
-        into.title = k === 0 ? "How the move runs from its left edge (the pose showing there) into its first key" : `How the move runs from key ${k} into key ${k + 1}`;
-        bar.append(into, choice(Transitions.map((t): [string, string] => [t, t]), ease ?? "smooth", "How this stretch runs", (v) => setEase(k, v as Transition)));
+        // A segment (the owner's word, 2026-11-26) in plain text, then "Ease" before its list as a blend's bar has it.
+        const into = el("span", "", `Segment into key ${k + 1}`);
+        into.title = k === 0 ? "This segment runs from the clip's left edge (the pose showing there) into its first key" : `This segment runs from key ${k} into key ${k + 1}`;
+        bar.append(into, label("Ease"), choice(Transitions.map((t): [string, string] => [t, t]), ease ?? "smooth", "How this segment runs", (v) => setEase(k, v as Transition)));
       }
       if (sel!.key !== undefined) {
         bar.append(label("At"), num(keys[sel!.key]?.at ?? 0, "The key's time from the move's start", (v) => moveKey(sel!.key!, v)), button("Delete Key", "Take this key out (Delete)", () => deleteKey()));
