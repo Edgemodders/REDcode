@@ -62,6 +62,15 @@ export interface TimelinePanel {
   poseStart(bones: string[]): void;
   poseSet(turns: Record<string, number[]>): void;
   poseEnd(): void;
+  /**
+   * Add Clip (the Bones tab, the owner, 2026-11-26): whether a short move on a bone, with its blend, fits on the selected
+   * track at the time marker; why not when it does not (no bone, no track, the marker inside a clip).
+   */
+  addClipRoom(bone: string | null): { ok: true } | { ok: false; why: string };
+  /** Adds that move and its blend, selected; the bone stays grabbed to pose it. */
+  addClip(bone: string): void;
+  /** Called after each drawing of the timeline: a change of its steps, its selection, or the time. */
+  onDraw(cb: () => void): void;
   /** A drag of the grabbed bone starts, goes on (with its new value at the playhead) and ends. */
   grabStart(): void;
   grabMove(value: { place?: number[]; turn?: number[] }): void;
@@ -127,6 +136,8 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
   /** The selected block (its place in the display list), and a key or a stretch of a move. */
   let sel: { index: number; key?: number; stretch?: number } | null = null;
   let selLane: number | null = null;
+  /** onDraw's callers, told after each drawing (the Bones tab's Add Clip follows the time and the selected track). */
+  const drawListeners: (() => void)[] = [];
   /** The bone grabbed in the 3D view (TL4), and how a drag changes it. */
   let grabbedBone: string | null = null;
   let grabMode: "move" | "turn" = "turn";
@@ -399,6 +410,7 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
     g.fillStyle = k.accent;
     g.fillRect(Math.round(x(host.now())), 0, 1, Ruler);
     g.restore();
+    for (const cb of drawListeners) cb();
   };
 
   const diamond = (g: CanvasRenderingContext2D, cx: number, cy: number, r: number, fill: boolean) => {
@@ -778,6 +790,27 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
     return list.length - 1;
   };
   let poseTarget: { index: number; list: EditStep[]; before: EditStep[] } | null = null;
+  /** Add Clip's move and blend: a second and half a second, shorter when the next clip on the track is nearer. */
+  const ClipLength = 1;
+  const ClipBlend = 0.5;
+  const clipPlan = (bone: string | null): { ok: false; why: string } | { ok: true; t: number; track: number; length: number; blend: number } => {
+    if (!bone) return { ok: false, why: "Select a bone first: in this list or in the view" };
+    const list = display();
+    if (selLane === null || !lanesOf(list).some((l) => l.track === selLane)) return { ok: false, why: "Select a track first: click an empty part of it in the timeline" };
+    const track = selLane;
+    const t = Math.max(0, snapFrame(host.now()));
+    const on = blocksOf(list).filter((b) => b.s.track === track);
+    // Inside a clip: past its start, and more than half a frame before its end (a clip's end in seconds and the marker's
+    // frame differ by rounding: 4.967 s against frame 149, 4.9667 s).
+    const half = 0.5 / Fps;
+    if (on.some((b) => b.s.start <= t + 1e-6 && endOf(b.s) > t + half)) return { ok: false, why: `No room at ${t.toFixed(2)} s on track ${track}: the time marker is inside a clip there` };
+    const next = Math.min(Infinity, ...on.filter((b) => b.s.start > t).map((b) => b.s.start));
+    const room = next - t;
+    if (room < 4 / Fps) return { ok: false, why: `No room at ${t.toFixed(2)} s on track ${track}: the next clip starts right after the time marker` };
+    const total = Math.min(ClipLength + ClipBlend, room);
+    const length = r3(Math.max(2 / Fps, snapFrame((total * ClipLength) / (ClipLength + ClipBlend))));
+    return { ok: true, t: r3(t), track, length, blend: r3(Math.max(0, total - length)) };
+  };
   const deleteSelected = () => {
     if (!sel) return;
     const list = working();
@@ -1096,6 +1129,7 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
     switch (hit.kind) {
       case "ruler":
         drag = { kind: "scrub" };
+        canvas.style.cursor = "grabbing";
         host.seek(Math.max(0, snap(tAt(px), e.altKey)));
         break;
       case "end":
@@ -1158,10 +1192,13 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
     const py = e.clientY - r.top;
     if (!drag) {
       const hit = hitAt(px, py);
-      // Empty track space takes the track (grab), as a clip's body takes the clip.
-      canvas.style.cursor = !hit ? "default" : hit.kind === "block" ? (hit.part === "body" ? "grab" : "ew-resize") : hit.kind === "lane" ? "grab" : hit.kind === "end" || hit.kind === "key" ? "ew-resize" : hit.kind === "jump" ? "pointer" : "default";
+      // Empty track space takes the track (grab), as a clip's body takes the clip; on the ruler, the time marker can be
+      // dragged (the owner, 2026-11-26).
+      const onMarker = hit?.kind === "ruler" && Math.abs(px - x(host.now())) <= 5;
+      canvas.style.cursor = !hit ? "default" : onMarker ? "grab" : hit.kind === "block" ? (hit.part === "body" ? "grab" : "ew-resize") : hit.kind === "lane" ? "grab" : hit.kind === "end" || hit.kind === "key" ? "ew-resize" : hit.kind === "jump" ? "pointer" : "default";
       return;
     }
+    if (drag.kind === "scrub") canvas.style.cursor = "grabbing";
     if (drag.kind === "lane") {
       if (!drag.moved && Math.abs(py - drag.y0) < 4) return;
       drag.moved = true;
@@ -1263,7 +1300,7 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
   const endDrag = (e?: PointerEvent) => {
     // A click on empty track space, not dragged: the playhead goes there.
     if (drag?.kind === "lane" && !drag.moved && e) host.seek(Math.max(0, snap(tAt(drag.x0), e.altKey)));
-    if (drag?.kind === "lane") canvas.style.cursor = "grab";
+    if (drag?.kind === "lane" || drag?.kind === "scrub") canvas.style.cursor = "grab";
     // One Undo for the whole drag: the list from before it.
     if (drag && drag.kind !== "scrub" && JSON.stringify(drag.before) !== JSON.stringify(display())) {
       history.push(drag.before);
@@ -1390,6 +1427,24 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
     isChain: (bone) => !!profile?.chains[bone],
     canMove: (bone) => canMove(bone),
     setGrabMode: (mode) => setGrabMode(mode),
+    addClipRoom: (bone) => {
+      const p = clipPlan(bone);
+      return p.ok ? { ok: true } : p;
+    },
+    addClip: (bone) => {
+      const p = clipPlan(bone);
+      if (!p.ok) return host.say(p.why);
+      const list = working();
+      const on = profile?.chains[bone] ? { ik: bone } : { bones: [bone] };
+      if (p.blend >= 1 / Fps) list.push({ step: "blend", track: p.track, start: r3(p.t + p.length), length: p.blend, ease: "smooth" });
+      addAt(list, { step: "move", track: p.track, start: p.t, length: p.length, on, keys: [] });
+      commit(list);
+      if (grabbedBone !== bone) panel.grab(bone);
+      showStatus();
+    },
+    onDraw: (cb) => {
+      drawListeners.push(cb);
+    },
     poseStart: (bones) => {
       if (!bones.length) return;
       const before = clone(display());

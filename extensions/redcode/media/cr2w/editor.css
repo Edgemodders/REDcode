@@ -277,8 +277,21 @@ body.mesh-mode #props { display: flex; flex-direction: column; overflow: hidden;
 .animfilter { margin: 0 8px 6px; background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border, var(--line)); padding: 2px 6px; }
 .animrow.selected { background: var(--vscode-list-activeSelectionBackground); color: var(--vscode-list-activeSelectionForeground); }
 .animrow[hidden] { display: none; }
-.bonerow { cursor: pointer; }
-.bonerow.flat { padding-left: 6px !important; }
+.bonerow { cursor: pointer; font-family: var(--mono); font-size: 12px; }
+.bonerow[hidden] { display: none; }
+.bonerow .toggle { cursor: pointer; }
+.bonefilterbox { position: relative; display: flex; margin: 0 8px 6px; }
+.bonefilterbox .animfilter { flex: 1; margin: 0; padding-right: 22px; }
+.bonefilterbox .bonefilterclear { position: absolute; right: 2px; top: 50%; transform: translateY(-50%); border: 0; background: none; padding: 0 5px; color: var(--dim); font-size: 14px; line-height: 1; cursor: pointer; }
+.bonefilterbox .bonefilterclear:hover { color: var(--vscode-foreground); }
+.bonefilterbox .bonefilterclear[hidden] { display: none; }
+/* The webkit styles only: Chromium ignores them when scrollbar-width or scrollbar-color is set, and draws its arrows. */
+.bonelist::-webkit-scrollbar { width: 6px; }
+.bonelist::-webkit-scrollbar-track { background: transparent; }
+.bonelist::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 3px; }
+.bonelist::-webkit-scrollbar-button { display: none; height: 0; }
+.bonetools { flex: none; padding: 4px 8px; border-top: 1px solid var(--line); }
+.bonetools button:disabled { opacity: .45; cursor: default; }
 .animtransport { flex-wrap: nowrap; padding-top: 6px; }
 .meshstage:focus { outline: none; }
 .meshstage .animgrab { position: absolute; top: 8px; left: 8px; display: flex; gap: 4px; align-items: center; padding: 3px 4px 3px 8px; font-size: 12px; background: color-mix(in srgb, var(--vscode-editor-background) 88%, transparent); border: 1px solid var(--line); border-radius: 3px; z-index: 2; }

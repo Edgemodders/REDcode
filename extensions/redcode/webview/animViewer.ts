@@ -1011,13 +1011,25 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
     : undefined;
   const animsTab = addTab("Animations", "The clips in this file", animPane);
   // ---- the Bones tab (the owner, 2026-11-26): every bone by name, filtered; a click selects it in the view ----
-  const bonesPane = el("div", "animpane");
+  // A collapsible tree as REDcode's other trees, a filter with its clear button, and Add Clip under the list.
+  const bonesPane = el("div", "animpane bonepane");
+  const filterBox = el("div", "bonefilterbox");
   const boneFilter = el("input", "animfilter");
   boneFilter.type = "text";
   boneFilter.spellcheck = false;
+  const filterClear = el("button", "bonefilterclear", "×");
+  filterClear.title = "Clear the filter";
+  filterClear.hidden = true;
+  filterBox.append(boneFilter, filterClear);
   const boneList = el("div", "animlist bonelist");
-  bonesPane.append(el("div", "label", "Bones"), boneFilter, boneList);
-  const boneRows = new Map<string, HTMLElement>();
+  const boneTools = el("div", "toolbar bonetools");
+  const addClipButton = el("button", "", "Add Clip");
+  boneTools.append(addClipButton);
+  bonesPane.append(el("div", "label", "Bones"), filterBox, boneList, boneTools);
+  type BoneNode = { bone: THREE.Bone; row: HTMLElement; toggle: HTMLElement; parent: BoneNode | null; children: BoneNode[]; depth: number };
+  const boneNodes = new Map<string, BoneNode>();
+  /** Bones whose children show: at first every one but the hands, so the fingers wait under them. */
+  const openBones = new Set<string>();
   let markedBone: string | null = null;
   const selectBone = (name: string) => {
     // With the timeline, the bone is grabbed, handles and all; without it (a game clip), marked in the view.
@@ -1025,42 +1037,99 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
     else showBone(name);
     markBone(name);
   };
+  const filterWords = () => boneFilter.value.toLowerCase().split(/\s+/).filter(Boolean);
+  /** Shows the rows: while filtered, every match flat; else each bone whose parents are all open. */
+  const showBoneRows = () => {
+    const words = filterWords();
+    for (const n of boneNodes.values()) {
+      let shown: boolean;
+      if (words.length) shown = words.every((w) => n.bone.name.toLowerCase().includes(w));
+      else {
+        shown = true;
+        for (let p = n.parent; p; p = p.parent) if (!openBones.has(p.bone.name)) shown = false;
+      }
+      n.row.hidden = !shown;
+      n.row.style.paddingLeft = `${6 + (words.length ? 0 : Math.min(n.depth, 14) * 12)}px`;
+      n.toggle.textContent = words.length || !n.children.length ? "" : openBones.has(n.bone.name) ? "▾" : "▸";
+    }
+    filterClear.hidden = !boneFilter.value;
+  };
   const fillBones = () => {
-    if (boneRows.size || !bones.length) return;
+    if (boneNodes.size || !bones.length) return;
     const named = bones.filter((b) => b.name);
-    const inSet = new Set(named);
-    const depthOf = (b: THREE.Object3D) => {
-      let d = 0;
-      for (let p = b.parent; p && inSet.has(p as THREE.Bone); p = p.parent) d++;
-      return d;
-    };
     boneFilter.placeholder = `Filter ${named.length.toLocaleString()} bones`;
     for (const b of named) {
-      const row = el("div", "part animrow bonerow");
-      row.style.paddingLeft = `${6 + Math.min(depthOf(b), 12) * 8}px`;
-      row.append(el("span", "name", b.name));
+      const row = el("div", "row bonerow");
+      const toggle = el("span", "toggle", "");
+      row.append(toggle, el("span", "name", b.name));
       row.title = `${b.name}${b.parent?.name ? `\nIn ${b.parent.name}` : ""}\nClick to select it in the view`;
+      const parent = b.parent && boneNodes.get(b.parent.name) ? boneNodes.get(b.parent.name)! : null;
+      const node: BoneNode = { bone: b, row, toggle, parent, children: [], depth: parent ? parent.depth + 1 : 0 };
+      parent?.children.push(node);
+      boneNodes.set(b.name, node);
+      if (!/^(Left|Right)Hand$/.test(b.name)) openBones.add(b.name);
+      toggle.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (!node.children.length || filterWords().length) return;
+        if (openBones.has(b.name)) openBones.delete(b.name);
+        else openBones.add(b.name);
+        showBoneRows();
+      });
       row.addEventListener("click", () => selectBone(b.name));
-      boneRows.set(b.name, row);
       boneList.append(row);
     }
+    showBoneRows();
     markBone(markedBone);
   };
   markBone = (name) => {
     markedBone = name;
-    for (const [n, row] of boneRows) row.classList.toggle("selected", n === name);
-    if (name && !bonesPane.hidden) boneRows.get(name)?.scrollIntoView({ block: "nearest" });
+    // The bone selected in the view: its parents opened so its row shows, lit and in sight.
+    const node = name ? boneNodes.get(name) : undefined;
+    let opened = false;
+    for (let p = node?.parent; p; p = p.parent)
+      if (!openBones.has(p.bone.name)) {
+        openBones.add(p.bone.name);
+        opened = true;
+      }
+    if (opened) showBoneRows();
+    for (const n of boneNodes.values()) n.row.classList.toggle("selected", n.bone.name === name);
+    if (node && !bonesPane.hidden) node.row.scrollIntoView({ block: "nearest" });
+    showAddClip();
   };
-  boneFilter.addEventListener("input", () => {
-    // Words in any order, as the Animations filter; while filtered, the list is flat, so a deep bone is easy to see.
-    const words = boneFilter.value.toLowerCase().split(/\s+/).filter(Boolean);
-    for (const [n, row] of boneRows) {
-      row.hidden = !words.every((w) => n.toLowerCase().includes(w));
-      row.classList.toggle("flat", words.length > 0);
+  boneFilter.addEventListener("input", showBoneRows);
+  filterClear.addEventListener("click", () => {
+    boneFilter.value = "";
+    showBoneRows();
+    boneFilter.focus();
+  });
+  boneFilter.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && boneFilter.value) {
+      boneFilter.value = "";
+      showBoneRows();
     }
+  });
+  // Add Clip: a short move and its blend for the selected bone, on the selected track at the time marker; greyed, with
+  // why in its tooltip, when there is no room there (a later step may splice it in; the owner, 2026-11-26).
+  const showAddClip = () => {
+    if (!timeline) {
+      addClipButton.disabled = true;
+      addClipButton.title = "Add Clip works on a made clip, with its timeline";
+      return;
+    }
+    const room = timeline.addClipRoom(markedBone);
+    addClipButton.disabled = !room.ok;
+    addClipButton.title = room.ok ? `Add Clip: a short move for ${markedBone} and a blend after it, on the selected track at the time marker` : room.why;
+  };
+  addClipButton.addEventListener("click", () => {
+    if (timeline && markedBone) timeline.addClip(markedBone);
+    showAddClip();
+  });
+  timeline?.onDraw(() => {
+    if (!bonesPane.hidden) showAddClip();
   });
   addTab("Bones", "Every bone of the rig by name, with a filter: a click selects it in the view", bonesPane, () => {
     fillBones();
+    showAddClip();
     boneFilter.focus();
   });
   tabRow.hidden = sideTabs.length < 2;
