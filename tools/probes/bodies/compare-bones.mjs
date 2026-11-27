@@ -40,7 +40,17 @@ let driven;
 const withRigs = comps.find((c) => Array.isArray(c.rigs) && c.bones.some((b) => b.rig !== undefined));
 if (withRigs) {
   const count = (r) => (typeof r === "number" ? r : r?.count ?? r?.bones ?? r?.boneCount);
-  const bodyRig = withRigs.rigs.findIndex((r) => count(r) === 71 || /man_base\.rig|woman_base\.rig|_base\.rig$/i.test(r?.path ?? r?.name ?? ""));
+  // REDnode 0.76.1 names each rig by its depot path's FNV-1a 64 hash, as 16 hex digits: the body rigs' hashes first.
+  const BodyRigs = new Set([14264052059588999261n /* man_base.rig */, 10037276762472186253n /* woman_base.rig */]);
+  const hashOf = (r) => {
+    try {
+      return typeof r?.path === "string" ? BigInt(r.path.startsWith("0x") ? r.path : `0x${r.path}`) : null;
+    } catch {
+      return null;
+    }
+  };
+  let bodyRig = withRigs.rigs.findIndex((r) => BodyRigs.has(hashOf(r)));
+  if (bodyRig < 0) bodyRig = withRigs.rigs.findIndex((r) => count(r) === 71);
   if (bodyRig < 0) throw new Error(`No 71-bone rig among ${JSON.stringify(withRigs.rigs).slice(0, 300)}`);
   driven = new Set(withRigs.bones.filter((b) => b.rig === bodyRig).map((b) => b.name));
 } else {
