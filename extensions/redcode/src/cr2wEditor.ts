@@ -1338,9 +1338,16 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
               const n = /^nodes\.(\d+)(?:\.|$)/.exec(p);
               if (n) nodesHit.add(Number(n[1]));
             }
-            if (nodesHit.size) {
-              const r = await this.requireBridge().request<{ items: { index: number; node: number }[] }>("sector.nodes", { ...sectorRef(sector) });
-              for (const i of r.items ?? []) if (nodesHit.has(i.node)) entries.add(i.index);
+            // With the search's words (EDGEweb's SR2, 2026-11-27): also every thing whose class, mesh or resource holds
+            // them, as sector.nodes reads them. The file's values miss a cooked or instanced node's mesh (its path sits
+            // in data cr2w.search does not walk) and every class name.
+            const query = typeof m.query === "string" ? m.query.trim().toLowerCase() : "";
+            if (nodesHit.size || query) {
+              const r = await this.requireBridge().request<{ items: { index: number; node: number; kind?: string; ref?: string | null; resource?: string | null }[] }>("sector.nodes", { ...sectorRef(sector) });
+              for (const i of r.items ?? []) {
+                if (nodesHit.has(i.node)) entries.add(i.index);
+                else if (query && [i.kind, i.ref, i.resource].some((t) => t?.toLowerCase().includes(query))) entries.add(i.index);
+              }
             }
             return reply(m.id, [...entries].sort((a, b) => a - b));
           }

@@ -60,7 +60,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Sector layers L2 and L3](#sector-layers-l2-and-l3) | By hand | Sector layers L2 and L3 | 2026-11-25 | **Passed** (EDGEweb by script, L2-1 to L3-6, and its three fixes) |
 | [Sector layers L4 and Sector Tools L1](#sector-layers-l4-and-sector-tools-l1) | By hand, in the game | Sector layers L4 | | Not run (checked by script) |
 | [Sector overlaps O1](#sector-overlaps-o1) | By hand | Sector overlaps O1 | | Not run (checked by script and in Chrome over the real REDbridge) |
-| [Sector search](#sector-search) | By hand | Sector view (0.10.17) | | Not run (released without a test of its own) |
+| [Sector search](#sector-search) | By hand | Sector view (0.10.17) | 2026-11-26 | **Partly run** (EDGEweb by script): SR1, SR3, SR4 pass; SR2 found classes and cooked meshes unsearchable, fixed, not run again; SR5 not run |
 | [Body deformation graph](#body-deformation-graph-probe) | Scripts against the game; by hand | Bodies B2a | 2026-11-26 | **Passed** (owner, steps 1 to 5); against the game a median 1.6 mm, the bulges' rule not settled |
 | [The tree in its own tab](#the-tree-in-its-own-tab) | By hand | Sector view | 2026-11-26 | **Passed** (owner: "looks good"; the panel tab renamed Sector after it) |
 | [Animation Timeline TL2 to TL4](#animation-timeline-tl2-to-tl4) | By hand | Animation Timeline | 2026-11-26 | **Partly run**: T1 to T10 pass (EDGEweb by script) with their fixes, but trimming a move's end, fixed again and not run; T2 and T3 pass (owner); T4 waits on retest R1 (Turn now in the view), with R2 (scrolling tracks) and R3 (Pause, Stop); T11 needs the game |
@@ -1660,10 +1660,20 @@ Released in 0.10.17 (the CHANGELOG's "Search a sector to select what it finds"),
 | # | Do | Expected |
 |---|---|---|
 | SR1 | Click one thing, then type `soda` in the search box at the bottom and press Enter | The soda cans are selected (the Selections list fills); the status line says "N matches: K things selected" |
-| SR2 | Type a class instead, such as `worldStaticDecalNode`, Enter | Every decal is selected; the status line follows. A word that finds nothing placed says "none is a thing in the view" |
+| SR2 | Type a class instead, such as `worldEntityNode`, Enter; then `catwalk` | 5 things (the entities); then 18 (the catwalks, cooked meshes); the status line follows. A word that finds nothing says "nothing in the view matches" |
 | SR3 | Clear the box (its × or Esc) | The status line clears; the selection stays |
 | SR4 | The Selections list's **Back** icon | The selection before the search: the one thing from SR1 |
 | SR5 | Open a mesh (any `.mesh` on 3D) and search a word from its appearances | The matches show in Tree, as before 0.10.17 |
+
+Result, EDGEweb's session by script on 2026-11-26 (EDGEkit trial, REDcode at 986d45b, REDbridge 0.19.0, game 2.5 read only, opened from Search game files on 3D: 105 meshes, 8,986 copies, 202 markers): **SR1, SR3 and SR4 as expected; SR2 different; SR5 not run.**
+
+- **SR1:** one thing clicked (a catwalk railing, #417.1); `soda`: "12 matches: 4 things selected", the four soda cans.
+- **SR3:** Esc emptied the box and the status line; the cans stayed selected. The × was not tried.
+- **SR4:** Back went to the one thing clicked before. The searches between them that changed nothing added no step, as meant.
+- **SR2, found:** `worldStaticDecalNode` gave "0 matches", and so did `worldMeshNode`, `worldEntityNode` and `catwalk`, though a catwalk was in the view; `decal` and `StaticDecal` gave 4 things.
+  - The class name in the step was wrong: this sector's decals are `worldCookedStaticDecalNode`.
+  - The real fault: REDbridge's `cr2w.search` reads values and property names, never a class. It also does not reach a cooked or instanced node's mesh path, so only 16 of the sector's 105 meshes were findable.
+  - Fixed 2026-11-27: the search also selects every thing whose class, mesh or resource holds the words, as `sector.nodes` reads them. Checked against the game through redcode-mcp's `sector_nodes`: `catwalk` 18 things, `worldEntityNode` 5, `decal` 4. SR2 above is rewritten for it. **Not run again.**
 
 ## The tree in its own tab
 

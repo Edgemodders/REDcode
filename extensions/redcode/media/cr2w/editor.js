@@ -1181,10 +1181,12 @@
       // nothing, since the list goes to the property pane the 3D view hides).
       if (mode === "sector" && meshView?.selectEntry) {
         const all = await search(query, "", 20000);
-        const entries = await request("sectorEntriesOf", { paths: all.hits.map((h) => h.path) });
-        const n = all.total.toLocaleString();
+        // The file's values, and each thing's class, mesh and resource (a cooked or instanced node's mesh is not in the values).
+        const entries = await request("sectorEntriesOf", { paths: all.hits.map((h) => h.path), query });
         if (entries.length) meshView.selectEntry(entries);
-        status(`${n} match${all.total === 1 ? "" : "es"}: ${entries.length ? `${entries.length.toLocaleString()} thing${entries.length === 1 ? "" : "s"} selected` : "none is a thing in the view"}${all.truncated ? ` (of the first ${all.hits.length.toLocaleString()})` : ""}; the same search in Tree lists them`);
+        const things = entries.length ? `${entries.length.toLocaleString()} thing${entries.length === 1 ? "" : "s"} selected` : "nothing in the view matches";
+        const values = all.total ? `; ${all.total.toLocaleString()} match${all.total === 1 ? "" : "es"} in the file's values${all.truncated ? ` (the first ${all.hits.length.toLocaleString()} read)` : ""}, which the same search in Tree lists` : "";
+        status(`${things} (by class, mesh or value)${values}`);
         return;
       }
       // Another 3D view hides the property pane too: the matches show in Tree.
