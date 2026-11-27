@@ -216,6 +216,7 @@ Checked: anim-core's checks (`check-timeline` 35 of 35, `check.mjs` all pass aga
 | **TL4** (built 2026-11-25, hand test pending) | Grabbing a bone in the 3D view: handles, a key at the playhead, a new move with its blend when none is under it | A hand test |
 | **TL5** | The same page in the game through the Animation Tools pack (AE3), and the MCP tools for blocks | A hand test in the game |
 | **TL6** | [A line on the timeline](#a-line-on-the-timeline-tl6): the Line lane, the head on the body with the face moving to the voice, Open in Lip Sync. Needs TL1 to TL4 and Lip Sync L2 | The check on the head's bones first, then a hand test: Judy walks, gestures and speaks a made line |
+| **TL7** | Any rig (REDcode #37, from EDGEfab's F7a animated props, 2026-11-26): a prop's mesh drawn on its rig from a GLB skin; rigs beyond `man_base` and `woman_base` passed by path through anim-core and the `anim_*` tools; a clip from nothing (the rest pose for a chosen length as the clip as made); `REDcodeApi.openAnimationEditor({ rig, mesh, clip? })`. The `.rig` the game needs comes from REDbridge (#14's rig import from the same GLB), found by its skin GLB at the same path under `source/raw`. Timed before EDGEfab's F7a; a short design section first | A test prop from EDGEfab: a part turning on its bone, applied and played in the game |
 
 ## Decisions
 
