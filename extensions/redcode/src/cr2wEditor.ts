@@ -376,6 +376,14 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
   readonly onDidChangeCustomDocument = this.changed.event;
   /** The open pages per document (editor panels and the Properties view), so a save can ask them to commit any input still being edited. */
   private readonly pages = new Map<Cr2wDocument, Set<vscode.Webview>>();
+  /**
+   * Use in Timeline (docs/design/animation-timeline.md, Finding and using game clips): the animation pages that have a
+   * timeline (a made clip's), and each editor panel by its page, most recently active first, so a clip from another
+   * tab goes to the timeline last worked on.
+   */
+  private readonly timelinePages = new Map<vscode.Webview, Cr2wDocument>();
+  private readonly panelOf = new Map<vscode.Webview, vscode.WebviewPanel>();
+  private recentPages: vscode.Webview[] = [];
   /** The last selected path per document, which a page attaching later (the Properties view) starts on. */
   private readonly selection = new Map<Cr2wDocument, string>();
   private readonly documents = new Map<string, Cr2wDocument>();
@@ -632,12 +640,20 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
     panel.webview.options = { enableScripts: true, localResourceRoots: this.resourceRoots };
     panel.webview.html = this.html(panel.webview, "editor");
     const page = this.attachPage(document, panel.webview);
+    this.panelOf.set(panel.webview, panel);
+    this.recentPages = [panel.webview, ...this.recentPages.filter((w) => w !== panel.webview)];
     const state = panel.onDidChangeViewState((e) => {
-      if (e.webviewPanel.active) this.opened.fire(document);
+      if (e.webviewPanel.active) {
+        this.opened.fire(document);
+        this.recentPages = [panel.webview, ...this.recentPages.filter((w) => w !== panel.webview)];
+      }
     });
     panel.onDidDispose(() => {
       page.dispose();
       state.dispose();
+      this.panelOf.delete(panel.webview);
+      this.timelinePages.delete(panel.webview);
+      this.recentPages = this.recentPages.filter((w) => w !== panel.webview);
     });
     this.opened.fire(document);
   }
@@ -844,6 +860,21 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
           case "toTab":
             this.openTreeTab(document);
             return;
+          case "timelineHere":
+            // This page shows a made clip's timeline: clips from other tabs can go to it.
+            this.timelinePages.set(webview, document);
+            return;
+          case "animsUseInTimeline": {
+            // A clip of this file onto the timeline last worked on, in its own tab, at its time marker.
+            const set = document.gamePath ?? archiveGamePathOf(document.uri.fsPath);
+            if (!set || !m.clip) throw new Error("This file has no game path to name the clip by");
+            const target = this.recentPages.find((w) => w !== webview && this.timelinePages.has(w));
+            if (!target) throw new Error("Open a made clip in the animation view first: its timeline takes the clip");
+            void target.postMessage({ type: "timelineAddGameClip", set, clip: m.clip });
+            const panel = this.panelOf.get(target);
+            panel?.reveal(panel.viewColumn, false);
+            return reply(m.id, { to: this.timelinePages.get(target)?.name });
+          }
           case "texture": {
             const png = await this.texturePng(this.requireBridge(), document.gamePath ? undefined : document.uri.fsPath, m.depot ?? "");
             return reply(m.id, { png, src: webview.asWebviewUri(vscode.Uri.file(png)).toString() });

@@ -69,6 +69,8 @@ export interface TimelinePanel {
   addClipRoom(bone: string | null): { ok: true } | { ok: false; why: string };
   /** Adds that move and its blend, selected; the bone stays grabbed to pose it. */
   addClip(bone: string): void;
+  /** An animation block of another clip at the time marker, on a new track above the others (Use in Timeline). */
+  addAnimation(source: LayerSource): void;
   /** Called after each drawing of the timeline: a change of its steps, its selection, or the time. */
   onDraw(cb: () => void): void;
   /** A drag of the grabbed bone starts, goes on (with its new value at the playhead) and ends. */
@@ -1451,6 +1453,7 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
       if (grabbedBone !== bone) panel.grab(bone);
       showStatus();
     },
+    addAnimation: (src) => addAnim(src),
     onDraw: (cb) => {
       drawListeners.push(cb);
     },

@@ -114,6 +114,9 @@
       if (sidebar) return;
       if (mode === "sector" && meshView?.selectEntry) meshView.selectEntry(m.entry);
       else pendingSectorEntry = m.entry;
+    } else if (m.type === "timelineAddGameClip") {
+      // Use in Timeline from another tab: the clip goes on this page's timeline at its time marker.
+      meshView?.addGameClip?.(m.set, m.clip);
     } else if (m.type === "showAnimation") {
       // The host asks for an animation (REDcodeApi.openAnimation); before the view is up, it waits for it.
       if (sidebar) return;
@@ -516,6 +519,9 @@
         body: payload.body ? { data: base64ToBuffer(payload.body.data), label: payload.body.label, notes: payload.body.notes ?? [] } : undefined,
         // The body's deformation graph (docs/design/bodies.md, B2): its muscle and twist helpers move as the game moves them.
         deform: payload.deform,
+        // Use in Timeline: a clip of this file onto the made clip's timeline in another tab; and this page's own timeline, told to the host.
+        useInTimeline: (clip) => request("animsUseInTimeline", { clip }),
+        timelineHere: () => vscode.postMessage({ type: "timelineHere" }),
         bodyNote: payload.bodyNote,
         rootMotion: !!payload.rootMotion,
         light: payload.light,

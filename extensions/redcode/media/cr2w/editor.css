@@ -277,6 +277,8 @@ body.mesh-mode #props { display: flex; flex-direction: column; overflow: hidden;
 .animfilter { margin: 0 8px 6px; background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border, var(--line)); padding: 2px 6px; }
 .animrow.selected { background: var(--vscode-list-activeSelectionBackground); color: var(--vscode-list-activeSelectionForeground); }
 .animrow[hidden] { display: none; }
+.animrow .animuse { flex: none; margin-left: 6px; font-size: 11px; padding: 0 6px; opacity: .55; }
+.animrow:hover .animuse, .animrow.selected .animuse { opacity: 1; }
 .bonerow { cursor: pointer; font-family: var(--mono); font-size: 12px; }
 .bonerow[hidden] { display: none; }
 .bonerow .toggle { cursor: pointer; }

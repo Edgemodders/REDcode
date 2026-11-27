@@ -36,6 +36,10 @@ export interface AnimsSource {
   body?: { data: ArrayBuffer; label: string; notes: string[] };
   /** The body's deformation graph, cut to what deformGraph.ts runs: its muscle and twist helpers follow the clip. */
   deform?: DeformGraph;
+  /** Use in Timeline: a clip of this file onto the made clip's timeline last worked on, in its own tab. */
+  useInTimeline?(clip: string): Promise<unknown>;
+  /** Tells the host this page has a timeline, so clips from other tabs can come to it. */
+  timelineHere?(): void;
   /** Why there is no body, or not the one asked for. */
   bodyNote?: string;
   /** Plays the root motion at first: the whole rig moves through the scene. */
@@ -188,6 +192,8 @@ export interface AnimsView {
   showAnimation(name: string, options?: { playSet?: boolean }): void;
   /** A stage of a make the Make panel started, from the host. */
   makeStage?(stage: string, detail?: string): void;
+  /** Use in Timeline from another tab: a game clip onto this page's timeline, at its time marker, on a new track. */
+  addGameClip?(set: string, clip: string): void;
 }
 
 /** Each member's colour in the view and the list, after the opened one's. */
@@ -961,6 +967,7 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
     : undefined;
   if (timelineHost) {
     timeline = timelinePanel(timelineHost);
+    source.timelineHere?.();
     container.insertBefore(timeline.box, transport);
     const timelineButton = el("button", "on", "Timeline");
     timelineButton.title = "Show the timeline under the view: the clip's blocks on tracks, its keys and blends";
@@ -1169,6 +1176,19 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
     row.append(el("span", "name", a.name), el("span", "size", seconds(a.duration)));
     row.title = `${a.name}\n${seconds(a.duration)}, ${a.frames.toLocaleString()} frames${fps ? `, ${fps} fps` : ""}`;
     row.addEventListener("click", () => void pick(i));
+    // Use in Timeline: this clip onto the made clip being edited in another tab (docs/design/animation-timeline.md).
+    if (source.useInTimeline) {
+      const use = el("button", "animuse", "Use");
+      use.title = "Use in Timeline: put this clip on the timeline of the made clip you are editing in another tab, at its time marker, on a new track";
+      use.addEventListener("click", (e) => {
+        e.stopPropagation();
+        source.useInTimeline!(a.name).then(
+          (r) => source.say?.(`${a.name} is on ${(r as { to?: string })?.to ?? "the timeline"}'s timeline`),
+          (err) => source.say?.(err instanceof Error ? err.message : String(err)),
+        );
+      });
+      row.append(use);
+    }
     return row;
   });
   list.append(...rows);
@@ -1551,6 +1571,11 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
     refreshMaterials: () => undefined,
     showAnimation,
     makeStage: (stage, detail) => make?.stage(stage, detail),
+    addGameClip: (set, clip) => {
+      if (!timeline) return;
+      timeline.box.hidden = false;
+      timeline.addAnimation({ game: { set, clip } });
+    },
     state: () => ({ clip: info()?.name, time: action?.time ?? 0, speed, camera: camera.position.toArray(), target: controls.target.toArray() }),
   };
 }
