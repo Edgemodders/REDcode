@@ -675,9 +675,17 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
       const keys = [...s.keys].sort((p, q) => p.at - q.at);
       bar.append(el("span", "trackname", `Move ${moveOnText(s.on)}`), ...common(), modePick(s), label("Weight"), weightBox(s));
       const k = sel!.stretch ?? (sel!.key !== undefined ? sel!.key : undefined);
-      if (k !== undefined && keys.length) {
+      if (k !== undefined && keys.length && k >= keys.length) {
+        // After the last key (the owner, 2026-11-26: a click there seemed to do nothing): it holds, with no ease to set.
+        const hold = el("span", "", `After key ${keys.length}: holds it to the clip's end`);
+        hold.title = "A move ends on its last pose. The blend after the clip carries it back into the motion; select the blend to set its ease";
+        bar.append(hold);
+      } else if (k !== undefined && keys.length) {
         const ease = Array.isArray(s.ease) ? s.ease[k] ?? s.ease[s.ease.length - 1] : s.ease;
-        bar.append(label(`Into key ${Math.min(k, keys.length - 1) + 1}`), choice(Transitions.map((t): [string, string] => [t, t]), ease ?? "smooth", "How the stretch into this key runs", (v) => setEase(k, v as Transition)));
+        // Plain text, not dim: it says which stretch the ease is for (the first runs from the clip's left edge).
+        const into = el("span", "", `Ease into key ${k + 1}`);
+        into.title = k === 0 ? "How the move runs from its left edge (the pose showing there) into its first key" : `How the move runs from key ${k} into key ${k + 1}`;
+        bar.append(into, choice(Transitions.map((t): [string, string] => [t, t]), ease ?? "smooth", "How this stretch runs", (v) => setEase(k, v as Transition)));
       }
       if (sel!.key !== undefined) {
         bar.append(label("At"), num(keys[sel!.key]?.at ?? 0, "The key's time from the move's start", (v) => moveKey(sel!.key!, v)), button("Delete Key", "Take this key out (Delete)", () => deleteKey()));
@@ -1165,7 +1173,8 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
           const at = tAt(px) - s.start;
           const keys = [...s.keys].sort((p, q) => p.at - q.at);
           const k = keys.findIndex((key) => key.at >= at);
-          if (keys.length) sel.stretch = k < 0 ? undefined : k;
+          // Past the last key: the hold, lit as the other stretches are, so the click shows what it took.
+          if (keys.length) sel.stretch = k < 0 ? keys.length : k;
         }
         // The blend after a move or an animation (starting where it ends, on its track) goes along with its end.
         const follower = s.step === "blend" ? -1 : list.findIndex((x, i) => i !== hit.index && isTimeline(x) && x.step === "blend" && x.track === s.track && Math.abs(x.start - endOf(s)) < 1e-3);
