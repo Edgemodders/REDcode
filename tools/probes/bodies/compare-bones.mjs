@@ -130,3 +130,28 @@ for (const [w, xs] of Object.entries(byWriter).sort((a, b) => med(b[1]) - med(a[
 console.log("worst 15:");
 for (const r of rows.slice(0, 15)) console.log(`  ${r.name} ${(r.by * 1000).toFixed(1)} mm ${r.deg.toFixed(1)}° (${r.writer}) ours ${r.ours} game ${r.theirs}`);
 fs.writeFileSync(path.join(dir, "compare.json"), JSON.stringify(rows, null, 1));
+
+// BOUNCE=1: for each bulge output, the channel values REDcode set and the ones the game's helper implies, both in the
+// output parent's frame as REDcode places it (game axes), beside the change in the bulge's distance.
+if (process.env.BOUNCE) {
+  const all = new Map();
+  root.traverse((o) => o.name && all.set(o.name, o));
+  const inFrame = (frame, worldPos) => worldPos.clone().applyMatrix4(frame.matrixWorld.clone().invert());
+  console.log("\nbulges (game axes, mm): bone channel: ours / game's; d = the points' distance now");
+  for (const n of graph.nodes.filter((x) => x.t === "SimpleBounce")) {
+    const a = all.get(n.a);
+    const b = all.get(n.b);
+    for (const out of n.outs) {
+      const o = all.get(out.bone);
+      const frame = all.get(out.parent) ?? o?.parent;
+      const g = game.get(out.bone);
+      if (!o || !frame || !g || !a || !b) continue;
+      const ours = inFrame(frame, o.getWorldPosition(new THREE.Vector3()));
+      const theirs = inFrame(frame, V(g.model.t));
+      const e = (v) => [v.x, -v.z, v.y].map((x) => (x * 1000).toFixed(1));
+      const d = a.getWorldPosition(new THREE.Vector3()).distanceTo(b.getWorldPosition(new THREE.Vector3()));
+      const off = Math.abs(ours.distanceTo(theirs));
+      if (off > 0.005) console.log(`  ${out.bone} ${out.entries.map((x) => `${x.transformChannel}×${x.multiplier}`).join(",")} mul ${n.mul}/${n.neg} off ${n.off} smooth ${n.smooth}: ours [${e(ours)}] game [${e(theirs)}] d ${(d * 1000).toFixed(1)}`);
+    }
+  }
+}
