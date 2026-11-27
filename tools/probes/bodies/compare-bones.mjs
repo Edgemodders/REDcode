@@ -77,6 +77,8 @@ objs.forEach((o) => !o.parent && root.add(o));
 root.updateMatrixWorld(true);
 const graph = JSON.parse(fs.readFileSync(path.join(dir, "deform.json"), "utf8"));
 if (process.env.SPLINE) graph.spline = process.env.SPLINE;
+// NOBOUNCE=1: the bulge nodes left out, to see what they add.
+if (process.env.NOBOUNCE) graph.nodes = graph.nodes.filter((n) => n.t !== "SimpleBounce");
 const deformer = createDeformer(root, graph, driven);
 
 // Game axes (Z up) and glTF's (Y up): (x, y, z) to (x, z, -y), for points and for rotations.
