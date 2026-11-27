@@ -1669,6 +1669,19 @@ Not built: undo from the tree tab (Ctrl+Z there does nothing; undo in the editor
 
 **Result (owner, 2026-11-26, F5 on main 14c3030):** passed ("looks good"; the owner did not list the steps run). The change it raised: the bottom panel's tab renamed from "REDcode Tree" to "Sector".
 
+## Body deformation graph (probe)
+
+The owner, 2026-11-26: lumps at the shoulder and upper chest of the base male body with the arms crossed. Cause: the body is skinned to `man_base_deformations.rig` (181 bones: the rig's 71 and 110 muscle and twist helpers), which the game moves every frame with `man_base_deformations.animgraph`; REDcode did not run it. A first fix (the helpers' weights handed to their parents) was taken out unshipped: a helper at its rest place deforms exactly as its parent, so it changed nothing (checked in Chrome).
+
+Built as a probe, not shipped (the host passes no graph yet): `webview/deformGraph.ts` runs the graph's 417 nodes (twist, point, orient and aim constraints, Bézier curves, set-transform copies, translation limits, distance-driven bulges; the 7 extenders add 280 in-between transforms) on the body after the clip, with a **Muscles** switch to compare. The export turns every bone's frame from the game's Z-up to glTF's Y-up, (x, y, z) to (x, z, -y), and the graph's local data is turned the same way.
+
+Checked by scratch scripts (the graph and rig through REDbridge's `cr2w.toJson`; scratch only, game data) and in Chrome on a harness wearing the cached base body:
+
+- In the export's own pose (where a right evaluator leaves every helper in place): helpers within 1.7 cm, median 1.7 mm and 0.11°. Two readings fixed on the way: a bulge sets the channels it lists (PosX to PosZ, RotX to RotZ in degrees, ScaleX to ScaleZ) in its output parent's frame, at its offset plus the change (read as PosX only, it threw the elbow helpers 8 to 12 m and drew spikes); a curve is a Bézier with its middle as the control (through the middle point: 3.8 cm, median 5.2 mm).
+- Left: four right-hand knuckle helpers half a turn from the export (only the right side has an aim after a 180° set-transform offset); creases at the armpits with the arms crossed. The engine's conventions (the aim's up, the bulges' smoothing and delay, what a turn channel starts from) are unverified: the next step is the game's own numbers, an NPC's helper bones read while a clip plays (asked of REDnode).
+
+**Result:** probe, not a hand test.
+
 ## Never run
 
 | Test | Why |

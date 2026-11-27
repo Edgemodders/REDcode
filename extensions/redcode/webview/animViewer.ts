@@ -12,6 +12,7 @@ import { cssColour, el, lightControls, sideSplitter, type LightSettings } from "
 import { createStage } from "../../../packages/world-view/src/stage";
 import { editPanel, type EditApi } from "./animEdit";
 import { timelinePanel, type TimelinePanel } from "./animTimeline";
+import { createDeformer, type DeformGraph, type Deformer } from "./deformGraph";
 import type { Frames } from "../../../packages/anim-core/src/pose";
 
 export interface AnimClipInfo {
@@ -33,6 +34,8 @@ export interface AnimsSource {
    * character's or vehicle's meshes. Without one, the bones show alone.
    */
   body?: { data: ArrayBuffer; label: string; notes: string[] };
+  /** The body's deformation graph, cut to what deformGraph.ts runs: its muscle and twist helpers follow the clip. */
+  deform?: DeformGraph;
   /** Why there is no body, or not the one asked for. */
   bodyNote?: string;
   /** Plays the root motion at first: the whole rig moves through the scene. */
@@ -260,6 +263,22 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
     }
   }
   const animated = bodyRoot ?? root;
+  // The body's muscle and twist helpers, run by its deformation graph after the clip (deformGraph.ts); Muscles turns it off.
+  let deformer: Deformer | undefined;
+  let deformOn = true;
+  if (bodyRoot && source.deform) {
+    const rigBones = new Set<string>();
+    root.traverse((o) => {
+      if ((o as THREE.Bone).isBone) rigBones.add(o.name);
+    });
+    try {
+      deformer = createDeformer(bodyRoot, source.deform, rigBones);
+      if (deformer.missing.length) console.log("deformation graph: not found", deformer.missing.slice(0, 20).join(", "), deformer.missing.length);
+    } catch (e) {
+      console.log("deformation graph failed", e instanceof Error ? e.stack ?? e.message : String(e));
+      deformer = undefined;
+    }
+  }
   /** A3: the other members of a synced set while it plays, each on its own rig, placed, on the main clip's clock. */
   let playingSet: PlayingMember[] = [];
   /** Puts every member at the main clip's moment (or its own end, when it is shorter). */
@@ -485,6 +504,14 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
       }),
       bonesButton,
     );
+    if (deformer) {
+      bar.append(
+        toggle("Muscles", `The body's muscle and twist helpers moved by its deformation graph (${deformer.nodes} nodes), as the game moves them. Off: the plain skinning, where a hard-turned shoulder folds`, true, (on) => {
+          deformOn = on;
+          if (!on) deformer!.reset();
+        }),
+      );
+    }
   }
   /** Root motion on or off: the keys come again from the other export, and the same animation goes on at the same moment. */
   const applyRootMotion = async (on: boolean) => {
@@ -1477,6 +1504,7 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
       follow();
       showTime();
     }
+    if (deformer && deformOn) deformer.update();
     placeHandles();
     controls.update();
     lighting.update(camera);
