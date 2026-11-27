@@ -45,8 +45,10 @@ const opens = { ...client, entryPoints: ["src/opens.ts"], outfile: "dist/opens.j
 const cr2wValues = { ...client, entryPoints: ["src/cr2wValues.ts"], outfile: "dist/cr2wValues.js" };
 // The sector view's Properties tab, for scripts/unit.mjs.
 const sectorProps = { ...client, entryPoints: ["src/sectorProps.ts"], outfile: "dist/sectorProps.js" };
+// The clip index's search, for scripts/unit.mjs.
+const clipIndex = { ...client, entryPoints: ["src/clipIndex.ts"], outfile: "dist/clipIndex.js" };
 // For the unit checks and the smoke test too.
-const animsGlb = { ...client, entryPoints: ["src/animsGlb.ts"], outfile: "dist/animsGlb.js" };
+const animsGlb ={ ...client, entryPoints: ["src/animsGlb.ts"], outfile: "dist/animsGlb.js" };
 // Run game's launch, for scripts/unit.mjs.
 const install = { ...client, entryPoints: ["src/install.ts"], outfile: "dist/install.js" };
 // New File's types, names and roots, for scripts/unit.mjs.
@@ -88,7 +90,7 @@ fs.mkdirSync("media/mesh", { recursive: true });
 // three's exports hide its package.json; its main entry sits in <package>/build/.
 fs.copyFileSync(path.join(path.dirname(require.resolve("three")), "..", "LICENSE"), "media/mesh/three.LICENSE.txt");
 
-const builds = [extension, client, hotSwap, exportCache, library, keysStore, opens, cr2wValues, sectorProps, animsGlb, install, newFile, animsSet, rednodeService, sectorHere, gameDisplay, gameRun, worldViewHost, scriptRunner, sectorScripts, sectorNodesBuild, meshViewer, lipsyncHead];
+const builds = [extension, client, hotSwap, exportCache, library, keysStore, opens, cr2wValues, sectorProps, clipIndex, animsGlb, install, newFile, animsSet, rednodeService, sectorHere, gameDisplay, gameRun, worldViewHost, scriptRunner, sectorScripts, sectorNodesBuild, meshViewer, lipsyncHead];
 if (watch) {
   const contexts = await Promise.all(builds.map((b) => esbuild.context(b)));
   await Promise.all(contexts.map((c) => c.watch()));

@@ -1780,6 +1780,43 @@ await check("sectorProps: what the selected entries and their nodes share, and t
   assert.deepEqual(onNodes.map((c) => [c.entry, c.path]), [[12, "nodes.3.Data.castShadows"]], "each node once; node 7 has it already");
 });
 
+await check("the clip index: words in a clip's name or set path, ranked by fit to the open rig", async () => {
+  const ci = require("../dist/clipIndex.js");
+  const man = "base\\characters\\base_entities\\man_base\\man_base.rig";
+  const big = "base\\characters\\base_entities\\man_big\\man_big.rig";
+  const face = "base\\characters\\head\\pma\\h0_001_ma_c__player\\h0_001_ma_c__player_skeleton.rig";
+  assert.equal(ci.isPersonRig(man), true);
+  assert.equal(ci.isPersonRig("base\\characters\\entities\\player\\player_woman_skeleton.rig"), true);
+  assert.equal(ci.isPersonRig("base\\characters\\base_entities\\man_base\\deformations_rig\\man_base_deformations.rig"), false, "a deformations rig is not a base rig");
+  assert.equal(ci.isPersonRig(face), false);
+  const index = { version: 1, built: "", rigs: [man, big, face], files: [
+    ["base\\animations\\a\\big_fights.anims", 1, [["stand_fist_raise", 1.5], ["stand_idle", 3]]],
+    ["base\\animations\\b\\man_fists.anims", 0, [["fist_clench_long_name", 0.8], ["wave", 2]]],
+    ["base\\animations\\c\\face_fist.anims", 2, [["fist", 1]]],
+    ["base\\animations\\d\\none.anims", -1, [["other", 1]]],
+  ] };
+  const r = ci.searchClips(index, "FIST", man);
+  assert.deepEqual(r.hits.map((h) => [h.clip, h.fits]), [["fist_clench_long_name", "same"], ["wave", "same"], ["stand_fist_raise", "person"], ["fist", "other"]], "the same rig first, a word in the name before one only in the path, a face rig last");
+  assert.equal(r.total, 4);
+  assert.deepEqual(ci.searchClips(index, "stand raise", man).hits.map((h) => h.clip), ["stand_fist_raise"], "every word, any order");
+  assert.deepEqual(ci.searchClips(index, "  ", man).hits, []);
+  assert.equal(ci.searchClips(index, "fist", man, 2).hits.length, 2, "the limit");
+  const dir = path.join(tmp, "cache");
+  const call = { request: async (method, params) => {
+    if (method === "archive.list") return { total: 3, items: [{ name: "x\\b.anims" }, { name: "x\\a.anims" }, { name: "x\\a.anims" }] };
+    if (method === "anims.info" && params.files.length > 1) throw new Error("one bad file");
+    if (params.files[0] === "x\\b.anims") throw new Error("bad");
+    return { items: [{ path: params.files[0], rig: man, clips: [{ name: "wave_hello", duration: 1.234 }] }] };
+  } };
+  const seen = [];
+  const built = await ci.buildClipIndex(call, dir, (done, total) => seen.push([done, total]));
+  assert.deepEqual(built.files, [["x\\a.anims", 0, [["wave_hello", 1.23]]]], "a path in two archives once; a failing batch is read file by file and the bad file left out");
+  assert.deepEqual(seen, [[2, 2]]);
+  assert.deepEqual(ci.loadClipIndex(dir).files, built.files, "kept in the game cache");
+  assert.equal(await ci.buildClipIndex(call, path.join(tmp, "cache2"), undefined, () => true), undefined, "cancelled: nothing written");
+  assert.equal(ci.loadClipIndex(path.join(tmp, "cache2")), undefined);
+});
+
 fs.rmSync(tmp, { recursive: true, force: true });
 console.log(`${passed} passed${failures.length ? `, ${failures.length} failed` : ""}`);
 process.exit(failures.length ? 1 : 0);

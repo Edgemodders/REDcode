@@ -13,12 +13,14 @@
   let nextId = 1;
   const pending = new Map();
   const inflight = new Set();
-  function request(type, params = {}) {
+  /** A call to the host; long ones (the clip index's build) pass held = false, so a save does not wait for them. */
+  function request(type, params = {}, held = true) {
     const p = new Promise((resolve, reject) => {
       const id = nextId++;
       pending.set(id, { resolve, reject });
       vscode.postMessage({ type, id, ...params });
     });
+    if (!held) return p;
     inflight.add(p);
     p.finally(() => inflight.delete(p)).catch(() => undefined);
     return p;
@@ -522,6 +524,10 @@
         // Use in Timeline: a clip of this file onto the made clip's timeline in another tab; and this page's own timeline, told to the host.
         useInTimeline: (clip) => request("animsUseInTimeline", { clip }),
         timelineHere: () => vscode.postMessage({ type: "timelineHere" }),
+        // The game clip search (the clip index, built once on the modder's word) and a found clip in its own tab.
+        clipSearch: (query) => request("clipSearch", { query, rig: payload.rig }),
+        buildClipIndex: () => request("clipIndexBuild", {}, false),
+        openGameClip: (set, clip) => request("openGameClip", { set, clip }),
         bodyNote: payload.bodyNote,
         rootMotion: !!payload.rootMotion,
         light: payload.light,

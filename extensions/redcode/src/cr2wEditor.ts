@@ -20,6 +20,7 @@ import { SectorScriptsUi, type ScriptHost } from "./sectorScriptsUi";
 import { appearanceOf, cachedGlb, createSectorLoader, findOverlaps, meshMaterials, sectorsOver, texturedGlb, type SectorLoader, type SectorRef } from "../../../packages/world-view/src/host";
 import { bridgeOver, renderMaterials } from "@edgemodders/edgemat-core";
 import { gameCacheReady, stampFolder } from "./exportCache";
+import { buildClipIndex, loadClipIndex, searchClips, type ClipIndex } from "./clipIndex";
 import { findEdgemat, mapsForWebview, openInEdgemat, type RenderedMaterial } from "./edgemat";
 import type { LipSync } from "./lipsync";
 import { ProjectFolders } from "./project";
@@ -263,6 +264,10 @@ export class Cr2wDocument implements vscode.CustomDocument {
 interface Request {
   type: string;
   id?: number;
+  /** clipSearch: the rig of the page's own file, which ranks the clips that fit it first. */
+  rig?: string;
+  /** openGameClip: the game .anims set of a found clip (its name is clip). */
+  set?: string;
   /** sectorScripts: the sector view's selected node data entries. */
   entries?: number[];
   /** sectorScripts: the whole selection by id (`<sector>#<entry>`), the layers' things too (docs/design/sector-layers.md, L2). */
@@ -384,6 +389,9 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
   private readonly timelinePages = new Map<vscode.Webview, Cr2wDocument>();
   private readonly panelOf = new Map<vscode.Webview, vscode.WebviewPanel>();
   private recentPages: vscode.Webview[] = [];
+  /** The clip index (src/clipIndex.ts), with the game stamp it was read for; one build at a time for every page. */
+  private clipIndex: { stamp: string; index: ClipIndex } | undefined;
+  private clipIndexBuild: Promise<ClipIndex | undefined> | undefined;
   /** The last selected path per document, which a page attaching later (the Properties view) starts on. */
   private readonly selection = new Map<Cr2wDocument, string>();
   private readonly documents = new Map<string, Cr2wDocument>();
@@ -444,6 +452,48 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
       return;
     }
     for (const w of pages) void w.postMessage({ type: "reveal", path: nodePath });
+  }
+
+  /** The clip index for the loaded game, from memory or the game cache; undefined when it was never built for this game. */
+  private async loadedClipIndex(): Promise<ClipIndex | undefined> {
+    const cache = path.join(this.textures.root.fsPath, "mesh");
+    const stamp = await gameCacheReady(this.requireBridge(), cache);
+    if (!stamp) throw new Error("No game is loaded: Set Game Folder first");
+    if (this.clipIndex?.stamp !== stamp) {
+      const index = loadClipIndex(cache);
+      this.clipIndex = index ? { stamp, index } : undefined;
+    }
+    return this.clipIndex?.index;
+  }
+
+  /**
+   * Reads every game clip's name, rig and length into the index, once per game build (about two minutes for
+   * 14,016 files, measured 2026-11-26), with a cancellable notification. A page's Build Index button is the ask.
+   */
+  private buildClipIndex(): Promise<ClipIndex | undefined> {
+    this.clipIndexBuild ??= (async () => {
+      const bridge = this.requireBridge();
+      const cache = path.join(this.textures.root.fsPath, "mesh");
+      const stamp = await gameCacheReady(bridge, cache);
+      if (!stamp) throw new Error("No game is loaded: Set Game Folder first");
+      const t0 = Date.now();
+      const index = await vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Notification, title: "Reading the game's animation clips", cancellable: true },
+        async (progress, token) => {
+          let last = 0;
+          return buildClipIndex(bridge, cache, (done, total) => {
+            progress.report({ message: `${done} of ${total} files`, increment: ((done - last) / total) * 100 });
+            last = done;
+          }, () => token.isCancellationRequested);
+        },
+      );
+      if (index) {
+        this.clipIndex = { stamp, index };
+        this.log.appendLine(`clip index: ${index.files.length} files read in ${((Date.now() - t0) / 1000).toFixed(0)} s`);
+      }
+      return index;
+    })().finally(() => (this.clipIndexBuild = undefined));
+    return this.clipIndexBuild;
   }
 
   /**
@@ -874,6 +924,24 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
             const panel = this.panelOf.get(target);
             panel?.reveal(panel.viewColumn, false);
             return reply(m.id, { to: this.timelinePages.get(target)?.name });
+          }
+          case "clipSearch": {
+            // The timeline's game clip search: words against every game clip's name and set path.
+            const index = await this.loadedClipIndex();
+            if (!index) return reply(m.id, { missing: true, building: !!this.clipIndexBuild });
+            return reply(m.id, searchClips(index, String(m.query ?? ""), typeof m.rig === "string" ? m.rig : undefined));
+          }
+          case "clipIndexBuild": {
+            const index = await this.buildClipIndex();
+            return reply(m.id, index ? { files: index.files.length, clips: index.files.reduce((s, f) => s + f[2].length, 0) } : null);
+          }
+          case "openGameClip": {
+            // A found clip in its own tab, on its own rig's body, to watch before Use in Timeline or Add.
+            if (typeof m.set !== "string" || !/\.anims$/i.test(m.set)) throw new Error("Not an .anims set");
+            const uri = gameUri(m.set);
+            this.showAnimation(uri, typeof m.clip === "string" ? m.clip : undefined);
+            await vscode.commands.executeCommand("vscode.openWith", uri, cr2wViewTypeFor(m.set), { viewColumn: vscode.ViewColumn.Beside, preserveFocus: false });
+            return reply(m.id, {});
           }
           case "texture": {
             const png = await this.texturePng(this.requireBridge(), document.gamePath ? undefined : document.uri.fsPath, m.depot ?? "");

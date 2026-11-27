@@ -37,6 +37,18 @@ export interface TimelineHost {
   /** The grabbed bone changed (TL4): the view puts its handles on it, or takes them away. */
   grabbed(bone: string | null, mode: "move" | "turn"): void;
   say(message: string): void;
+  /** The game clip search (src/clipIndex.ts, searchClips); missing when the clip index was never built. */
+  clipSearch?(query: string): Promise<ClipSearch>;
+  buildClipIndex?(): Promise<{ files: number; clips: number } | null>;
+  openGameClip?(set: string, clip: string): Promise<unknown>;
+}
+
+/** searchClips' answer as it crosses to the page (src/clipIndex.ts ClipHit). */
+export interface ClipSearch {
+  missing?: boolean;
+  building?: boolean;
+  total?: number;
+  hits?: { set: string; clip: string; seconds: number; rig: string | null; fits: "same" | "person" | "other" }[];
 }
 
 export interface TimelinePanel {
@@ -124,7 +136,11 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
   canvas.tabIndex = 0;
   lanesBox.append(checks, canvas);
   const status = el("div", "dim tlstatus", "Reading the clip as made…");
-  box.append(grip, bar, lanesBox, status);
+  /** The Add form for another clip (a made one, or a game clip with its search), in its own row so a redraw keeps its focus. */
+  const form = el("div", "toolbar tlbar tlform");
+  const found = el("div", "tlfound");
+  form.hidden = found.hidden = true;
+  box.append(grip, bar, form, found, lanesBox, status);
 
   // ---- the state ----
   let base: Frames | undefined;
@@ -606,10 +622,116 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
     );
     return pick;
   };
-  let animForm: "made" | "game" | null = null;
+  const closeForm = () => {
+    form.replaceChildren();
+    found.replaceChildren();
+    form.hidden = found.hidden = true;
+  };
+  /** The Add form: a made clip from a list, or a game clip by its set and name, found by words (the clip index). */
   const showAnimForm = (kind: "made" | "game") => {
-    animForm = kind;
-    showBar();
+    closeForm();
+    form.hidden = false;
+    const add = (src: LayerSource | null) => {
+      if (!src) return host.say("Name the clip");
+      closeForm();
+      addAnim(src);
+    };
+    const cancel = button("Cancel", "", () => closeForm());
+    if (kind === "made") {
+      const made = choice(info.others.map((o): [string, string] => [o, o]), info.others[0] ?? "", "The made clip", () => undefined);
+      form.append(label("Made clip"), made, button("Add", "Add it at the playhead on a new track", () => add(made.value ? { made: made.value } : null), true), cancel);
+      return;
+    }
+    const find = el("input", "tlfind") as HTMLInputElement;
+    const set = el("input", "tlset") as HTMLInputElement;
+    const clip = el("input") as HTMLInputElement;
+    find.placeholder = "find by words: fist, wave, sit, phone…";
+    find.title = "Words in the clip's name or its set's path, any order; clips on this rig first, then other people's rigs";
+    set.placeholder = "the game's .anims set, by game path";
+    clip.placeholder = "the clip in it, by name";
+    const ok = button("Add", "Add it at the playhead on a new track", () => add(set.value.trim() && clip.value.trim() ? { game: { set: set.value.trim(), clip: clip.value.trim() } } : null), true);
+    form.append(label("Game clip"), ...(host.clipSearch ? [find] : []), set, clip, ok, cancel);
+    let asked = 0;
+    let wait: ReturnType<typeof setTimeout> | undefined;
+    const search = async () => {
+      const words = find.value.trim();
+      const mine = ++asked;
+      if (!words) {
+        found.hidden = true;
+        found.replaceChildren();
+        return;
+      }
+      let r: ClipSearch;
+      try {
+        r = await host.clipSearch!(words);
+      } catch (e) {
+        r = {};
+        host.say(String((e as Error)?.message ?? e));
+      }
+      if (mine !== asked || form.hidden) return;
+      found.hidden = false;
+      found.replaceChildren();
+      if (r.missing) {
+        const build = button(r.building ? "Reading…" : "Read Clips", "Reads every game .anims file's clip names, rigs and lengths through REDbridge: about two minutes, once for each game build. Kept in REDcode's cache; nothing is added to a project", () => {
+          build.disabled = true;
+          build.textContent = "Reading…";
+          host.buildClipIndex!().then(
+            (done) => {
+              if (done) host.say(`Read ${done.clips.toLocaleString()} clips in ${done.files.toLocaleString()} files`);
+              void search();
+            },
+            (e) => {
+              host.say(String((e as Error)?.message ?? e));
+              void search();
+            },
+          );
+        }, true);
+        build.disabled = !!r.building;
+        found.append(el("div", "dim tlfoundnote", "To find clips by words, REDcode reads the game's 14,000 animation files once (about two minutes)."), build);
+        return;
+      }
+      const hits = r.hits ?? [];
+      if (!hits.length) {
+        found.append(el("div", "dim tlfoundnote", "No game clip has all of those words in its name or path"));
+        return;
+      }
+      const fitText = { same: "this rig", person: "a person's rig", other: "another rig" } as const;
+      const fitTitle = {
+        same: "On the same rig as this clip",
+        person: "On another person's rig: the same bones by name, so it plays on this body",
+        other: "On a rig whose bones differ (a face, a creature, a vehicle): only the bones both rigs have would move",
+      } as const;
+      for (const h of hits) {
+        const row = el("div", `tlfoundrow ${h.fits}`);
+        const name = el("span", "tlfoundname", h.clip);
+        const where = el("span", "dim tlfoundset", h.set.split("\\").pop() ?? h.set);
+        where.title = h.set;
+        const fit = el("span", "tlfoundfit", fitText[h.fits]);
+        fit.title = `${fitTitle[h.fits]}${h.rig ? `\n${h.rig}` : ""}`;
+        const pick = () => {
+          set.value = h.set;
+          clip.value = h.clip;
+          for (const other of found.querySelectorAll(".tlfoundrow.on")) other.classList.remove("on");
+          row.classList.add("on");
+        };
+        row.addEventListener("click", pick);
+        row.addEventListener("dblclick", () => add({ game: { set: h.set, clip: h.clip } }));
+        row.title = "Click to choose it, double-click to add it";
+        const open = host.openGameClip ? [button("Open", "Watch it in its own tab, on its own body; Use there brings it back to this timeline", () => void host.openGameClip!(h.set, h.clip))] : [];
+        row.append(name, el("span", "dim tlfoundsecs", `${h.seconds.toFixed(2)} s`), fit, where, ...open, button("Add", "Add it at the playhead on a new track", () => add({ game: { set: h.set, clip: h.clip } })));
+        found.append(row);
+      }
+      if ((r.total ?? 0) > hits.length) found.append(el("div", "dim tlfoundnote", `${hits.length} of ${r.total!.toLocaleString()} shown: add a word to narrow it`));
+    };
+    find.addEventListener("input", () => {
+      clearTimeout(wait);
+      wait = setTimeout(() => void search(), 250);
+    });
+    find.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeForm();
+      e.stopPropagation();
+    });
+    (host.clipSearch ? find : set).focus();
   };
   const showBar = () => {
     bar.replaceChildren();
@@ -625,26 +747,6 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
       redraw();
     });
     bar.append(el("span", "label", "Timeline"), addMenu(), apply, undo, redo, fitButton);
-    if (animForm) {
-      const kind = animForm;
-      const made = kind === "made" ? choice(info.others.map((o): [string, string] => [o, o]), info.others[0] ?? "", "The made clip", () => undefined) : undefined;
-      const set = el("input") as HTMLInputElement;
-      const clip = el("input") as HTMLInputElement;
-      set.placeholder = "the game's .anims set, by game path";
-      clip.placeholder = "the clip in it, by name";
-      const ok = button("Add", "Add it at the playhead on a new track", () => {
-        const src: LayerSource | null = kind === "made" ? (made!.value ? { made: made!.value } : null) : set.value.trim() && clip.value.trim() ? { game: { set: set.value.trim(), clip: clip.value.trim() } } : null;
-        if (!src) return host.say("Name the clip");
-        animForm = null;
-        addAnim(src);
-      }, true);
-      const cancel = button("Cancel", "", () => {
-        animForm = null;
-        showBar();
-      });
-      bar.append(label(kind === "made" ? "Made clip" : "Game clip"), ...(made ? [made] : [set, clip]), ok, cancel);
-      return;
-    }
     const s = sel ? list[sel.index] : undefined;
     if (!s) {
       bar.append(label(grabbedBone ? `Grabbed ${grabbedBone}` : "Click a block, or a joint in the view to pose it"));
@@ -1135,7 +1237,6 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
     const hit = hitAt(px, py);
     if (!hit) return;
     canvas.setPointerCapture(e.pointerId);
-    animForm = null;
     switch (hit.kind) {
       case "ruler":
         drag = { kind: "scrub" };

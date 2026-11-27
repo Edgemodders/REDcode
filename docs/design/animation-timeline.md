@@ -202,7 +202,13 @@ The owner's aim: work on part of the body (a hand closing into a fist) by pickin
 ### Finding and using game clips
 
 - **Use in Timeline** (built 2026-11-26): a **Use** button on each clip row in the animation view's Animations tab. It puts that clip on the timeline of the made clip last worked on in another tab, at its time marker, on a new track, and shows that tab. A clip of a project file goes by its game path. With no made clip open, it says to open one. The host keeps which pages have a timeline (`timelineHere`) and which tab was active last.
-- **Clip search** (next): in the timeline's **Animation: a game clip…** form, a search by words over every game clip's name, with its file, rig and length; a pick fills the form, and a preview plays it. It needs every clip's name: REDbridge's `anims.info` reads a file's clips without decoding them, about 300 files in 4 s. The game has 14,016 `.anims` (probe `tools/probes/anims/clip-index.mjs`); the index is built once, asked first as the world index is, kept in the cache, and searched in the page. Rigs other than the open clip's are shown, and marked.
+- **Clip search** (built 2026-11-26): in the timeline's **Animation: a game clip…** form, a search box over every game clip's name and set path, with its length, its set and how its rig fits; a click fills the form, a double-click or **Add** adds it, **Open** plays it in its own tab on its own body (the preview; Use there brings it back). As built:
+  - The probe (`tools/probes/anims/clip-index.mjs`): REDbridge's `archive.list` with `extension: ".anims"` lists the game's 14,016 files in 4 s; `anims.info` reads their 146,814 clips in 129 s; the index is 7 MB. 736 rigs: body clips are on man_base (16,662), woman_base (16,226), man_big, and V's rigs; the head skeleton rigs hold face clips.
+  - `src/clipIndex.ts` (no VS Code imports): `buildClipIndex` (a failing batch is read file by file), `loadClipIndex`, `searchClips` and `isPersonRig`. The index sits in the game cache (`<cache>/mesh/game/clip-index.json`), which a game patch empties.
+  - The ask: the first search says the clips are not read yet and offers **Read Clips** (about two minutes), with a cancellable notification. It is not a modal question: the button says what it does, and nothing leaves the PC.
+  - Search: every word must be in the clip's name or its set's path. Ranked by fit (this rig; a person's rig, the same bones by name; another rig, dimmed), then by words in the clip's own name, then by shorter names. 60 shown, with the count. The search runs in the host: 10 to 30 ms.
+  - Found on the way: the photo mode sets (`photomode__male__idle.anims`) hold one-frame hand poses such as `idle__fists` and `idle___fist_in_hand`, the simplest fist to lay on a hand.
+  - The form now has its own row under the timeline's bar, so a redraw keeps its focus, and it stays open while the time marker moves.
 
 ### Choosing bones (draft, the owner's decisions below)
 

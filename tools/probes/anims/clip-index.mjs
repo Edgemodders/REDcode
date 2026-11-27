@@ -27,21 +27,13 @@ const client = new BridgeClient({ exe, gamePath });
 client.start();
 try {
   const t0 = Date.now();
-  // archive.search answers at most 5,000: a folder with more is taken a level down through archive.tree.
+  // archive.list pages through every game archive by ending (REDbridge 0.14.0); a path in two archives counts once.
   const found = new Set();
-  const collect = async (prefix) => {
-    const r = await client.request("archive.search", { query: prefix, limit: 5000 });
-    if (r.total <= 5000) {
-      for (const i of r.items) if (/\.anims$/i.test(i.name)) found.add(i.name);
-      return;
-    }
-    const t = await client.request("archive.tree", { path: prefix.replace(/\\$/, "") });
-    for (const f of t.files ?? []) if (/\.anims$/i.test(f.name ?? f.path ?? "")) found.add(f.path ?? `${prefix}${f.name}`);
-    for (const d of t.folders ?? []) await collect(`${d.path ?? `${prefix}${d.name}`}\\`.replace(/\\\\$/, "\\"));
-  };
-  const roots = (await client.request("archive.tree", { path: "" })).folders ?? [];
-  for (const d of roots) await collect(`${d.path ?? d.name}\\`);
-  console.log(`(${found.size} by folders; the search says ${(await client.request("archive.search", { query: ".anims", limit: 1 })).total} paths contain ".anims")`);
+  for (let offset = 0; ; offset += 5000) {
+    const r = await client.request("archive.list", { extension: ".anims", offset, limit: 5000 });
+    for (const i of r.items) found.add(i.name);
+    if (offset + 5000 >= r.total) break;
+  }
   const files = [...found].slice(0, limit);
   console.log(`${found.size} .anims in the game (found in ${Date.now() - t0} ms); reading ${files.length}`);
   const t1 = Date.now();

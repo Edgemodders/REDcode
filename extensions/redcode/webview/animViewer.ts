@@ -11,7 +11,7 @@ import { TransformControls } from "three/examples/jsm/controls/TransformControls
 import { cssColour, el, lightControls, sideSplitter, type LightSettings } from "./viewerKit";
 import { createStage } from "../../../packages/world-view/src/stage";
 import { editPanel, type EditApi } from "./animEdit";
-import { timelinePanel, type TimelinePanel } from "./animTimeline";
+import { timelinePanel, type ClipSearch, type TimelinePanel } from "./animTimeline";
 import { createDeformer, type DeformGraph, type Deformer } from "./deformGraph";
 import type { Frames } from "../../../packages/anim-core/src/pose";
 
@@ -40,6 +40,12 @@ export interface AnimsSource {
   useInTimeline?(clip: string): Promise<unknown>;
   /** Tells the host this page has a timeline, so clips from other tabs can come to it. */
   timelineHere?(): void;
+  /** The game clip search, ranked by fit to this file's rig; missing when the clip index was never built. */
+  clipSearch?(query: string): Promise<ClipSearch>;
+  /** Builds the clip index (about two minutes, once per game build); null when cancelled. */
+  buildClipIndex?(): Promise<{ files: number; clips: number } | null>;
+  /** A game clip in its own tab, on its own rig's body. */
+  openGameClip?(set: string, clip: string): Promise<unknown>;
   /** Why there is no body, or not the one asked for. */
   bodyNote?: string;
   /** Plays the root motion at first: the whole rig moves through the scene. */
@@ -963,6 +969,9 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
           handles.setSpace(mode === "move" ? "world" : "local");
         },
         say: (message: string) => source.say?.(message),
+        clipSearch: source.clipSearch,
+        buildClipIndex: source.buildClipIndex,
+        openGameClip: source.openGameClip,
       }
     : undefined;
   if (timelineHost) {
