@@ -60,6 +60,7 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Sector layers L2 and L3](#sector-layers-l2-and-l3) | By hand | Sector layers L2 and L3 | 2026-11-25 | **Passed** (EDGEweb by script, L2-1 to L3-6, and its three fixes) |
 | [Sector layers L4 and Sector Tools L1](#sector-layers-l4-and-sector-tools-l1) | By hand, in the game | Sector layers L4 | | Not run (checked by script) |
 | [Sector overlaps O1](#sector-overlaps-o1) | By hand | Sector overlaps O1 | | Not run (checked by script and in Chrome over the real REDbridge) |
+| [Sector search](#sector-search) | By hand | Sector view (0.10.17) | | Not run (released without a test of its own) |
 | [Body deformation graph](#body-deformation-graph-probe) | Scripts against the game; by hand | Bodies B2a | 2026-11-26 | **Passed** (owner, steps 1 to 5); against the game a median 1.6 mm, the bulges' rule not settled |
 | [The tree in its own tab](#the-tree-in-its-own-tab) | By hand | Sector view | 2026-11-26 | **Passed** (owner: "looks good"; the panel tab renamed Sector after it) |
 | [Animation Timeline TL2 to TL4](#animation-timeline-tl2-to-tl4) | By hand | Animation Timeline | 2026-11-26 | **Partly run**: T1 to T10 pass (EDGEweb by script) with their fixes, but trimming a move's end, fixed again and not run; T2 and T3 pass (owner); T4 waits on retest R1 (Turn now in the view), with R2 (scrolling tracks) and R3 (Pause, Stop); T11 needs the game |
@@ -1651,6 +1652,18 @@ Steps (F5, a sector from Game Assets; the first search after this update reads e
 12. Nothing else changed: Frame All, selection, Volume, materials, coarser levels and a layer turned on work as before.
 
 **Result:** not run.
+
+## Sector search
+
+Released in 0.10.17 (the CHANGELOG's "Search a sector to select what it finds"), built after the sector tests, and on no test until now (found 2026-11-26 from the wiki's list of what is not yet tested). F5, `exterior_-22_7_0_0.streamingsector` from Game Assets on 3D.
+
+| # | Do | Expected |
+|---|---|---|
+| SR1 | Click one thing, then type `soda` in the search box at the bottom and press Enter | The soda cans are selected (the Selections list fills); the status line says "N matches: K things selected" |
+| SR2 | Type a class instead, such as `worldStaticDecalNode`, Enter | Every decal is selected; the status line follows. A word that finds nothing placed says "none is a thing in the view" |
+| SR3 | Clear the box (its × or Esc) | The status line clears; the selection stays |
+| SR4 | The Selections list's **Back** icon | The selection before the search: the one thing from SR1 |
+| SR5 | Open a mesh (any `.mesh` on 3D) and search a word from its appearances | The matches show in Tree, as before 0.10.17 |
 
 ## The tree in its own tab
 
