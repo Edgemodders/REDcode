@@ -33,9 +33,21 @@ const findComps = (v) => {
 findComps(reading);
 if (!comps.length) throw new Error("No components with bones in the reading");
 const game = new Map();
-for (const c of comps) for (const b of c.bones) if (b.model && !game.has(b.name)) game.set(b.name, { model: b.model, comp: c.name ?? c.component ?? "?", part: b.part });
-const rootComp = comps.find((c) => /root/i.test(c.name ?? c.component ?? "")) ?? comps[0];
-const driven = new Set(rootComp.bones.map((b) => b.name));
+for (const c of comps) for (const b of c.bones) if (b.model && !game.has(b.name)) game.set(b.name, { model: b.model, comp: c.name ?? c.component ?? "?", rig: b.rig ?? b.part });
+// The body's own bones: since REDnode 0.76.1 one object answers for root, face and deformations (512 bones), each bone
+// naming its rig by an index into the component's rigs; the body's rig is the one with 71 bones. Before, one component each.
+let driven;
+const withRigs = comps.find((c) => Array.isArray(c.rigs) && c.bones.some((b) => b.rig !== undefined));
+if (withRigs) {
+  const count = (r) => (typeof r === "number" ? r : r?.count ?? r?.bones ?? r?.boneCount);
+  const bodyRig = withRigs.rigs.findIndex((r) => count(r) === 71 || /man_base\.rig|woman_base\.rig|_base\.rig$/i.test(r?.path ?? r?.name ?? ""));
+  if (bodyRig < 0) throw new Error(`No 71-bone rig among ${JSON.stringify(withRigs.rigs).slice(0, 300)}`);
+  driven = new Set(withRigs.bones.filter((b) => b.rig === bodyRig).map((b) => b.name));
+} else {
+  const rootComp = comps.find((c) => /root/i.test(c.name ?? c.component ?? "")) ?? comps[0];
+  driven = new Set(rootComp.bones.map((b) => b.name));
+}
+console.log(`the body's own bones: ${driven.size}`);
 console.log(`reading: ${comps.map((c) => `${c.name ?? c.component ?? "?"} ${c.bones.length} bones${c.lod !== undefined ? `, LOD ${c.lod}` : ""}`).join("; ")}`);
 
 // ---- the body, built from its .glb's nodes (glTF axes) ----
