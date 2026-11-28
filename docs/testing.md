@@ -59,11 +59,11 @@ Gathered on 2026-10-16 from the design pages, the project notes and the session 
 | [Sector scripts: a changed script](#sector-scripts-a-changed-script) | By hand | Sector scripts | 2026-11-25 | **Passed** (EDGEweb by script, H1 to H4, and its fix) |
 | [Sector layers L2 and L3](#sector-layers-l2-and-l3) | By hand | Sector layers L2 and L3 | 2026-11-25 | **Passed** (EDGEweb by script, L2-1 to L3-6, and its three fixes) |
 | [Sector layers L4 and Sector Tools L1](#sector-layers-l4-and-sector-tools-l1) | By hand, in the game | Sector layers L4 | | Not run (checked by script) |
-| [Sector overlaps O1](#sector-overlaps-o1) | By hand | Sector overlaps O1 | | Not run (checked by script and in Chrome over the real REDbridge) |
-| [Sector search](#sector-search) | By hand | Sector view (0.10.17) | 2026-11-26 | **Partly run** (EDGEweb by script): SR1, SR3, SR4 pass; SR2 found classes and cooked meshes unsearchable, fixed, not run again; SR5 not run |
+| [Sector overlaps O1](#sector-overlaps-o1) | By hand | Sector overlaps O1 | 2026-11-27 | **Partly run** (EDGEweb by script): steps 1 to 7, 9 and 11 pass; step 8's handles, step 10's layer that stays on and most of step 12 not run |
+| [Sector search](#sector-search) | By hand | Sector view (0.10.17) | 2026-11-26 | **Passed** (EDGEweb by script, SR1 to SR5 on 2026-11-27, after the class and cooked mesh fix SR2 raised) |
 | [Body deformation graph](#body-deformation-graph-probe) | Scripts against the game; by hand | Bodies B2a | 2026-11-26 | **Passed** (owner, steps 1 to 5); against the game a median 1.6 mm, the bulges' rule not settled |
 | [The tree in its own tab](#the-tree-in-its-own-tab) | By hand | Sector view | 2026-11-26 | **Passed** (owner: "looks good"; the panel tab renamed Sector after it) |
-| [Animation Timeline TL2 to TL4](#animation-timeline-tl2-to-tl4) | By hand | Animation Timeline | 2026-11-26 | **Partly run**: T1 to T10 pass (EDGEweb by script) with their fixes, but trimming a move's end, fixed again and not run; T2 and T3 pass (owner); T4 waits on retest R1 (Turn now in the view), with R2 (scrolling tracks) and R3 (Pause, Stop); T11 needs the game |
+| [Animation Timeline TL2 to TL4](#animation-timeline-tl2-to-tl4) | By hand | Animation Timeline | 2026-11-26 | **Partly run**: T1 to T10, the trim and retests R1 to R13 pass (EDGEweb by script, 2026-11-25 and 27); T2 and T3 pass (owner); R4's Fist fix, Use in Timeline's U5 fix and Clip search's S8 fix not run again; the looks are the owner's; T11 needs the game. Use in Timeline U1 to U4 and Clip search S1 to S8 pass (EDGEweb by script) |
 | [Sector layers (L1)](#sector-layers-l1) | By hand | Sector layers L1 | 2026-11-25 | **Passed** (EDGEweb by script, L1 to L9; the owner, the ghosted look) |
 | [Lip Sync L1](#lip-sync-l1-the-editor-in-redcode) | Scripts and an MCP client; by hand | Lip Sync L1 | 2026-11-25 | **Passed but step 9** (scripts, MCP and EDGEweb's script for 1 to 8 and 10; the owner, the sound, mouth and head); step 9 not run, shipped untested at the owner's word |
 | [Library view (#23)](#library-view-23) | By hand | Requests | 2026-11-15 | Pass, two fixes |
@@ -846,9 +846,36 @@ Asked the same day after R6 to R9 were given, built and checked in Chrome on the
 
 Retests: R10 the Bones tree (fold and open, the filter's ×, a bone selected in the view opening its parents, the yellow scrollbar); R11 Add Clip greyed with no track selected and with the marker inside a clip, then on an empty track; R12 the ruler's grab cursor on the time marker.
 
+Result of R1 to R13 and the trim, EDGEweb's session by script on 2026-11-27 (EDGEkit 1.143.2 trial, the VSIX of main 942e29e, REDbridge 0.19.0, a copy of AnimProbeD; real clicks, drags and keys over CDP): **as expected on what a script reads**; the looks are the owner's. Nothing was applied, and T11 needs the game.
+
+- R1 (T4): RightHand grabbed from the Bones tab; the view's corner showed Move, Turn, Fist, Let Go; Turn lit in both places; a ring drag made a move with one key and its blend, the rings turned.
+- R2: 8 lanes in the 150 px box; the wheel scrolled them, the ruler stayed on top. R3: Play and Play Backward became Pause and held; Stop went to 0.00 s.
+- R4: Fist on RightHand made one 14-bone move, Curl on RightHandIndex1 a 3-bone one; one Undo took each. Dragging back toward open not tried. **Found:** the Fist slider stayed at 0.93 after its Undo, and on the next bone grabbed. Fixed the same day (not run again): the slider keeps its value only while the joints are still in that bend, and goes back to 0 after an Undo.
+- R5: Remove Track in the lane menu, and Delete on a selected empty lane, each took a track; Undo twice brought both. The bar's own button for a selected empty track not looked for.
+- R6 and R10: the Bones tree, its filter (`right index`), a click grabbing the bone and lighting its row, parents opened, the root folding all, Esc and × clearing the filter, the 6 px yellow scrollbar. The counts differ from the notes: 115 rows at first and `pinky` 16, since this body's helper joints (`mscl_JNT`) are in the tree, with Muscles on or off.
+- R7: a click on a move's block grabbed its bone. R13: the bar's segment text before and after the key, with its tooltip.
+- R8, R9: New Track Above and Below, Move Clip Up and Down (to a free track, else a new one), Remove Track; a track dragged by its empty space; a clip dragged onto a free track moved with its blend, onto a busy one stayed.
+- R11: Add Clip off with no bone and with the marker inside a clip, each saying why; on an empty track it added a 1 s move and its blend. "No track selected" not seen: a track was always selected. R12: the grab cursor on the ruler at the marker only.
+- The trim: a drag from just inside a move's right edge (the ew-resize cursor) shortened it, and its blend followed.
+- Noted: the Edit list keeps a "Track 2" line for a kept empty track beside a clip now on track 2, after tracks were reordered.
+
+Retest: R4's Fist and Curl Undo (the slider back to 0).
+
 **Use in Timeline** (the owner asked, 2026-11-26; built, type-checked and unit-checked, not run in VS Code: it crosses two tabs, which the harness has not): U1 open AnimProbeD's `man_stands_relaxed_crosses.anims` (a made clip, with its timeline) and put the marker at 1 s; U2 from Game Assets open `base\animations\npc\generic_characters\male_average\interactive_scene\generic_male_average__stand__2h_fists__01.anims` in its own tab; U3 on its clip's row in the Animations tab, click **Use**: the made clip's tab comes forward with `stand__2h_fists__01` on a new track at 1 s, and the game file's tab says so; U4 set the block's **On** to `rightFingers`: the fist on the right hand only, as G3; U5 close the made clip's tab and click Use again: it says to open a made clip first.
 
 **Clip search** (the owner asked, 2026-11-26; built, `scripts/unit.mjs`'s clip index check passes (96 in all), the search over the real index measured at 10 to 30 ms, and the form run in Chrome on the timeline harness with canned answers from the real index: Read Clips, hits, a click filling the form, Open, Add from a row, the form kept through a redraw; not run in VS Code): S1 on the made clip's timeline, **Add…**, **Animation: a game clip…**: a row opens under the bar with the search box focused; S2 type `fist`: it says the clips are not read yet, with **Read Clips**; S3 click it: a notification counts the files, and after about two minutes the list shows `fists_idle`, `idle__fists` and the rest, "this rig" in yellow first, with "528" in the count line; S4 type `fist idle`: fewer rows; click `idle__fists`: the set and clip boxes fill; S5 **Open** on it: `photomode__male__idle.anims` opens beside, at `idle__fists`; S6 back on the made clip, move the time marker, then **Add** on the row: a block at the marker on a new track, the form closed; set its **On** to `rightFingers` (a fist on the right hand); S7 close and reopen VS Code, search again: no Read Clips, the list at once (kept in the cache); S8 Read Clips and Cancel in the notification: nothing kept, Read Clips offered again.
+
+Result, EDGEweb's session by script on 2026-11-27 (EDGEkit 1.143.2 trial on a scratch profile, the VSIX of main 942e29e, REDbridge 0.19.0, game 2.5 read only, a fresh copy of AnimProbeD whose made clip already had a LeftHand move; real clicks, drags and keys over CDP at 1920x1032):
+
+- **Clip search S1 to S8 as expected.** S3: the notification counted to 14,016 files and the list came after 138 s, "this rig" rows first, "60 of 528 shown". S4: `fist idle` 87; a click on `idle__fists` filled the set and clip boxes. S5: Open opened `photomode__male__idle.anims` beside, at `idle__fists`. S6: "Animation idle__fists on track 2, 0.50 s", On set to `rightFingers`. S7: after a restart, the list at once. S8 (run before S3): Cancel at 1,300 files; nothing kept.
+  - **Found in S8:** the form still said Reading… 8 s after Cancel. Fixed the same day (not run again): Cancel answers the page at once, and a batch read again file by file stops at Cancel too.
+  - **Found after S3:** "Read 146,814 clips in 14,016 files" showed in the error colour. Fixed the same day (not run again): it shows as plain news.
+  - Noted, not judged: with On "every bone", `idle__fists` (0.03 s) bends the body forward about 90 degrees, the same in the game file's own tab, so it is the clip (a photo mode hand pose, meant for the fingers).
+- **Use in Timeline U1 to U4 as expected; U5 different.** U3: the made clip's tab came forward with "Animation stand__2h_fists__01 on track 2, 1.00 s", and the game tab said so. U4: On `rightFingers`.
+  - **U5, found:** with the made clip's tab closed, Use said "Webview is disposed", not to open a made clip first. The cause: once a tab is closed, VS Code's `panel.webview` throws, and the clean-up read it, so a closed tab stayed listed as a timeline. Fixed the same day (not run again): the clean-up keeps its own reference.
+  - **Noted, for the owner:** closing the made clip's tab with timeline changes not applied asks nothing, and the changes are lost (they live only in the page until Apply).
+
+Retest: U5 again; S8's Cancel (the form goes back to Read Clips at once); the line after Read Clips in the plain colour.
 
 Found by the owner the same day: on a move with one key in its middle, a click after the key seemed to do nothing, and the ease's label did not read "Into key 1". The click did select the move, but after its last key a move holds, so there was no ease to show, only the "1 key" count; and "Into key 1" was there in the dim text, easy to miss beside the count. Changed: after the last key, the click lights that stretch and the bar says "After key 1: holds it to the clip's end" (its tooltip: the blend after the clip carries it back, and has its own ease); before a key, the bar says "Ease into key N" in plain text, the first stretch's tooltip naming the clip's left edge. Checked in Chrome on the harness: both halves of a 2 s move with its key at 1 s. Then, the owner's word: the stretches between a move's keys are **segments**; the bar reads "Segment into key N", then **Ease** before its list as a blend's bar has it, and "Segment after key N: holds it to the clip's end". Retest R13: click before and after a key.
 
@@ -1651,7 +1678,18 @@ Steps (F5, a sector from Game Assets; the first search after this update reads e
 11. Open `exterior_-22_7_0_0`: about 4 sectors, `exterior_-21_7_0_0` with about 3 things.
 12. Nothing else changed: Frame All, selection, Volume, materials, coarser levels and a layer turned on work as before.
 
-**Result:** not run.
+**Result, EDGEweb's session by script on 2026-11-27** (EDGEkit 1.143.2 trial, the VSIX of main 942e29e, REDbridge 0.19.0, game 2.5 read only; real clicks and keys over CDP): **steps 1 to 7, 9 and 11 as expected; 8, 10 and 12 partly run.**
+
+- 1: `exterior_-11_11_0_1`: "27 sectors reach in" (26 s, the cache mostly warm), `exterior_-6_6_0_1` not listed. 2: "1,215 of this sector's things tested against 3,189 sectors. 1 of this sector's things left out (Copy Diagnostics names them)."
+- 3: Copy Diagnostics gave 713 lines, naming #899, a `worldInstancedOccluderNode` placed at 0, 0, 0 whose copies REDbridge does not read. 4: `exterior_-12_11_0_1`'s row opened 21 Why lines, each titled with both things and their boxes. 5: a click on the first turned the layer on and selected the pair, framed.
+- 6: Helpers 34, Proxies 36, each back to 27. 7: Nearby 10 m: 49; 0: 27.
+- 8: with no Volume, "Area: no box yet"; **Camera** put a 50 m box round the view: 15 sectors. Dragging the box's handles **not run** (not tried by script).
+- 9: Volume off cleared the box; the six numbers typed gave the same 15.
+- 10: Sector: 27 again. Only the half where a layer no longer listed goes off was seen: "a layer still listed stays on" **not exercised**.
+- 11: `exterior_-22_7_0_0`: 4 sectors, `exterior_-21_7_0_0` with 3.
+- 12: only what the other steps used (selection, Volume, a layer on, the search) was seen working; Frame All, materials and coarser levels not looked at.
+
+Left to run: step 8's handles, step 10's layer that stays on, step 12's other controls.
 
 ## Sector search
 
@@ -1661,7 +1699,7 @@ Released in 0.10.17 (the CHANGELOG's "Search a sector to select what it finds"),
 |---|---|---|
 | SR1 | Click one thing, then type `soda` in the search box at the bottom and press Enter | The soda cans are selected (the Selections list fills); the status line says "K things selected (by class, mesh or value); N matches in the file's values, which the same search in Tree lists" (the wording since d21b9a6) |
 | SR2 | Type a class instead, such as `worldEntityNode`, Enter; then `catwalk` | 5 things (the entities); then 18 (the catwalks, cooked meshes); the status line follows. A word that finds nothing says "nothing in the view matches" |
-| SR3 | Clear the box (its × or Esc) | The status line clears; the selection stays |
+| SR3 | Clear the box (Esc) | The status line clears; the selection stays |
 | SR4 | The Selections list's **Back** icon | The selection before the search: the one thing from SR1 |
 | SR5 | Open a mesh (any `.mesh` on 3D) and search a word from its appearances | The matches show in Tree, as before 0.10.17 |
 
@@ -1673,7 +1711,14 @@ Result, EDGEweb's session by script on 2026-11-26 (EDGEkit trial, REDcode at 986
 - **SR2, found:** `worldStaticDecalNode` gave "0 matches", and so did `worldMeshNode`, `worldEntityNode` and `catwalk`, though a catwalk was in the view; `decal` and `StaticDecal` gave 4 things.
   - The class name in the step was wrong: this sector's decals are `worldCookedStaticDecalNode`.
   - The real fault: REDbridge's `cr2w.search` reads values and property names, never a class. It also does not reach a cooked or instanced node's mesh path, so only 16 of the sector's 105 meshes were findable.
-  - Fixed 2026-11-27: the search also selects every thing whose class, mesh or resource holds the words, as `sector.nodes` reads them. Checked against the game through redcode-mcp's `sector_nodes`: `catwalk` 18 things, `worldEntityNode` 5, `decal` 4. SR2 above is rewritten for it. **Not run again.**
+  - Fixed 2026-11-27: the search also selects every thing whose class, mesh or resource holds the words, as `sector.nodes` reads them. Checked against the game through redcode-mcp's `sector_nodes`: `catwalk` 18 things, `worldEntityNode` 5, `decal` 4. SR2 above is rewritten for it.
+
+Result, EDGEweb's session by script on 2026-11-27 (EDGEkit 1.143.2 trial, the VSIX of main 942e29e, REDbridge 0.19.0, game 2.5 read only, `exterior_-22_7_0_0` on 3D): **SR1 to SR5 as expected.**
+
+- SR1: one thing clicked; `soda`: "4 things selected (by class, mesh or value); 12 matches in the file's values, which the same search in Tree lists", the four cans.
+- SR2: `worldEntityNode` 5 things; `catwalk` 18; `decal` 4; `zzzqqq` "nothing in the view matches (by class, mesh or value)", the selection kept.
+- SR3: Esc emptied the box and the line; the selection stayed. No × was found beside the box: the step's "its ×" is wrong, Esc is the way.
+- SR4: Back went back one search at a time, to the thing clicked first. SR5: `soda_can_a.mesh`, `open`: "1 match", the view went to Tree.
 
 ## The tree in its own tab
 
