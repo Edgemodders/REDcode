@@ -1659,7 +1659,7 @@ Released in 0.10.17 (the CHANGELOG's "Search a sector to select what it finds"),
 
 | # | Do | Expected |
 |---|---|---|
-| SR1 | Click one thing, then type `soda` in the search box at the bottom and press Enter | The soda cans are selected (the Selections list fills); the status line says "N matches: K things selected" |
+| SR1 | Click one thing, then type `soda` in the search box at the bottom and press Enter | The soda cans are selected (the Selections list fills); the status line says "K things selected (by class, mesh or value); N matches in the file's values, which the same search in Tree lists" (the wording since d21b9a6) |
 | SR2 | Type a class instead, such as `worldEntityNode`, Enter; then `catwalk` | 5 things (the entities); then 18 (the catwalks, cooked meshes); the status line follows. A word that finds nothing says "nothing in the view matches" |
 | SR3 | Clear the box (its × or Esc) | The status line clears; the selection stays |
 | SR4 | The Selections list's **Back** icon | The selection before the search: the one thing from SR1 |
