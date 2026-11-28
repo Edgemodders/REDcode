@@ -54,8 +54,8 @@ export interface AnimsSource {
   initial?: string;
   /** Shown in the toolbar, such as when the file has unsaved edits. */
   note?: string;
-  /** Says something to the person: a name that is not in the file. */
-  say?: (message: string) => void;
+  /** Says something to the person: a name that is not in the file; with plain true, news that is not a problem. */
+  say?: (message: string, plain?: boolean) => void;
   /** A3: a synced clip's set, from the host. Without it, no set is offered. */
   set?: SetApi;
   /** Plays the set of the animation opened at first (REDcodeApi.openAnimation's set). */
@@ -736,6 +736,8 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
   // ---- the Animation Timeline under the view (docs/design/animation-timeline.md, TL2 to TL4) ----
   /** The timeline's own frames, played in place of the applied clip while its blocks are changed. */
   let previewClip: THREE.AnimationClip | undefined;
+  /** Puts the Curl and Fist sliders where the pose now shown has them (set with the sliders below). */
+  let refreshCurls = () => undefined as void;
   const previewFrames = (f: Frames | null) => {
     const t = action?.time ?? 0;
     if (!f) {
@@ -769,6 +771,7 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
     action.paused = !playing;
     scrub.max = String(duration || 1);
     mixer.update(0);
+    refreshCurls();
     moveDots();
     showTime();
   };
@@ -859,25 +862,43 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
   /** A slider's own bend: the pose it started from, kept while the same slider stays at the same moment. */
   let curl: { key: string; time: number; plan: CurlJoint[]; value: number } | null = null;
   let curling = false;
+  /**
+   * The kept bend still holds: same slider, same moment, and the joints still in that bend. An Undo or another edit
+   * puts them elsewhere, and the slider starts again at 0 (EDGEweb's R4: Fist showed 0.93 after its Undo).
+   */
+  const curlHolds = (key: string, time: number) =>
+    !!curl &&
+    curl.key === key &&
+    curl.time === time &&
+    // 0.01 rad: the pose comes back sampled at the timeline's frames; an Undo moves the joints tens of degrees.
+    curl.plan.every((p) => p.bone.quaternion.angleTo(p.base.clone().multiply(new THREE.Quaternion().setFromAxisAngle(p.axis, curl!.value * p.max))) < 0.01);
+  refreshCurls = () => {
+    if (curling) return;
+    const time = Math.round((action?.time ?? 0) * 1000) / 1000;
+    for (const input of grabBox.querySelectorAll<HTMLInputElement>("input[data-curl]")) {
+      input.value = curlHolds(input.dataset.curl!, time) ? String(curl!.value) : "0";
+    }
+  };
   const curlSlider = (label: string, title: string, side: "Left" | "Right", fingers: string[]) => {
     const key = `${side}:${fingers.join(",")}`;
     const box = el("label", "animcurl");
     box.title = title;
     const input = el("input");
     input.type = "range";
+    input.dataset.curl = key;
     input.min = "-0.3";
     input.max = "1";
     input.step = "0.01";
     const now = () => Math.round((action?.time ?? 0) * 1000) / 1000;
-    input.value = curl && curl.key === key && curl.time === now() ? String(curl.value) : "0";
+    input.value = curlHolds(key, now()) ? String(curl!.value) : "0";
     input.addEventListener("input", () => {
       if (!timeline) return;
       if (!curling) {
         // A new slider or another moment: the bend starts again from the pose now shown.
-        if (!curl || curl.key !== key || curl.time !== now()) curl = { key, time: now(), plan: curlPlan(side, fingers), value: 0 };
-        if (!curl.plan.length) return;
+        const c = curlHolds(key, now()) ? curl! : (curl = { key, time: now(), plan: curlPlan(side, fingers), value: 0 });
+        if (!c.plan.length) return;
         setPlaying(false);
-        timeline.poseStart(curl.plan.map((p) => p.bone.name));
+        timeline.poseStart(c.plan.map((p) => p.bone.name));
         curling = true;
       }
       const v = Number(input.value);
@@ -968,7 +989,7 @@ export async function mountAnimations(container: HTMLElement, source: AnimsSourc
           handles.setMode(mode === "move" ? "translate" : "rotate");
           handles.setSpace(mode === "move" ? "world" : "local");
         },
-        say: (message: string) => source.say?.(message),
+        say: (message: string, plain?: boolean) => source.say?.(message, plain),
         clipSearch: source.clipSearch,
         buildClipIndex: source.buildClipIndex,
         openGameClip: source.openGameClip,

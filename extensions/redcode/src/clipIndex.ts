@@ -85,6 +85,7 @@ export async function buildClipIndex(
       take(await bridge.request<Info>("anims.info", { files: batch }));
     } catch {
       for (const p of batch) {
+        if (cancelled?.()) return undefined;
         try {
           take(await bridge.request<Info>("anims.info", { files: [p] }));
         } catch {

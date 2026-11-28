@@ -481,10 +481,14 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
         { location: vscode.ProgressLocation.Notification, title: "Reading the game's animation clips", cancellable: true },
         async (progress, token) => {
           let last = 0;
-          return buildClipIndex(bridge, cache, (done, total) => {
+          const build = buildClipIndex(bridge, cache, (done, total) => {
             progress.report({ message: `${done} of ${total} files`, increment: ((done - last) / total) * 100 });
             last = done;
           }, () => token.isCancellationRequested);
+          // Cancel answers the pages at once; the read itself stops after the bridge call it is in (EDGEweb's S8:
+          // the form said Reading… for 8 s after Cancel). It writes nothing either way.
+          const cancelled = new Promise<undefined>((resolve) => token.onCancellationRequested(() => resolve(undefined)));
+          return Promise.race([build, cancelled]);
         },
       );
       if (index) {
@@ -687,23 +691,26 @@ export class Cr2wEditorProvider implements vscode.CustomEditorProvider<Cr2wDocum
   readonly onDidShowEditor = this.opened.event;
 
   async resolveCustomEditor(document: Cr2wDocument, panel: vscode.WebviewPanel): Promise<void> {
-    panel.webview.options = { enableScripts: true, localResourceRoots: this.resourceRoots };
-    panel.webview.html = this.html(panel.webview, "editor");
-    const page = this.attachPage(document, panel.webview);
-    this.panelOf.set(panel.webview, panel);
-    this.recentPages = [panel.webview, ...this.recentPages.filter((w) => w !== panel.webview)];
+    // Kept here: once the panel is disposed, panel.webview throws "Webview is disposed", so the clean-up
+    // below must not read it (it did, and a closed tab stayed a timeline for Use in Timeline: EDGEweb's U5).
+    const webview = panel.webview;
+    webview.options = { enableScripts: true, localResourceRoots: this.resourceRoots };
+    webview.html = this.html(webview, "editor");
+    const page = this.attachPage(document, webview);
+    this.panelOf.set(webview, panel);
+    this.recentPages = [webview, ...this.recentPages.filter((w) => w !== webview)];
     const state = panel.onDidChangeViewState((e) => {
       if (e.webviewPanel.active) {
         this.opened.fire(document);
-        this.recentPages = [panel.webview, ...this.recentPages.filter((w) => w !== panel.webview)];
+        this.recentPages = [webview, ...this.recentPages.filter((w) => w !== webview)];
       }
     });
     panel.onDidDispose(() => {
       page.dispose();
       state.dispose();
-      this.panelOf.delete(panel.webview);
-      this.timelinePages.delete(panel.webview);
-      this.recentPages = this.recentPages.filter((w) => w !== panel.webview);
+      this.panelOf.delete(webview);
+      this.timelinePages.delete(webview);
+      this.recentPages = this.recentPages.filter((w) => w !== webview);
     });
     this.opened.fire(document);
   }

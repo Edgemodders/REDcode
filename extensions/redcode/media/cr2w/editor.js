@@ -545,7 +545,7 @@
         // A lip sync set: its character's lines in the Lip Sync editor, at the shown clip's line.
         lipSync: payload.lipSync ? (clip) => request("animsLipSync", { clip }).catch((e) => status(e.message, "error")) : undefined,
         note: payload.dirty ? "Shows the saved file; save to see your edits" : "",
-        say: (message) => status(message, "error"),
+        say: (message, plain) => status(message, plain ? "" : "error"),
         // A3: the synced set of the picked clip, listed, placed and loaded by the host.
         set: {
           list: (clip) => request("animsSet", { clip }),

@@ -36,7 +36,8 @@ export interface TimelineHost {
   chooseStep(index: number): void;
   /** The grabbed bone changed (TL4): the view puts its handles on it, or takes them away. */
   grabbed(bone: string | null, mode: "move" | "turn"): void;
-  say(message: string): void;
+  /** Says something in the status line: a problem, or with plain true, news that is not one. */
+  say(message: string, plain?: boolean): void;
   /** The game clip search (src/clipIndex.ts, searchClips); missing when the clip index was never built. */
   clipSearch?(query: string): Promise<ClipSearch>;
   buildClipIndex?(): Promise<{ files: number; clips: number } | null>;
@@ -677,7 +678,7 @@ export function timelinePanel(host: TimelineHost): TimelinePanel {
           build.textContent = "Reading…";
           host.buildClipIndex!().then(
             (done) => {
-              if (done) host.say(`Read ${done.clips.toLocaleString()} clips in ${done.files.toLocaleString()} files`);
+              if (done) host.say(`Read ${done.clips.toLocaleString()} clips in ${done.files.toLocaleString()} files`, true);
               void search();
             },
             (e) => {
